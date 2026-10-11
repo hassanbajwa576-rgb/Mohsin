@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { expWhere, EXP_FROM, EXP_COLS } from '@/lib/queries';
+import { expWhere, issueRows, EXP_FROM, EXP_COLS } from '@/lib/queries';
 import { addExpense } from '@/lib/actions';
 import { pkr, today, FUNDS, CATEGORIES, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
@@ -11,8 +11,9 @@ export default async function ExpensesPage({ searchParams }) {
   const user = await requireUser();
   const sp = await searchParams;
   const isOM = user.role === 'om';
+  const isSO = user.role === 'so';
   const f = {
-    office: isOM ? sp.office || 'all' : user.office_code,
+    office: isSO ? user.office_code : sp.office || 'all',
     status: sp.status || 'all',
     fund: sp.fund || 'all',
     month: sp.month || '',
@@ -20,45 +21,62 @@ export default async function ExpensesPage({ searchParams }) {
   const w = expWhere(user, f);
   const rows = await q(`SELECT ${EXP_COLS} ${EXP_FROM} ${w.where} ORDER BY e.spent_on DESC, e.id DESC LIMIT 300`, w.params);
   const sum = (st) => rows.filter((r) => r.status === st).reduce((a, r) => a + Number(r.amount), 0);
+  const open = isSO
+    ? (await issueRows(user)).map((i) => ({ ...i, left: i.amount - i.returned - Number(i.spent) })).filter((i) => i.left > 0)
+    : [];
 
   return (
     <>
       <div className='head'>
         <div>
           <h1>Expenses</h1>
-          <p className='muted'>{isOM ? 'All offices' : user.role === 'sso' ? user.office_code + ' office' : 'Your submissions'}</p>
+          <p className='muted'>
+            {isOM ? 'All offices - you review and submit to Accounts' : isSO ? 'Spend from your advances and submit them for adjustment' : 'Both offices - you verify Support Officer expenses'}
+          </p>
         </div>
       </div>
       <Flash sp={sp} />
 
       <details className='card' open>
         <summary>Add expense</summary>
-        <form action={addExpense} className='form'>
-          <label>Date<input type='date' name='spent_on' defaultValue={today()} required /></label>
-          <label>Amount (PKR)<input name='amount' type='number' min='1' step='1' inputMode='numeric' required /></label>
-          <label>Category
-            <select name='category' required>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
-          </label>
-          <label>Paid from
-            <select name='fund' defaultValue='petty'>{Object.entries(FUNDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-          </label>
-          {isOM ? (
-            <label>Office
-              <select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select>
+        {isSO && open.length === 0 ? (
+          <p className='muted'>You have no cash in hand. Ask the Senior Support Officer to issue you an advance first.</p>
+        ) : (
+          <form action={addExpense} className='form'>
+            <label>Date<input type='date' name='spent_on' defaultValue={today()} required /></label>
+            <label>Amount (PKR)<input name='amount' type='number' min='1' step='1' inputMode='numeric' required /></label>
+            <label>Category
+              <select name='category' required>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
             </label>
-          ) : null}
-          <label className='wide'>Description<input name='description' placeholder='What was it for?' /></label>
-          <button className='btn primary' type='submit'>{isOM ? 'Record expense' : 'Submit for approval'}</button>
-        </form>
+            {isSO ? (
+              <label>Paid from advance
+                <select name='issue_id' required>
+                  {open.map((i) => <option key={i.id} value={i.id}>{'#' + i.id + ' - ' + FUNDS[i.fund] + ' - in hand ' + pkr(i.left)}</option>)}
+                </select>
+              </label>
+            ) : (
+              <label>Paid from fund
+                <select name='fund' defaultValue='petty'>{Object.entries(FUNDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+              </label>
+            )}
+            {isOM ? (
+              <label>Office
+                <select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select>
+              </label>
+            ) : null}
+            <label className='wide'>Description<input name='description' placeholder='What was it for?' /></label>
+            <button className='btn primary' type='submit'>{isOM ? 'Record expense' : isSO ? 'Submit for adjustment' : 'Add expense'}</button>
+          </form>
+        )}
       </details>
 
       <form method='get' className='card filters'>
-        {isOM ? (
+        {!isSO ? (
           <label>Office
             <select name='office' defaultValue={f.office}><option value='all'>Both</option><option>LHR</option><option>ISB</option></select>
           </label>
         ) : null}
-        <label>Status
+        <label>Stage
           <select name='status' defaultValue={f.status}>
             <option value='all'>All</option>
             {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -78,7 +96,7 @@ export default async function ExpensesPage({ searchParams }) {
       <div className='card'>
         <ExpenseTable rows={rows} user={user} back='/expenses' />
         <p className='totals'>
-          Approved <b>{pkr(sum('approved'))}</b> - Pending <b>{pkr(sum('pending'))}</b> - Rejected <b>{pkr(sum('rejected'))}</b> ({rows.length} shown)
+          Awaiting verification <b>{pkr(sum('submitted'))}</b> - Awaiting OM review <b>{pkr(sum('verified'))}</b> - Ready for Accounts <b>{pkr(sum('approved'))}</b> - Sent <b>{pkr(sum('sent'))}</b> ({rows.length} shown)
         </p>
       </div>
     </>
