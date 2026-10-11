@@ -23,6 +23,7 @@ export default async function SetupPage({ searchParams }) {
         <label>Email<input name='email' type='email' required autoComplete='username' /></label>
         <label>Password (min 8 characters)<input name='password' type='password' minLength={8} required autoComplete='new-password' /></label>
         <button className='btn primary' type='submit'>Create account</button>
+        <p className='powered'>Powered by <b>Operations</b></p>
       </form>
     </div>
   );
