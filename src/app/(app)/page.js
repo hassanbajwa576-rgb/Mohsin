@@ -4,6 +4,7 @@ import { q } from '@/lib/db';
 import { expWhere, fundSummary, issueRows, EXP_FROM, EXP_COLS } from '@/lib/queries';
 import { pkr, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
+import FundCard from '@/components/FundCard';
 import Flash from '@/components/Flash';
 
 const PIPE = ['submitted', 'verified', 'approved', 'sent'];
@@ -142,10 +143,9 @@ export default async function Dashboard({ searchParams }) {
       <Flash sp={sp} />
 
       <div className='kpis'>
-        <div className='card kpi'><span>Received from Accounts</span><b>{pkr(T.received)}</b></div>
-        <div className='card kpi'><span>Issued to team</span><b>{pkr(T.issued)}</b></div>
-        <div className='card kpi'><span>Total spent</span><b>{pkr(T.spent)}</b></div>
-        <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>Remaining balance</span><b>{pkr(T.remaining)}</b><small>With Operations {pkr(T.pool)} - With SSO {pkr(T.ssoCash)} - With SOs {pkr(T.soCash)}</small></div>
+        <div className='card kpi'><span>Advances received</span><b>{pkr(T.received)}</b></div>
+        <div className='card kpi alt'><span>Expenses so far</span><b>{pkr(T.spent)}</b></div>
+        <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>Remaining CIH till today</span><b>{pkr(T.remaining)}</b><small>With Operations {pkr(T.pool)} - SSO {pkr(T.ssoCash)} - SOs {pkr(T.soCash)}</small></div>
       </div>
       <div className='kpis'>
         <div className='card kpi alt'><span>Spent this month{office === 'all' ? '' : ' (' + office + ')'}</span><b>{pkr(mtd)}</b></div>
@@ -165,12 +165,7 @@ export default async function Dashboard({ searchParams }) {
       <h2>Funds</h2>
       <div className='funds'>
         {funds.rows.map((f) => (
-          <div className='card fund' key={f.key}>
-            <div className='fund-h'><b>{f.label}</b><span className={f.remaining < 0 ? 'neg-t' : ''}>{pkr(f.remaining)}</span></div>
-            <div className='track'><div className='fill' style={{ width: Math.min(100, f.received ? (f.spent / f.received) * 100 : 0) + '%' }} /></div>
-            <small className='muted'>Received {pkr(f.received)} - Spent {pkr(f.spent)}</small>
-            <small className='muted'>Operations {pkr(f.pool)} - SSO {pkr(f.ssoCash)} - SOs {pkr(f.soCash)}</small>
-          </div>
+          <FundCard key={f.key} f={f} />
         ))}
       </div>
 
