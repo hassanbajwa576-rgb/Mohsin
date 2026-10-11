@@ -5,7 +5,7 @@ const font = Montserrat({ subsets: ['latin'], weight: ['400', '500', '600', '700
 
 export const metadata = {
   title: 'PettyTrack - AlphaBOLD',
-  description: 'PettyTrack: petty cash and office expense management for the LHR and ISB offices',
+  description: 'PettyTrack: Expense Management | Pakistan Office',
 };
 export const viewport = { width: 'device-width', initialScale: 1 };
 
