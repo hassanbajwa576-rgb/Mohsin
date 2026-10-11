@@ -18,12 +18,13 @@ export default async function LoginPage({ searchParams }) {
         <div className='logo'>
           <Logo height={40} />
           <h1>PettyTrack</h1>
-          <p className='muted'>Petty cash and office expenses - LHR and ISB</p>
+          <p className='muted'>Expense Management | Pakistan Office</p>
         </div>
         <Flash sp={sp} />
         <label>Email<input name='email' type='email' required autoComplete='username' /></label>
         <label>Password<input name='password' type='password' required autoComplete='current-password' /></label>
         <button className='btn primary' type='submit'>Sign in</button>
+        <p className='powered'>Powered by <b>Operations</b></p>
       </form>
     </div>
   );
