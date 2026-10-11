@@ -384,3 +384,75 @@ export async function readAll() {
   await q('UPDATE pc2_notifications SET is_read = TRUE WHERE user_id = $1', [u.id]);
   redirect('/notifications');
 }
+
+// Any signed-in user can update their own name and email.
+export async function updateProfile(fd) {
+  const u = await need();
+  const name = s(fd, 'name');
+  const email = s(fd, 'email').toLowerCase();
+  if (!name || !email.includes('@')) back('/profile', 'Enter your name and a valid email');
+  const before = { name: u.name, email: u.email };
+  const after = { name, email };
+  const changes = diff(before, after);
+  if (!changes.length) back('/profile', 'No changes were made', true);
+  let failed = false;
+  try {
+    await q('UPDATE pc2_users SET name = $1, email = $2 WHERE id = $3', [name, email, u.id]);
+  } catch {
+    failed = true;
+  }
+  if (failed) back('/profile', 'That email is already in use');
+  await logEvent(u, 'edit', 'user', u.id, 'Updated own profile - ' + changes.join('; '), before, after);
+  back('/profile', 'Profile updated', true);
+}
+
+// Any signed-in user can change their own password (current password required).
+export async function changePassword(fd) {
+  const u = await need();
+  const current = s(fd, 'current');
+  const next = s(fd, 'next');
+  const again = s(fd, 'again');
+  const row = (await q('SELECT password_hash FROM pc2_users WHERE id = $1', [u.id]))[0];
+  if (!row || !bcrypt.compareSync(current, row.password_hash)) back('/profile', 'Your current password is not correct');
+  if (next.length < 8) back('/profile', 'The new password must be at least 8 characters');
+  if (next !== again) back('/profile', 'The two new passwords do not match');
+  await q('UPDATE pc2_users SET password_hash = $1 WHERE id = $2', [bcrypt.hashSync(next, 10), u.id]);
+  await logEvent(u, 'update', 'user', u.id, 'Changed own password');
+  back('/profile', 'Password changed', true);
+}
+
+// Operations Manager edits a team member name, email, role and office.
+export async function editUser(fd) {
+  const u = await need(['om']);
+  const id = Number(s(fd, 'id'));
+  const here = '/team/edit?id=' + id;
+  const before = (await q(
+    `SELECT u.id, u.name, u.email, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
+    [id]
+  ))[0];
+  if (!before) back('/team', 'Team member not found');
+  const name = s(fd, 'name');
+  const email = s(fd, 'email').toLowerCase();
+  if (!name || !email.includes('@')) back(here, 'Enter a name and a valid email');
+  let role = before.role;
+  if (before.role !== 'om') {
+    role = s(fd, 'role');
+    if (!['sso', 'so'].includes(role)) back(here, 'Pick a role');
+  }
+  const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
+  if (!off) back(here, 'Pick an office');
+  const old = { name: before.name, email: before.email, role: before.role, office: before.office };
+  const after = { name, email, role, office: off.code };
+  const changes = diff(old, after);
+  if (!changes.length) back('/team', 'No changes were made', true);
+  let failed = false;
+  try {
+    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4 WHERE id = $5', [name, email, role, off.id, id]);
+  } catch {
+    failed = true;
+  }
+  if (failed) back(here, 'That email is already in use');
+  await logEvent(u, 'edit', 'user', id, 'Edited team member #' + id + ' - ' + changes.join('; '), old, after);
+  if (id !== u.id) await notifyUser(id, u.name + ' updated your profile: ' + changes.join('; '), '/profile');
+  back('/team', 'Team member updated', true);
+}
