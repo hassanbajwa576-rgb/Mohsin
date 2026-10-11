@@ -150,3 +150,11 @@ body{-webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom)}
   .inline{margin-bottom:8px}
   .authcard{padding:22px}
 }
+.cih{margin:0}
+.cih div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+.cih dt{color:var(--mut);font-weight:500}
+.cih dd{margin:0;font-weight:700;color:var(--ink);white-space:nowrap}
+.cih .total{border-bottom:0;border-top:2px solid var(--gold);margin-top:2px;padding-top:12px}
+.cih .total dt{color:var(--ink);font-weight:600}
+.cih .total dd{font-size:18px}
+.cih .total.neg dd{color:var(--bad)}
