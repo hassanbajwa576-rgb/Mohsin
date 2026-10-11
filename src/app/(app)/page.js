@@ -143,9 +143,9 @@ export default async function Dashboard({ searchParams }) {
 
       <div className='kpis'>
         <div className='card kpi'><span>Received from Accounts</span><b>{pkr(T.received)}</b></div>
-        <div className='card kpi'><span>Issued to Support Officers</span><b>{pkr(T.issued)}</b></div>
+        <div className='card kpi'><span>Issued to team</span><b>{pkr(T.issued)}</b></div>
         <div className='card kpi'><span>Total spent</span><b>{pkr(T.spent)}</b></div>
-        <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>Remaining balance</span><b>{pkr(T.remaining)}</b><small>Pool {pkr(T.pool)} - With SO {pkr(T.held)}</small></div>
+        <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>Remaining balance</span><b>{pkr(T.remaining)}</b><small>With Operations {pkr(T.pool)} - With SSO {pkr(T.ssoCash)} - With SOs {pkr(T.soCash)}</small></div>
       </div>
       <div className='kpis'>
         <div className='card kpi alt'><span>Spent this month{office === 'all' ? '' : ' (' + office + ')'}</span><b>{pkr(mtd)}</b></div>
@@ -169,7 +169,7 @@ export default async function Dashboard({ searchParams }) {
             <div className='fund-h'><b>{f.label}</b><span className={f.remaining < 0 ? 'neg-t' : ''}>{pkr(f.remaining)}</span></div>
             <div className='track'><div className='fill' style={{ width: Math.min(100, f.received ? (f.spent / f.received) * 100 : 0) + '%' }} /></div>
             <small className='muted'>Received {pkr(f.received)} - Spent {pkr(f.spent)}</small>
-            <small className='muted'>Pool {pkr(f.pool)} - With Support Officers {pkr(f.held)}</small>
+            <small className='muted'>Operations {pkr(f.pool)} - SSO {pkr(f.ssoCash)} - SOs {pkr(f.soCash)}</small>
           </div>
         ))}
       </div>
