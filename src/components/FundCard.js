@@ -1,4 +1,5 @@
 import { pkr } from '@/lib/fmt';
+import CashSplit from './CashSplit';
 
 // One fund at a glance: what came in, what was spent, and the cash in hand today.
 export default function FundCard({ f }) {
@@ -10,7 +11,7 @@ export default function FundCard({ f }) {
         <div><dt>Expenses so far</dt><dd>{pkr(f.spent)}</dd></div>
         <div className={'total' + (f.remaining < 0 ? ' neg' : '')}><dt>Remaining CIH till today</dt><dd>{pkr(f.remaining)}</dd></div>
       </dl>
-      <small className='muted'>With Operations {pkr(f.pool)} - SSO {pkr(f.ssoCash)} - SOs {pkr(f.soCash)}</small>
+      <CashSplit pool={f.pool} sso={f.ssoCash} so={f.soCash} />
     </div>
   );
 }
