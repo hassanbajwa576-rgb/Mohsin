@@ -23,7 +23,7 @@ export default function Nav({ user, unread = 0 }) {
         </nav>
         <div className='who'>
           <Bell initial={unread} />
-          <span className='me'><b>{user.name}</b><small>{ROLE_LABEL[user.role]} - {user.office_code}</small></span>
+          <Link href='/profile' className='me' title='My profile'><b>{user.name}</b><small>{ROLE_LABEL[user.role]} - {user.office_code}</small></Link>
           <form action={logout}><button className='btn ghost' type='submit'>Sign out</button></form>
         </div>
       </div>
