@@ -4,6 +4,7 @@ import { fundSummary, issueRows } from '@/lib/queries';
 import { addAdvance, deleteAdvance, issueAdvance, recordReturn } from '@/lib/actions';
 import { pkr, today, FUNDS } from '@/lib/fmt';
 import Flash from '@/components/Flash';
+import FundCard from '@/components/FundCard';
 
 export default async function AdvancesPage({ searchParams }) {
   const user = await requireUser();
@@ -39,12 +40,7 @@ export default async function AdvancesPage({ searchParams }) {
           <h2 style={{ marginTop: 0 }}>Received from Accounts</h2>
           <div className='funds'>
             {funds.rows.map((f) => (
-              <div className='card fund' key={f.key}>
-                <div className='fund-h'><b>{f.label}</b><span className={f.pool < 0 ? 'neg-t' : ''}>{pkr(f.pool)}</span></div>
-                <div className='track'><div className='fill' style={{ width: Math.min(100, f.received ? ((f.received - f.pool) / f.received) * 100 : 0) + '%' }} /></div>
-                <small className='muted'>Received {pkr(f.received)} - Issued to SO {pkr(f.issued)} - Spent {pkr(f.spent)}</small>
-                <small className='muted'>With Operations (pool): {pkr(f.pool)} - With SSO: {pkr(f.ssoCash)} - With SOs: {pkr(f.soCash)}</small>
-              </div>
+              <FundCard key={f.key} f={f} />
             ))}
           </div>
 
