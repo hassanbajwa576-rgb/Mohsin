@@ -38,8 +38,10 @@ export async function fundSummary() {
     const ssoExp = sum(exp, key, (r) => r.role === 'sso');
     const soExp = sum(exp, key, (r) => r.role === 'so');
     const spent = omExp + ssoExp + soExp;
-    const pool = received - toSso - soByOm - omExp;
-    const ssoCash = toSso - soBySso - ssoExp;
+    // If the SSO has issued more than they hold, the difference came out of the pool.
+    const ssoRaw = toSso - soBySso - ssoExp;
+    const pool = received - toSso - soByOm - omExp + Math.min(0, ssoRaw);
+    const ssoCash = Math.max(0, ssoRaw);
     const soCash = soByOm + soBySso - soExp;
     return { key, label: FUNDS[key], received, issued: toSso + soByOm, spent, pool, ssoCash, soCash, held: ssoCash + soCash, remaining: received - spent };
   });
