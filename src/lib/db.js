@@ -13,6 +13,8 @@ const DDL = [
   // A batch of reviewed expenses the OM submits back to Accounts.
   `CREATE TABLE IF NOT EXISTS pc2_batches (id SERIAL PRIMARY KEY, created_by INTEGER NOT NULL REFERENCES pc2_users(id), note TEXT NOT NULL DEFAULT '', total INTEGER NOT NULL DEFAULT 0, item_count INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE TABLE IF NOT EXISTS pc2_notifications (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES pc2_users(id) ON DELETE CASCADE, message TEXT NOT NULL, link TEXT NOT NULL DEFAULT '/', is_read BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  // Audit trail of every change made in the app.
+  `CREATE TABLE IF NOT EXISTS pc2_audit (id SERIAL PRIMARY KEY, at TIMESTAMPTZ NOT NULL DEFAULT now(), actor_id INTEGER, actor_name TEXT NOT NULL DEFAULT '', actor_role TEXT NOT NULL DEFAULT '', action TEXT NOT NULL, entity TEXT NOT NULL, entity_id INTEGER, summary TEXT NOT NULL DEFAULT '', before JSONB, after JSONB)`,
   `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS issue_id INTEGER REFERENCES pc2_issues(id)`,
   `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES pc2_batches(id)`,
   `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS verified_by INTEGER REFERENCES pc2_users(id)`,
