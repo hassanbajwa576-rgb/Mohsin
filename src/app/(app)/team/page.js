@@ -1,0 +1,76 @@
+import { requireUser } from '@/lib/auth';
+import { q } from '@/lib/db';
+import { addUser, resetPassword, toggleUser } from '@/lib/actions';
+import { ROLE_LABEL } from '@/lib/fmt';
+import Flash from '@/components/Flash';
+
+export default async function TeamPage({ searchParams }) {
+  const me = await requireUser(['om']);
+  const sp = await searchParams;
+  const users = await q(
+    `SELECT u.id, u.name, u.email, u.role, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 ELSE 2 END, u.name`
+  );
+
+  return (
+    <>
+      <div className='head'>
+        <div>
+          <h1>Team</h1>
+          <p className='muted'>The Operations Manager leads; the SSO (LHR) and SO (ISB) report to the Operations Manager.</p>
+        </div>
+      </div>
+      <Flash sp={sp} />
+
+      <details className='card' open>
+        <summary>Add team member</summary>
+        <form action={addUser} className='form'>
+          <label>Full name<input name='name' required /></label>
+          <label>Email<input name='email' type='email' required /></label>
+          <label>Role
+            <select name='role' defaultValue='so'>
+              <option value='sso'>{ROLE_LABEL.sso}</option>
+              <option value='so'>{ROLE_LABEL.so}</option>
+            </select>
+          </label>
+          <label>Office
+            <select name='office' defaultValue='ISB'><option>LHR</option><option>ISB</option></select>
+          </label>
+          <label>Temporary password<input name='password' type='text' minLength={8} required autoComplete='off' /></label>
+          <button className='btn primary' type='submit'>Add user</button>
+        </form>
+      </details>
+
+      <div className='card'>
+        <div className='tablewrap'>
+          <table>
+            <thead><tr><th>Name</th><th>Role</th><th>Office</th><th>Email</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td><b>{u.name}</b></td>
+                  <td>{ROLE_LABEL[u.role]}</td>
+                  <td><span className='pill'>{u.office}</span></td>
+                  <td>{u.email}</td>
+                  <td><span className={'badge ' + (u.active ? 'approved' : 'rejected')}>{u.active ? 'Active' : 'Inactive'}</span></td>
+                  <td className='act'>
+                    <form action={resetPassword} className='inline'>
+                      <input type='hidden' name='id' value={u.id} />
+                      <input name='password' placeholder='New password' minLength={8} className='sm' autoComplete='off' required />
+                      <button className='btn' type='submit'>Reset</button>
+                    </form>
+                    {u.id !== me.id ? (
+                      <form action={toggleUser} className='inline'>
+                        <input type='hidden' name='id' value={u.id} />
+                        <button className='btn ghost' type='submit'>{u.active ? 'Deactivate' : 'Activate'}</button>
+                      </form>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
