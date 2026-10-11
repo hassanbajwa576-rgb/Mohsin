@@ -5,6 +5,7 @@ import { expWhere, fundSummary, issueRows, EXP_FROM, EXP_COLS } from '@/lib/quer
 import { pkr, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import FundCard from '@/components/FundCard';
+import CashSplit from '@/components/CashSplit';
 import Flash from '@/components/Flash';
 
 const PIPE = ['submitted', 'verified', 'approved', 'sent'];
@@ -145,7 +146,7 @@ export default async function Dashboard({ searchParams }) {
       <div className='kpis'>
         <div className='card kpi'><span>Advances received</span><b>{pkr(T.received)}</b></div>
         <div className='card kpi alt'><span>Expenses so far</span><b>{pkr(T.spent)}</b></div>
-        <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>Remaining CIH till today</span><b>{pkr(T.remaining)}</b><small>With Operations {pkr(T.pool)} - SSO {pkr(T.ssoCash)} - SOs {pkr(T.soCash)}</small></div>
+        <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>Remaining CIH till today</span><b>{pkr(T.remaining)}</b><CashSplit pool={T.pool} sso={T.ssoCash} so={T.soCash} /></div>
       </div>
       <div className='kpis'>
         <div className='card kpi alt'><span>Spent this month{office === 'all' ? '' : ' (' + office + ')'}</span><b>{pkr(mtd)}</b></div>
