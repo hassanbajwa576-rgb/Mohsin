@@ -93,6 +93,12 @@ label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--sl
 .inline{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center}
 .inline .sm{flex:1 1 100%;padding:6px 8px;font-size:13px}
 .inline .btn{padding:5px 10px;font-size:13px}
+.json{margin:6px 0 0;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:3px;font-size:12px;white-space:pre-wrap;word-break:break-word}
+.badge.log-create{background:var(--okbg);color:var(--ok)}
+.badge.log-edit{background:var(--infobg);color:var(--info)}
+.badge.log-update,.badge.log-decision{background:var(--warnbg);color:var(--warn)}
+.badge.log-delete{background:var(--badbg);color:var(--bad)}
+details summary{cursor:pointer}
 .notes{list-style:none;margin:0;padding:0}
 .notes li{border-bottom:1px solid var(--line)}
 .notes li:last-child{border-bottom:0}
