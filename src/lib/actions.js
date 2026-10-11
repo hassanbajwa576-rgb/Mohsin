@@ -264,13 +264,11 @@ export async function issueAdvance(fd) {
   const allowed = u.role === 'om' ? ['so', 'sso'] : ['so'];
   const holder = (await q(`SELECT id, name, role FROM pc2_users WHERE id = $1 AND role = ANY($2::text[]) AND active`, [holderId, allowed]))[0];
   if (!holder) back('/advances', 'Pick a team member to issue to');
-  if (u.role === 'sso') {
-    const mine = await custodyFor(u.id, fund);
-    if (amount > mine) back('/advances', 'You hold only ' + pkr(mine) + ' of ' + FUNDS[fund] + '. The Operations Manager needs to issue funds to you first.');
-  } else {
-    const row = (await fundSummary()).rows.find((r) => r.key === fund);
-    if (amount > row.pool) back('/advances', 'Not enough in ' + FUNDS[fund] + ' (available ' + pkr(row.pool) + ')');
-  }
+  // Both the Operations Manager and the SSO can issue to a Support Officer: the SSO draws on
+  // the cash they hold first, then on the shared pool.
+  const row = (await fundSummary()).rows.find((r) => r.key === fund);
+  const mine = u.role === 'sso' ? Math.max(0, await custodyFor(u.id, fund)) : 0;
+  if (amount > row.pool + mine) back('/advances', 'Not enough in ' + FUNDS[fund] + ' (available ' + pkr(row.pool + mine) + ')');
   const r = await q(
     `INSERT INTO pc2_issues (fund, amount, issued_to, issued_by, issued_on, note) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
     [fund, amount, holder.id, u.id, on, s(fd, 'note')]
