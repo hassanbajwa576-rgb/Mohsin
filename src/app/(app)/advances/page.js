@@ -79,6 +79,7 @@ export default async function AdvancesPage({ searchParams }) {
                         <td className='r nw'><b>{pkr(a.amount)}</b></td>
                         {isOM ? (
                           <td className='act'>
+                            <a href={'/advances/edit?type=received&id=' + a.id} className='btn'>Edit</a>
                             <form action={deleteAdvance} className='inline'>
                               <input type='hidden' name='id' value={a.id} />
                               <button className='btn ghost' type='submit'>Remove</button>
@@ -143,6 +144,7 @@ export default async function AdvancesPage({ searchParams }) {
                       <td className='r nw'><b>{pkr(left)}</b></td>
                       {manage ? (
                         <td className='act'>
+                          {isOM ? <div className='inline'><a href={'/advances/edit?type=issue&id=' + i.id} className='btn'>Edit</a></div> : null}
                           {left > 0 ? (
                             <form action={recordReturn} className='inline'>
                               <input type='hidden' name='issue_id' value={i.id} />
