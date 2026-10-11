@@ -16,7 +16,7 @@ export default async function TeamPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Team</h1>
-          <p className='muted'>The Operations Manager leads; the SSO (LHR) and SO (ISB) report to the Operations Manager.</p>
+          <p className='muted'>The Operations Manager leads and gives the final review. The Senior Support Officer (LHR) manages day-to-day expenses and advances, and the Support Officer (ISB) spends from advances and submits adjustments.</p>
         </div>
         <a href='/team/export' className='btn primary'>Download team list (Excel)</a>
       </div>
@@ -54,6 +54,7 @@ export default async function TeamPage({ searchParams }) {
                   <td>{u.email}</td>
                   <td><span className={'badge ' + (u.active ? 'approved' : 'rejected')}>{u.active ? 'Active' : 'Inactive'}</span></td>
                   <td className='act'>
+                    <div className='inline'><a href={'/team/edit?id=' + u.id} className='btn'>Edit</a></div>
                     <form action={resetPassword} className='inline'>
                       <input type='hidden' name='id' value={u.id} />
                       <input name='password' placeholder='New password' minLength={8} className='sm' autoComplete='off' required />
