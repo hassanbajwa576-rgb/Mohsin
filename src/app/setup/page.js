@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { q } from '@/lib/db';
 import { setup } from '@/lib/actions';
 import Flash from '@/components/Flash';
+import Logo from '@/components/Logo';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +13,11 @@ export default async function SetupPage({ searchParams }) {
   return (
     <div className='auth'>
       <form action={setup} className='card authcard'>
-        <h1>First-time setup</h1>
-        <p className='muted'>Create the Operations Manager account (LHR). You can add the SSO and SO users afterwards from the Team page.</p>
+        <div className='logo'>
+          <Logo height={40} />
+          <h1>PettyTrack setup</h1>
+          <p className='muted'>Create the Operations Manager account (LHR). You can add the SSO and SO users afterwards from the Team page.</p>
+        </div>
         <Flash sp={sp} />
         <label>Full name<input name='name' required /></label>
         <label>Email<input name='email' type='email' required autoComplete='username' /></label>
