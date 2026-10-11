@@ -112,3 +112,41 @@ details summary{cursor:pointer}
 .authcard{width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px;margin:0;padding:28px;border-top:4px solid var(--gold)}
 .authcard .logo{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 @media (max-width:700px){.me{display:none}.nav-in{gap:10px}}
+
+/* mobile */
+body{-webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom)}
+.nav{padding-top:env(safe-area-inset-top)}
+@media (max-width:900px){
+  .nav-in{gap:8px 12px;padding:8px 14px}
+  .links{order:3;flex:0 0 100%;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding-bottom:2px}
+  .links a{white-space:nowrap;padding:10px 12px}
+  .who{margin-left:auto}
+}
+@media (max-width:720px){
+  h1{font-size:22px}
+  .wrap{padding:16px 12px 56px}
+  .card{padding:14px}
+  .head{margin-bottom:12px}
+  .kpis,.pipe,.funds,.grid2{grid-template-columns:1fr}
+  .kpi b{font-size:20px}
+  input,select{font-size:16px;min-height:44px}
+  .btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+  .inline .btn{min-height:40px}
+  .form{grid-template-columns:1fr}
+  .filters label{min-width:0;flex:1 1 140px}
+  .toast{left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:none}
+  .chips{width:100%}
+  .chip{flex:1;text-align:center;padding:10px 8px}
+  .tablewrap{overflow:visible}
+  table,thead,tbody,tr,td{display:block;width:100%}
+  thead{display:none}
+  tr{border:1px solid var(--line);border-radius:4px;padding:4px 12px;margin-bottom:10px;background:#fff}
+  td{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;border-bottom:1px solid var(--line);padding:9px 0;text-align:right}
+  td:last-child{border-bottom:0}
+  td::before{content:attr(data-label);flex:0 0 36%;text-align:left;color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding-top:2px}
+  td.act{display:block;min-width:0;text-align:left}
+  td.act::before{display:none}
+  td.act:empty{display:none}
+  .inline{margin-bottom:8px}
+  .authcard{padding:22px}
+}
