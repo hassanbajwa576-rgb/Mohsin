@@ -158,3 +158,5 @@ body{-webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom)}
 .cih .total dt{color:var(--ink);font-weight:600}
 .cih .total dd{font-size:18px}
 .cih .total.neg dd{color:var(--bad)}
+.split{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px dashed var(--line);font-size:13px;color:var(--mut);display:flex;flex-direction:column;gap:2px}
+.split b{color:var(--ink);font-weight:600}
