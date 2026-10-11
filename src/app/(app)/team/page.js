@@ -18,6 +18,7 @@ export default async function TeamPage({ searchParams }) {
           <h1>Team</h1>
           <p className='muted'>The Operations Manager leads; the SSO (LHR) and SO (ISB) report to the Operations Manager.</p>
         </div>
+        <a href='/team/export' className='btn primary'>Download team list (Excel)</a>
       </div>
       <Flash sp={sp} />
 
