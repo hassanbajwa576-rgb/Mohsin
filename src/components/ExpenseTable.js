@@ -16,6 +16,7 @@ export default function ExpenseTable({ rows, user, back = '/expenses', actions =
         <tbody>
           {rows.map((r) => {
             const canDecide = actions && ((r.status === 'submitted' && (isOM || isSSO)) || (r.status === 'verified' && isOM));
+            const canEdit = actions && isOM && r.status !== 'sent';
             const canDelete = actions && ((isOM && r.status !== 'sent') || (r.status === 'submitted' && r.submitted_by === user.id));
             return (
               <tr key={r.id}>
@@ -40,6 +41,9 @@ export default function ExpenseTable({ rows, user, back = '/expenses', actions =
                       <button name='decision' value='approve' className='btn ok' type='submit'>{isOM ? 'Approve' : 'Verify'}</button>
                       <button name='decision' value='reject' className='btn bad' type='submit'>Reject</button>
                     </form>
+                  ) : null}
+                  {canEdit ? (
+                    <div className='inline'><a href={'/expenses/edit?id=' + r.id} className='btn'>Edit</a></div>
                   ) : null}
                   {canDelete ? (
                     <form action={deleteExpense} className='inline'>
