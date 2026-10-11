@@ -11,7 +11,7 @@ export default async function AppLayout({ children }) {
     <>
       <Nav user={user} unread={unread} />
       <main className='wrap'>{children}</main>
-      <footer className='foot'><b>PettyTrack</b> by AlphaBOLD</footer>
+      <footer className='foot'><b>PettyTrack</b> by AlphaBOLD | Powered by <b>Operations</b></footer>
     </>
   );
 }
