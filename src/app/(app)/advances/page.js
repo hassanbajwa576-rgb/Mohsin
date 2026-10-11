@@ -18,7 +18,7 @@ export default async function AdvancesPage({ searchParams }) {
       ? q(`SELECT a.id, a.fund, a.amount, a.reference, a.note, to_char(a.received_on, 'YYYY-MM-DD') AS received_on FROM pc2_advances a ORDER BY a.received_on DESC, a.id DESC LIMIT 200`)
       : Promise.resolve([]),
     manage
-      ? q(`SELECT u.id, u.name, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.role = 'so' AND u.active ORDER BY u.name`)
+      ? q(`SELECT u.id, u.name, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.role = ANY($1::text[]) AND u.active ORDER BY u.role DESC, u.name`, [isOM ? ['so', 'sso'] : ['so']])
       : Promise.resolve([]),
   ]);
 
@@ -43,7 +43,7 @@ export default async function AdvancesPage({ searchParams }) {
                 <div className='fund-h'><b>{f.label}</b><span className={f.pool < 0 ? 'neg-t' : ''}>{pkr(f.pool)}</span></div>
                 <div className='track'><div className='fill' style={{ width: Math.min(100, f.received ? ((f.received - f.pool) / f.received) * 100 : 0) + '%' }} /></div>
                 <small className='muted'>Received {pkr(f.received)} - Issued to SO {pkr(f.issued)} - Spent {pkr(f.spent)}</small>
-                <small className='muted'>Available to issue (pool): {pkr(f.pool)}</small>
+                <small className='muted'>With Operations (pool): {pkr(f.pool)} - With SSO: {pkr(f.ssoCash)} - With SOs: {pkr(f.soCash)}</small>
               </div>
             ))}
           </div>
@@ -96,18 +96,18 @@ export default async function AdvancesPage({ searchParams }) {
         </>
       ) : null}
 
-      <h2>{manage ? 'Issued to Support Officers' : 'My advances'}</h2>
+      <h2>{manage ? 'Advances issued to the team' : 'My advances'}</h2>
 
       {manage ? (
         <details className='card' open>
           <summary>Issue an advance</summary>
           {officers.length === 0 ? (
-            <p className='muted'>There is no active Support Officer yet. The Operations Manager can add one from the Team page.</p>
+            <p className='muted'>There is no active team member to issue to yet. The Operations Manager can add one from the Team page.</p>
           ) : (
             <form action={issueAdvance} className='form'>
-              <label>Support Officer
+              <label>Issue to
                 <select name='issued_to' required>
-                  {officers.map((o) => <option key={o.id} value={o.id}>{o.name + ' (' + o.office + ')'}</option>)}
+                  {officers.map((o) => <option key={o.id} value={o.id}>{o.name + ' (' + (o.role === 'sso' ? 'SSO' : 'SO') + ', ' + o.office + ')'}</option>)}
                 </select>
               </label>
               <label>From fund
