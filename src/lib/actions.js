@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import { q } from './db';
 import { getUser, startSession, endSession } from './auth';
 import { FUNDS, CATEGORIES, pkr } from './fmt';
-import { fundSummary } from './queries';
+import { fundSummary, custodyFor } from './queries';
 import { notifyRoles, notifyUser } from './notify';
 import { logEvent, diff } from './audit';
 
@@ -260,10 +260,17 @@ export async function issueAdvance(fd) {
   const on = s(fd, 'issued_on');
   if (!(amount > 0) || !FUNDS[fund]) back('/advances', 'Enter a valid fund and amount');
   if (badDate(on)) back('/advances', 'Pick a valid date');
-  const holder = (await q(`SELECT id, name FROM pc2_users WHERE id = $1 AND role = 'so' AND active`, [holderId]))[0];
-  if (!holder) back('/advances', 'Pick a Support Officer');
-  const row = (await fundSummary()).rows.find((r) => r.key === fund);
-  if (amount > row.pool) back('/advances', 'Not enough in ' + FUNDS[fund] + ' (available ' + pkr(row.pool) + ')');
+  // The Operations Manager can issue to the SSO or an SO; the SSO can issue to an SO from cash they hold.
+  const allowed = u.role === 'om' ? ['so', 'sso'] : ['so'];
+  const holder = (await q(`SELECT id, name, role FROM pc2_users WHERE id = $1 AND role = ANY($2::text[]) AND active`, [holderId, allowed]))[0];
+  if (!holder) back('/advances', 'Pick a team member to issue to');
+  if (u.role === 'sso') {
+    const mine = await custodyFor(u.id, fund);
+    if (amount > mine) back('/advances', 'You hold only ' + pkr(mine) + ' of ' + FUNDS[fund] + '. The Operations Manager needs to issue funds to you first.');
+  } else {
+    const row = (await fundSummary()).rows.find((r) => r.key === fund);
+    if (amount > row.pool) back('/advances', 'Not enough in ' + FUNDS[fund] + ' (available ' + pkr(row.pool) + ')');
+  }
   const r = await q(
     `INSERT INTO pc2_issues (fund, amount, issued_to, issued_by, issued_on, note) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
     [fund, amount, holder.id, u.id, on, s(fd, 'note')]
