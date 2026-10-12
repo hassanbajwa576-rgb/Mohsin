@@ -1,10 +1,11 @@
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { fundSummary, issueRows } from '@/lib/queries';
-import { addAdvance, deleteAdvance, issueAdvance, recordReturn } from '@/lib/actions';
+import { addAdvance, deleteAdvance, deleteIssue, issueAdvance, recordReturn } from '@/lib/actions';
 import { pkr, today, FUNDS } from '@/lib/fmt';
 import Flash from '@/components/Flash';
 import FundCard from '@/components/FundCard';
+import ConfirmButton from '@/components/ConfirmButton';
 
 export default async function AdvancesPage({ searchParams }) {
   const user = await requireUser();
@@ -78,7 +79,7 @@ export default async function AdvancesPage({ searchParams }) {
                             <a href={'/advances/edit?type=received&id=' + a.id} className='btn'>Edit</a>
                             <form action={deleteAdvance} className='inline'>
                               <input type='hidden' name='id' value={a.id} />
-                              <button className='btn ghost' type='submit'>Remove</button>
+                              <ConfirmButton className='btn ghost' message='Remove this funds entry? This cannot be undone.'>Remove</ConfirmButton>
                             </form>
                           </td>
                         ) : null}
@@ -140,7 +141,15 @@ export default async function AdvancesPage({ searchParams }) {
                       <td className='r nw'><b>{pkr(left)}</b></td>
                       {manage ? (
                         <td className='act'>
-                          {isOM ? <div className='inline'><a href={'/advances/edit?type=issue&id=' + i.id} className='btn'>Edit</a></div> : null}
+                          {isOM ? (
+                            <div className='inline'>
+                              <a href={'/advances/edit?type=issue&id=' + i.id} className='btn'>Edit</a>
+                              <form action={deleteIssue} className='inline'>
+                                <input type='hidden' name='id' value={i.id} />
+                                <ConfirmButton className='btn ghost' message='Delete this advance? This cannot be undone.'>Delete</ConfirmButton>
+                              </form>
+                            </div>
+                          ) : null}
                           {left > 0 ? (
                             <form action={recordReturn} className='inline'>
                               <input type='hidden' name='issue_id' value={i.id} />
