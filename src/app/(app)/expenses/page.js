@@ -34,7 +34,7 @@ export default async function ExpensesPage({ searchParams }) {
         <div>
           <h1>Expenses</h1>
           <p className='muted'>
-            {isOM ? 'All offices - you review and submit to Accounts' : isSO ? 'Spend from your advances and submit them for adjustment' : 'Both offices - you verify Support Officer expenses'}
+            {isOM ? 'All offices - you review and submit to Accounts' : isSO ? 'Spend from your advances and submit them for adjustment' : 'Both offices - expenses are reviewed and approved by the Operations Manager'}
           </p>
         </div>
       </div>
@@ -109,7 +109,7 @@ export default async function ExpensesPage({ searchParams }) {
       <div className='card'>
         <ExpenseTable rows={rows} user={user} back='/expenses' />
         <p className='totals'>
-          Not yet submitted <b>{pkr(sum('draft'))}</b> - Awaiting verification <b>{pkr(sum('submitted'))}</b> - Awaiting OM review <b>{pkr(sum('verified'))}</b> - Ready for Accounts <b>{pkr(sum('approved'))}</b> - Sent <b>{pkr(sum('sent'))}</b> ({rows.length} shown)
+          Not yet submitted <b>{pkr(sum('draft'))}</b> - Awaiting OM review <b>{pkr(sum('submitted') + sum('verified'))}</b> - Ready for Accounts <b>{pkr(sum('approved'))}</b> - Sent <b>{pkr(sum('sent'))}</b> ({rows.length} shown)
         </p>
       </div>
     </>
