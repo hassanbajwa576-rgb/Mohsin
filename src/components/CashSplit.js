@@ -5,7 +5,7 @@ export default function CashSplit({ pool, sso, so }) {
   return (
     <ul className='split'>
       <li>With Sr. Ops Manager - <b>{pkr(pool)}</b></li>
-      <li>With SSO - <b>{pkr(sso)}</b></li>
+      <li>With Sr. SO - <b>{pkr(sso)}</b></li>
       <li>With SO - <b>{pkr(so)}</b></li>
     </ul>
   );
