@@ -3,8 +3,9 @@ import { logout } from '@/lib/actions';
 import { ROLE_LABEL } from '@/lib/fmt';
 import Logo from './Logo';
 import Bell from './Bell';
+import LangToggle from './LangToggle';
 
-export default function Nav({ user, unread = 0 }) {
+export default function Nav({ user, unread = 0, lang = 'en' }) {
   const links = [['/', 'Dashboard'], ['/expenses', 'Expenses'], ['/advances', 'Advances']];
   if (user.role !== 'so') links.push(['/accounts', 'Accounts']);
   if (user.role === 'om') links.push(['/team', 'Team'], ['/logs', 'Logs']);
@@ -23,6 +24,7 @@ export default function Nav({ user, unread = 0 }) {
           ))}
         </nav>
         <div className='who'>
+          <LangToggle lang={lang} />
           <Bell initial={unread} />
           <Link href='/profile' className='me' title='My profile'><b>{user.name}</b><small>{ROLE_LABEL[user.role]} - {user.office_code}</small></Link>
           <form action={logout}><button className='btn ghost' type='submit'>Sign out</button></form>
