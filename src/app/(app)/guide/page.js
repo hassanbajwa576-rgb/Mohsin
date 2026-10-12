@@ -105,9 +105,14 @@ export default async function GuidePage() {
       <div className='head'>
         <div>
           <h1>Guide</h1>
-          <p className='muted'>{isSO ? 'How PettyTrack works for you' : 'How PettyTrack works - what each heading means and who does what'}</p>
+          <p className='muted'>{isSO ? 'How OpsTrack works for you' : 'How OpsTrack works - what each heading means and who does what'}</p>
         </div>
       </div>
+
+      <details className='card' open>
+        <summary>About OpsTrack</summary>
+        <p className='flow'>OpsTrack has two modules. PettyTrack handles petty cash, advances, expenses and submissions to Accounts. AttendTrack records employee check in, check out and breaks. The module name next to the logo shows where you are.</p>
+      </details>
 
       <div className='card guide-you'>
         <h3>Your role: {ROLE_LABEL[user.role]}</h3>
