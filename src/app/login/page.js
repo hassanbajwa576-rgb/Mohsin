@@ -21,8 +21,8 @@ export default async function LoginPage({ searchParams }) {
         <div className='lang-row'><LangToggle lang={lang} /></div>
         <div className='logo'>
           <Logo height={40} />
-          <h1>PettyTrack</h1>
-          <p className='muted'>Expense Management | Pakistan Office</p>
+          <h1>OpsTrack</h1>
+          <p className='muted'>Expense Management & Attendance | Pakistan Office</p>
         </div>
         <Flash sp={sp} />
         <label>Email<input name='email' type='email' required autoComplete='username' /></label>
