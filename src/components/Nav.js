@@ -22,7 +22,7 @@ export default function Nav({ user, unread = 0, lang = 'en' }) {
         <Link href='/' className='brandbox' aria-label='OpsTrack home'>
           <Logo height={30} />
           <span className='sep' />
-          <span className='brand-name'>Ops<em>Track</em></span>
+          <span className='brand-name' translate='no'>Ops<em>Track</em></span>
           <ModuleBadge />
         </Link>
         <nav className='links'>
