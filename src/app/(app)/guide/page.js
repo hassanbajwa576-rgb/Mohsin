@@ -7,7 +7,7 @@ const TERMS_OPS = [
   ['CIH', 'Cash In Hand: the cash that should be available today. It is all Advances minus all Expenses, up to the end of the selected period. The three lines under it show who is holding the cash.'],
   ['Advances Outstanding', 'Advances not yet cleared with Accounts: Advances minus the expenses already submitted to Accounts. It goes down only when a batch is submitted to Accounts, not when money is spent.'],
   ['Submitted to Accounts', 'Expenses already sent to Accounts in a batch. This is the amount that clears the outstanding advance.'],
-  ['With Sr. Ops Manager / SSO / SO', 'Where the CIH physically sits: still with the Sr. Ops Manager, handed to the SSO, or issued to a Support Officer and not yet spent.'],
+  ['With Sr. Ops Manager / Sr. SO / SO', 'Where the CIH physically sits: still with the Sr. Ops Manager, handed to the Sr. SO, or issued to a Support Officer and not yet spent.'],
 ];
 
 const TERMS_SO = [
@@ -19,7 +19,7 @@ const TERMS_SO = [
 
 const STAGES = [
   ['Not yet submitted', 'The Support Officer has added the expense but is still holding it. It counts against their advance until they submit.'],
-  ['Awaiting SOM review', 'Submitted by the Support Officer (or added by the SSO). The Sr. Ops Manager reviews it and approves or rejects it.'],
+  ['Awaiting SOM review', 'Submitted by the Support Officer (or added by the Sr. SO). The Sr. Ops Manager reviews it and approves or rejects it.'],
   ['Ready for Accounts', 'Approved by the Sr. Ops Manager. It waits to be included in the next batch for Accounts.'],
   ['Sent to Accounts', 'Included in a batch submitted to Accounts. This is final.'],
   ['Rejected', 'Turned down by the Sr. Ops Manager. It is ignored in every total.'],
@@ -45,7 +45,7 @@ const RULES = [
   ['Edit or delete entries', 'Yes', '-', 'Own un-reviewed only'],
   ['Record funds received from Accounts', 'Yes', '-', '-'],
   ['Issue advance to Support Officer', 'Yes', 'Yes', '-'],
-  ['Issue funds to the SSO', 'Yes', '-', '-'],
+  ['Issue funds to the Sr. SO', 'Yes', '-', '-'],
   ['Record cash returned', 'Yes', 'Yes', '-'],
   ['Submit to Accounts', 'Yes', 'Yes', '-'],
   ['Team management and Logs', 'Yes', '-', '-'],
@@ -53,7 +53,7 @@ const RULES = [
 ];
 
 const YOU = {
-  om: 'You lead the process. Record funds received from Accounts, hand cash to the SSO or Support Officers, review and approve every expense, then submit approved expenses to Accounts. You also manage the team and can see the Logs.',
+  om: 'You lead the process. Record funds received from Accounts, hand cash to the Sr. SO or Support Officers, review and approve every expense, then submit approved expenses to Accounts. You also manage the team and can see the Logs.',
   sso: 'You run day-to-day cash: issue advances to Support Officers, record cash they return, add your own expenses and submit the approved batch to Accounts together with the Sr. Ops Manager. You can see both offices but you cannot approve, edit, delete or manage the team.',
   so: 'You spend from the advances issued to you. Add each expense, then press Submit expenses to hand them over for review. Only then does your advance reduce.',
 };
@@ -63,7 +63,7 @@ const EXAMPLE_OPS = [
   'PKR 10,000 is issued to the Support Officer. The total CIH is unchanged, but With SO shows 10,000.',
   'The Support Officer spends 3,000 and adds the expenses: Expenses 3,000, CIH 97,000. The outstanding advance is still 100,000 and their own advance still shows 10,000.',
   'They submit the expenses. Their advance at their end falls to 7,000. The Sr. Ops Manager approves them.',
-  'The Sr. Ops Manager or SSO submits the batch to Accounts: Submitted to Accounts 3,000 and Advances Outstanding falls to 97,000.',
+  'The Sr. Ops Manager or Sr. SO submits the batch to Accounts: Submitted to Accounts 3,000 and Advances Outstanding falls to 97,000.',
   'Accounts reimburses 3,000, recorded as new Advances: CIH and Advances Outstanding are both back to 100,000.',
 ];
 
@@ -146,7 +146,7 @@ export default async function GuidePage() {
       {isOM ? (
         <details className='card'>
           <summary>Who can do what</summary>
-          <Table head={['Action', 'Sr. Ops Manager', 'SSO', 'Support Officer']} rows={RULES} />
+          <Table head={['Action', 'Sr. Ops Manager', 'Sr. SO', 'Support Officer']} rows={RULES} />
         </details>
       ) : null}
     </>
