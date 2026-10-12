@@ -15,42 +15,51 @@ export function expWhere(user, f = {}) {
   if (f.status && f.status !== 'all') add('e.status = ?', f.status);
   if (f.fund && f.fund !== 'all') add('e.fund = ?', f.fund);
   if (f.month) add(`to_char(e.spent_on, 'YYYY-MM') = ?`, f.month);
+  if (f.from) add('e.spent_on >= ?', f.from);
+  if (f.to) add('e.spent_on <= ?', f.to);
   return { where: c.length ? 'WHERE ' + c.join(' AND ') : '', params: p };
 }
 
-// Cash position per fund.
+// Cash position per fund, optionally for a period {from, to} (YYYY-MM-DD).
+//   Flows (received, spent, sent) count only what falls inside the period.
+//   Balances (remaining, outstanding, where the cash sits) are cumulative up to the end of the period.
 //   pool    = cash still with the Operations Manager
 //   ssoCash = cash handed to the Senior Support Officer and not yet spent or passed on
 //   soCash  = cash with Support Officers (advances not yet spent or returned)
-// Advances only clear once expenses are submitted to Accounts:
-//   outstanding = received - sent   (what is still unsettled with Accounts)
+//   outstanding = received - sent   (advances not yet cleared with Accounts)
 //   unsent      = spent - sent      (expenses made but not yet submitted to Accounts)
-export async function fundSummary() {
+export async function fundSummary(opts = {}) {
+  const to = opts.to || null;
+  const from = opts.from || null;
   const [recv, iss, exp] = await Promise.all([
-    q(`SELECT fund, SUM(amount)::float8 AS v FROM pc2_advances GROUP BY fund`),
-    q(`SELECT i.fund, h.role AS holder_role, b.role AS issuer_role, SUM(i.amount - i.returned)::float8 AS v FROM pc2_issues i JOIN pc2_users h ON h.id = i.issued_to JOIN pc2_users b ON b.id = i.issued_by GROUP BY i.fund, h.role, b.role`),
-    q(`SELECT e.fund, u.role AS role, SUM(e.amount)::float8 AS v, COALESCE(SUM(CASE WHEN e.status = 'sent' THEN e.amount END), 0)::float8 AS sent FROM pc2_expenses e JOIN pc2_users u ON u.id = e.submitted_by WHERE e.status <> 'rejected' GROUP BY e.fund, u.role`),
+    q(`SELECT fund, SUM(amount)::float8 AS cum, COALESCE(SUM(amount) FILTER (WHERE $2::date IS NULL OR received_on >= $2::date), 0)::float8 AS inrange FROM pc2_advances WHERE $1::date IS NULL OR received_on <= $1::date GROUP BY fund`, [to, from]),
+    q(`SELECT i.fund, h.role AS holder_role, b.role AS issuer_role, SUM(i.amount - i.returned)::float8 AS v FROM pc2_issues i JOIN pc2_users h ON h.id = i.issued_to JOIN pc2_users b ON b.id = i.issued_by WHERE $1::date IS NULL OR i.issued_on <= $1::date GROUP BY i.fund, h.role, b.role`, [to]),
+    q(`SELECT e.fund, u.role AS role, SUM(e.amount)::float8 AS v, COALESCE(SUM(CASE WHEN e.status = 'sent' THEN e.amount END), 0)::float8 AS sent, COALESCE(SUM(e.amount) FILTER (WHERE $2::date IS NULL OR e.spent_on >= $2::date), 0)::float8 AS vin, COALESCE(SUM(CASE WHEN e.status = 'sent' THEN e.amount END) FILTER (WHERE $2::date IS NULL OR e.spent_on >= $2::date), 0)::float8 AS sentin FROM pc2_expenses e JOIN pc2_users u ON u.id = e.submitted_by WHERE e.status <> 'rejected' AND ($1::date IS NULL OR e.spent_on <= $1::date) GROUP BY e.fund, u.role`, [to, from]),
   ]);
   const sum = (rows, fund, test, f = 'v') => rows.filter((r) => r.fund === fund && test(r)).reduce((a, r) => a + Number(r[f]), 0);
   const rows = Object.keys(FUNDS).map((key) => {
-    const received = sum(recv, key, () => true);
+    const rr = recv.find((r) => r.fund === key);
+    const receivedCum = Number(rr ? rr.cum : 0);
+    const received = Number(rr ? rr.inrange : 0);
     const toSso = sum(iss, key, (r) => r.holder_role === 'sso');
     const soByOm = sum(iss, key, (r) => r.holder_role === 'so' && r.issuer_role !== 'sso');
     const soBySso = sum(iss, key, (r) => r.holder_role === 'so' && r.issuer_role === 'sso');
     const omExp = sum(exp, key, (r) => r.role === 'om');
     const ssoExp = sum(exp, key, (r) => r.role === 'sso');
     const soExp = sum(exp, key, (r) => r.role === 'so');
-    const spent = omExp + ssoExp + soExp;
-    const sent = sum(exp, key, () => true, 'sent');
+    const spentCum = omExp + ssoExp + soExp;
+    const sentCum = sum(exp, key, () => true, 'sent');
+    const spent = sum(exp, key, () => true, 'vin');
+    const sent = sum(exp, key, () => true, 'sentin');
     // If the SSO has issued more than they hold, the difference came out of the pool.
     const ssoRaw = toSso - soBySso - ssoExp;
-    const pool = received - toSso - soByOm - omExp + Math.min(0, ssoRaw);
+    const pool = receivedCum - toSso - soByOm - omExp + Math.min(0, ssoRaw);
     const ssoCash = Math.max(0, ssoRaw);
     const soCash = soByOm + soBySso - soExp;
     return {
       key, label: FUNDS[key], received, issued: toSso + soByOm, spent, sent,
-      unsent: spent - sent, outstanding: received - sent,
-      pool, ssoCash, soCash, held: ssoCash + soCash, remaining: received - spent,
+      unsent: spentCum - sentCum, outstanding: receivedCum - sentCum,
+      pool, ssoCash, soCash, held: ssoCash + soCash, remaining: receivedCum - spentCum,
     };
   });
   const zero = { received: 0, issued: 0, spent: 0, sent: 0, unsent: 0, outstanding: 0, pool: 0, ssoCash: 0, soCash: 0, held: 0, remaining: 0 };
