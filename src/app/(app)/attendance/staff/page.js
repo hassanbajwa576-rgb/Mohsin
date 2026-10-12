@@ -26,7 +26,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
         <summary>Add employee</summary>
         <form action={addStaff} className='form'>
           <label>Full name<input name='name' required /></label>
-          <label>Employee code / badge no.<input name='code' required /></label>
+          <label>Employee code (optional)<input name='code' /></label>
           <label>Department<input name='dept' /></label>
           <label>Office
             <select name='office' defaultValue='LHR'><option>LHR</option><option>ISB</option></select>
@@ -56,7 +56,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
                         <form action={updateStaff} className='form'>
                           <input type='hidden' name='id' value={r.id} />
                           <label>Name<input name='name' defaultValue={r.name} required /></label>
-                          <label>Code<input name='code' defaultValue={r.code} required /></label>
+                          <label>Code<input name='code' defaultValue={r.code} /></label>
                           <label>Department<input name='dept' defaultValue={r.dept} /></label>
                           <label>Office
                             <select name='office' defaultValue={r.office}><option>LHR</option><option>ISB</option></select>
