@@ -227,3 +227,9 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .tier-menu.admin a{color:var(--mut);font-weight:500}
 .wrap .att-tabs{display:none}
 @media (max-width:700px){.nav-top{padding:8px 14px;gap:10px}.tier-in{padding:0 10px}.tier-menu a{padding:12px 9px}.nav-top .brand-name{display:none}}
+
+/* header mobile fix */
+.modseg{flex:none}
+.modseg a{white-space:nowrap}
+.tier-menu{flex:none}
+@media (max-width:700px){.nav-top .sep{display:none}.modseg a{padding:6px 10px;font-size:12.5px}.tier-sep{margin:0 6px}}
