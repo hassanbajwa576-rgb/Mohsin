@@ -11,7 +11,7 @@ export default async function AccountsPage({ searchParams }) {
   const sp = await searchParams;
   const isOM = user.role === 'om';
   const [ready, batches] = await Promise.all([
-    q(`SELECT ${EXP_COLS} ${EXP_FROM} WHERE e.status = 'approved' AND e.batch_id IS NULL ORDER BY e.spent_on, e.id`),
+    q(`SELECT ${EXP_COLS} ${EXP_FROM} WHERE e.status IN ('verified', 'approved') AND e.batch_id IS NULL ORDER BY e.spent_on, e.id`),
     q(`SELECT b.id, b.total, b.item_count, b.note, to_char(b.created_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI') AS created, u.name AS creator FROM pc2_batches b JOIN pc2_users u ON u.id = b.created_by ORDER BY b.id DESC LIMIT 100`),
   ]);
   const total = ready.reduce((a, r) => a + Number(r.amount), 0);
@@ -21,7 +21,7 @@ export default async function AccountsPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Accounts</h1>
-          <p className='muted'>Reviewed expenses are submitted back to the Accounts team in batches</p>
+          <p className='muted'>Verified expenses are submitted to the Accounts team in batches by the Operations Manager or the Senior Support Officer. Support Officers cannot submit to Accounts.</p>
         </div>
       </div>
       <Flash sp={sp} />
@@ -32,13 +32,13 @@ export default async function AccountsPage({ searchParams }) {
         {ready.length ? (
           <p className='totals'>{ready.length} expenses - <b>{pkr(total)}</b></p>
         ) : null}
-        {isOM && ready.length ? (
+        {ready.length ? (
           <form action={submitToAccounts} className='form'>
             <label className='wide'>Note for Accounts<input name='note' placeholder='Optional, e.g. October petty cash settlement' /></label>
             <button className='btn primary' type='submit'>Submit to Accounts</button>
           </form>
         ) : null}
-        {!isOM && ready.length ? <p className='muted'>The Operations Manager submits this batch to Accounts after the final review.</p> : null}
+        
       </div>
 
       <h2>Submitted batches</h2>
