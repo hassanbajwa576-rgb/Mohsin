@@ -1,6 +1,6 @@
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { addStaff, updateStaff, toggleStaff } from '@/lib/att-actions';
+import { addStaff, updateStaff, toggleStaff, importStaff } from '@/lib/att-actions';
 import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +32,19 @@ export default async function AttendanceStaffPage({ searchParams }) {
             <select name='office' defaultValue='LHR'><option>LHR</option><option>ISB</option></select>
           </label>
           <button className='btn primary' type='submit'>Add employee</button>
+        </form>
+      </details>
+
+      <details className='card'>
+        <summary>Upload employees from Excel</summary>
+        <p className='muted'>One row per employee with the columns <b>Name</b>, <b>Department</b>, <b>Office</b> (LHR or ISB) and an optional <b>Code</b>. People already in the list are skipped.</p>
+        <form action={importStaff} className='form'>
+          <label className='wide'>Excel file (.xlsx)<input type='file' name='file' accept='.xlsx' required /></label>
+          <label>Office for rows without one
+            <select name='office' defaultValue='LHR'><option>LHR</option><option>ISB</option></select>
+          </label>
+          <button className='btn primary' type='submit'>Upload employees</button>
+          <a className='btn ghost' href='/attendance/staff/template'>Download template</a>
         </form>
       </details>
 
