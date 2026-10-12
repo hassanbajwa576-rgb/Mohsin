@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -22,7 +23,8 @@ export async function endSession() {
   jar.delete(COOKIE);
 }
 
-export async function getUser() {
+// Memoised per request: the layout and the page share one database lookup.
+export const getUser = cache(async function getUser() {
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
   if (!token) return null;
@@ -38,7 +40,7 @@ export async function getUser() {
     [uid]
   );
   return rows[0] || null;
-}
+});
 
 export async function requireUser(roles) {
   const u = await getUser();
