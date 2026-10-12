@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
-import { reportRows, fmtDur, todayKey, validDate, BREAK_LIMIT_MIN } from '@/lib/att';
+import { reportRows, departments, fmtDur, todayKey, validDate, BREAK_LIMIT_MIN } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +12,10 @@ export default async function AttendanceReportsPage({ searchParams }) {
   let from = validDate(sp.from || '') ? sp.from : today.slice(0, 8) + '01';
   if (from > to) from = to;
   const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
-  const rows = await reportRows({ from, to, office });
-  const qs = new URLSearchParams({ from, to, ...(office ? { office } : {}) }).toString();
+  const depts = await departments();
+  const dept = depts.includes(sp.dept) ? sp.dept : '';
+  const rows = await reportRows({ from, to, office, dept });
+  const qs = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(dept ? { dept } : {}) }).toString();
 
   return (
     <>
@@ -22,7 +24,10 @@ export default async function AttendanceReportsPage({ searchParams }) {
           <h1>Attendance reports</h1>
           <p className='muted'>One row per shift. Worked time is check in to check out, minus breaks.</p>
         </div>
-        <a href={'/attendance/reports/export?' + qs} className='btn primary'>Download (Excel / CSV)</a>
+        <div className='inline'>
+          <a href={'/attendance/reports/xlsx?' + qs} className='btn primary'>Download Excel (.xlsx)</a>
+          <a href={'/attendance/reports/export?' + qs} className='btn ghost'>CSV</a>
+        </div>
       </div>
 
       <form method='get' className='card filters'>
@@ -30,6 +35,12 @@ export default async function AttendanceReportsPage({ searchParams }) {
         <label>To<input type='date' name='to' defaultValue={to} /></label>
         <label>Office
           <select name='office' defaultValue={office}><option value=''>Both</option><option>LHR</option><option>ISB</option></select>
+        </label>
+        <label>Department
+          <select name='dept' defaultValue={dept}>
+            <option value=''>All departments</option>
+            {depts.map((d) => <option key={d}>{d}</option>)}
+          </select>
         </label>
         <button className='btn' type='submit'>Apply</button>
         <Link href='/attendance/reports' className='btn ghost'>Reset</Link>
@@ -40,13 +51,14 @@ export default async function AttendanceReportsPage({ searchParams }) {
           <div className='tablewrap'>
             <table>
               <thead>
-                <tr><th>Date</th><th>Office</th><th>Employee</th><th>In</th><th>Out</th><th>Breaks</th><th>Break time</th><th>Worked</th></tr>
+                <tr><th>Date</th><th>Office</th><th>Department</th><th>Employee</th><th>In</th><th>Out</th><th>Breaks</th><th>Break time</th><th>Worked</th></tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={i}>
                     <td className='nw'>{r.date}</td>
                     <td><span className='pill'>{r.office}</span></td>
+                    <td>{r.dept || '-'}</td>
                     <td><b>{r.name}</b></td>
                     <td className='nw'>{r.in}</td>
                     <td className='nw'>{r.out}</td>
