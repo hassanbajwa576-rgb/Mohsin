@@ -1,9 +1,9 @@
-// Web app manifest so PettyTrack can be installed on a phone home screen.
+// Web app manifest so OpsTrack can be installed on a phone home screen.
 export default function manifest() {
   return {
-    name: 'PettyTrack - AlphaBOLD',
-    short_name: 'PettyTrack',
-    description: 'Expense Management | Pakistan Office',
+    name: 'OpsTrack - AlphaBOLD',
+    short_name: 'OpsTrack',
+    description: 'PettyTrack (expenses) and AttendTrack (attendance) | Pakistan Office',
     start_url: '/',
     scope: '/',
     display: 'standalone',
