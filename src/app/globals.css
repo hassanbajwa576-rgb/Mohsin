@@ -188,3 +188,14 @@ html[dir='rtl'] .flash{border-left:0;border-right:4px solid}
 html[dir='rtl'] .guide-list{padding-left:0;padding-right:20px}
 html[dir='rtl'] .authcard .logo{align-items:flex-start}
 @media (max-width:720px){html[dir='rtl'] td{text-align:left}html[dir='rtl'] td.act{text-align:right}}
+
+/* loading */
+.skeleton{display:flex;flex-direction:column;gap:14px}
+.sk{border-radius:4px;background:linear-gradient(90deg,#ececea 25%,#f6f6f4 37%,#ececea 63%);background-size:400% 100%;animation:ptshimmer 1.3s ease infinite}
+.sk-title{height:30px;width:220px}
+.sk-card{height:110px}
+@keyframes ptshimmer{0%{background-position:100% 50%}100%{background-position:0 50%}}
+/* hide the page until Urdu text is in place (falls back to visible after 1.2s) */
+html[lang='ur'] body{opacity:0;animation:ptreveal .01s 1.2s forwards}
+html[lang='ur'][data-ready] body{opacity:1;animation:none}
+@keyframes ptreveal{to{opacity:1}}
