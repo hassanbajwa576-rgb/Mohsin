@@ -29,15 +29,22 @@ export default async function ProfilePage({ searchParams }) {
         <p className='muted'>{locked ? 'Your name, email, role and office are managed by the Operations Manager.' : 'Role and office are managed by the Operations Manager.'}</p>
       </div>
 
-      <div className='card'>
-        <h3>Change password</h3>
-        <form action={changePassword} className='form'>
-          <label>Current password<input name='current' type='password' autoComplete='current-password' required /></label>
-          <label>New password (min 8 characters)<input name='next' type='password' minLength={8} autoComplete='new-password' required /></label>
-          <label>Repeat new password<input name='again' type='password' minLength={8} autoComplete='new-password' required /></label>
-          <button className='btn primary' type='submit'>Change password</button>
-        </form>
-      </div>
+      {user.role === 'om' ? (
+        <div className='card'>
+          <h3>Change password</h3>
+          <form action={changePassword} className='form'>
+            <label>Current password<input name='current' type='password' autoComplete='current-password' required /></label>
+            <label>New password (min 8 characters)<input name='next' type='password' minLength={8} autoComplete='new-password' required /></label>
+            <label>Repeat new password<input name='again' type='password' minLength={8} autoComplete='new-password' required /></label>
+            <button className='btn primary' type='submit'>Change password</button>
+          </form>
+        </div>
+      ) : (
+        <div className='card'>
+          <h3>Password</h3>
+          <p className='muted'>Your password is managed by the Operations Manager. Ask them if you need it reset.</p>
+        </div>
+      )}
     </>
   );
 }
