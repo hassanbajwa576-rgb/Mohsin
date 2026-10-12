@@ -15,7 +15,7 @@ export default async function AppLayout({ children }) {
       <Nav user={user} unread={unread} lang={lang} />
       <TableLabels />
       <main className='wrap'>{children}</main>
-      <footer className='foot'><b>PettyTrack</b> by AlphaBOLD | Powered by <b>Ops</b></footer>
+      <footer className='foot'><b>OpsTrack</b> by AlphaBOLD | Powered by <b>Ops</b></footer>
     </>
   );
 }
