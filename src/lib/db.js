@@ -31,9 +31,24 @@ const DDL = [
 let sql;
 let ready;
 
+// Bump this whenever DDL changes. The statements above only run when the stored version differs,
+// so a cold start costs one query instead of a couple of dozen.
+const SCHEMA_VERSION = '2026-10-12-1';
+
 async function init() {
   const c = neon(process.env.DATABASE_URL);
-  for (const stmt of DDL) await c.query(stmt);
+  let current = null;
+  try {
+    const r = await c.query(`SELECT value FROM pc2_meta WHERE key = 'schema'`);
+    current = r[0] ? r[0].value : null;
+  } catch {
+    current = null;
+  }
+  if (current !== SCHEMA_VERSION) {
+    for (const stmt of DDL) await c.query(stmt);
+    await c.query(`CREATE TABLE IF NOT EXISTS pc2_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+    await c.query(`INSERT INTO pc2_meta (key, value) VALUES ('schema', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, [SCHEMA_VERSION]);
+  }
   sql = c;
 }
 
