@@ -7,11 +7,11 @@ const TERMS_OPS = [
   ['CIH', 'Cash In Hand: the cash that should be available today. It is all Advances minus all Expenses, up to the end of the selected period. The three lines under it show who is holding the cash.'],
   ['Advances Outstanding', 'Advances not yet cleared with Accounts: Advances minus the expenses already submitted to Accounts. It goes down only when a batch is submitted to Accounts, not when money is spent.'],
   ['Submitted to Accounts', 'Expenses already sent to Accounts in a batch. This is the amount that clears the outstanding advance.'],
-  ['With Ops Manager / SSO / SO', 'Where the CIH physically sits: still with the Ops Manager, handed to the SSO, or issued to a Support Officer and not yet spent.'],
+  ['With Senior Ops Manager / SSO / SO', 'Where the CIH physically sits: still with the Senior Ops Manager, handed to the SSO, or issued to a Support Officer and not yet spent.'],
 ];
 
 const TERMS_SO = [
-  ['Advances', 'Cash issued to you by the Senior Support Officer or the Operations Manager.'],
+  ['Advances', 'Cash issued to you by the Senior Support Officer or the Senior Operations Manager.'],
   ['Expenses', 'Everything you have spent and recorded so far, whether submitted yet or not.'],
   ['Advances Outstanding', 'The advance still held at your end. It reduces only when you submit your expenses.'],
   ['CIH', 'Cash In Hand: the cash you should physically have now. It is your Advances minus all your Expenses.'],
@@ -19,20 +19,20 @@ const TERMS_SO = [
 
 const STAGES = [
   ['Not yet submitted', 'The Support Officer has added the expense but is still holding it. It counts against their advance until they submit.'],
-  ['Awaiting OM review', 'Submitted by the Support Officer (or added by the SSO). The Operations Manager reviews it and approves or rejects it.'],
-  ['Ready for Accounts', 'Approved by the Operations Manager. It waits to be included in the next batch for Accounts.'],
+  ['Awaiting SOM review', 'Submitted by the Support Officer (or added by the SSO). The Senior Operations Manager reviews it and approves or rejects it.'],
+  ['Ready for Accounts', 'Approved by the Senior Operations Manager. It waits to be included in the next batch for Accounts.'],
   ['Sent to Accounts', 'Included in a batch submitted to Accounts. This is final.'],
-  ['Rejected', 'Turned down by the Operations Manager. It is ignored in every total.'],
+  ['Rejected', 'Turned down by the Senior Operations Manager. It is ignored in every total.'],
 ];
 
 const ALL = ['om', 'sso', 'so'];
 const PAGES = [
   { n: 'Dashboard', roles: ALL, d: 'The overall picture: headline numbers, each fund, the expense pipeline, what needs your attention, charts and recent expenses. Use the Year and Month filter to look at a period.', so: 'Your advances, your expenses and what is waiting to be submitted or reviewed.' },
-  { n: 'Expenses', roles: ALL, d: 'Add expenses and follow them through the stages. Filter by office, stage, fund and month. The Operations Manager reviews, edits and deletes here.', so: 'Add each expense you make, and press Submit expenses to hand them over for review. You can remove an expense until it is reviewed.' },
+  { n: 'Expenses', roles: ALL, d: 'Add expenses and follow them through the stages. Filter by office, stage, fund and month. The Senior Operations Manager reviews, edits and deletes here.', so: 'Add each expense you make, and press Submit expenses to hand them over for review. You can remove an expense until it is reviewed.' },
   { n: 'Advances', roles: ALL, d: 'Top part: funds received from Accounts. Bottom part: cash issued to team members, what they have spent and what is still in their hand.', so: 'The advances issued to you, how much you have spent from each and what is left in your hand.' },
-  { n: 'Accounts', roles: ['om', 'sso'], d: 'Approved expenses wait here. The Operations Manager or the Senior Support Officer submits them to Accounts as a batch and can download it as an Excel file.' },
-  { n: 'Team', roles: ['om'], d: 'Operations Manager only: add people, change role, office and details, reset passwords, switch people on or off, download the team list.' },
-  { n: 'Logs', roles: ['om'], d: 'Operations Manager only: a record of every change - who did it, when, and what changed.' },
+  { n: 'Accounts', roles: ['om', 'sso'], d: 'Approved expenses wait here. The Senior Operations Manager or the Senior Support Officer submits them to Accounts as a batch and can download it as an Excel file.' },
+  { n: 'Team', roles: ['om'], d: 'Senior Operations Manager only: add people, change role, office and details, reset passwords, switch people on or off, download the team list.' },
+  { n: 'Logs', roles: ['om'], d: 'Senior Operations Manager only: a record of every change - who did it, when, and what changed.' },
   { n: 'Guide', roles: ALL, d: 'This page.' },
   { n: 'Bell (top right)', roles: ALL, d: 'Shows new messages such as a new expense or advance. A pop-up appears when something new arrives.' },
   { n: 'Your name (top right)', roles: ALL, d: 'Opens My profile, where you can change your password.', rest: 'Opens My profile, where you can see your details.' },
@@ -54,16 +54,16 @@ const RULES = [
 
 const YOU = {
   om: 'You lead the process. Record funds received from Accounts, hand cash to the SSO or Support Officers, review and approve every expense, then submit approved expenses to Accounts. You also manage the team and can see the Logs.',
-  sso: 'You run day-to-day cash: issue advances to Support Officers, record cash they return, add your own expenses and submit the approved batch to Accounts together with the Operations Manager. You can see both offices but you cannot approve, edit, delete or manage the team.',
+  sso: 'You run day-to-day cash: issue advances to Support Officers, record cash they return, add your own expenses and submit the approved batch to Accounts together with the Senior Operations Manager. You can see both offices but you cannot approve, edit, delete or manage the team.',
   so: 'You spend from the advances issued to you. Add each expense, then press Submit expenses to hand them over for review. Only then does your advance reduce.',
 };
 
 const EXAMPLE_OPS = [
-  'Accounts sends PKR 100,000 (Petty Cash). The Operations Manager records it: Advances 100,000, CIH 100,000, Advances Outstanding 100,000.',
+  'Accounts sends PKR 100,000 (Petty Cash). The Senior Operations Manager records it: Advances 100,000, CIH 100,000, Advances Outstanding 100,000.',
   'PKR 10,000 is issued to the Support Officer. The total CIH is unchanged, but With SO shows 10,000.',
   'The Support Officer spends 3,000 and adds the expenses: Expenses 3,000, CIH 97,000. The outstanding advance is still 100,000 and their own advance still shows 10,000.',
-  'They submit the expenses. Their advance at their end falls to 7,000. The Operations Manager approves them.',
-  'The Operations Manager or SSO submits the batch to Accounts: Submitted to Accounts 3,000 and Advances Outstanding falls to 97,000.',
+  'They submit the expenses. Their advance at their end falls to 7,000. The Senior Operations Manager approves them.',
+  'The Senior Operations Manager or SSO submits the batch to Accounts: Submitted to Accounts 3,000 and Advances Outstanding falls to 97,000.',
   'Accounts reimburses 3,000, recorded as new Advances: CIH and Advances Outstanding are both back to 100,000.',
 ];
 
@@ -71,7 +71,7 @@ const EXAMPLE_SO = [
   'You are issued PKR 10,000. Advances 10,000, CIH 10,000, Advances Outstanding 10,000.',
   'You spend 3,000 and add the expenses. Expenses 3,000, CIH 7,000. Advances Outstanding is still 10,000 because they are not submitted yet.',
   'You press Submit expenses. Advances Outstanding falls to 7,000, which matches your CIH.',
-  'The Operations Manager reviews and approves them. If one is rejected you will see it in your list with a note.',
+  'The Senior Operations Manager reviews and approves them. If one is rejected you will see it in your list with a note.',
 ];
 
 function Table({ head, rows }) {
@@ -117,7 +117,7 @@ export default async function GuidePage() {
       {!isSO ? (
         <details className='card' open>
           <summary>The flow in one line</summary>
-          <p className='flow'>Accounts sends funds, the Operations Manager records them as Advances, cash is issued to the team, expenses are added and submitted, the Operations Manager approves, and approved expenses are submitted back to Accounts. Accounts then reimburses, which is recorded as new Advances.</p>
+          <p className='flow'>Accounts sends funds, the Senior Operations Manager records them as Advances, cash is issued to the team, expenses are added and submitted, the Senior Operations Manager approves, and approved expenses are submitted back to Accounts. Accounts then reimburses, which is recorded as new Advances.</p>
         </details>
       ) : null}
 
@@ -146,7 +146,7 @@ export default async function GuidePage() {
       {isOM ? (
         <details className='card'>
           <summary>Who can do what</summary>
-          <Table head={['Action', 'Ops Manager', 'SSO', 'Support Officer']} rows={RULES} />
+          <Table head={['Action', 'Senior Ops Manager', 'SSO', 'Support Officer']} rows={RULES} />
         </details>
       ) : null}
     </>
