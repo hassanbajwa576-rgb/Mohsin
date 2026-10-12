@@ -20,7 +20,7 @@ export default async function SetupPage({ searchParams }) {
         <div className='logo'>
           <Logo height={40} />
           <h1>PettyTrack setup</h1>
-          <p className='muted'>Create the Sr. Ops Manager account (LHR). You can add the SSO and SO users afterwards from the Team page.</p>
+          <p className='muted'>Create the Sr. Ops Manager account (LHR). You can add the Sr. SO and SO users afterwards from the Team page.</p>
         </div>
         <Flash sp={sp} />
         <label>Full name<input name='name' required /></label>
