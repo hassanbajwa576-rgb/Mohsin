@@ -34,7 +34,7 @@ export default async function ExpensesPage({ searchParams }) {
         <div>
           <h1>Expenses</h1>
           <p className='muted'>
-            {isOM ? 'All offices - you review and submit to Accounts' : isSO ? 'Spend from your advances and submit them for adjustment' : 'Both offices - expenses are reviewed and approved by the Senior Operations Manager'}
+            {isOM ? 'All offices - you review and submit to Accounts' : isSO ? 'Spend from your advances and submit them for adjustment' : 'Both offices - expenses are reviewed and approved by the Sr. Ops Manager'}
           </p>
         </div>
       </div>
@@ -44,7 +44,7 @@ export default async function ExpensesPage({ searchParams }) {
         <form action={submitDrafts} className='card submitbar'>
           <div>
             <b>{dq.c} expense(s) - {pkr(dq.v)}</b> waiting to be submitted
-            <div className='muted'>They stay with you (and in your advance) until you submit them to the SSO / Senior Operations Manager.</div>
+            <div className='muted'>They stay with you (and in your advance) until you submit them to the SSO / Sr. Ops Manager.</div>
           </div>
           <button className='btn primary' type='submit'>Submit expenses</button>
         </form>
@@ -53,7 +53,7 @@ export default async function ExpensesPage({ searchParams }) {
       <details className='card' open>
         <summary>Add expense</summary>
         {isSO && open.length === 0 ? (
-          <p className='muted'>You have no cash in hand. Ask the Senior Support Officer to issue you an advance first.</p>
+          <p className='muted'>You have no cash in hand. Ask the Sr. Support Officer to issue you an advance first.</p>
         ) : (
           <form action={addExpense} className='form'>
             <label>Date<input type='date' name='spent_on' defaultValue={today()} required /></label>
