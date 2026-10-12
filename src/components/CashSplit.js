@@ -4,9 +4,9 @@ import { pkr } from '@/lib/fmt';
 export default function CashSplit({ pool, sso, so }) {
   return (
     <ul className='split'>
-      <li><span>With SOM</span><b>{pkr(pool)}</b></li>
-      <li><span>With Sr. SO</span><b>{pkr(sso)}</b></li>
-      <li><span>With SO</span><b>{pkr(so)}</b></li>
+      <li>With Sr. Ops Manager - <b>{pkr(pool)}</b></li>
+      <li>With Sr. SO - <b>{pkr(sso)}</b></li>
+      <li>With SO - <b>{pkr(so)}</b></li>
     </ul>
   );
 }
