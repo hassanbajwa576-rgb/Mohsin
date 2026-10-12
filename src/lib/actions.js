@@ -188,18 +188,44 @@ export async function decideExpense(fd) {
   redirect(to);
 }
 
+// The Operations Manager can delete any expense (including ones already sent to Accounts);
+// others can only delete their own expense while it is still awaiting verification.
 export async function deleteExpense(fd) {
   const u = await need();
   const id = Number(s(fd, 'id'));
   const before = await expSnap(id);
   if (before) {
-    const allowed = u.role === 'om' ? before.status !== 'sent' : before.status === 'submitted' && before.submitted_by === u.id;
+    const allowed = u.role === 'om' || (before.status === 'submitted' && before.submitted_by === u.id);
     if (allowed) {
+      const b = (await q('SELECT batch_id FROM pc2_expenses WHERE id = $1', [id]))[0];
       await q('DELETE FROM pc2_expenses WHERE id = $1', [id]);
-      await logEvent(u, 'delete', 'expense', id, 'Deleted expense #' + id + ': ' + pkr(before.amount) + ' - ' + before.category, expView(before), null);
+      if (b && b.batch_id) {
+        await q('UPDATE pc2_batches SET total = GREATEST(total - $1, 0), item_count = GREATEST(item_count - 1, 0) WHERE id = $2', [before.amount, b.batch_id]);
+      }
+      await logEvent(u, 'delete', 'expense', id, 'Deleted expense #' + id + ': ' + pkr(before.amount) + ' - ' + before.category + (b && b.batch_id ? ' (was in batch #' + b.batch_id + ')' : ''), expView(before), null);
+      if (before.submitted_by !== u.id) {
+        await notifyUser(before.submitted_by, u.name + ' deleted your expense #' + id + ' (' + pkr(before.amount) + ' - ' + before.category + ')', '/expenses');
+      }
     }
   }
   redirect(dest(s(fd, 'back'), '/expenses'));
+}
+
+// Operations Manager removes an advance issued to a team member (only if nothing was spent on it).
+export async function deleteIssue(fd) {
+  const u = await need(['om']);
+  const id = Number(s(fd, 'id'));
+  const before = (await q(
+    `SELECT i.id, i.fund, i.amount, i.returned, i.issued_to, u.name AS holder, (SELECT COUNT(*)::int FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected') AS live FROM pc2_issues i JOIN pc2_users u ON u.id = i.issued_to WHERE i.id = $1`,
+    [id]
+  ))[0];
+  if (!before) back('/advances', 'Advance not found');
+  if (before.live > 0) back('/advances', 'Advance #' + id + ' has ' + before.live + ' expense(s) recorded against it. Delete or reject those first.');
+  await q(`DELETE FROM pc2_expenses WHERE issue_id = $1 AND status = 'rejected'`, [id]);
+  await q('DELETE FROM pc2_issues WHERE id = $1', [id]);
+  await logEvent(u, 'delete', 'advance', id, 'Deleted advance #' + id + ' of ' + pkr(before.amount) + ' (' + FUNDS[before.fund] + ') issued to ' + before.holder, { fund: before.fund, amount: before.amount, holder: before.holder }, null);
+  await notifyUser(before.issued_to, u.name + ' removed advance #' + id + ' (' + pkr(before.amount) + ')', '/advances');
+  back('/advances', 'Advance #' + id + ' deleted', true);
 }
 
 // Funds received from the Accounts team (Petty, BRC, Others) - Operations Manager only.
