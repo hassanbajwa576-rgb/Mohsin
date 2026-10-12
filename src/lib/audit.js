@@ -1,5 +1,6 @@
 import 'server-only';
 import { q } from './db';
+import { FUNDS } from './fmt';
 
 // Record one change in the audit log (who, when, what, before and after).
 export async function logEvent(user, action, entity, entityId, summary, before = null, after = null) {
@@ -36,8 +37,9 @@ const LABELS = {
 export function diff(before, after) {
   const out = [];
   for (const k of Object.keys(after)) {
-    const a = String(before[k] ?? '');
-    const b = String(after[k] ?? '');
+    const nice = (v) => (k === 'fund' && FUNDS[v] ? FUNDS[v] : String(v ?? ''));
+    const a = nice(before[k]);
+    const b = nice(after[k]);
     if (a !== b) out.push((LABELS[k] || k) + ': ' + (a || '-') + ' -> ' + (b || '-'));
   }
   return out;
