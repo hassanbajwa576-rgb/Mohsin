@@ -7,7 +7,7 @@ const TERMS_OPS = [
   ['CIH', 'Cash In Hand: the cash that should be available today. It is all Advances minus all Expenses, up to the end of the selected period. The three lines under it show who is holding the cash.'],
   ['Advances Outstanding', 'Advances not yet cleared with Accounts: Advances minus the expenses already submitted to Accounts. It goes down only when a batch is submitted to Accounts, not when money is spent.'],
   ['Submitted to Accounts', 'Expenses already sent to Accounts in a batch. This is the amount that clears the outstanding advance.'],
-  ['With SOM / Sr. SO / SO', 'Where the CIH physically sits: still with the Sr. Ops Manager, handed to the Sr. SO, or issued to a Support Officer and not yet spent.'],
+  ['With Sr. Ops Manager / Sr. SO / SO', 'Where the CIH physically sits: still with the Sr. Ops Manager, handed to the Sr. SO, or issued to a Support Officer and not yet spent.'],
 ];
 
 const TERMS_SO = [
