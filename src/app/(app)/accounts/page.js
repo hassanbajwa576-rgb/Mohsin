@@ -21,7 +21,7 @@ export default async function AccountsPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Accounts</h1>
-          <p className='muted'>Expenses approved by the Operations Manager are submitted to the Accounts team in batches, by the Operations Manager or the Senior Support Officer. Support Officers cannot submit to Accounts.</p>
+          <p className='muted'>Expenses approved by the Senior Operations Manager are submitted to the Accounts team in batches, by the Senior Operations Manager or the Senior Support Officer. Support Officers cannot submit to Accounts.</p>
         </div>
       </div>
       <Flash sp={sp} />
