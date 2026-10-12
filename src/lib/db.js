@@ -22,7 +22,8 @@ const DDL = [
   `ALTER TABLE pc2_expenses DROP CONSTRAINT IF EXISTS pc2_expenses_status_check`,
   `UPDATE pc2_expenses SET status = 'submitted' WHERE status = 'pending'`,
   `ALTER TABLE pc2_expenses ALTER COLUMN status SET DEFAULT 'submitted'`,
-  `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pc2_expenses_status_v2') THEN ALTER TABLE pc2_expenses ADD CONSTRAINT pc2_expenses_status_v2 CHECK (status IN ('submitted','verified','approved','sent','rejected')); END IF; END $$`,
+  `ALTER TABLE pc2_expenses DROP CONSTRAINT IF EXISTS pc2_expenses_status_v2`,
+  `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pc2_expenses_status_v3') THEN ALTER TABLE pc2_expenses ADD CONSTRAINT pc2_expenses_status_v3 CHECK (status IN ('draft','submitted','verified','approved','sent','rejected')); END IF; END $$`,
 ];
 
 let sql;
