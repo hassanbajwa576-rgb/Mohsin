@@ -170,3 +170,21 @@ body{-webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom)}
 .guide-list{margin:10px 0 0;padding-left:20px}
 .guide-list li{margin-bottom:6px}
 .filters .muted{flex:1 1 100%;margin:0}
+
+/* urdu */
+.lang{padding:6px 12px;font-weight:600}
+.lang-row{display:flex;justify-content:flex-end;margin:-6px 0 -6px}
+html[lang='ur'] body,html[lang='ur'] input,html[lang='ur'] select,html[lang='ur'] button{font-family:var(--font-ur),'Noto Sans Arabic','Segoe UI',Tahoma,sans-serif}
+html[lang='ur'] body{line-height:1.75}
+html[lang='ur'] th{text-transform:none;letter-spacing:0}
+html[dir='rtl'] th{text-align:right}
+html[dir='rtl'] .r{text-align:left}
+html[dir='rtl'] .me{text-align:left}
+html[dir='rtl'] .toast{right:auto;left:20px}
+html[dir='rtl'] .dot{right:auto;left:-2px}
+html[dir='rtl'] .notes .unread{border-left:0;border-right:3px solid var(--gold);padding-left:0;padding-right:10px}
+html[dir='rtl'] .submitbar,html[dir='rtl'] .guide-you{border-left:1px solid var(--line);border-right:4px solid var(--gold)}
+html[dir='rtl'] .flash{border-left:0;border-right:4px solid}
+html[dir='rtl'] .guide-list{padding-left:0;padding-right:20px}
+html[dir='rtl'] .authcard .logo{align-items:flex-start}
+@media (max-width:720px){html[dir='rtl'] td{text-align:left}html[dir='rtl'] td.act{text-align:right}}
