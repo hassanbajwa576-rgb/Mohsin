@@ -78,7 +78,7 @@ async function SoDashboard({ user, sp }) {
         <form action={submitDrafts} className='card submitbar'>
           <div>
             <b>{pkr(acct.draft)}</b> of expenses are ready to submit
-            <div className='muted'>Submitting sends them to the Senior Operations Manager for review and clears them from your advance.</div>
+            <div className='muted'>Submitting sends them to the Sr. Ops Manager for review and clears them from your advance.</div>
           </div>
           <button className='btn primary' type='submit'>Submit expenses</button>
         </form>
@@ -172,7 +172,7 @@ export default async function Dashboard({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Dashboard</h1>
-          <p className='muted'>{office === 'all' ? 'Both offices - LHR and ISB' : office + ' office'} - {isOM ? 'Senior Operations Manager view' : 'Senior Support Officer view'} - {periodLabel}</p>
+          <p className='muted'>{office === 'all' ? 'Both offices - LHR and ISB' : office + ' office'} - {isOM ? 'Sr. Ops Manager view' : 'Sr. Support Officer view'} - {periodLabel}</p>
         </div>
         <div className='chips'>
           {['all', 'LHR', 'ISB'].map((o) => (
