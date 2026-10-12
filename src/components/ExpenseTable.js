@@ -18,7 +18,7 @@ export default function ExpenseTable({ rows, user, back = '/expenses', actions =
           {rows.map((r) => {
             const canDecide = actions && ((r.status === 'submitted' && (isOM || isSSO)) || (r.status === 'verified' && isOM));
             const canEdit = actions && isOM && r.status !== 'sent';
-            const canDelete = actions && (isOM || (['draft', 'submitted'].includes(r.status) && r.submitted_by === user.id));
+            const canDelete = actions && (isOM || (user.role === 'so' && ['draft', 'submitted'].includes(r.status) && r.submitted_by === user.id));
             return (
               <tr key={r.id}>
                 <td className='nw'>{r.spent_on}</td>
