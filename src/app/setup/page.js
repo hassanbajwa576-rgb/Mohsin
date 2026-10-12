@@ -19,7 +19,7 @@ export default async function SetupPage({ searchParams }) {
         <div className='lang-row'><LangToggle lang={lang} /></div>
         <div className='logo'>
           <Logo height={40} />
-          <h1>PettyTrack setup</h1>
+          <h1>OpsTrack setup</h1>
           <p className='muted'>Create the Sr. Ops Manager account (LHR). You can add the Sr. SO and SO users afterwards from the Team page.</p>
         </div>
         <Flash sp={sp} />
