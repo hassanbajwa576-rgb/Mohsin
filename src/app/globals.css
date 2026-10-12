@@ -256,3 +256,15 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .att-seg label{flex-direction:column;align-items:center;gap:1px;line-height:1.25}
 .att-seg label small{display:block;font-size:10.5px;font-weight:400;color:#7a7a7a;text-align:center}
 .att-seg label.on small{color:#333}
+
+/* att office + search */
+.att-field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.att-lbl{font-size:12.5px;font-weight:600;color:var(--slate)}
+.att-office{align-self:flex-start}
+.att-office label{padding:8px 22px}
+.att-search{position:relative}
+.att-list{position:absolute;left:0;right:0;top:100%;z-index:30;margin:2px 0 0;padding:4px;list-style:none;background:#fff;border:1px solid #cfcfcf;border-radius:4px;box-shadow:0 8px 20px rgba(0,0,0,.12);max-height:260px;overflow-y:auto}
+.att-list button{display:block;width:100%;text-align:left;background:none;border:0;padding:10px 10px;border-radius:3px;font-size:14px;cursor:pointer}
+.att-list button:hover,.att-list button:focus{background:#fff3cf}
+.att-none{margin:4px 0 0;font-size:12.5px;color:var(--mut)}
+.att-err{margin:0 0 10px;color:var(--bad);font-size:13px;font-weight:600}
