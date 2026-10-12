@@ -205,3 +205,25 @@ html[lang='ur'][data-ready] body{opacity:1;animation:none}
 .module-badge.attend{background:var(--ink);border-color:var(--ink);color:#fff}
 html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 @media (max-width:480px){.module-badge{margin-left:6px;padding:1px 6px;font-size:10.5px}}
+
+/* header tiers */
+.nav-top{max-width:1220px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:18px}
+.nav-top .brandbox{gap:14px}
+.nav-top .brand-name{font-size:14px;color:var(--mut);letter-spacing:.2px}
+.nav-top .brand-name em{color:var(--gold-d)}
+.nav-top .who{margin-left:auto}
+.tier{border-top:1px solid var(--line);background:#fafaf8}
+.tier-in{max-width:1220px;margin:0 auto;padding:0 20px;display:flex;align-items:center;gap:6px;min-height:46px;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+.tier-sp{flex:1}
+.tier-sep{width:1px;height:20px;background:var(--line);margin:0 10px}
+.modseg{display:inline-flex;border:1px solid #dcdcd6;border-radius:4px;overflow:hidden;background:#fff}
+.modseg a{padding:6px 14px;font-size:13px;font-weight:600;color:var(--slate)}
+.modseg a.on{background:var(--gold);color:#000}
+.modseg a:not(.on):hover{background:var(--surface)}
+.tier-menu{display:flex;gap:2px}
+.tier-menu a{padding:13px 12px;font-size:13.5px;font-weight:500;color:var(--slate);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tier-menu a:hover{color:var(--ink);border-bottom-color:var(--gold)}
+.tier-menu a.on{color:#000;font-weight:600;border-bottom-color:var(--gold)}
+.tier-menu.admin a{color:var(--mut);font-weight:500}
+.wrap .att-tabs{display:none}
+@media (max-width:700px){.nav-top{padding:8px 14px;gap:10px}.tier-in{padding:0 10px}.tier-menu a{padding:12px 9px}.nav-top .brand-name{display:none}}
