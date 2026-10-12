@@ -251,3 +251,8 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .att-form select{font-size:15px}
 .att-form option,.att-form optgroup{font-size:13px;line-height:1.3}
 @media (max-width:700px){.att-form select{font-size:15px;padding:10px 8px}.att-form option,.att-form optgroup{font-size:12.5px}}
+
+/* att hints */
+.att-seg label{flex-direction:column;align-items:center;gap:1px;line-height:1.25}
+.att-seg label small{display:block;font-size:10.5px;font-weight:400;color:#7a7a7a;text-align:center}
+.att-seg label.on small{color:#333}
