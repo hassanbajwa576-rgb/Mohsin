@@ -6,5 +6,5 @@ import { usePathname } from 'next/navigation';
 export default function ModuleBadge() {
   const path = usePathname() || '';
   const attend = path === '/attendance' || path.indexOf('/attendance/') === 0;
-  return <span className={'module-badge' + (attend ? ' attend' : '')}>{attend ? 'AttendTrack' : 'PettyTrack'}</span>;
+  return <span translate='no' className={'module-badge' + (attend ? ' attend' : '')}>{attend ? 'AttendTrack' : 'PettyTrack'}</span>;
 }
