@@ -44,7 +44,7 @@ export default async function ExpensesPage({ searchParams }) {
         <form action={submitDrafts} className='card submitbar'>
           <div>
             <b>{dq.c} expense(s) - {pkr(dq.v)}</b> waiting to be submitted
-            <div className='muted'>They stay with you (and in your advance) until you submit them to the SSO / Sr. Ops Manager.</div>
+            <div className='muted'>They stay with you (and in your advance) until you submit them to the Sr. SO / Sr. Ops Manager.</div>
           </div>
           <button className='btn primary' type='submit'>Submit expenses</button>
         </form>
