@@ -8,6 +8,7 @@ export default function Bell({ initial }) {
   const [count, setCount] = useState(initial);
   const [toast, setToast] = useState(null);
   const prev = useRef(initial);
+  const seen = useRef(false);
 
   useEffect(() => {
     let stop = false;
@@ -16,13 +17,15 @@ export default function Bell({ initial }) {
         const r = await fetch('/api/notifications', { cache: 'no-store' });
         if (!r.ok || stop) return;
         const j = await r.json();
-        if (j.unread > prev.current && j.latest) setToast(j.latest);
+        if (seen.current && j.unread > prev.current && j.latest) setToast(j.latest);
+        seen.current = true;
         prev.current = j.unread;
         setCount(j.unread);
       } catch {
         // network hiccup - try again on the next tick
       }
     }
+    tick();
     const t = setInterval(tick, 15000);
     return () => { stop = true; clearInterval(t); };
   }, []);
