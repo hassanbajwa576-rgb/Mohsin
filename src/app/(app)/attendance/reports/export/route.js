@@ -23,9 +23,9 @@ export async function GET(req) {
   const office = ['LHR', 'ISB'].includes(sp.get('office')) ? sp.get('office') : '';
   const rows = await reportRows({ from, to, office });
   const mins = (ms) => Math.round(ms / 60000);
-  const header = ['Date', 'Office', 'Employee', 'Code', 'Check In', 'Check Out', 'Breaks', 'Break minutes', 'Worked minutes'];
+  const header = ['Date', 'Office', 'Employee', 'Check In', 'Check Out', 'Breaks', 'Break minutes', 'Worked minutes'];
   const lines = [header.map(cell).join(',')].concat(
-    rows.map((r) => [r.date, r.office, r.name, r.code, r.in, r.out, r.breaks, mins(r.breakMs), mins(r.workedMs)].map(cell).join(','))
+    rows.map((r) => [r.date, r.office, r.name, r.in, r.out, r.breaks, mins(r.breakMs), mins(r.workedMs)].map(cell).join(','))
   );
   return new Response('﻿' + lines.join('\r\n') + '\r\n', {
     headers: {
