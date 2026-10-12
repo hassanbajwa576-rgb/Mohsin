@@ -112,7 +112,7 @@ export async function addExpense(fd) {
   const msg = u.name + ' added an expense: ' + pkr(amount) + ' - ' + category + (description ? ' (' + description + ')' : '');
   if (u.role === 'so') await notifyRoles(['om', 'sso'], msg + ' (kept with them until submitted)', '/expenses?status=draft', u.id);
   else if (u.role === 'sso') await notifyRoles(['om'], msg, '/expenses?status=submitted', u.id);
-  back('/expenses', u.role === 'so' ? 'Expense added. It stays with you until you submit your expenses to the SSO or Sr. Ops Manager.' : 'Expense recorded', true);
+  back('/expenses', u.role === 'so' ? 'Expense added. It stays with you until you submit your expenses to the Sr. SO or Sr. Ops Manager.' : 'Expense recorded', true);
 }
 
 // Sr. Ops Manager edits any expense that has not yet been sent to Accounts.
@@ -278,7 +278,7 @@ export async function deleteAdvance(fd) {
   back('/advances', 'Entry removed', true);
 }
 
-// SSO issues cash from a petty fund to a Support Officer.
+// Sr. SO issues cash from a petty fund to a Support Officer.
 export async function issueAdvance(fd) {
   const u = await need(['sso', 'om']);
   const holderId = Number(s(fd, 'issued_to'));
@@ -287,11 +287,11 @@ export async function issueAdvance(fd) {
   const on = s(fd, 'issued_on');
   if (!(amount > 0) || !FUNDS[fund]) back('/advances', 'Enter a valid fund and amount');
   if (badDate(on)) back('/advances', 'Pick a valid date');
-  // The Sr. Ops Manager can issue to the SSO or an SO; the SSO can issue to an SO from cash they hold.
+  // The Sr. Ops Manager can issue to the Sr. SO or an SO; the Sr. SO can issue to an SO from cash they hold.
   const allowed = u.role === 'om' ? ['so', 'sso'] : ['so'];
   const holder = (await q(`SELECT id, name, role FROM pc2_users WHERE id = $1 AND role = ANY($2::text[]) AND active`, [holderId, allowed]))[0];
   if (!holder) back('/advances', 'Pick a team member to issue to');
-  // Both the Sr. Ops Manager and the SSO can issue to a Support Officer: the SSO draws on
+  // Both the Sr. Ops Manager and the Sr. SO can issue to a Support Officer: the Sr. SO draws on
   // the cash they hold first, then on the shared pool.
   const row = (await fundSummary()).rows.find((r) => r.key === fund);
   const mine = u.role === 'sso' ? Math.max(0, await custodyFor(u.id, fund)) : 0;
@@ -353,16 +353,16 @@ export async function recordReturn(fd) {
   back('/advances', 'Return recorded', true);
 }
 
-// A Support Officer hands their expenses to the SSO / Sr. Ops Manager (never to Accounts).
+// A Support Officer hands their expenses to the Sr. SO / Sr. Ops Manager (never to Accounts).
 // Only now do the expenses count against the advance they hold.
 export async function submitDrafts() {
   const u = await need(['so']);
   const rows = await q(`UPDATE pc2_expenses SET status = 'submitted' WHERE submitted_by = $1 AND status = 'draft' RETURNING id, amount`, [u.id]);
   if (!rows.length) back('/', 'You have no expenses waiting to be submitted');
   const total = rows.reduce((a, r) => a + Number(r.amount), 0);
-  await logEvent(u, 'update', 'expense', null, 'Submitted ' + rows.length + ' expenses (' + pkr(total) + ') for adjustment to the SSO / Sr. Ops Manager', null, { ids: rows.map((r) => r.id), total });
+  await logEvent(u, 'update', 'expense', null, 'Submitted ' + rows.length + ' expenses (' + pkr(total) + ') for adjustment to the Sr. SO / Sr. Ops Manager', null, { ids: rows.map((r) => r.id), total });
   await notifyRoles(['sso', 'om'], u.name + ' submitted ' + rows.length + ' expenses (' + pkr(total) + ') for adjustment', '/expenses?status=submitted', u.id);
-  back('/', 'Submitted ' + rows.length + ' expenses (' + pkr(total) + ') to the SSO and Sr. Ops Manager', true);
+  back('/', 'Submitted ' + rows.length + ' expenses (' + pkr(total) + ') to the Sr. SO and Sr. Ops Manager', true);
 }
 
 // Only the Sr. Ops Manager or the Sr. Support Officer can submit to Accounts.
@@ -456,7 +456,7 @@ export async function updateProfile(fd) {
 // Any signed-in user can change their own password (current password required).
 export async function changePassword(fd) {
   const u = await need();
-  // Passwords of the SSO and Support Officers are managed by the Sr. Ops Manager (Team page).
+  // Passwords of the Sr. SO and Support Officers are managed by the Sr. Ops Manager (Team page).
   if (u.role !== 'om') back('/profile', 'Your password is managed by the Sr. Ops Manager');
   const current = s(fd, 'current');
   const next = s(fd, 'next');
