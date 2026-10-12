@@ -57,6 +57,7 @@ function translate(text) {
 function fixNode(n) {
   if (n.nodeType === 3) {
     if (n.parentNode && SKIP[n.parentNode.nodeName]) return;
+    if (n.parentElement && n.parentElement.closest('[translate="no"]')) return;
     const t = n.nodeValue;
     if (!t || !hasLatin(t)) return;
     if (DONE.get(n) === t) return;
@@ -65,6 +66,7 @@ function fixNode(n) {
     if (o !== t) n.nodeValue = o;
   } else if (n.nodeType === 1) {
     if (SKIP[n.nodeName]) return;
+    if (n.getAttribute('translate') === 'no') return;
     ATTRS.forEach((a) => {
       const v = n.getAttribute(a);
       if (v && hasLatin(v)) {
