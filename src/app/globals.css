@@ -199,3 +199,5 @@ html[dir='rtl'] .authcard .logo{align-items:flex-start}
 html[lang='ur'] body{opacity:0;animation:ptreveal .01s 1.2s forwards}
 html[lang='ur'][data-ready] body{opacity:1;animation:none}
 @keyframes ptreveal{to{opacity:1}}
+.split li{display:flex;justify-content:space-between;gap:16px}
+.split li span{color:#9a9a9a}
