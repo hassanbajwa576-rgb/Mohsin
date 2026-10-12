@@ -16,7 +16,7 @@ export default async function TeamPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Team</h1>
-          <p className='muted'>The Senior Operations Manager leads and gives the final review. The Senior Support Officer (LHR) manages day-to-day expenses and advances, and the Support Officer (ISB) spends from advances and submits adjustments.</p>
+          <p className='muted'>The Sr. Ops Manager leads and gives the final review. The Sr. Support Officer (LHR) manages day-to-day expenses and advances, and the Support Officer (ISB) spends from advances and submits adjustments.</p>
         </div>
         <a href='/team/export' className='btn primary'>Download team list (Excel)</a>
       </div>
