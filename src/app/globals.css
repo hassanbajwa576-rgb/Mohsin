@@ -164,3 +164,9 @@ body{-webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom)}
 .badge.draft{background:#eee;color:#555}
 .submitbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-left:4px solid var(--gold)}
 .submitbar .muted{margin-top:2px}
+.guide-you{border-left:4px solid var(--gold);background:#fffdf5}
+.guide-you p{margin:0}
+.flow{margin:10px 0 0}
+.guide-list{margin:10px 0 0;padding-left:20px}
+.guide-list li{margin-bottom:6px}
+.filters .muted{flex:1 1 100%;margin:0}
