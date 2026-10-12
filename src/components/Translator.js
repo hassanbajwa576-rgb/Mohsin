@@ -79,6 +79,7 @@ function fixNode(n) {
 export default function Translator() {
   useEffect(() => {
     fixNode(document.body);
+    document.documentElement.setAttribute('data-ready', '1');
     const mo = new MutationObserver((muts) => {
       muts.forEach((m) => {
         if (m.type === 'characterData') fixNode(m.target);
