@@ -25,7 +25,7 @@ export const UR = {
   'Password': 'پاس ورڈ',
   'Powered by': 'زیر انتظام',
   'Ops': 'آپس',
-  'PettyTrack setup': 'پیٹی ٹریک سیٹ اپ',
+  'OpsTrack setup': 'اوپس ٹریک سیٹ اپ',
   'Expense Management | Pakistan Office': 'اخراجات کا انتظام | پاکستان آفس',
   'New': 'نیا',
 
@@ -200,7 +200,7 @@ export const UR = {
   'stage': 'مرحلہ',
 
   // ---- logs and notifications
-  'Every change made in PettyTrack - who did it, when, and what changed (times in Pakistan time)': 'پیٹی ٹریک میں کی گئی ہر تبدیلی - کس نے کی، کب کی اور کیا بدلا (پاکستانی وقت)',
+  'Every change made in OpsTrack - who did it, when, and what changed (times in Pakistan time)': 'اوپس ٹریک میں کی گئی ہر تبدیلی - کس نے کی، کب کی اور کیا بدلا (پاکستانی وقت)',
   'Area': 'شعبہ',
   'Done by': 'کس نے کیا',
   'When': 'کب',
@@ -343,8 +343,8 @@ export const UR = {
   'Accounts reimburses 3,000, recorded as new Advances: CIH and Advances Outstanding are both back to 100,000.': 'اکاؤنٹس 3,000 واپس ادا کرتا ہے، جو نئے ایڈوانس کے طور پر درج ہوتے ہیں: CIH اور باقی ایڈوانس دونوں دوبارہ 100,000 ہو جاتے ہیں۔',
 
   // ---- role-specific guide wording
-  'How PettyTrack works for you': 'پیٹی ٹریک آپ کے لیے کیسے کام کرتا ہے',
-  'How PettyTrack works - what each heading means and who does what': 'پیٹی ٹریک کیسے کام کرتا ہے - ہر عنوان کا مطلب اور کون کیا کرتا ہے',
+  'How OpsTrack works for you': 'اوپس ٹریک آپ کے لیے کیسے کام کرتا ہے',
+  'How OpsTrack works - what each heading means and who does what': 'اوپس ٹریک کیسے کام کرتا ہے - ہر عنوان کا مطلب اور کون کیا کرتا ہے',
   'Your dashboard headings': 'آپ کے ڈیش بورڈ کے عنوانات',
   'Cash issued to you by the Sr. Support Officer or the Sr. Ops Manager.': 'آپ کو Sr. سپورٹ آفیسر یا Sr. آپس مینیجر کی طرف سے جاری نقد رقم۔',
   'Everything you have spent and recorded so far, whether submitted yet or not.': 'اب تک آپ کا خرچ کیا ہوا اور درج شدہ ہر خرچ، چاہے جمع کرایا ہو یا نہیں۔',
@@ -362,4 +362,8 @@ export const UR = {
   'Your password is managed by the Sr. Ops Manager. Ask them if you need it reset.': 'آپ کا پاس ورڈ Sr. آپس مینیجر کے زیر انتظام ہے۔ ری سیٹ کی ضرورت ہو تو ان سے کہیں۔',
   'Your password is managed by the Sr. Ops Manager': 'آپ کا پاس ورڈ Sr. آپس مینیجر کے زیر انتظام ہے',
   'Your details are managed by the Sr. Ops Manager': 'آپ کی تفصیلات Sr. آپس مینیجر کے زیر انتظام ہیں',
+  // ---- OpsTrack platform wording
+  'Expense Management & Attendance | Pakistan Office': 'اخراجات اور حاضری کا انتظام | پاکستان آفس',
+  'About OpsTrack': 'اوپس ٹریک کے بارے میں',
+  'OpsTrack has two modules. PettyTrack handles petty cash, advances, expenses and submissions to Accounts. AttendTrack records employee check in, check out and breaks. The module name next to the logo shows where you are.': 'اوپس ٹریک کے دو ماڈیول ہیں۔ PettyTrack پیٹی کیش، ایڈوانس، اخراجات اور اکاؤنٹس کو جمع کرانے کا کام سنبھالتا ہے۔ AttendTrack ملازمین کی حاضری، آمد، روانگی اور وقفے درج کرتا ہے۔ لوگو کے ساتھ ماڈیول کا نام بتاتا ہے کہ آپ کہاں ہیں۔',
 };
