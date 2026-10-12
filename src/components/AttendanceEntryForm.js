@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from 'react';
 
-const KINDS = [['in', 'Check In'], ['out', 'Check Out'], ['break_out', 'Break Out'], ['break_in', 'Break In']];
+// [value, label, short explanation]
+const KINDS = [
+  ['in', 'Check In', 'starts work'],
+  ['out', 'Check Out', 'leaves for the day'],
+  ['break_out', 'Break Out', 'goes out for a break'],
+  ['break_in', 'Break In', 'back from the break'],
+];
 
 // Current date / time in Pakistan, so the form always starts at "now" even if it was left open.
 function nowPk() {
@@ -55,10 +61,11 @@ export default function AttendanceEntryForm({ options, action }) {
       </label>
 
       <div className='att-seg' role='radiogroup' aria-label='Entry type'>
-        {KINDS.map(([k, label]) => (
+        {KINDS.map(([k, label, hint]) => (
           <label key={k} className={kind === k ? 'on' : ''}>
             <input type='radio' name='kind' value={k} checked={kind === k} onChange={() => setKind(k)} required />
             <span>{label}</span>
+            <small>{hint}</small>
           </label>
         ))}
       </div>
