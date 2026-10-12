@@ -26,7 +26,7 @@ export default async function ProfilePage({ searchParams }) {
           <label>Office<input value={user.office_code} disabled readOnly /></label>
           {locked ? null : <button className='btn primary' type='submit'>Save details</button>}
         </form>
-        <p className='muted'>{locked ? 'Your name, email, role and office are managed by the Operations Manager.' : 'Role and office are managed by the Operations Manager.'}</p>
+        <p className='muted'>{locked ? 'Your name, email, role and office are managed by the Senior Operations Manager.' : 'Role and office are managed by the Senior Operations Manager.'}</p>
       </div>
 
       {user.role === 'om' ? (
@@ -42,7 +42,7 @@ export default async function ProfilePage({ searchParams }) {
       ) : (
         <div className='card'>
           <h3>Password</h3>
-          <p className='muted'>Your password is managed by the Operations Manager. Ask them if you need it reset.</p>
+          <p className='muted'>Your password is managed by the Senior Operations Manager. Ask them if you need it reset.</p>
         </div>
       )}
     </>
