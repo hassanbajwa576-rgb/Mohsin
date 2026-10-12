@@ -8,7 +8,7 @@ import Flash from '@/components/Flash';
 export const dynamic = 'force-dynamic';
 
 export default async function AttendanceLogsPage({ searchParams }) {
-  const user = await requireUser(['om', 'sso']);
+  const user = await requireUser(['om']);
   const sp = await searchParams;
   const day = validDate(sp.date || '') ? sp.date : todayKey();
   const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
@@ -60,7 +60,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
                     <td>{r.by_name || '-'}</td>
                     <td className='nw muted'>{(dateKey(r.entered_ms) === day ? '' : dateKey(r.entered_ms) + ' ') + fmtTime(r.entered_ms)}</td>
                     <td className='act'>
-                      {user.role === 'om' || (r.entered_by === user.id && r.fresh) ? (
+                      {user.role === 'om' ? (
                         <form action={removeEntry} className='inline'>
                           <input type='hidden' name='id' value={r.id} />
                           <input type='hidden' name='back' value='/attendance/logs' />
@@ -76,7 +76,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
         ) : (
           <p className='muted'>No entries on this day.</p>
         )}
-        <p className='totals'>{rows.length} entries. The Sr. Ops Manager can delete any entry; the Sr. SO can delete their own within 30 minutes.</p>
+        <p className='totals'>{rows.length} entries. Only the Sr. Ops Manager can delete entries from here.</p>
       </div>
     </>
   );
