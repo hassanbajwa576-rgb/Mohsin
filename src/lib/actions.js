@@ -195,7 +195,9 @@ export async function deleteExpense(fd) {
   const id = Number(s(fd, 'id'));
   const before = await expSnap(id);
   if (before) {
-    const allowed = u.role === 'om' || (['draft', 'submitted'].includes(before.status) && before.submitted_by === u.id);
+    // Delete is a manager action: only the Operations Manager, or a Support Officer retracting their
+    // own expense that has not been verified yet. The Senior Support Officer cannot delete entries.
+    const allowed = u.role === 'om' || (u.role === 'so' && ['draft', 'submitted'].includes(before.status) && before.submitted_by === u.id);
     if (allowed) {
       const b = (await q('SELECT batch_id FROM pc2_expenses WHERE id = $1', [id]))[0];
       await q('DELETE FROM pc2_expenses WHERE id = $1', [id]);
