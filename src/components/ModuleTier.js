@@ -39,6 +39,7 @@ export default function ModuleTier({ role }) {
           </span>
         )}
         {guard ? null : <span className='tier-sep' />}
+        <div className='tier-scroll'>
         <nav className='tier-menu'>
           {menu.map(([href, label]) => (
             <Link key={href} href={href} className={on(href) ? 'on' : ''}>{label}</Link>
@@ -50,6 +51,7 @@ export default function ModuleTier({ role }) {
             <Link key={href} href={href} className={on(href) ? 'on' : ''}>{label}</Link>
           ))}
         </nav>
+        </div>
       </div>
     </div>
   );
