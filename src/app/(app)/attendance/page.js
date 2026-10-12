@@ -79,7 +79,7 @@ export default async function AttendancePage({ searchParams }) {
 
       <div className='card'>
         <h3>Add entry</h3>
-        <AttendanceEntryForm options={options} action={addEntry} />
+        <AttendanceEntryForm options={options} action={addEntry} defaultOffice={user.office_code} />
       </div>
 
       {!see && mine.length > 0 ? (
