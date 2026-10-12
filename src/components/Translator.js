@@ -8,6 +8,9 @@ import { UR } from '@/lib/ur';
 const KEYS = Object.keys(UR).sort((a, b) => b.length - a.length);
 const SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, NOSCRIPT: 1 };
 const ATTRS = ['placeholder', 'title', 'aria-label'];
+// Last text we wrote into each node. Some translations contain their own English key (for example
+// CIH), so without this the observer would keep re-translating its own output.
+const DONE = new WeakMap();
 
 function isLetter(c) {
   return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
@@ -56,7 +59,9 @@ function fixNode(n) {
     if (n.parentNode && SKIP[n.parentNode.nodeName]) return;
     const t = n.nodeValue;
     if (!t || !hasLatin(t)) return;
+    if (DONE.get(n) === t) return;
     const o = translate(t);
+    DONE.set(n, o);
     if (o !== t) n.nodeValue = o;
   } else if (n.nodeType === 1) {
     if (SKIP[n.nodeName]) return;
