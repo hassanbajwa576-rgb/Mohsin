@@ -3,8 +3,7 @@ export const CATEGORIES = ['Tea & Refreshments', 'Stationery', 'Utilities', 'Cle
 export const ROLE_LABEL = { om: 'Operations Manager', sso: 'Senior Support Officer', so: 'Support Officer' };
 export const STATUS_LABEL = {
   draft: 'Not yet submitted',
-  submitted: 'Awaiting verification',
-  verified: 'Awaiting OM review',
+  submitted: 'Awaiting OM review',
   approved: 'Ready for Accounts',
   sent: 'Sent to Accounts',
   rejected: 'Rejected',
