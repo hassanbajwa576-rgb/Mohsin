@@ -129,10 +129,20 @@ export async function dutyContacts(user) {
 }
 
 /** One row per shift (check in .. check out) between two dates (inclusive), Karachi time. */
-export async function reportRows({ from, to, office }) {
+export async function reportRows({ from, to, office, dept }) {
+  const cond = [];
+  const params = [];
+  if (office) {
+    params.push(office);
+    cond.push('o.code = $' + params.length);
+  }
+  if (dept) {
+    params.push(dept);
+    cond.push('s.dept = $' + params.length);
+  }
   const staff = await q(
-    `SELECT s.id, s.code, s.name, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${office ? 'WHERE o.code = $1' : ''} ORDER BY o.code, s.name`,
-    office ? [office] : []
+    `SELECT s.id, s.code, s.name, s.dept, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''} ORDER BY o.code, s.dept, s.name`,
+    params
   );
   if (!staff.length) return [];
   const evs = await q(
@@ -147,11 +157,17 @@ export async function reportRows({ from, to, office }) {
       const d = dateKey(x.start);
       if (d < from || d > to) continue;
       rows.push({
-        date: d, office: s.office, name: s.name, code: s.code,
+        date: d, office: s.office, dept: s.dept, name: s.name, code: s.code,
         in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : '(on duty)',
         breaks: x.breakCount, breakMs: x.breakMs, workedMs: x.workedMs, over: x.breakMs > limit,
       });
     }
   }
   return rows.sort((a, b) => (a.date + a.in).localeCompare(b.date + b.in) || a.name.localeCompare(b.name));
+}
+
+/** Distinct department names (for the report filter). */
+export async function departments() {
+  const r = await q("SELECT DISTINCT dept FROM pc2_staff WHERE dept <> '' ORDER BY dept");
+  return r.map((x) => x.dept);
 }
