@@ -4,10 +4,11 @@ import { ROLE_LABEL } from '@/lib/fmt';
 import Logo from './Logo';
 import Bell from './Bell';
 import LangToggle from './LangToggle';
+import ModuleBadge from './ModuleBadge';
 
 export default function Nav({ user, unread = 0, lang = 'en' }) {
   const guard = user.role === 'guard';
-  // Guards only use OpsTrack (attendance); everyone else gets it alongside PettyTrack.
+  // Guards only use AttendTrack (attendance); everyone else gets it alongside PettyTrack.
   const links = guard ? [['/attendance', 'Attendance']] : [['/', 'Dashboard'], ['/expenses', 'Expenses'], ['/advances', 'Advances']];
   if (!guard) {
     if (user.role !== 'so') links.push(['/accounts', 'Accounts']);
@@ -18,10 +19,11 @@ export default function Nav({ user, unread = 0, lang = 'en' }) {
   return (
     <header className='nav'>
       <div className='nav-in'>
-        <Link href='/' className='brandbox' aria-label='PettyTrack home'>
+        <Link href='/' className='brandbox' aria-label='OpsTrack home'>
           <Logo height={30} />
           <span className='sep' />
-          <span className='brand-name'>Petty<em>Track</em></span>
+          <span className='brand-name'>Ops<em>Track</em></span>
+          <ModuleBadge />
         </Link>
         <nav className='links'>
           {links.map(([href, label]) => (
