@@ -76,7 +76,7 @@ export async function soAccount(userId) {
   return { advances: a, spent, settled, draft: spent - settled, outstanding: a - settled, cash: a - spent };
 }
 
- in a fund: received from the OM,
+// Cash one Senior Support Officer currently holds in a fund: received from the OM,
 // minus what was passed on to Support Officers, minus what they spent themselves.
 export async function custodyFor(userId, fund) {
   const r = await q(
