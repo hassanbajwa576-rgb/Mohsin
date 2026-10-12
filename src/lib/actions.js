@@ -456,6 +456,8 @@ export async function updateProfile(fd) {
 // Any signed-in user can change their own password (current password required).
 export async function changePassword(fd) {
   const u = await need();
+  // Passwords of the SSO and Support Officers are managed by the Operations Manager (Team page).
+  if (u.role !== 'om') back('/profile', 'Your password is managed by the Operations Manager');
   const current = s(fd, 'current');
   const next = s(fd, 'next');
   const again = s(fd, 'again');
