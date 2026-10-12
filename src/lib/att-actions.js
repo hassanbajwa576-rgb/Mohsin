@@ -146,3 +146,101 @@ export async function toggleStaff(fd) {
   if (r[0]) await logEvent(u, 'update', 'staff', id, (r[0].active ? 'Activated ' : 'Deactivated ') + r[0].name);
   back('/attendance/staff', 'Employee updated', true);
 }
+
+// Bulk-add employees from an Excel sheet with the columns Name, Department, Office, Code (optional).
+export async function importStaff(fd) {
+  const u = await need(['om']);
+  const page = '/attendance/staff';
+  const file = fd.get('file');
+  const defOffice = s(fd, 'office');
+  if (!file || typeof file === 'string' || !file.size) back(page, 'Choose an Excel file (.xlsx) first');
+  if (file.size > 900000) back(page, 'That file is too large. Keep it under 900 KB.');
+
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = new ExcelJS.Workbook();
+  let ws = null;
+  try {
+    await wb.xlsx.load(Buffer.from(await file.arrayBuffer()));
+    ws = wb.worksheets[0] || null;
+  } catch {
+    ws = null;
+  }
+  if (!ws) back(page, 'That file could not be read. Save it as an Excel Workbook (.xlsx) and try again.');
+
+  const txt = (v) => {
+    if (v == null) return '';
+    if (typeof v === 'object') {
+      if (Array.isArray(v.richText)) return v.richText.map((r) => r.text).join('').trim();
+      if (v.text != null) return String(v.text).trim();
+      if (v.result != null) return String(v.result).trim();
+      return '';
+    }
+    return String(v).trim();
+  };
+  const grid = [];
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    grid.push(Array.from({ length: row.cellCount }, (_, i) => txt(row.getCell(i + 1).value)));
+  });
+  if (grid.length < 2) back(page, 'The sheet has no employee rows. Use the template: Name, Department, Office, Code.');
+
+  const head = grid[0].map((h) => h.toLowerCase());
+  const find = (names) => head.findIndex((h) => names.includes(h));
+  const iName = find(['name', 'employee', 'employee name', 'full name']);
+  const iDept = find(['department', 'dept', 'department name']);
+  const iOffice = find(['office', 'location', 'branch']);
+  const iCode = find(['code', 'code (optional)', 'employee code', 'emp code', 'id', 'employee id']);
+  if (iName < 0) back(page, 'The first row must have a Name column. Download the template to see the layout.');
+  const data = grid.slice(1);
+  if (data.length > 500) back(page, 'Please upload at most 500 employees at a time.');
+
+  const OFFICE = { lhr: 'LHR', lahore: 'LHR', isb: 'ISB', islamabad: 'ISB' };
+  const offices = await q('SELECT id, code FROM pc2_offices');
+  const officeId = Object.fromEntries(offices.map((o) => [o.code, o.id]));
+  const have = await q('SELECT lower(name) AS n, office_id, code FROM pc2_staff');
+  const seen = new Set(have.map((h) => h.office_id + '|' + h.n));
+  const codes = new Set(have.map((h) => h.code));
+  let next = 0;
+  have.forEach((h) => {
+    if (/^[0-9]+$/.test(h.code)) next = Math.max(next, Number(h.code));
+  });
+
+  const add = [];
+  let dup = 0;
+  let bad = 0;
+  for (const r of data) {
+    const name = (r[iName] || '').trim();
+    if (!name) continue;
+    const oc = iOffice >= 0 && r[iOffice] ? OFFICE[r[iOffice].toLowerCase()] : defOffice;
+    const oid = officeId[oc];
+    if (!oid) {
+      bad += 1;
+      continue;
+    }
+    const key = oid + '|' + name.toLowerCase();
+    if (seen.has(key)) {
+      dup += 1;
+      continue;
+    }
+    let code = iCode >= 0 ? (r[iCode] || '').trim() : '';
+    if (code && codes.has(code)) {
+      dup += 1;
+      continue;
+    }
+    if (!code) {
+      do {
+        next += 1;
+        code = String(next).padStart(3, '0');
+      } while (codes.has(code));
+    }
+    seen.add(key);
+    codes.add(code);
+    add.push([code, name, iDept >= 0 ? (r[iDept] || '').trim() : '', oid]);
+  }
+
+  if (add.length) {
+    const vals = add.map((_, i) => '($' + (i * 4 + 1) + ',$' + (i * 4 + 2) + ',$' + (i * 4 + 3) + ',$' + (i * 4 + 4) + ')').join(',');
+    await q('INSERT INTO pc2_staff (code, name, dept, office_id) VALUES ' + vals + ' ON CONFLICT (code) DO NOTHING', add.flat());
+  }
+  await logEvent(u, 'create', 'staff', null, 'Imported ' + add.length + ' employees from Excel (' + dup + ' already existed, ' + bad + ' skipped)', null, { imported: add.length, duplicates: dup, invalid: bad });
+  back(page, 'Imported ' + add.length + ' employee(s)' + (dup ? ', ' + dup + ' already in the list' : '') + (bad ? ', ' + bad + ' row(s) without a valid office' : ''), add.length > 0);
+}
