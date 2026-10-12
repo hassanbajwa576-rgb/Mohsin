@@ -30,7 +30,7 @@ export default async function AttendancePage({ searchParams }) {
   const options = rows.map((r) => ({
     id: r.id,
     office: r.office,
-    label: r.name + ' (#' + r.code + ') - ' + ({ off: 'Off', on: 'On', break: 'Break' })[r.state],
+    label: r.name,
     suggested: SUGGEST[r.state],
   }));
 
@@ -130,7 +130,7 @@ export default async function AttendancePage({ searchParams }) {
                   <tbody>
                     {board.map((r) => (
                       <tr key={r.id}>
-                        <td><b>{r.name}</b> <span className='muted'>#{r.code}</span></td>
+                        <td><b>{r.name}</b></td>
                         <td><span className='pill'>{r.office}</span></td>
                         <td><span className={'st ' + (r.over ? 'over' : r.state === 'on' ? 'on' : r.state === 'break' ? 'break' : '')}>{r.over ? 'Break overdue' : STATE_LABEL[r.state]}</span></td>
                         <td className='nw'>{r.since ? (dateKey(r.since) === today ? '' : dateKey(r.since) + ' ') + fmtTime(r.since) : '-'}</td>
