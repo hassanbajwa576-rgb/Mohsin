@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { expWhere, fundSummary, issueRows, EXP_FROM, EXP_COLS } from '@/lib/queries';
-import { pkr, STATUS_LABEL } from '@/lib/fmt';
+import { pkr, STATUS_LABEL, FUNDS } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import FundCard from '@/components/FundCard';
 import CashSplit from '@/components/CashSplit';
@@ -82,7 +82,7 @@ async function SoDashboard({ user, sp }) {
               <tbody>
                 {issues.map((i) => (
                   <tr key={i.id}>
-                    <td>{i.id}</td><td className='nw'>{i.issued_on}</td><td>{i.fund}</td>
+                    <td>{i.id}</td><td className='nw'>{i.issued_on}</td><td>{FUNDS[i.fund]}</td>
                     <td className='r nw'>{pkr(i.amount)}</td><td className='r nw'>{pkr(i.spent)}</td><td className='r nw'>{pkr(i.returned)}</td>
                     <td className='r nw'><b>{pkr(i.amount - i.returned - Number(i.spent))}</b></td>
                   </tr>
