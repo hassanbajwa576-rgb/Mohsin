@@ -199,3 +199,9 @@ html[dir='rtl'] .authcard .logo{align-items:flex-start}
 html[lang='ur'] body{opacity:0;animation:ptreveal .01s 1.2s forwards}
 html[lang='ur'][data-ready] body{opacity:1;animation:none}
 @keyframes ptreveal{to{opacity:1}}
+
+/* module badge */
+.module-badge{display:inline-block;margin-left:10px;padding:2px 9px;border-radius:3px;background:var(--surface);border:1px solid var(--line);color:var(--slate);font-size:11.5px;font-weight:600;letter-spacing:.2px;white-space:nowrap}
+.module-badge.attend{background:var(--ink);border-color:var(--ink);color:#fff}
+html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
+@media (max-width:480px){.module-badge{margin-left:6px;padding:1px 6px;font-size:10.5px}}
