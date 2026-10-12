@@ -28,7 +28,7 @@ export default async function LoginPage({ searchParams }) {
         <label>Email<input name='email' type='email' required autoComplete='username' /></label>
         <label>Password<input name='password' type='password' required autoComplete='current-password' /></label>
         <button className='btn primary' type='submit'>Sign in</button>
-        <p className='powered'>Powered by <b>Operations</b></p>
+        <p className='powered'>Powered by <b>Ops</b></p>
       </form>
     </div>
   );
