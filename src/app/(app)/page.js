@@ -69,9 +69,10 @@ async function SoDashboard({ user, sp }) {
       </div>
       <Flash sp={sp} />
       <div className='kpis'>
-        <div className={'card kpi' + (inHand < 0 ? ' neg' : '')}><span>Cash in hand</span><b>{pkr(inHand)}</b></div>
-        <div className='card kpi alt'><span>Advances received</span><b>{pkr(received)}</b></div>
-        <div className='card kpi alt'><span>Spent so far</span><b>{pkr(spent)}</b></div>
+        <div className='card kpi'><span>Advances received (from SSO / Ops Manager)</span><b>{pkr(acct.advances)}</b></div>
+        <div className='card kpi alt'><span>Expenses made so far</span><b>{pkr(acct.spent)}</b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
+        <div className='card kpi'><span>Advance still at your end</span><b>{pkr(acct.outstanding)}</b><small>Reduces only when you submit your expenses</small></div>
+        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>Cash in hand</span><b>{pkr(acct.cash)}</b></div>
       </div>
       {acct.draft > 0 ? (
         <form action={submitDrafts} className='card submitbar'>
