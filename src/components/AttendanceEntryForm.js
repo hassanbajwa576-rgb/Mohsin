@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // [value, label, short explanation]
 const KINDS = [
@@ -28,17 +28,27 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
   const [kind, setKind] = useState('in');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [canListen, setCanListen] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recRef = useRef(null);
 
   useEffect(() => {
     const n = nowPk();
     setDate(n.date);
     setTime(n.time);
+    // Voice search needs the browser speech service (Chrome, Edge, Android; limited on iPhone).
+    setCanListen(!!(window.SpeechRecognition || window.webkitSpeechRecognition));
   }, []);
 
   // Employees of the chosen office, narrowed by what has been typed.
   const inOffice = options.filter((o) => o.office === office);
   const q = text.trim().toLowerCase();
-  const matches = (q ? inOffice.filter((o) => o.label.toLowerCase().includes(q)) : inOffice).slice(0, 8);
+  const words = q.split(' ').filter(Boolean);
+  let found = q ? inOffice.filter((o) => words.every((w) => o.label.toLowerCase().includes(w))) : inOffice;
+  if (q && found.length === 0 && words.length > 1) {
+    found = inOffice.filter((o) => words.some((w) => o.label.toLowerCase().includes(w)));
+  }
+  const matches = found.slice(0, 8);
   // A single remaining match counts as chosen, so typing "zub" is enough.
   const effectiveId = picked || (q && matches.length === 1 ? String(matches[0].id) : '');
   const chosen = options.find((o) => String(o.id) === effectiveId);
@@ -60,6 +70,45 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
     setText(o.label);
     setOpen(false);
     setErr('');
+  }
+
+  // Say the employee name: the words fill the search box and the list narrows down.
+  function listen() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    if (listening && recRef.current) {
+      recRef.current.stop();
+      return;
+    }
+    const rec = new SR();
+    rec.lang = 'en-PK';
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.onresult = (e) => {
+      let heard = '';
+      for (let i = 0; i < e.results.length; i++) heard += e.results[i][0].transcript;
+      setText(heard.replace(/[.,!?]/g, '').trim());
+      setPicked('');
+      setOpen(true);
+    };
+    rec.onerror = (e) => {
+      setListening(false);
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setErr('The microphone is blocked. Allow it for this site in your browser settings.');
+      else if (e.error === 'no-speech') setErr('Did not hear anything. Tap the microphone and say the name.');
+      else setErr('Voice search is not available right now. Type the name instead.');
+    };
+    rec.onend = () => setListening(false);
+    recRef.current = rec;
+    setErr('');
+    setPicked('');
+    setText('');
+    setOpen(true);
+    try {
+      rec.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
   }
 
   function useNow() {
@@ -95,11 +144,12 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
 
       <div className='att-field att-search'>
         <label htmlFor='att-emp' className='att-lbl'>Employee</label>
+        <div className='att-inputrow'>
         <input
           id='att-emp'
           type='text'
           value={text}
-          placeholder={'Type a name in ' + office}
+          placeholder={listening ? 'Listening... say the name' : 'Type a name in ' + office}
           autoComplete='off'
           onChange={(e) => {
             setText(e.target.value);
@@ -110,6 +160,22 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
         />
+        {canListen ? (
+          <button
+            type='button'
+            className={'att-mic' + (listening ? ' on' : '')}
+            onClick={listen}
+            aria-label={listening ? 'Stop listening' : 'Say the employee name'}
+            title='Say the employee name (uses your browser speech service)'
+          >
+            <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+              <rect x='9' y='3' width='6' height='11' rx='3' />
+              <path d='M5 11a7 7 0 0 0 14 0' />
+              <path d='M12 18v3' />
+            </svg>
+          </button>
+        ) : null}
+        </div>
         <input type='hidden' name='staff_id' value={effectiveId} />
         {open && matches.length > 0 ? (
           <ul className='att-list' role='listbox'>
