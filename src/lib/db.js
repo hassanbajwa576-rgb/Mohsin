@@ -10,7 +10,7 @@ const DDL = [
   `INSERT INTO pc2_offices (code, name) VALUES ('LHR','Lahore'), ('ISB','Islamabad') ON CONFLICT (code) DO NOTHING`,
   // Cash issued by the SSO to a Support Officer, who spends it and submits an adjustment.
   `CREATE TABLE IF NOT EXISTS pc2_issues (id SERIAL PRIMARY KEY, fund TEXT NOT NULL ${FUND_CHECK}, amount INTEGER NOT NULL CHECK (amount > 0), returned INTEGER NOT NULL DEFAULT 0, issued_to INTEGER NOT NULL REFERENCES pc2_users(id), issued_by INTEGER NOT NULL REFERENCES pc2_users(id), issued_on DATE NOT NULL, note TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
-  // A batch of reviewed expenses the OM submits back to Accounts.
+  // A batch of reviewed expenses the SOM submits back to Accounts.
   `CREATE TABLE IF NOT EXISTS pc2_batches (id SERIAL PRIMARY KEY, created_by INTEGER NOT NULL REFERENCES pc2_users(id), note TEXT NOT NULL DEFAULT '', total INTEGER NOT NULL DEFAULT 0, item_count INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE TABLE IF NOT EXISTS pc2_notifications (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES pc2_users(id) ON DELETE CASCADE, message TEXT NOT NULL, link TEXT NOT NULL DEFAULT '/', is_read BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   // Audit trail of every change made in the app.
@@ -24,7 +24,7 @@ const DDL = [
   `ALTER TABLE pc2_expenses ALTER COLUMN status SET DEFAULT 'submitted'`,
   `ALTER TABLE pc2_expenses DROP CONSTRAINT IF EXISTS pc2_expenses_status_v2`,
   `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pc2_expenses_status_v3') THEN ALTER TABLE pc2_expenses ADD CONSTRAINT pc2_expenses_status_v3 CHECK (status IN ('draft','submitted','verified','approved','sent','rejected')); END IF; END $$`,
-  // Every expense now waits for the Operations Manager review (no SSO verification step).
+  // Every expense now waits for the Senior Operations Manager review (no SSO verification step).
   `UPDATE pc2_expenses SET status = 'submitted' WHERE status = 'verified'`,
 ];
 
