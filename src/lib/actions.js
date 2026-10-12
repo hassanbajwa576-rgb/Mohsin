@@ -90,7 +90,7 @@ export async function addExpense(fd) {
     if (amount > Number(i.remaining)) back('/expenses', 'Amount exceeds your cash in hand (' + pkr(i.remaining) + ')');
     fund = i.fund;
     issueId = i.id;
-    status = 'submitted';
+    status = 'draft';
   } else {
     if (!FUNDS[fund]) back('/expenses', 'Pick a fund');
     status = u.role === 'om' ? 'approved' : 'verified';
@@ -110,9 +110,9 @@ export async function addExpense(fd) {
     { office: officeCode, fund, category, description, amount, spent_on: spentOn, status });
 
   const msg = u.name + ' added an expense: ' + pkr(amount) + ' - ' + category + (description ? ' (' + description + ')' : '');
-  if (u.role === 'so') await notifyRoles(['om', 'sso'], msg, '/expenses?status=submitted', u.id);
+  if (u.role === 'so') await notifyRoles(['om', 'sso'], msg + ' (kept with them until submitted)', '/expenses?status=draft', u.id);
   else if (u.role === 'sso') await notifyRoles(['om'], msg, '/expenses?status=verified', u.id);
-  back('/expenses', u.role === 'so' ? 'Submitted - your SSO and the Operations Manager have been notified' : 'Expense recorded', true);
+  back('/expenses', u.role === 'so' ? 'Expense added. It stays with you until you submit your expenses to the SSO or Operations Manager.' : 'Expense recorded', true);
 }
 
 // Operations Manager edits any expense that has not yet been sent to Accounts.
@@ -195,7 +195,7 @@ export async function deleteExpense(fd) {
   const id = Number(s(fd, 'id'));
   const before = await expSnap(id);
   if (before) {
-    const allowed = u.role === 'om' || (before.status === 'submitted' && before.submitted_by === u.id);
+    const allowed = u.role === 'om' || (['draft', 'submitted'].includes(before.status) && before.submitted_by === u.id);
     if (allowed) {
       const b = (await q('SELECT batch_id FROM pc2_expenses WHERE id = $1', [id]))[0];
       await q('DELETE FROM pc2_expenses WHERE id = $1', [id]);
@@ -352,19 +352,32 @@ export async function recordReturn(fd) {
   back('/advances', 'Return recorded', true);
 }
 
-// OM submits all reviewed expenses back to Accounts as one batch.
+// A Support Officer hands their expenses to the SSO / Operations Manager (never to Accounts).
+// Only now do the expenses count against the advance they hold.
+export async function submitDrafts() {
+  const u = await need(['so']);
+  const rows = await q(`UPDATE pc2_expenses SET status = 'submitted' WHERE submitted_by = $1 AND status = 'draft' RETURNING id, amount`, [u.id]);
+  if (!rows.length) back('/', 'You have no expenses waiting to be submitted');
+  const total = rows.reduce((a, r) => a + Number(r.amount), 0);
+  await logEvent(u, 'update', 'expense', null, 'Submitted ' + rows.length + ' expenses (' + pkr(total) + ') for adjustment to the SSO / Operations Manager', null, { ids: rows.map((r) => r.id), total });
+  await notifyRoles(['sso', 'om'], u.name + ' submitted ' + rows.length + ' expenses (' + pkr(total) + ') for adjustment', '/expenses?status=submitted', u.id);
+  back('/', 'Submitted ' + rows.length + ' expenses (' + pkr(total) + ') to the SSO and Operations Manager', true);
+}
+
+// Only the Operations Manager or the Senior Support Officer can submit to Accounts.
+// Support Officers can never do this.
 export async function submitToAccounts(fd) {
-  const u = await need(['om']);
-  const rows = await q(`SELECT id, amount FROM pc2_expenses WHERE status = 'approved' AND batch_id IS NULL`);
-  if (!rows.length) back('/accounts', 'No reviewed expenses to submit');
+  const u = await need(['om', 'sso']);
+  const rows = await q(`SELECT id, amount FROM pc2_expenses WHERE status IN ('verified', 'approved') AND batch_id IS NULL`);
+  if (!rows.length) back('/accounts', 'No verified expenses to submit');
   const total = rows.reduce((a, r) => a + Number(r.amount), 0);
   const b = (await q(
     `INSERT INTO pc2_batches (created_by, note, total, item_count) VALUES ($1,$2,$3,$4) RETURNING id`,
     [u.id, s(fd, 'note'), total, rows.length]
   ))[0];
-  await q(`UPDATE pc2_expenses SET status = 'sent', batch_id = $1 WHERE status = 'approved' AND batch_id IS NULL`, [b.id]);
+  await q(`UPDATE pc2_expenses SET status = 'sent', batch_id = $1 WHERE status IN ('verified', 'approved') AND batch_id IS NULL`, [b.id]);
   await logEvent(u, 'create', 'batch', b.id, 'Submitted batch #' + b.id + ' to Accounts: ' + rows.length + ' expenses, ' + pkr(total), null, { total, count: rows.length, note: s(fd, 'note') });
-  await notifyRoles(['sso'], 'Batch #' + b.id + ' submitted to Accounts: ' + rows.length + ' expenses, ' + pkr(total), '/accounts', u.id);
+  await notifyRoles(u.role === 'om' ? ['sso'] : ['om'], u.name + ' submitted batch #' + b.id + ' to Accounts: ' + rows.length + ' expenses, ' + pkr(total), '/accounts', u.id);
   back('/accounts', 'Batch #' + b.id + ' submitted to Accounts', true);
 }
 
