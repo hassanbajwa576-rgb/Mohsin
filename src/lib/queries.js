@@ -5,7 +5,7 @@ import { FUNDS } from './fmt';
 export const EXP_FROM = `FROM pc2_expenses e JOIN pc2_offices o ON o.id = e.office_id JOIN pc2_users u ON u.id = e.submitted_by`;
 export const EXP_COLS = `e.id, e.fund, e.category, e.description, e.amount, e.status, e.submitted_by, e.issue_id, e.batch_id, e.decision_note, to_char(e.spent_on, 'YYYY-MM-DD') AS spent_on, o.code AS office, u.name AS submitter`;
 
-// Row-level scope: OM and SSO see both offices, a Support Officer sees only own entries.
+// Row-level scope: SOM and SSO see both offices, a Support Officer sees only own entries.
 export function expWhere(user, f = {}) {
   const c = [];
   const p = [];
@@ -23,7 +23,7 @@ export function expWhere(user, f = {}) {
 // Cash position per fund, optionally for a period {from, to} (YYYY-MM-DD).
 //   Flows (received, spent, sent) count only what falls inside the period.
 //   Balances (remaining, outstanding, where the cash sits) are cumulative up to the end of the period.
-//   pool    = cash still with the Operations Manager
+//   pool    = cash still with the Senior Operations Manager
 //   ssoCash = cash handed to the Senior Support Officer and not yet spent or passed on
 //   soCash  = cash with Support Officers (advances not yet spent or returned)
 //   outstanding = received - sent   (advances not yet cleared with Accounts)
@@ -85,7 +85,7 @@ export async function soAccount(userId) {
   return { advances: a, spent, settled, draft: spent - settled, outstanding: a - settled, cash: a - spent };
 }
 
-// Cash one Senior Support Officer currently holds in a fund: received from the OM,
+// Cash one Senior Support Officer currently holds in a fund: received from the SOM,
 // minus what was passed on to Support Officers, minus what they spent themselves.
 export async function custodyFor(userId, fund) {
   const r = await q(
