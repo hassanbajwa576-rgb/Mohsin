@@ -1,0 +1,37 @@
+import { requireUser } from '@/lib/auth';
+import { reportRows, todayKey, validDate } from '@/lib/att';
+
+export const dynamic = 'force-dynamic';
+
+const DQ = String.fromCharCode(34);
+const AP = String.fromCharCode(39);
+
+// Quote every cell and neutralise spreadsheet formula injection.
+function cell(v) {
+  let s = String(v ?? '');
+  if (['=', '+', '-', '@'].includes(s[0])) s = AP + s;
+  return DQ + s.split(DQ).join(DQ + DQ) + DQ;
+}
+
+export async function GET(req) {
+  await requireUser(['om', 'sso']);
+  const sp = new URL(req.url).searchParams;
+  const today = todayKey();
+  const to = validDate(sp.get('to') || '') ? sp.get('to') : today;
+  let from = validDate(sp.get('from') || '') ? sp.get('from') : today.slice(0, 8) + '01';
+  if (from > to) from = to;
+  const office = ['LHR', 'ISB'].includes(sp.get('office')) ? sp.get('office') : '';
+  const rows = await reportRows({ from, to, office });
+  const mins = (ms) => Math.round(ms / 60000);
+  const header = ['Date', 'Office', 'Employee', 'Code', 'Check In', 'Check Out', 'Breaks', 'Break minutes', 'Worked minutes'];
+  const lines = [header.map(cell).join(',')].concat(
+    rows.map((r) => [r.date, r.office, r.name, r.code, r.in, r.out, r.breaks, mins(r.breakMs), mins(r.workedMs)].map(cell).join(','))
+  );
+  return new Response('﻿' + lines.join('\r\n') + '\r\n', {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': 'attachment; filename=' + DQ + 'attendance-' + from + '-to-' + to + '.csv' + DQ,
+      'Cache-Control': 'no-store',
+    },
+  });
+}

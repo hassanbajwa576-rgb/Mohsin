@@ -7,7 +7,7 @@ import { getLang } from '@/lib/lang';
 export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }) {
-  const user = await requireUser();
+  const user = await requireUser(['om', 'sso', 'so', 'guard']);
   const unread = 0; // the bell loads the real count in the background
   const lang = await getLang();
   return (

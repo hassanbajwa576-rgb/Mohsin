@@ -8,7 +8,7 @@ export default async function TeamPage({ searchParams }) {
   const me = await requireUser(['om']);
   const sp = await searchParams;
   const users = await q(
-    `SELECT u.id, u.name, u.email, u.role, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 ELSE 2 END, u.name`
+    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
   );
 
   return (
@@ -31,10 +31,15 @@ export default async function TeamPage({ searchParams }) {
             <select name='role' defaultValue='so'>
               <option value='sso'>{ROLE_LABEL.sso}</option>
               <option value='so'>{ROLE_LABEL.so}</option>
+              <option value='guard'>{ROLE_LABEL.guard} (attendance only)</option>
             </select>
           </label>
           <label>Office
             <select name='office' defaultValue='ISB'><option>LHR</option><option>ISB</option></select>
+          </label>
+          <label>Contact number<input name='phone' type='tel' placeholder='03xx-xxxxxxx' /></label>
+          <label>Guard shift
+            <select name='shift' defaultValue=''><option value=''>Not a guard</option><option value='morning'>Morning</option><option value='evening'>Evening</option></select>
           </label>
           <label>Temporary password<input name='password' type='text' minLength={8} required autoComplete='off' /></label>
           <button className='btn primary' type='submit'>Add user</button>
@@ -44,13 +49,14 @@ export default async function TeamPage({ searchParams }) {
       <div className='card'>
         <div className='tablewrap'>
           <table>
-            <thead><tr><th>Name</th><th>Role</th><th>Office</th><th>Email</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Role</th><th>Office</th><th>Phone</th><th>Email</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u.id}>
                   <td><b>{u.name}</b></td>
-                  <td>{ROLE_LABEL[u.role]}</td>
+                  <td>{ROLE_LABEL[u.role]}{u.shift ? ' - ' + (u.shift === 'morning' ? 'Morning' : 'Evening') : ''}</td>
                   <td><span className='pill'>{u.office}</span></td>
+                  <td>{u.phone || '-'}</td>
                   <td>{u.email}</td>
                   <td><span className={'badge ' + (u.active ? 'approved' : 'rejected')}>{u.active ? 'Active' : 'Inactive'}</span></td>
                   <td className='act'>

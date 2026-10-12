@@ -11,7 +11,7 @@ export default async function EditUserPage({ searchParams }) {
   const sp = await searchParams;
   const id = Number(sp.id);
   const t = (await q(
-    `SELECT u.id, u.name, u.email, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
+    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
     [Number.isInteger(id) ? id : 0]
   ))[0];
   if (!t) redirect('/team');
@@ -37,11 +37,16 @@ export default async function EditUserPage({ searchParams }) {
               <select name='role' defaultValue={t.role}>
                 <option value='sso'>{ROLE_LABEL.sso}</option>
                 <option value='so'>{ROLE_LABEL.so}</option>
+                <option value='guard'>{ROLE_LABEL.guard} (attendance only)</option>
               </select>
             </label>
           )}
           <label>Office
             <select name='office' defaultValue={t.office}><option>LHR</option><option>ISB</option></select>
+          </label>
+          <label>Contact number<input name='phone' type='tel' defaultValue={t.phone} placeholder='03xx-xxxxxxx' /></label>
+          <label>Guard shift
+            <select name='shift' defaultValue={t.shift}><option value=''>Not a guard</option><option value='morning'>Morning</option><option value='evening'>Evening</option></select>
           </label>
           <button className='btn primary' type='submit'>Save changes</button>
           <Link href='/team' className='btn ghost'>Cancel</Link>

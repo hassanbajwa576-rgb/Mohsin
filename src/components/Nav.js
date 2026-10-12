@@ -6,10 +6,15 @@ import Bell from './Bell';
 import LangToggle from './LangToggle';
 
 export default function Nav({ user, unread = 0, lang = 'en' }) {
-  const links = [['/', 'Dashboard'], ['/expenses', 'Expenses'], ['/advances', 'Advances']];
-  if (user.role !== 'so') links.push(['/accounts', 'Accounts']);
-  if (user.role === 'om') links.push(['/team', 'Team'], ['/logs', 'Logs']);
-  links.push(['/guide', 'Guide']);
+  const guard = user.role === 'guard';
+  // Guards only use OpsTrack (attendance); everyone else gets it alongside PettyTrack.
+  const links = guard ? [['/attendance', 'Attendance']] : [['/', 'Dashboard'], ['/expenses', 'Expenses'], ['/advances', 'Advances']];
+  if (!guard) {
+    if (user.role !== 'so') links.push(['/accounts', 'Accounts']);
+    links.push(['/attendance', 'Attendance']);
+    if (user.role === 'om') links.push(['/team', 'Team'], ['/logs', 'Logs']);
+    links.push(['/guide', 'Guide']);
+  }
   return (
     <header className='nav'>
       <div className='nav-in'>
@@ -25,8 +30,10 @@ export default function Nav({ user, unread = 0, lang = 'en' }) {
         </nav>
         <div className='who'>
           <LangToggle lang={lang} />
-          <Bell initial={unread} />
-          <Link href='/profile' className='me' title='My profile'><b>{user.name}</b><small>{ROLE_LABEL[user.role]} - {user.office_code}</small></Link>
+          {guard ? null : <Bell initial={unread} />}
+          {guard
+            ? <span className='me'><b>{user.name}</b><small>{ROLE_LABEL[user.role]} - {user.office_code}</small></span>
+            : <Link href='/profile' className='me' title='My profile'><b>{user.name}</b><small>{ROLE_LABEL[user.role]} - {user.office_code}</small></Link>}
           <form action={logout}><button className='btn ghost' type='submit'>Sign out</button></form>
         </div>
       </div>
