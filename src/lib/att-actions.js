@@ -94,10 +94,15 @@ export async function removeEntry(fd) {
 export async function addStaff(fd) {
   const u = await need(['om']);
   const name = s(fd, 'name');
-  const code = s(fd, 'code');
+  let code = s(fd, 'code');
   const dept = s(fd, 'dept');
   const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
-  if (!name || !code) back('/attendance/staff', 'Enter the employee name and code');
+  if (!name) back('/attendance/staff', 'Enter the employee name');
+  if (!code) {
+    // No code given: use the next free number (001, 002, ...)
+    const nx = await q(`SELECT COALESCE(MAX(CASE WHEN code ~ '^[0-9]+$' THEN code::int END), 0) + 1 AS n FROM pc2_staff`);
+    code = String(nx[0].n).padStart(3, '0');
+  }
   if (!off) back('/attendance/staff', 'Pick an office');
   let failed = false;
   let id = null;
@@ -115,10 +120,14 @@ export async function updateStaff(fd) {
   const u = await need(['om']);
   const id = Number(s(fd, 'id'));
   const name = s(fd, 'name');
-  const code = s(fd, 'code');
+  let code = s(fd, 'code');
   const dept = s(fd, 'dept');
   const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
-  if (!name || !code || !off) back('/attendance/staff', 'Enter name, code and office');
+  if (!code) {
+    const cur = (await q('SELECT code FROM pc2_staff WHERE id = $1', [id]))[0];
+    code = cur ? cur.code : '';
+  }
+  if (!name || !code || !off) back('/attendance/staff', 'Enter the name and office');
   let failed = false;
   try {
     await q('UPDATE pc2_staff SET name = $1, code = $2, dept = $3, office_id = $4 WHERE id = $5', [name, code, dept, off.id, id]);
