@@ -20,14 +20,14 @@ export default async function SetupPage({ searchParams }) {
         <div className='logo'>
           <Logo height={40} />
           <h1>PettyTrack setup</h1>
-          <p className='muted'>Create the Senior Operations Manager account (LHR). You can add the SSO and SO users afterwards from the Team page.</p>
+          <p className='muted'>Create the Sr. Ops Manager account (LHR). You can add the SSO and SO users afterwards from the Team page.</p>
         </div>
         <Flash sp={sp} />
         <label>Full name<input name='name' required /></label>
         <label>Email<input name='email' type='email' required autoComplete='username' /></label>
         <label>Password (min 8 characters)<input name='password' type='password' minLength={8} required autoComplete='new-password' /></label>
         <button className='btn primary' type='submit'>Create account</button>
-        <p className='powered'>Powered by <b>Operations</b></p>
+        <p className='powered'>Powered by <b>Ops</b></p>
       </form>
     </div>
   );
