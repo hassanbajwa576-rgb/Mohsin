@@ -23,8 +23,8 @@ export function expWhere(user, f = {}) {
 // Cash position per fund, optionally for a period {from, to} (YYYY-MM-DD).
 //   Flows (received, spent, sent) count only what falls inside the period.
 //   Balances (remaining, outstanding, where the cash sits) are cumulative up to the end of the period.
-//   pool    = cash still with the Senior Operations Manager
-//   ssoCash = cash handed to the Senior Support Officer and not yet spent or passed on
+//   pool    = cash still with the Sr. Ops Manager
+//   ssoCash = cash handed to the Sr. Support Officer and not yet spent or passed on
 //   soCash  = cash with Support Officers (advances not yet spent or returned)
 //   outstanding = received - sent   (advances not yet cleared with Accounts)
 //   unsent      = spent - sent      (expenses made but not yet submitted to Accounts)
@@ -85,7 +85,7 @@ export async function soAccount(userId) {
   return { advances: a, spent, settled, draft: spent - settled, outstanding: a - settled, cash: a - spent };
 }
 
-// Cash one Senior Support Officer currently holds in a fund: received from the SOM,
+// Cash one Sr. Support Officer currently holds in a fund: received from the SOM,
 // minus what was passed on to Support Officers, minus what they spent themselves.
 export async function custodyFor(userId, fund) {
   const r = await q(
