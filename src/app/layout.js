@@ -4,7 +4,7 @@ import { getLang } from '@/lib/lang';
 import Translator from '@/components/Translator';
 
 const font = Montserrat({ subsets: ['latin'], weight: ['400', '500', '600', '700'], display: 'swap' });
-const urFont = Noto_Sans_Arabic({ subsets: ['arabic'], variable: '--font-ur', display: 'swap' });
+const urFont = Noto_Sans_Arabic({ subsets: ['arabic'], variable: '--font-ur', display: 'swap', preload: false });
 
 export const metadata = {
   title: 'PettyTrack - AlphaBOLD',
