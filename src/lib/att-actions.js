@@ -70,7 +70,8 @@ export async function addEntry(fd) {
   back('/attendance', see ? st.name + ': ' + KIND_LABEL[kind] + ' recorded at ' + time : st.name + ': ' + KIND_LABEL[kind] + ' recorded', true);
 }
 
-// Delete an entry: the Sr. OM can remove any entry; everyone else only their own within 30 minutes.
+// Delete an entry: the Sr. OM can remove any entry; Support Officers and guards can only undo their
+// own within 30 minutes. The Sr. SO cannot delete entries.
 export async function removeEntry(fd) {
   const u = await need(ATT_ROLES);
   const id = Number(s(fd, 'id'));
@@ -81,7 +82,7 @@ export async function removeEntry(fd) {
     [Number.isInteger(id) ? id : 0]
   ))[0];
   if (!r) back(to, 'Entry not found');
-  const allowed = u.role === 'om' || (r.entered_by === u.id && r.fresh);
+  const allowed = u.role === 'om' || (u.role !== 'sso' && r.entered_by === u.id && r.fresh);
   if (!allowed) back(to, 'You can only undo your own entries within 30 minutes');
   await q('DELETE FROM pc2_attendance WHERE id = $1', [r.id]);
   await logEvent(u, 'delete', 'attendance', r.id, 'Removed ' + KIND_LABEL[r.kind] + ' - ' + r.name + ' (' + r.office + ') ' + r.at_txt, { staff: r.name, kind: r.kind, at: r.at_txt }, null);
