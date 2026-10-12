@@ -34,7 +34,7 @@ export default async function ExpensesPage({ searchParams }) {
         <div>
           <h1>Expenses</h1>
           <p className='muted'>
-            {isOM ? 'All offices - you review and submit to Accounts' : isSO ? 'Spend from your advances and submit them for adjustment' : 'Both offices - expenses are reviewed and approved by the Operations Manager'}
+            {isOM ? 'All offices - you review and submit to Accounts' : isSO ? 'Spend from your advances and submit them for adjustment' : 'Both offices - expenses are reviewed and approved by the Senior Operations Manager'}
           </p>
         </div>
       </div>
@@ -44,7 +44,7 @@ export default async function ExpensesPage({ searchParams }) {
         <form action={submitDrafts} className='card submitbar'>
           <div>
             <b>{dq.c} expense(s) - {pkr(dq.v)}</b> waiting to be submitted
-            <div className='muted'>They stay with you (and in your advance) until you submit them to the SSO / Operations Manager.</div>
+            <div className='muted'>They stay with you (and in your advance) until you submit them to the SSO / Senior Operations Manager.</div>
           </div>
           <button className='btn primary' type='submit'>Submit expenses</button>
         </form>
@@ -109,7 +109,7 @@ export default async function ExpensesPage({ searchParams }) {
       <div className='card'>
         <ExpenseTable rows={rows} user={user} back='/expenses' />
         <p className='totals'>
-          Not yet submitted <b>{pkr(sum('draft'))}</b> - Awaiting OM review <b>{pkr(sum('submitted') + sum('verified'))}</b> - Ready for Accounts <b>{pkr(sum('approved'))}</b> - Sent <b>{pkr(sum('sent'))}</b> ({rows.length} shown)
+          Not yet submitted <b>{pkr(sum('draft'))}</b> - Awaiting SOM review <b>{pkr(sum('submitted') + sum('verified'))}</b> - Ready for Accounts <b>{pkr(sum('approved'))}</b> - Sent <b>{pkr(sum('sent'))}</b> ({rows.length} shown)
         </p>
       </div>
     </>
