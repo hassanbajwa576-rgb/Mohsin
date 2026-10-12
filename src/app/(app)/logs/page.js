@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { ROLE_LABEL } from '@/lib/fmt';
+import { ROLE_LABEL, FUNDS } from '@/lib/fmt';
+
+// Show fund keys (petty, brc, other) as their proper names in the raw details.
+const fundNames = (k, v) => (k === 'fund' && FUNDS[v] ? FUNDS[v] : v);
 
 const ENTITIES = {
   expense: 'Expenses',
@@ -75,8 +78,8 @@ export default async function LogsPage({ searchParams }) {
                       {r.before || r.after ? (
                         <details>
                           <summary className='muted'>Details</summary>
-                          {r.before ? <pre className='json'>Before: {JSON.stringify(r.before)}</pre> : null}
-                          {r.after ? <pre className='json'>After: {JSON.stringify(r.after)}</pre> : null}
+                          {r.before ? <pre className='json'>Before: {JSON.stringify(r.before, fundNames)}</pre> : null}
+                          {r.after ? <pre className='json'>After: {JSON.stringify(r.after, fundNames)}</pre> : null}
                         </details>
                       ) : null}
                     </td>
