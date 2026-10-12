@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { expWhere, issueRows, EXP_FROM, EXP_COLS } from '@/lib/queries';
-import { addExpense } from '@/lib/actions';
+import { addExpense, submitDrafts } from '@/lib/actions';
 import { pkr, today, FUNDS, CATEGORIES, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import Flash from '@/components/Flash';
@@ -24,6 +24,9 @@ export default async function ExpensesPage({ searchParams }) {
   const open = isSO
     ? (await issueRows(user)).map((i) => ({ ...i, left: i.amount - i.returned - Number(i.spent) })).filter((i) => i.left > 0)
     : [];
+  const dq = isSO
+    ? (await q(`SELECT COUNT(*)::int AS c, COALESCE(SUM(amount), 0)::float8 AS v FROM pc2_expenses WHERE submitted_by = $1 AND status = 'draft'`, [user.id]))[0]
+    : null;
 
   return (
     <>
@@ -36,6 +39,16 @@ export default async function ExpensesPage({ searchParams }) {
         </div>
       </div>
       <Flash sp={sp} />
+
+      {dq && dq.c > 0 ? (
+        <form action={submitDrafts} className='card submitbar'>
+          <div>
+            <b>{dq.c} expense(s) - {pkr(dq.v)}</b> waiting to be submitted
+            <div className='muted'>They stay with you (and in your advance) until you submit them to the SSO / Operations Manager.</div>
+          </div>
+          <button className='btn primary' type='submit'>Submit expenses</button>
+        </form>
+      ) : null}
 
       <details className='card' open>
         <summary>Add expense</summary>
@@ -65,7 +78,7 @@ export default async function ExpensesPage({ searchParams }) {
               </label>
             ) : null}
             <label className='wide'>Description<input name='description' placeholder='What was it for?' /></label>
-            <button className='btn primary' type='submit'>{isOM ? 'Record expense' : isSO ? 'Submit for adjustment' : 'Add expense'}</button>
+            <button className='btn primary' type='submit'>{isOM ? 'Record expense' : 'Add expense'}</button>
           </form>
         )}
       </details>
@@ -96,7 +109,7 @@ export default async function ExpensesPage({ searchParams }) {
       <div className='card'>
         <ExpenseTable rows={rows} user={user} back='/expenses' />
         <p className='totals'>
-          Awaiting verification <b>{pkr(sum('submitted'))}</b> - Awaiting OM review <b>{pkr(sum('verified'))}</b> - Ready for Accounts <b>{pkr(sum('approved'))}</b> - Sent <b>{pkr(sum('sent'))}</b> ({rows.length} shown)
+          Not yet submitted <b>{pkr(sum('draft'))}</b> - Awaiting verification <b>{pkr(sum('submitted'))}</b> - Awaiting OM review <b>{pkr(sum('verified'))}</b> - Ready for Accounts <b>{pkr(sum('approved'))}</b> - Sent <b>{pkr(sum('sent'))}</b> ({rows.length} shown)
         </p>
       </div>
     </>
