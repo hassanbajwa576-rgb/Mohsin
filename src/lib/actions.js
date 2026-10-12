@@ -93,7 +93,7 @@ export async function addExpense(fd) {
     status = 'draft';
   } else {
     if (!FUNDS[fund]) back('/expenses', 'Pick a fund');
-    status = u.role === 'om' ? 'approved' : 'verified';
+    status = u.role === 'om' ? 'approved' : 'submitted';
     if (u.role === 'om') {
       const o = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
       if (o) { officeId = o.id; officeCode = o.code; }
@@ -111,7 +111,7 @@ export async function addExpense(fd) {
 
   const msg = u.name + ' added an expense: ' + pkr(amount) + ' - ' + category + (description ? ' (' + description + ')' : '');
   if (u.role === 'so') await notifyRoles(['om', 'sso'], msg + ' (kept with them until submitted)', '/expenses?status=draft', u.id);
-  else if (u.role === 'sso') await notifyRoles(['om'], msg, '/expenses?status=verified', u.id);
+  else if (u.role === 'sso') await notifyRoles(['om'], msg, '/expenses?status=submitted', u.id);
   back('/expenses', u.role === 'so' ? 'Expense added. It stays with you until you submit your expenses to the SSO or Operations Manager.' : 'Expense recorded', true);
 }
 
@@ -161,9 +161,9 @@ export async function editExpense(fd) {
   back('/expenses', 'Expense #' + id + ' updated', true);
 }
 
-// SSO verifies a Support Officer expense; the OM reviews verified expenses.
+// The Operations Manager is the only reviewer: submitted expenses are approved or rejected here.
 export async function decideExpense(fd) {
-  const u = await need(['om', 'sso']);
+  const u = await need(['om']);
   const id = Number(s(fd, 'id'));
   const approve = s(fd, 'decision') === 'approve';
   const note = s(fd, 'note');
@@ -171,8 +171,7 @@ export async function decideExpense(fd) {
   const row = (await q('SELECT id, status, amount, category, submitted_by FROM pc2_expenses WHERE id = $1', [id]))[0];
   if (!row) redirect(to);
   let next = null;
-  if (row.status === 'submitted') next = approve ? (u.role === 'om' ? 'approved' : 'verified') : 'rejected';
-  else if (row.status === 'verified' && u.role === 'om') next = approve ? 'approved' : 'rejected';
+  if (row.status === 'submitted' || row.status === 'verified') next = approve ? 'approved' : 'rejected';
   if (!next) redirect(to);
 
   await q(
@@ -370,14 +369,14 @@ export async function submitDrafts() {
 // Support Officers can never do this.
 export async function submitToAccounts(fd) {
   const u = await need(['om', 'sso']);
-  const rows = await q(`SELECT id, amount FROM pc2_expenses WHERE status IN ('verified', 'approved') AND batch_id IS NULL`);
+  const rows = await q(`SELECT id, amount FROM pc2_expenses WHERE status = 'approved' AND batch_id IS NULL`);
   if (!rows.length) back('/accounts', 'No verified expenses to submit');
   const total = rows.reduce((a, r) => a + Number(r.amount), 0);
   const b = (await q(
     `INSERT INTO pc2_batches (created_by, note, total, item_count) VALUES ($1,$2,$3,$4) RETURNING id`,
     [u.id, s(fd, 'note'), total, rows.length]
   ))[0];
-  await q(`UPDATE pc2_expenses SET status = 'sent', batch_id = $1 WHERE status IN ('verified', 'approved') AND batch_id IS NULL`, [b.id]);
+  await q(`UPDATE pc2_expenses SET status = 'sent', batch_id = $1 WHERE status = 'approved' AND batch_id IS NULL`, [b.id]);
   await logEvent(u, 'create', 'batch', b.id, 'Submitted batch #' + b.id + ' to Accounts: ' + rows.length + ' expenses, ' + pkr(total), null, { total, count: rows.length, note: s(fd, 'note') });
   await notifyRoles(u.role === 'om' ? ['sso'] : ['om'], u.name + ' submitted batch #' + b.id + ' to Accounts: ' + rows.length + ' expenses, ' + pkr(total), '/accounts', u.id);
   back('/accounts', 'Batch #' + b.id + ' submitted to Accounts', true);
@@ -434,6 +433,8 @@ export async function readAll() {
 // Any signed-in user can update their own name and email.
 export async function updateProfile(fd) {
   const u = await need();
+  // The Senior Support Officer's details are managed by the Operations Manager.
+  if (u.role === 'sso') back('/profile', 'Your details are managed by the Operations Manager');
   const name = s(fd, 'name');
   const email = s(fd, 'email').toLowerCase();
   if (!name || !email.includes('@')) back('/profile', 'Enter your name and a valid email');
