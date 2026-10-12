@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }) {
   const user = await requireUser();
-  const unread = await unreadCount(user.id);
+  const unread = 0; // the bell loads the real count in the background
   const lang = await getLang();
   return (
     <>
