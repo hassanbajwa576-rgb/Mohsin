@@ -1,6 +1,6 @@
 export const FUNDS = { petty: 'Petty Cash', brc: 'BRC', other: 'Others' };
 export const CATEGORIES = ['Tea & Refreshments', 'Stationery', 'Utilities', 'Cleaning & Maintenance', 'Courier & Postage', 'Transport & Fuel', 'Repairs', 'Printing', 'Staff Welfare', 'Other'];
-export const ROLE_LABEL = { om: 'Sr. Ops Manager', sso: 'Sr. Support Officer', so: 'Support Officer' };
+export const ROLE_LABEL = { om: 'Sr. Ops Manager', sso: 'Sr. SO', so: 'Support Officer' };
 export const STATUS_LABEL = {
   draft: 'Not yet submitted',
   submitted: 'Awaiting SOM review',
