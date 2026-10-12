@@ -144,6 +144,19 @@ export default async function GuidePage() {
       </details>
 
       <details className='card'>
+        <summary>Attendance entries (AttendTrack)</summary>
+        <Table
+          head={['Entry', 'What it means']}
+          rows={[
+            ['Check In', 'The employee arrives and starts work. Status becomes On duty.'],
+            ['Break Out', 'The employee goes out for a break. Status becomes On break.'],
+            ['Break In', 'The employee comes back from the break. Status becomes On duty again.'],
+            ['Check Out', 'The employee finishes work and leaves. Status becomes Off duty.'],
+          ]}
+        />
+      </details>
+
+      <details className='card'>
         <summary>Pages and menus</summary>
         <Table head={['Where', 'What it does']} rows={pages} />
       </details>
