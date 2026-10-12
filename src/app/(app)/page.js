@@ -78,7 +78,7 @@ async function SoDashboard({ user, sp }) {
         <form action={submitDrafts} className='card submitbar'>
           <div>
             <b>{pkr(acct.draft)}</b> of expenses are ready to submit
-            <div className='muted'>Submitting sends them to the Operations Manager for review and clears them from your advance. Only the Operations Manager or SSO can submit to Accounts.</div>
+            <div className='muted'>Submitting sends them to the Operations Manager for review and clears them from your advance.</div>
           </div>
           <button className='btn primary' type='submit'>Submit expenses</button>
         </form>
