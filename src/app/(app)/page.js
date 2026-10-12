@@ -9,7 +9,7 @@ import CashSplit from '@/components/CashSplit';
 import Flash from '@/components/Flash';
 import { submitDrafts } from '@/lib/actions';
 
-const PIPE = ['draft', 'submitted', 'verified', 'approved', 'sent'];
+const PIPE = ['draft', 'submitted', 'approved', 'sent'];
 
 function Bars({ rows }) {
   if (!rows.length) return <p className='muted'>Nothing recorded yet.</p>;
@@ -78,7 +78,7 @@ async function SoDashboard({ user, sp }) {
         <form action={submitDrafts} className='card submitbar'>
           <div>
             <b>{pkr(acct.draft)}</b> of expenses are ready to submit
-            <div className='muted'>Submitting hands them to the SSO / Operations Manager and clears them from your advance. You cannot submit to Accounts directly.</div>
+            <div className='muted'>Submitting sends them to the Operations Manager for review and clears them from your advance. Only the Operations Manager or SSO can submit to Accounts.</div>
           </div>
           <button className='btn primary' type='submit'>Submit expenses</button>
         </form>
@@ -119,7 +119,7 @@ export default async function Dashboard({ searchParams }) {
   const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : 'all';
   const w = expWhere(user, { office });
   const live = w.where ? w.where + ` AND e.status <> 'rejected'` : `WHERE e.status <> 'rejected'`;
-  const todoStatuses = isOM ? ['submitted', 'verified'] : ['submitted'];
+  const todoStatuses = isOM ? ['submitted', 'verified'] : [];
   const todoWhere = (w.where ? w.where + ' AND ' : 'WHERE ') + 'e.status = ANY($' + (w.params.length + 1) + '::text[])';
   const month = new Date().toISOString().slice(0, 7);
   const n = w.params.length + 1;
