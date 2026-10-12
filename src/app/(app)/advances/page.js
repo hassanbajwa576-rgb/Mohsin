@@ -104,7 +104,7 @@ export default async function AdvancesPage({ searchParams }) {
             <form action={issueAdvance} className='form'>
               <label>Issue to
                 <select name='issued_to' required>
-                  {officers.map((o) => <option key={o.id} value={o.id}>{o.name + ' (' + (o.role === 'sso' ? 'SSO' : 'SO') + ', ' + o.office + ')'}</option>)}
+                  {officers.map((o) => <option key={o.id} value={o.id}>{o.name + ' (' + (o.role === 'sso' ? 'Sr. SO' : 'SO') + ', ' + o.office + ')'}</option>)}
                 </select>
               </label>
               <label>From fund
