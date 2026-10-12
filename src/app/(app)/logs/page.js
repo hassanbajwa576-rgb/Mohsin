@@ -39,7 +39,7 @@ export default async function LogsPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Logs</h1>
-          <p className='muted'>Every change made in PettyTrack - who did it, when, and what changed (times in Pakistan time)</p>
+          <p className='muted'>Every change made in OpsTrack - who did it, when, and what changed (times in Pakistan time)</p>
         </div>
       </div>
 
