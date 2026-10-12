@@ -17,6 +17,8 @@ const dest = (v, d) => (['/', '/expenses', '/advances', '/accounts'].includes(v)
 async function need(roles) {
   const u = await getUser();
   if (!u) redirect('/login');
+  // Guards may only use the attendance actions (lib/att-actions.js), never the petty cash ones.
+  if (u.role === 'guard') redirect('/attendance');
   if (roles && !roles.includes(u.role)) redirect('/');
   return u;
 }
@@ -388,13 +390,15 @@ export async function addUser(fd) {
   const email = s(fd, 'email').toLowerCase();
   const pw = s(fd, 'password');
   const role = s(fd, 'role');
-  if (!name || !email.includes('@') || pw.length < 8 || !['sso', 'so'].includes(role)) back('/team', 'Enter name, valid email, role and a password of at least 8 characters');
+  if (!name || !email.includes('@') || pw.length < 8 || !['sso', 'so', 'guard'].includes(role)) back('/team', 'Enter name, valid email, role and a password of at least 8 characters');
   const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
   if (!off) back('/team', 'Pick an office');
+  const phone = s(fd, 'phone');
+  const shift = role === 'guard' && ['morning', 'evening'].includes(s(fd, 'shift')) ? s(fd, 'shift') : '';
   let failed = false;
   let newId = null;
   try {
-    const r = await q(`INSERT INTO pc2_users (name, email, password_hash, role, office_id) VALUES ($1,$2,$3,$4,$5) RETURNING id`, [name, email, bcrypt.hashSync(pw, 10), role, off.id]);
+    const r = await q(`INSERT INTO pc2_users (name, email, password_hash, role, office_id, phone, shift) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, [name, email, bcrypt.hashSync(pw, 10), role, off.id, phone, shift]);
     newId = r[0].id;
   } catch {
     failed = true;
@@ -476,7 +480,7 @@ export async function editUser(fd) {
   const id = Number(s(fd, 'id'));
   const here = '/team/edit?id=' + id;
   const before = (await q(
-    `SELECT u.id, u.name, u.email, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
+    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
     [id]
   ))[0];
   if (!before) back('/team', 'Team member not found');
@@ -486,17 +490,19 @@ export async function editUser(fd) {
   let role = before.role;
   if (before.role !== 'om') {
     role = s(fd, 'role');
-    if (!['sso', 'so'].includes(role)) back(here, 'Pick a role');
+    if (!['sso', 'so', 'guard'].includes(role)) back(here, 'Pick a role');
   }
   const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
   if (!off) back(here, 'Pick an office');
-  const old = { name: before.name, email: before.email, role: before.role, office: before.office };
-  const after = { name, email, role, office: off.code };
+  const phone = s(fd, 'phone');
+  const shift = role === 'guard' && ['morning', 'evening'].includes(s(fd, 'shift')) ? s(fd, 'shift') : '';
+  const old = { name: before.name, email: before.email, role: before.role, office: before.office, phone: before.phone, shift: before.shift };
+  const after = { name, email, role, office: off.code, phone, shift };
   const changes = diff(old, after);
   if (!changes.length) back('/team', 'No changes were made', true);
   let failed = false;
   try {
-    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4 WHERE id = $5', [name, email, role, off.id, id]);
+    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4, phone = $5, shift = $6 WHERE id = $7', [name, email, role, off.id, phone, shift, id]);
   } catch {
     failed = true;
   }
