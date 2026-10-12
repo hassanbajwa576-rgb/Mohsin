@@ -1,5 +1,6 @@
 import { decideExpense, deleteExpense } from '@/lib/actions';
 import { pkr, FUNDS, STATUS_LABEL } from '@/lib/fmt';
+import ConfirmButton from './ConfirmButton';
 
 export default function ExpenseTable({ rows, user, back = '/expenses', actions = true }) {
   if (!rows.length) return <p className='muted'>Nothing to show yet.</p>;
@@ -17,7 +18,7 @@ export default function ExpenseTable({ rows, user, back = '/expenses', actions =
           {rows.map((r) => {
             const canDecide = actions && ((r.status === 'submitted' && (isOM || isSSO)) || (r.status === 'verified' && isOM));
             const canEdit = actions && isOM && r.status !== 'sent';
-            const canDelete = actions && ((isOM && r.status !== 'sent') || (r.status === 'submitted' && r.submitted_by === user.id));
+            const canDelete = actions && (isOM || (r.status === 'submitted' && r.submitted_by === user.id));
             return (
               <tr key={r.id}>
                 <td className='nw'>{r.spent_on}</td>
@@ -49,7 +50,7 @@ export default function ExpenseTable({ rows, user, back = '/expenses', actions =
                     <form action={deleteExpense} className='inline'>
                       <input type='hidden' name='id' value={r.id} />
                       <input type='hidden' name='back' value={back} />
-                      <button className='btn ghost' type='submit'>Delete</button>
+                      <ConfirmButton className='btn ghost' message={r.status === 'sent' ? 'This expense was already sent to Accounts. Delete it anyway? This cannot be undone.' : 'Delete this expense? This cannot be undone.'}>Delete</ConfirmButton>
                     </form>
                   ) : null}
                 </td>
