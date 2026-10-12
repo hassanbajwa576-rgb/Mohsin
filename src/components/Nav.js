@@ -8,6 +8,7 @@ export default function Nav({ user, unread = 0 }) {
   const links = [['/', 'Dashboard'], ['/expenses', 'Expenses'], ['/advances', 'Advances']];
   if (user.role !== 'so') links.push(['/accounts', 'Accounts']);
   if (user.role === 'om') links.push(['/team', 'Team'], ['/logs', 'Logs']);
+  links.push(['/guide', 'Guide']);
   return (
     <header className='nav'>
       <div className='nav-in'>
