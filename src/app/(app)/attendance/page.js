@@ -30,7 +30,7 @@ export default async function AttendancePage({ searchParams }) {
   const options = rows.map((r) => ({
     id: r.id,
     office: r.office,
-    label: r.name + ' (#' + r.code + ') - ' + STATE_LABEL[r.state],
+    label: r.name + ' (#' + r.code + ') - ' + ({ off: 'Off', on: 'On', break: 'Break' })[r.state],
     suggested: SUGGEST[r.state],
   }));
 
