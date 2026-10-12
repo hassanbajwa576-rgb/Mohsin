@@ -60,12 +60,12 @@ export async function setup(fd) {
     `INSERT INTO pc2_users (name, email, password_hash, role, office_id) VALUES ($1, $2, $3, 'om', $4) RETURNING id`,
     [name, email, bcrypt.hashSync(pw, 10), off.id]
   );
-  await logEvent({ id: r[0].id, name, role: 'om' }, 'create', 'user', r[0].id, 'Senior Operations Manager account created during setup: ' + email);
+  await logEvent({ id: r[0].id, name, role: 'om' }, 'create', 'user', r[0].id, 'Sr. Ops Manager account created during setup: ' + email);
   await startSession(r[0].id);
   redirect('/');
 }
 
-// Anyone can add an expense; the Senior Operations Manager is notified straight away.
+// Anyone can add an expense; the Sr. Ops Manager is notified straight away.
 export async function addExpense(fd) {
   const u = await need();
   const amount = amt(fd);
@@ -112,10 +112,10 @@ export async function addExpense(fd) {
   const msg = u.name + ' added an expense: ' + pkr(amount) + ' - ' + category + (description ? ' (' + description + ')' : '');
   if (u.role === 'so') await notifyRoles(['om', 'sso'], msg + ' (kept with them until submitted)', '/expenses?status=draft', u.id);
   else if (u.role === 'sso') await notifyRoles(['om'], msg, '/expenses?status=submitted', u.id);
-  back('/expenses', u.role === 'so' ? 'Expense added. It stays with you until you submit your expenses to the SSO or Senior Operations Manager.' : 'Expense recorded', true);
+  back('/expenses', u.role === 'so' ? 'Expense added. It stays with you until you submit your expenses to the SSO or Sr. Ops Manager.' : 'Expense recorded', true);
 }
 
-// Senior Operations Manager edits any expense that has not yet been sent to Accounts.
+// Sr. Ops Manager edits any expense that has not yet been sent to Accounts.
 export async function editExpense(fd) {
   const u = await need(['om']);
   const id = Number(s(fd, 'id'));
@@ -161,7 +161,7 @@ export async function editExpense(fd) {
   back('/expenses', 'Expense #' + id + ' updated', true);
 }
 
-// The Senior Operations Manager is the only reviewer: submitted expenses are approved or rejected here.
+// The Sr. Ops Manager is the only reviewer: submitted expenses are approved or rejected here.
 export async function decideExpense(fd) {
   const u = await need(['om']);
   const id = Number(s(fd, 'id'));
@@ -187,15 +187,15 @@ export async function decideExpense(fd) {
   redirect(to);
 }
 
-// The Senior Operations Manager can delete any expense (including ones already sent to Accounts);
+// The Sr. Ops Manager can delete any expense (including ones already sent to Accounts);
 // others can only delete their own expense while it is still awaiting verification.
 export async function deleteExpense(fd) {
   const u = await need();
   const id = Number(s(fd, 'id'));
   const before = await expSnap(id);
   if (before) {
-    // Delete is a manager action: only the Senior Operations Manager, or a Support Officer retracting their
-    // own expense that has not been verified yet. The Senior Support Officer cannot delete entries.
+    // Delete is a manager action: only the Sr. Ops Manager, or a Support Officer retracting their
+    // own expense that has not been verified yet. The Sr. Support Officer cannot delete entries.
     const allowed = u.role === 'om' || (u.role === 'so' && ['draft', 'submitted'].includes(before.status) && before.submitted_by === u.id);
     if (allowed) {
       const b = (await q('SELECT batch_id FROM pc2_expenses WHERE id = $1', [id]))[0];
@@ -212,7 +212,7 @@ export async function deleteExpense(fd) {
   redirect(dest(s(fd, 'back'), '/expenses'));
 }
 
-// Senior Operations Manager removes an advance issued to a team member (only if nothing was spent on it).
+// Sr. Ops Manager removes an advance issued to a team member (only if nothing was spent on it).
 export async function deleteIssue(fd) {
   const u = await need(['om']);
   const id = Number(s(fd, 'id'));
@@ -229,7 +229,7 @@ export async function deleteIssue(fd) {
   back('/advances', 'Advance #' + id + ' deleted', true);
 }
 
-// Funds received from the Accounts team (Petty, BRC, Others) - Senior Operations Manager only.
+// Funds received from the Accounts team (Petty, BRC, Others) - Sr. Ops Manager only.
 export async function addAdvance(fd) {
   const u = await need(['om']);
   const amount = amt(fd);
@@ -287,11 +287,11 @@ export async function issueAdvance(fd) {
   const on = s(fd, 'issued_on');
   if (!(amount > 0) || !FUNDS[fund]) back('/advances', 'Enter a valid fund and amount');
   if (badDate(on)) back('/advances', 'Pick a valid date');
-  // The Senior Operations Manager can issue to the SSO or an SO; the SSO can issue to an SO from cash they hold.
+  // The Sr. Ops Manager can issue to the SSO or an SO; the SSO can issue to an SO from cash they hold.
   const allowed = u.role === 'om' ? ['so', 'sso'] : ['so'];
   const holder = (await q(`SELECT id, name, role FROM pc2_users WHERE id = $1 AND role = ANY($2::text[]) AND active`, [holderId, allowed]))[0];
   if (!holder) back('/advances', 'Pick a team member to issue to');
-  // Both the Senior Operations Manager and the SSO can issue to a Support Officer: the SSO draws on
+  // Both the Sr. Ops Manager and the SSO can issue to a Support Officer: the SSO draws on
   // the cash they hold first, then on the shared pool.
   const row = (await fundSummary()).rows.find((r) => r.key === fund);
   const mine = u.role === 'sso' ? Math.max(0, await custodyFor(u.id, fund)) : 0;
@@ -307,7 +307,7 @@ export async function issueAdvance(fd) {
   back('/advances', 'Advance issued to ' + holder.name, true);
 }
 
-// Senior Operations Manager corrects an advance issued to a Support Officer.
+// Sr. Ops Manager corrects an advance issued to a Support Officer.
 export async function editIssue(fd) {
   const u = await need(['om']);
   const id = Number(s(fd, 'id'));
@@ -353,19 +353,19 @@ export async function recordReturn(fd) {
   back('/advances', 'Return recorded', true);
 }
 
-// A Support Officer hands their expenses to the SSO / Senior Operations Manager (never to Accounts).
+// A Support Officer hands their expenses to the SSO / Sr. Ops Manager (never to Accounts).
 // Only now do the expenses count against the advance they hold.
 export async function submitDrafts() {
   const u = await need(['so']);
   const rows = await q(`UPDATE pc2_expenses SET status = 'submitted' WHERE submitted_by = $1 AND status = 'draft' RETURNING id, amount`, [u.id]);
   if (!rows.length) back('/', 'You have no expenses waiting to be submitted');
   const total = rows.reduce((a, r) => a + Number(r.amount), 0);
-  await logEvent(u, 'update', 'expense', null, 'Submitted ' + rows.length + ' expenses (' + pkr(total) + ') for adjustment to the SSO / Senior Operations Manager', null, { ids: rows.map((r) => r.id), total });
+  await logEvent(u, 'update', 'expense', null, 'Submitted ' + rows.length + ' expenses (' + pkr(total) + ') for adjustment to the SSO / Sr. Ops Manager', null, { ids: rows.map((r) => r.id), total });
   await notifyRoles(['sso', 'om'], u.name + ' submitted ' + rows.length + ' expenses (' + pkr(total) + ') for adjustment', '/expenses?status=submitted', u.id);
-  back('/', 'Submitted ' + rows.length + ' expenses (' + pkr(total) + ') to the SSO and Senior Operations Manager', true);
+  back('/', 'Submitted ' + rows.length + ' expenses (' + pkr(total) + ') to the SSO and Sr. Ops Manager', true);
 }
 
-// Only the Senior Operations Manager or the Senior Support Officer can submit to Accounts.
+// Only the Sr. Ops Manager or the Sr. Support Officer can submit to Accounts.
 // Support Officers can never do this.
 export async function submitToAccounts(fd) {
   const u = await need(['om', 'sso']);
@@ -433,8 +433,8 @@ export async function readAll() {
 // Any signed-in user can update their own name and email.
 export async function updateProfile(fd) {
   const u = await need();
-  // The Senior Support Officer's details are managed by the Senior Operations Manager.
-  if (u.role === 'sso') back('/profile', 'Your details are managed by the Senior Operations Manager');
+  // The Sr. Support Officer's details are managed by the Sr. Ops Manager.
+  if (u.role === 'sso') back('/profile', 'Your details are managed by the Sr. Ops Manager');
   const name = s(fd, 'name');
   const email = s(fd, 'email').toLowerCase();
   if (!name || !email.includes('@')) back('/profile', 'Enter your name and a valid email');
@@ -456,8 +456,8 @@ export async function updateProfile(fd) {
 // Any signed-in user can change their own password (current password required).
 export async function changePassword(fd) {
   const u = await need();
-  // Passwords of the SSO and Support Officers are managed by the Senior Operations Manager (Team page).
-  if (u.role !== 'om') back('/profile', 'Your password is managed by the Senior Operations Manager');
+  // Passwords of the SSO and Support Officers are managed by the Sr. Ops Manager (Team page).
+  if (u.role !== 'om') back('/profile', 'Your password is managed by the Sr. Ops Manager');
   const current = s(fd, 'current');
   const next = s(fd, 'next');
   const again = s(fd, 'again');
@@ -470,7 +470,7 @@ export async function changePassword(fd) {
   back('/profile', 'Password changed', true);
 }
 
-// Senior Operations Manager edits a team member name, email, role and office.
+// Sr. Ops Manager edits a team member name, email, role and office.
 export async function editUser(fd) {
   const u = await need(['om']);
   const id = Number(s(fd, 'id'));
