@@ -5,7 +5,7 @@ import { FUNDS } from './fmt';
 export const EXP_FROM = `FROM pc2_expenses e JOIN pc2_offices o ON o.id = e.office_id JOIN pc2_users u ON u.id = e.submitted_by`;
 export const EXP_COLS = `e.id, e.fund, e.category, e.description, e.amount, e.status, e.submitted_by, e.issue_id, e.batch_id, e.decision_note, to_char(e.spent_on, 'YYYY-MM-DD') AS spent_on, o.code AS office, u.name AS submitter`;
 
-// Row-level scope: SOM and SSO see both offices, a Support Officer sees only own entries.
+// Row-level scope: SOM and Sr. SO see both offices, a Support Officer sees only own entries.
 export function expWhere(user, f = {}) {
   const c = [];
   const p = [];
@@ -51,7 +51,7 @@ export async function fundSummary(opts = {}) {
     const sentCum = sum(exp, key, () => true, 'sent');
     const spent = sum(exp, key, () => true, 'vin');
     const sent = sum(exp, key, () => true, 'sentin');
-    // If the SSO has issued more than they hold, the difference came out of the pool.
+    // If the Sr. SO has issued more than they hold, the difference came out of the pool.
     const ssoRaw = toSso - soBySso - ssoExp;
     const pool = receivedCum - toSso - soByOm - omExp + Math.min(0, ssoRaw);
     const ssoCash = Math.max(0, ssoRaw);
