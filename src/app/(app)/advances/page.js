@@ -30,7 +30,7 @@ export default async function AdvancesPage({ searchParams }) {
         <div>
           <h1>Advances</h1>
           <p className='muted'>
-            {manage ? 'Funds received from Accounts, and cash issued to Support Officers' : 'Cash issued to you by the Senior Support Officer'}
+            {manage ? 'Funds received from Accounts, and cash issued to Support Officers' : 'Cash issued to you by the Sr. Support Officer'}
           </p>
         </div>
       </div>
@@ -99,7 +99,7 @@ export default async function AdvancesPage({ searchParams }) {
         <details className='card' open>
           <summary>Issue an advance</summary>
           {officers.length === 0 ? (
-            <p className='muted'>There is no active team member to issue to yet. The Senior Operations Manager can add one from the Team page.</p>
+            <p className='muted'>There is no active team member to issue to yet. The Sr. Ops Manager can add one from the Team page.</p>
           ) : (
             <form action={issueAdvance} className='form'>
               <label>Issue to
