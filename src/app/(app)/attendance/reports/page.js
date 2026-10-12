@@ -40,7 +40,7 @@ export default async function AttendanceReportsPage({ searchParams }) {
           <div className='tablewrap'>
             <table>
               <thead>
-                <tr><th>Date</th><th>Office</th><th>Employee</th><th>Code</th><th>In</th><th>Out</th><th>Breaks</th><th>Break time</th><th>Worked</th></tr>
+                <tr><th>Date</th><th>Office</th><th>Employee</th><th>In</th><th>Out</th><th>Breaks</th><th>Break time</th><th>Worked</th></tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
@@ -48,7 +48,6 @@ export default async function AttendanceReportsPage({ searchParams }) {
                     <td className='nw'>{r.date}</td>
                     <td><span className='pill'>{r.office}</span></td>
                     <td><b>{r.name}</b></td>
-                    <td>{r.code}</td>
                     <td className='nw'>{r.in}</td>
                     <td className='nw'>{r.out}</td>
                     <td>{r.breaks}</td>
