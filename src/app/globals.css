@@ -233,3 +233,16 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .modseg a{white-space:nowrap}
 .tier-menu{flex:none}
 @media (max-width:700px){.nav-top .sep{display:none}.modseg a{padding:6px 10px;font-size:12.5px}.tier-sep{margin:0 6px}}
+
+/* header mobile v2 */
+.tier-in{overflow:visible;white-space:normal;flex-wrap:nowrap}
+.tier-scroll{display:flex;align-items:center;flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tier-scroll::-webkit-scrollbar{display:none}
+@media (max-width:700px){
+  .tier-in{flex-wrap:wrap;padding:8px 10px 0;gap:0}
+  .modseg{display:flex;width:100%}
+  .modseg a{flex:1;text-align:center;padding:8px 10px;font-size:13px}
+  .tier-sep{display:none}
+  .tier-scroll{flex:1 1 100%;margin-top:2px}
+  .nav-top .btn{padding:7px 12px;font-size:13px}
+}
