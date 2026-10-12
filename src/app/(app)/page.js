@@ -1,14 +1,15 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { expWhere, fundSummary, issueRows, EXP_FROM, EXP_COLS } from '@/lib/queries';
+import { expWhere, fundSummary, issueRows, soAccount, EXP_FROM, EXP_COLS } from '@/lib/queries';
 import { pkr, STATUS_LABEL, FUNDS } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import FundCard from '@/components/FundCard';
 import CashSplit from '@/components/CashSplit';
 import Flash from '@/components/Flash';
+import { submitDrafts } from '@/lib/actions';
 
-const PIPE = ['submitted', 'verified', 'approved', 'sent'];
+const PIPE = ['draft', 'submitted', 'verified', 'approved', 'sent'];
 
 function Bars({ rows }) {
   if (!rows.length) return <p className='muted'>Nothing recorded yet.</p>;
@@ -48,6 +49,7 @@ function Pipeline({ pipe, hot }) {
 
 async function SoDashboard({ user, sp }) {
   const issues = await issueRows(user);
+  const acct = await soAccount(user.id);
   const w = expWhere(user, {});
   const [pipeRows, recent] = await Promise.all([
     q(`SELECT e.status, COUNT(*)::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ${EXP_FROM} ${w.where} GROUP BY e.status`, w.params),
@@ -71,8 +73,17 @@ async function SoDashboard({ user, sp }) {
         <div className='card kpi alt'><span>Advances received</span><b>{pkr(received)}</b></div>
         <div className='card kpi alt'><span>Spent so far</span><b>{pkr(spent)}</b></div>
       </div>
+      {acct.draft > 0 ? (
+        <form action={submitDrafts} className='card submitbar'>
+          <div>
+            <b>{pkr(acct.draft)}</b> of expenses are ready to submit
+            <div className='muted'>Submitting hands them to the SSO / Operations Manager and clears them from your advance. You cannot submit to Accounts directly.</div>
+          </div>
+          <button className='btn primary' type='submit'>Submit expenses</button>
+        </form>
+      ) : null}
       <h2>Where my expenses stand</h2>
-      <Pipeline pipe={byStatus(pipeRows)} hot={['submitted']} />
+      <Pipeline pipe={byStatus(pipeRows)} hot={['draft']} />
       <h2>My advances</h2>
       <div className='card'>
         {issues.length === 0 ? <p className='muted'>No advance has been issued to you yet.</p> : (
@@ -147,6 +158,7 @@ export default async function Dashboard({ searchParams }) {
         <div className='card kpi'><span>Advances received</span><b>{pkr(T.received)}</b></div>
         <div className='card kpi alt'><span>Expenses so far</span><b>{pkr(T.spent)}</b></div>
         <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>Remaining CIH till today</span><b>{pkr(T.remaining)}</b><CashSplit pool={T.pool} sso={T.ssoCash} so={T.soCash} /></div>
+        <div className='card kpi alt'><span>Advances outstanding</span><b>{pkr(T.outstanding)}</b><small>Clears only when expenses are submitted to Accounts - {pkr(T.unsent)} not yet submitted</small></div>
       </div>
       <div className='kpis'>
         <div className='card kpi alt'><span>Spent this month{office === 'all' ? '' : ' (' + office + ')'}</span><b>{pkr(mtd)}</b></div>
