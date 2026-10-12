@@ -55,7 +55,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
                   <tr key={r.id}>
                     <td className='nw'><b>{fmtTime(r.ms)}</b></td>
                     <td><span className='pill'>{r.office}</span></td>
-                    <td>{r.name} <span className='muted'>#{r.code}</span></td>
+                    <td>{r.name}</td>
                     <td>{KIND_LABEL[r.kind]}</td>
                     <td>{r.by_name || '-'}</td>
                     <td className='nw muted'>{(dateKey(r.entered_ms) === day ? '' : dateKey(r.entered_ms) + ' ') + fmtTime(r.entered_ms)}</td>
