@@ -26,6 +26,14 @@ const DDL = [
   `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pc2_expenses_status_v3') THEN ALTER TABLE pc2_expenses ADD CONSTRAINT pc2_expenses_status_v3 CHECK (status IN ('draft','submitted','verified','approved','sent','rejected')); END IF; END $$`,
   // Every expense now waits for the Sr. Ops Manager review (no Sr. SO verification step).
   `UPDATE pc2_expenses SET status = 'submitted' WHERE status = 'verified'`,
+  // OpsTrack (attendance): employees, check in / out and break entries, plus guard logins.
+  `CREATE TABLE IF NOT EXISTS pc2_staff (id SERIAL PRIMARY KEY, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, dept TEXT NOT NULL DEFAULT '', office_id INTEGER NOT NULL REFERENCES pc2_offices(id), active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE TABLE IF NOT EXISTS pc2_attendance (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL REFERENCES pc2_staff(id), office_id INTEGER NOT NULL REFERENCES pc2_offices(id), kind TEXT NOT NULL CHECK (kind IN ('in','out','break_out','break_in')), at TIMESTAMPTZ NOT NULL, entered_by INTEGER REFERENCES pc2_users(id), entered_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS pc2_attendance_staff_at ON pc2_attendance (staff_id, at)`,
+  `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS shift TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE pc2_users DROP CONSTRAINT IF EXISTS pc2_users_role_check`,
+  `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pc2_users_role_v2') THEN ALTER TABLE pc2_users ADD CONSTRAINT pc2_users_role_v2 CHECK (role IN ('om','sso','so','guard')); END IF; END $$`,
 ];
 
 let sql;
@@ -33,7 +41,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-12-1';
+const SCHEMA_VERSION = '2026-10-12-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

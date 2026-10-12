@@ -31,6 +31,9 @@ const LABELS = {
   issued_on: 'Date',
   reference: 'Reference',
   note: 'Note',
+  phone: 'Phone',
+  shift: 'Shift',
+  role: 'Role',
 };
 
 // Human-readable list of what changed between two snapshots.

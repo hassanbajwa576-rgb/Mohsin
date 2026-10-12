@@ -45,6 +45,8 @@ export const getUser = cache(async function getUser() {
 export async function requireUser(roles) {
   const u = await getUser();
   if (!u) redirect('/login');
+  // Guards only ever see the attendance module: every other page sends them there.
+  if (u.role === 'guard' && !(roles && roles.includes('guard'))) redirect('/attendance');
   if (roles && !roles.includes(u.role)) redirect('/');
   return u;
 }
