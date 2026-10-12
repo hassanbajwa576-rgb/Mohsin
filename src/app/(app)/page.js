@@ -69,10 +69,10 @@ async function SoDashboard({ user, sp }) {
       </div>
       <Flash sp={sp} />
       <div className='kpis'>
-        <div className='card kpi'><span>Advances received (from SSO / Ops Manager)</span><b>{pkr(acct.advances)}</b></div>
-        <div className='card kpi alt'><span>Expenses made so far</span><b>{pkr(acct.spent)}</b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
-        <div className='card kpi'><span>Advance still at your end</span><b>{pkr(acct.outstanding)}</b><small>Reduces only when you submit your expenses</small></div>
-        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>Cash in hand</span><b>{pkr(acct.cash)}</b></div>
+        <div className='card kpi'><span>Advances</span><b>{pkr(acct.advances)}</b></div>
+        <div className='card kpi alt'><span>Expenses</span><b>{pkr(acct.spent)}</b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
+        <div className='card kpi'><span>Advances Outstanding</span><b>{pkr(acct.outstanding)}</b><small>Reduces only when you submit your expenses</small></div>
+        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b>{pkr(acct.cash)}</b></div>
       </div>
       {acct.draft > 0 ? (
         <form action={submitDrafts} className='card submitbar'>
@@ -117,7 +117,34 @@ export default async function Dashboard({ searchParams }) {
 
   const isOM = user.role === 'om';
   const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : 'all';
-  const w = expWhere(user, { office });
+
+  // Period filter (year and/or month). Empty means all time.
+  const nowYear = new Date().getFullYear();
+  const years = [0, 1, 2].map((i) => String(nowYear - i));
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const year = years.includes(sp.year) ? sp.year : '';
+  const mm = MONTH_NAMES.some((_, i) => String(i + 1).padStart(2, '0') === sp.month) ? sp.month : '';
+  const yy = year || (mm ? String(nowYear) : '');
+  let from = '';
+  let to = '';
+  if (yy && mm) {
+    const last = new Date(Number(yy), Number(mm), 0).getDate();
+    from = yy + '-' + mm + '-01';
+    to = yy + '-' + mm + '-' + String(last).padStart(2, '0');
+  } else if (yy) {
+    from = yy + '-01-01';
+    to = yy + '-12-31';
+  }
+  const periodLabel = from ? (mm ? MONTH_NAMES[Number(mm) - 1] + ' ' + yy : yy) : 'All time';
+  const qs = (o) => {
+    const params = new URLSearchParams();
+    if (o !== 'all') params.set('office', o);
+    if (year) params.set('year', year);
+    if (mm) params.set('month', mm);
+    const s = params.toString();
+    return s ? '/?' + s : '/';
+  };
+  const w = expWhere(user, { office, from, to });
   const live = w.where ? w.where + ` AND e.status <> 'rejected'` : `WHERE e.status <> 'rejected'`;
   const todoStatuses = isOM ? ['submitted', 'verified'] : [];
   const todoWhere = (w.where ? w.where + ' AND ' : 'WHERE ') + 'e.status = ANY($' + (w.params.length + 1) + '::text[])';
@@ -129,10 +156,10 @@ export default async function Dashboard({ searchParams }) {
     q(`SELECT COALESCE(SUM(e.amount), 0)::float8 AS total, COALESCE(SUM(CASE WHEN to_char(e.spent_on, 'YYYY-MM') = $${n} THEN e.amount END), 0)::float8 AS mtd ${EXP_FROM} ${live}`, [...w.params, month]),
     q(`SELECT e.category AS label, SUM(e.amount)::float8 AS value ${EXP_FROM} ${live} GROUP BY e.category ORDER BY value DESC LIMIT 8`, w.params),
     q(`SELECT o.code AS label, SUM(e.amount)::float8 AS value ${EXP_FROM} ${live} GROUP BY o.code ORDER BY o.code`, w.params),
-    q(`SELECT to_char(e.spent_on, 'YYYY-MM') AS label, SUM(e.amount)::float8 AS value ${EXP_FROM} ${live} AND e.spent_on >= (date_trunc('month', now()) - interval '5 months')::date GROUP BY 1 ORDER BY 1`, w.params),
+    q(`SELECT to_char(e.spent_on, 'YYYY-MM') AS label, SUM(e.amount)::float8 AS value ${EXP_FROM} ${live} ${from ? '' : `AND e.spent_on >= (date_trunc('month', now()) - interval '5 months')::date`} GROUP BY 1 ORDER BY 1`, w.params),
     q(`SELECT ${EXP_COLS} ${EXP_FROM} ${todoWhere} ORDER BY e.created_at LIMIT 25`, [...w.params, todoStatuses]),
     q(`SELECT ${EXP_COLS} ${EXP_FROM} ${w.where} ORDER BY e.spent_on DESC, e.id DESC LIMIT 8`, w.params),
-    fundSummary(),
+    fundSummary({ from, to }),
   ]);
 
   const pipe = byStatus(pipeRows);
@@ -145,25 +172,51 @@ export default async function Dashboard({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Dashboard</h1>
-          <p className='muted'>{office === 'all' ? 'Both offices - LHR and ISB' : office + ' office'} - {isOM ? 'Operations Manager view' : 'Senior Support Officer view'}</p>
+          <p className='muted'>{office === 'all' ? 'Both offices - LHR and ISB' : office + ' office'} - {isOM ? 'Operations Manager view' : 'Senior Support Officer view'} - {periodLabel}</p>
         </div>
         <div className='chips'>
           {['all', 'LHR', 'ISB'].map((o) => (
-            <Link key={o} href={o === 'all' ? '/' : '/?office=' + o} className={'chip' + (office === o ? ' on' : '')}>{o === 'all' ? 'Both offices' : o}</Link>
+            <Link key={o} href={qs(o)} className={'chip' + (office === o ? ' on' : '')}>{o === 'all' ? 'Both offices' : o}</Link>
           ))}
         </div>
       </div>
       <Flash sp={sp} />
 
+      <form method='get' className='card filters'>
+        {office !== 'all' ? <input type='hidden' name='office' value={office} /> : null}
+        <label>Year
+          <select name='year' defaultValue={year}>
+            <option value=''>All years</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </label>
+        <label>Month
+          <select name='month' defaultValue={mm}>
+            <option value=''>All months</option>
+            {MONTH_NAMES.map((m, i) => <option key={m} value={String(i + 1).padStart(2, '0')}>{m}</option>)}
+          </select>
+        </label>
+        <button className='btn' type='submit'>Apply</button>
+        <Link href={office === 'all' ? '/' : '/?office=' + office} className='btn ghost'>Reset</Link>
+        <span className='muted'>Advances, Expenses and totals cover the period. CIH and Advances Outstanding are balances up to the end of the period.</span>
+      </form>
+
       <div className='kpis'>
-        <div className='card kpi'><span>Advances received</span><b>{pkr(T.received)}</b></div>
-        <div className='card kpi alt'><span>Expenses so far</span><b>{pkr(T.spent)}</b></div>
-        <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>Remaining CIH till today</span><b>{pkr(T.remaining)}</b><CashSplit pool={T.pool} sso={T.ssoCash} so={T.soCash} /></div>
-        <div className='card kpi alt'><span>Advances outstanding</span><b>{pkr(T.outstanding)}</b><small>Clears only when expenses are submitted to Accounts - {pkr(T.unsent)} not yet submitted</small></div>
+        <div className='card kpi'><span>Advances</span><b>{pkr(T.received)}</b></div>
+        <div className='card kpi alt'><span>Expenses</span><b>{pkr(T.spent)}</b></div>
+        <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>CIH</span><b>{pkr(T.remaining)}</b><CashSplit pool={T.pool} sso={T.ssoCash} so={T.soCash} /></div>
+        <div className='card kpi alt'><span>Advances Outstanding</span><b>{pkr(T.outstanding)}</b><small>Clears only when expenses are submitted to Accounts - {pkr(T.unsent)} not yet submitted</small></div>
       </div>
       <div className='kpis'>
         <div className='card kpi alt'><span>Spent this month{office === 'all' ? '' : ' (' + office + ')'}</span><b>{pkr(mtd)}</b></div>
         <div className='card kpi alt'><span>Spent in total{office === 'all' ? '' : ' (' + office + ')'}</span><b>{pkr(total)}</b></div>
+      </div>
+
+      <h2>Funds</h2>
+      <div className='funds'>
+        {funds.rows.map((f) => (
+          <FundCard key={f.key} f={f} />
+        ))}
       </div>
 
       <h2>Expense pipeline</h2>
@@ -176,17 +229,10 @@ export default async function Dashboard({ searchParams }) {
         </>
       ) : null}
 
-      <h2>Funds</h2>
-      <div className='funds'>
-        {funds.rows.map((f) => (
-          <FundCard key={f.key} f={f} />
-        ))}
-      </div>
-
       <div className='grid2'>
         <div className='card'><h3>Spend by office</h3><Bars rows={num(offs)} /></div>
         <div className='card'><h3>Spend by category</h3><Bars rows={num(cats)} /></div>
-        <div className='card'><h3>Last 6 months</h3><Bars rows={num(months)} /></div>
+        <div className='card'><h3>{from ? 'By month' : 'Last 6 months'}</h3><Bars rows={num(months)} /></div>
       </div>
 
       <div className='head' style={{ marginTop: 24 }}><h2 style={{ margin: 0 }}>Recent expenses</h2><Link href='/expenses' className='btn ghost'>View all</Link></div>
