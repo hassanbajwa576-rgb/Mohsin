@@ -99,7 +99,7 @@ export default async function AdvancesPage({ searchParams }) {
         <details className='card' open>
           <summary>Issue an advance</summary>
           {officers.length === 0 ? (
-            <p className='muted'>There is no active team member to issue to yet. The Operations Manager can add one from the Team page.</p>
+            <p className='muted'>There is no active team member to issue to yet. The Senior Operations Manager can add one from the Team page.</p>
           ) : (
             <form action={issueAdvance} className='form'>
               <label>Issue to
