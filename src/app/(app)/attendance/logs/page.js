@@ -1,14 +1,17 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { removeEntry } from '@/lib/att-actions';
-import { KIND_LABEL, fmtTime, dateKey, todayKey, validDate } from '@/lib/att';
+import { ATT_ROLES, KIND_LABEL, fmtTime, dateKey, todayKey, validDate } from '@/lib/att';
 import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AttendanceLogsPage({ searchParams }) {
-  const user = await requireUser(['om']);
+  const user = await requireUser(ATT_ROLES);
+  if (!can(user, 'att_logs')) redirect('/attendance');
   const sp = await searchParams;
   const day = validDate(sp.date || '') ? sp.date : todayKey();
   const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
