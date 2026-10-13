@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 import { q } from './db';
-import { getUser, startSession, endSession, startPending, getPending, clearPending, trustDevice, isTrusted } from './auth';
+import { getUser, startSession, endSession, startPending, getPending, clearPending, trustDevice, isTrusted, startImpersonation, stopImpersonation } from './auth';
 import { cookies } from 'next/headers';
 import { verifyTotp, newRecoveryCodes } from './totp';
 import { FUNDS, CATEGORIES, pkr } from './fmt';
@@ -41,10 +41,10 @@ async function expSnap(id) {
 const expView = (r) => ({ office: r.office, fund: r.fund, category: r.category, description: r.description, amount: r.amount, spent_on: r.spent_on, status: r.status });
 
 export async function login(fd) {
-  const email = s(fd, 'email').toLowerCase();
+  const who = (s(fd, 'username') || s(fd, 'email')).toLowerCase();
   const pw = s(fd, 'password');
-  const rows = await q('SELECT id, password_hash, totp_enabled, totp_epoch FROM pc2_users WHERE lower(email) = $1 AND active', [email]);
-  if (!rows[0] || !bcrypt.compareSync(pw, rows[0].password_hash)) back('/login', 'Invalid email or password');
+  const rows = await q('SELECT id, password_hash, totp_enabled, totp_epoch FROM pc2_users WHERE (lower(username) = $1 OR lower(email) = $1) AND active', [who]);
+  if (!rows[0] || !bcrypt.compareSync(pw, rows[0].password_hash)) back('/login', 'Invalid username or password');
   const r = rows[0];
   // With the authenticator on, a device we do not know yet must enter a code first.
   if (r.totp_enabled && !(await isTrusted(r.id, r.totp_epoch))) {
@@ -398,9 +398,11 @@ export async function addUser(fd) {
   const u = await need(['om']);
   const name = s(fd, 'name');
   const email = s(fd, 'email').toLowerCase();
+  const username = s(fd, 'username').toLowerCase();
   const pw = s(fd, 'password');
   const role = s(fd, 'role');
   if (!name || !email.includes('@') || pw.length < 8 || !['sso', 'so', 'guard'].includes(role)) back('/team', 'Enter name, valid email, role and a password of at least 8 characters');
+  if (!/^[a-z0-9._-]{3,20}$/.test(username)) back('/team', 'Username must be 3 to 20 letters, numbers, dot, dash or underscore, with no spaces');
   const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
   if (!off) back('/team', 'Pick an office');
   const phone = s(fd, 'phone');
@@ -408,12 +410,12 @@ export async function addUser(fd) {
   let failed = false;
   let newId = null;
   try {
-    const r = await q(`INSERT INTO pc2_users (name, email, password_hash, role, office_id, phone, shift) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, [name, email, bcrypt.hashSync(pw, 10), role, off.id, phone, shift]);
+    const r = await q(`INSERT INTO pc2_users (name, email, password_hash, role, office_id, phone, shift, username) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, [name, email, bcrypt.hashSync(pw, 10), role, off.id, phone, shift, username]);
     newId = r[0].id;
   } catch {
     failed = true;
   }
-  if (failed) back('/team', 'That email is already in use');
+  if (failed) back('/team', 'That email or username is already in use');
   await logEvent(u, 'create', 'user', newId, 'Added user ' + name + ' (' + role.toUpperCase() + ', ' + off.code + ') - ' + email, null, { name, email, role, office: off.code });
   back('/team', 'User added', true);
 }
@@ -452,6 +454,7 @@ export async function readAll() {
 // Any signed-in user can update their own name and email.
 export async function updateProfile(fd) {
   const u = await need();
+  if (u.impersonatedBy) back('/profile', 'Not available while viewing as someone else');
   // The Sr. Support Officer's details are managed by the Sr. Ops Manager.
   if (u.role === 'sso') back('/profile', 'Your details are managed by the Sr. Ops Manager');
   const name = s(fd, 'name');
@@ -495,13 +498,15 @@ export async function editUser(fd) {
   const id = Number(s(fd, 'id'));
   const here = '/team/edit?id=' + id;
   const before = (await q(
-    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.perms, u.totp_required, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
+    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.totp_required, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
     [id]
   ))[0];
   if (!before) back('/team', 'Team member not found');
   const name = s(fd, 'name');
   const email = s(fd, 'email').toLowerCase();
+  const username = s(fd, 'username').toLowerCase();
   if (!name || !email.includes('@')) back(here, 'Enter a name and a valid email');
+  if (!/^[a-z0-9._-]{3,20}$/.test(username)) back(here, 'Username must be 3 to 20 letters, numbers, dot, dash or underscore, with no spaces');
   let role = before.role;
   if (before.role !== 'om') {
     role = s(fd, 'role');
@@ -514,18 +519,18 @@ export async function editUser(fd) {
   // Extra attendance access ticked on the form (what the role already includes is not stored).
   const roleBase = ROLE_PERMS[role] || [];
   const permsStr = PERMS.map(([k]) => k).filter((k) => fd.get('perm_' + k) === 'on' && !roleBase.includes(k)).join(',');
-  const old = { name: before.name, email: before.email, role: before.role, office: before.office, phone: before.phone, shift: before.shift, perms: before.perms || '', authenticator: before.totp_required ? 'required' : 'optional' };
+  const old = { name: before.name, email: before.email, username: before.username || '', role: before.role, office: before.office, phone: before.phone, shift: before.shift, perms: before.perms || '', authenticator: before.totp_required ? 'required' : 'optional' };
   const reqTotp = role !== 'om' && fd.get('require_totp') === 'on';
-  const after = { name, email, role, office: off.code, phone, shift, perms: permsStr, authenticator: reqTotp ? 'required' : 'optional' };
+  const after = { name, email, username, role, office: off.code, phone, shift, perms: permsStr, authenticator: reqTotp ? 'required' : 'optional' };
   const changes = diff(old, after);
   if (!changes.length) back('/team', 'No changes were made', true);
   let failed = false;
   try {
-    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4, phone = $5, shift = $6, perms = $7, totp_required = $8 WHERE id = $9', [name, email, role, off.id, phone, shift, permsStr, reqTotp, id]);
+    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4, phone = $5, shift = $6, perms = $7, totp_required = $8, username = $9 WHERE id = $10', [name, email, role, off.id, phone, shift, permsStr, reqTotp, username, id]);
   } catch {
     failed = true;
   }
-  if (failed) back(here, 'That email is already in use');
+  if (failed) back(here, 'That email or username is already in use');
   await logEvent(u, 'edit', 'user', id, 'Edited team member #' + id + ' - ' + changes.join('; '), old, after);
   if (id !== u.id) await notifyUser(id, u.name + ' updated your profile: ' + changes.join('; '), '/profile');
   back('/team', 'Team member updated', true);
@@ -572,6 +577,7 @@ export async function verifyLogin(fd) {
 export async function confirmSetup(fd) {
   const u = await getUser();
   if (!u) redirect('/login');
+  if (u.impersonatedBy) back('/security', 'Not available while viewing as someone else');
   const row = (await q('SELECT totp_secret, totp_enabled, totp_epoch FROM pc2_users WHERE id = $1', [u.id]))[0];
   if (row.totp_enabled) back('/security', 'The authenticator app is already on', true);
   if (!verifyTotp(row.totp_secret, s(fd, 'code'))) back('/security', 'That code is not correct. Check that the time on your phone is automatic, then try again.');
@@ -589,6 +595,7 @@ export async function confirmSetup(fd) {
 export async function disableTotp(fd) {
   const u = await getUser();
   if (!u) redirect('/login');
+  if (u.impersonatedBy) back('/security', 'Not available while viewing as someone else');
   const row = (await q('SELECT totp_secret, totp_enabled, totp_required FROM pc2_users WHERE id = $1', [u.id]))[0];
   if (row.totp_required) back('/security', 'The Sr. Ops Manager requires the authenticator app for your account');
   if (!row.totp_enabled) back('/security', 'It is already off', true);
@@ -611,9 +618,9 @@ export async function resetTotp(fd) {
 
 // Login page "Forgot password?": nobody resets their own password, so this only asks the Sr. Ops Manager.
 export async function requestReset(fd) {
-  const email = s(fd, 'email').toLowerCase();
-  const done = 'If that email is on the team, the Sr. Ops Manager has been notified and will give you a new password.';
-  const r = (await q('SELECT id, name, email FROM pc2_users WHERE lower(email) = $1 AND active', [email]))[0];
+  const email = (s(fd, 'username') || s(fd, 'email')).toLowerCase();
+  const done = 'If that username is on the team, the Sr. Ops Manager has been notified and will give you a new password.';
+  const r = (await q('SELECT id, name, email FROM pc2_users WHERE (lower(username) = $1 OR lower(email) = $1) AND active', [email]))[0];
   if (r) {
     const msg = 'Password reset requested by ' + r.name + ' (' + r.email + ')';
     // One open request per person per hour, so the form cannot be used to flood notifications.
@@ -624,4 +631,25 @@ export async function requestReset(fd) {
     }
   }
   back('/login', done, true);
+}
+
+// Sr. Ops Manager only: open someone's account without their password or code. Silent, logged, 30 minutes.
+export async function viewAs(fd) {
+  const u = await need(['om']);
+  const id = Number(s(fd, 'id'));
+  if (id === u.id) back('/team', 'That is your own account');
+  const t = (await q('SELECT id, name, role FROM pc2_users WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
+  if (!t || t.role === 'om') back('/team', 'That account cannot be opened this way');
+  await startImpersonation(u.id, t.id);
+  await logEvent(u, 'update', 'user', t.id, 'Signed in as ' + t.name + ' (view as)');
+  redirect(t.role === 'guard' ? '/attendance' : '/');
+}
+
+export async function stopViewAs() {
+  const u = await getUser();
+  await stopImpersonation();
+  if (u && u.impersonatedBy) {
+    await logEvent({ id: u.impersonatedBy.id, name: u.impersonatedBy.name, role: 'om' }, 'update', 'user', u.id, 'Returned to own account from ' + u.name + ' (view as)');
+  }
+  redirect('/team');
 }
