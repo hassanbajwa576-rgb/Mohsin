@@ -1,3 +1,4 @@
+import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { can } from '@/lib/perms';
@@ -134,7 +135,7 @@ export default async function AttendancePage({ searchParams }) {
                     {board.map((r) => (
                       <tr key={r.id}>
                         <td><b>{r.name}</b></td>
-                        <td><span className='pill'>{r.office}</span></td>
+                        <td><OfficeTag o={r.office} /></td>
                         <td><span className={'st ' + (r.over ? 'over' : r.state === 'on' ? 'on' : r.state === 'break' ? 'break' : '')}>{r.over ? 'Break overdue' : STATE_LABEL[r.state]}</span></td>
                         <td className='nw'>{r.since ? (dateKey(r.since) === today ? '' : dateKey(r.since) + ' ') + fmtTime(r.since) : '-'}</td>
                         <td className='nw'>{fmtDur(r.worked)}</td>
