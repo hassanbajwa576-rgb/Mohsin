@@ -35,6 +35,7 @@ const LABELS = {
   shift: 'Shift',
   role: 'Role',
   perms: 'Extra access',
+  authenticator: 'Authenticator',
 };
 
 // Human-readable list of what changed between two snapshots.
