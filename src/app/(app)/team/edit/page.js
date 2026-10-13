@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { editUser } from '@/lib/actions';
+import { editUser, resetTotp } from '@/lib/actions';
+import ConfirmButton from '@/components/ConfirmButton';
 import { ROLE_LABEL } from '@/lib/fmt';
 import { PERMS, ROLE_PERMS } from '@/lib/perms';
 import Flash from '@/components/Flash';
@@ -12,7 +13,7 @@ export default async function EditUserPage({ searchParams }) {
   const sp = await searchParams;
   const id = Number(sp.id);
   const t = (await q(
-    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.perms, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
+    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.perms, u.totp_enabled, u.totp_required, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
     [Number.isInteger(id) ? id : 0]
   ))[0];
   if (!t) redirect('/team');
@@ -65,9 +66,21 @@ export default async function EditUserPage({ searchParams }) {
               })}
             </fieldset>
           ) : null}
+          {t.role !== 'om' ? (
+            <label className='wide perm'>
+              <input type='checkbox' name='require_totp' defaultChecked={t.totp_required} />
+              <span>Require the authenticator app <small>- {t.totp_enabled ? 'already set up' : 'they will be asked to set it up at next sign-in'}</small></span>
+            </label>
+          ) : null}
           <button className='btn primary' type='submit'>Save changes</button>
           <Link href='/team' className='btn ghost'>Cancel</Link>
         </form>
+        {t.role !== 'om' && t.totp_enabled ? (
+          <form action={resetTotp} className='inline' style={{ marginTop: 16 }}>
+            <input type='hidden' name='id' value={t.id} />
+            <ConfirmButton className='btn' message='Reset the authenticator app for this person? They will set it up again at their next sign-in.'>Reset authenticator</ConfirmButton>
+          </form>
+        ) : null}
       </div>
     </>
   );
