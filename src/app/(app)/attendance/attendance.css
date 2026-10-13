@@ -6,6 +6,10 @@
 .att-seg input{position:absolute;opacity:0;width:0;height:0}
 .att-seg span{display:block;text-align:center;padding:12px 6px;border:1.5px solid var(--line);border-radius:3px;font-weight:600;color:var(--ink);background:var(--card)}
 .att-seg label.pend span{background:var(--gold);border-color:var(--gold);color:#000}
+.att-seg label.pend span::after{content:' (next)';font-size:11px;font-weight:600}
+.att-seg label.pend small{color:#000}
+.att-st{display:block;font-size:11px;color:var(--mut);font-weight:400}
+.entry-act{display:flex;gap:6px;justify-content:flex-end;align-items:flex-start;flex-wrap:wrap}
 .att-seg label.on span{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .att-hint{margin:-6px 0 0;font-size:12px;color:var(--mut)}
 .att-seg label:focus-within span{outline:2px solid var(--gold);outline-offset:2px}
@@ -39,8 +43,8 @@ tr.conflict td{background:var(--badbg)}
 .pbar i{display:block;height:100%;background:var(--gold)}
 .mini{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:12px;color:var(--mut)}
 .mini b{display:block;font-size:16px;color:var(--ink)}
-.who{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
-.who h4{margin:0 0 6px;font-size:13px}
+.whoq{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.whoq h4{margin:0 0 6px;font-size:13px}
 .chipn{display:inline-block;padding:2px 8px;margin:2px 4px 2px 0;border:1px solid var(--line);border-radius:3px;font-size:12px;background:var(--card)}
 .chipn.late{color:var(--bad);border-color:var(--bad);background:var(--badbg)}
 .chipn small{color:var(--mut);margin-left:4px}
