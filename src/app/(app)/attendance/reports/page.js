@@ -1,11 +1,14 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
-import { reportRows, departments, fmtDur, todayKey, validDate, BREAK_LIMIT_MIN } from '@/lib/att';
+import { ATT_ROLES, reportRows, departments, fmtDur, todayKey, validDate, BREAK_LIMIT_MIN } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AttendanceReportsPage({ searchParams }) {
-  await requireUser(['om', 'sso']);
+  const user = await requireUser(ATT_ROLES);
+  if (!can(user, 'att_reports')) redirect('/attendance');
   const sp = await searchParams;
   const today = todayKey();
   const to = validDate(sp.to || '') ? sp.to : today;
