@@ -174,3 +174,74 @@ export async function departments() {
   const r = await q("SELECT DISTINCT dept FROM pc2_staff WHERE dept <> '' ORDER BY dept");
   return r.map((x) => x.dept);
 }
+
+// Punctuality: checking in by 09:30 and checking out from 17:55 is on time (green), otherwise red.
+export const LATE_AFTER = '09:30';
+export const EARLY_BEFORE = '17:55';
+export const inClass = (hhmm) => (hhmm <= LATE_AFTER ? 't-ok' : 't-bad');
+export const outClass = (hhmm) => (hhmm >= EARLY_BEFORE ? 't-ok' : 't-bad');
+export const timeClass = (kind, hhmm) => (kind === 'in' ? inClass(hhmm) : kind === 'out' ? outClass(hhmm) : '');
+
+/** Ids of entries that contradict the entries around them (shown red so someone fixes them). */
+export function conflictIds(evs) {
+  const bad = new Set();
+  for (const list of groupByStaff(evs).values()) {
+    const sorted = list.slice().sort((a, b) => Number(a.ms) - Number(b.ms) || a.id - b.id);
+    let s = 'off';
+    let openBreak = null;
+    for (const e of sorted) {
+      const n = NEXT[s][e.kind];
+      if (!n) {
+        bad.add(e.id);
+        continue;
+      }
+      if (e.kind === 'out' && s === 'break') {
+        bad.add(e.id);
+        if (openBreak != null) bad.add(openBreak);
+      }
+      openBreak = e.kind === 'break_out' ? e.id : null;
+      s = n;
+    }
+  }
+  return bad;
+}
+
+/** Entries from the last 36 hours that this user may still change. */
+export async function editableEntries(user) {
+  const cond = user.role === 'om' ? '' : user.role === 'sso' ? "AND (a.entered_by = $1 OR ub.role IN ('so', 'guard'))" : 'AND a.entered_by = $1';
+  return q(
+    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, o.code AS office, ub.name AS by_name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.entered_at > now() - interval '36 hours' ${cond} ORDER BY a.at DESC, a.id DESC LIMIT 60`,
+    user.role === 'om' ? [] : [user.id]
+  );
+}
+
+/** Entries around one day (the day before and after too), for spotting contradictions. */
+export async function eventsAround(staffIds, day) {
+  if (!staffIds.length) return [];
+  return q(
+    `SELECT ${EV_COLS} FROM pc2_attendance a WHERE a.staff_id = ANY($1::int[]) AND a.at >= (($2::date - 1)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($2::date + 2)::timestamp AT TIME ZONE '${TZ}') ORDER BY a.at, a.id`,
+    [staffIds, day]
+  );
+}
+
+/** Active staff and their entries for one day (Karachi time). */
+export async function dayBoard(day, office) {
+  const staff = await q(
+    `SELECT s.id, s.name, s.dept, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${office ? 'AND o.code = $1' : ''} ORDER BY o.code, s.name`,
+    office ? [office] : []
+  );
+  if (!staff.length) return { staff, by: new Map() };
+  const evs = await q(
+    `SELECT ${EV_COLS} FROM pc2_attendance a WHERE a.staff_id = ANY($1::int[]) AND a.at >= (($2::date)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($2::date + 1)::timestamp AT TIME ZONE '${TZ}') ORDER BY a.at, a.id`,
+    [staff.map((x) => x.id), day]
+  );
+  return { staff, by: groupByStaff(evs) };
+}
+
+/** People who checked in on each of the 7 days ending on the given day. */
+export async function trend(day, office) {
+  return q(
+    `SELECT to_char(a.at AT TIME ZONE '${TZ}', 'YYYY-MM-DD') AS d, COUNT(DISTINCT a.staff_id)::int AS n FROM pc2_attendance a JOIN pc2_offices o ON o.id = a.office_id WHERE a.kind = 'in' AND a.at >= (($1::date - 6)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($1::date + 1)::timestamp AT TIME ZONE '${TZ}') ${office ? 'AND o.code = $2' : ''} GROUP BY 1 ORDER BY 1`,
+    office ? [day, office] : [day]
+  );
+}
