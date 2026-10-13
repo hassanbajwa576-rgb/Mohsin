@@ -1,3 +1,4 @@
+import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { addUser, resetPassword, toggleUser } from '@/lib/actions';
@@ -68,7 +69,7 @@ export default async function TeamPage({ searchParams }) {
                     {u.perms ? <div className='muted'>+ {u.perms.split(',').map((k) => PERM_SHORT[k] || k).join(', ')}</div> : null}
                     {u.totp_enabled ? <div className='muted'>Authenticator on</div> : u.totp_required ? <div className='muted'>Authenticator required</div> : null}
                   </td>
-                  <td><span className='pill'>{u.office}</span></td>
+                  <td><OfficeTag o={u.office} /></td>
                   <td>{u.phone || '-'}</td>
                   <td>{u.email}</td>
                   <td><span className={'badge ' + (u.active ? 'approved' : 'rejected')}>{u.active ? 'Active' : 'Inactive'}</span></td>
