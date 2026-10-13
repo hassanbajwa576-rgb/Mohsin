@@ -1,5 +1,6 @@
 import { requireUser } from '@/lib/auth';
-import { reportRows, todayKey, validDate } from '@/lib/att';
+import { ATT_ROLES, reportRows, todayKey, validDate } from '@/lib/att';
+import { can } from '@/lib/perms';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,8 @@ function cell(v) {
 }
 
 export async function GET(req) {
-  await requireUser(['om', 'sso']);
+  const u = await requireUser(ATT_ROLES);
+  if (!can(u, 'att_reports')) return new Response('Not allowed', { status: 403 });
   const sp = new URL(req.url).searchParams;
   const today = todayKey();
   const to = validDate(sp.get('to') || '') ? sp.get('to') : today;
