@@ -1,7 +1,7 @@
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { addUser, resetPassword, toggleUser } from '@/lib/actions';
+import { addUser, resetPassword, toggleUser, viewAs } from '@/lib/actions';
 import { ROLE_LABEL } from '@/lib/fmt';
 import { PERM_SHORT } from '@/lib/perms';
 import Flash from '@/components/Flash';
@@ -10,7 +10,7 @@ export default async function TeamPage({ searchParams }) {
   const me = await requireUser(['om']);
   const sp = await searchParams;
   const users = await q(
-    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.perms, u.totp_enabled, u.totp_required, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
+    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.totp_enabled, u.totp_required, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
   );
 
   const reqs = await q("SELECT DISTINCT message FROM pc2_notifications WHERE is_read = FALSE AND message LIKE 'Password reset requested by %' AND created_at > now() - interval '7 days'");
@@ -36,6 +36,7 @@ export default async function TeamPage({ searchParams }) {
         <summary>Add team member</summary>
         <form action={addUser} className='form'>
           <label>Full name<input name='name' required /></label>
+          <label>Username<input name='username' placeholder='e.g. so2' pattern='[A-Za-z0-9._-]{3,20}' required autoComplete='off' /></label>
           <label>Email<input name='email' type='email' required /></label>
           <label>Role
             <select name='role' defaultValue='so'>
@@ -59,11 +60,12 @@ export default async function TeamPage({ searchParams }) {
       <div className='card'>
         <div className='tablewrap'>
           <table>
-            <thead><tr><th>Name</th><th>Role</th><th>Office</th><th>Phone</th><th>Email</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Office</th><th>Phone</th><th>Email</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u.id}>
                   <td><b>{u.name}</b></td>
+                  <td><code>{u.username || '-'}</code></td>
                   <td>
                     {ROLE_LABEL[u.role]}{u.shift ? ' - ' + (u.shift === 'morning' ? 'Morning' : 'Evening') : ''}
                     {u.perms ? <div className='muted'>+ {u.perms.split(',').map((k) => PERM_SHORT[k] || k).join(', ')}</div> : null}
@@ -80,6 +82,12 @@ export default async function TeamPage({ searchParams }) {
                       <input name='password' placeholder='New password' minLength={8} className='sm' autoComplete='off' required />
                       <button className='btn' type='submit'>Reset</button>
                     </form>
+                    {u.id !== me.id && u.active && u.role !== 'om' ? (
+                      <form action={viewAs} className='inline'>
+                        <input type='hidden' name='id' value={u.id} />
+                        <button className='btn' type='submit'>Sign in as</button>
+                      </form>
+                    ) : null}
                     {u.id !== me.id ? (
                       <form action={toggleUser} className='inline'>
                         <input type='hidden' name='id' value={u.id} />
