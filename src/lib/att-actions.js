@@ -87,13 +87,13 @@ export async function removeEntry(fd) {
   const id = Number(s(fd, 'id'));
   const to = PATHS.includes(s(fd, 'back')) ? s(fd, 'back') : '/attendance';
   const r = (await q(
-    `SELECT a.id, a.entered_by, a.kind, s.name, o.code AS office, to_char(a.at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI') AS at_txt, (a.entered_at > now() - interval '36 hours') AS fresh
-     FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id JOIN pc2_offices o ON o.id = a.office_id WHERE a.id = $1`,
+    `SELECT a.id, a.entered_by, a.kind, ub.role AS by_role, s.name, o.code AS office, to_char(a.at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI') AS at_txt, (a.entered_at > now() - interval '36 hours') AS fresh
+     FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.id = $1`,
     [Number.isInteger(id) ? id : 0]
   ))[0];
   if (!r) back(to, 'Entry not found');
-  const allowed = u.role === 'om' || (u.role !== 'sso' && r.entered_by === u.id && r.fresh);
-  if (!allowed) back(to, 'You can only delete your own entries within 36 hours');
+  const allowed = u.role === 'om' || (u.role === 'sso' && r.fresh && (r.entered_by === u.id || ['so', 'guard'].includes(r.by_role)));
+  if (!allowed) back(to, 'Only the Sr. Ops Manager and Sr. Support Officer can delete entries (the Sr. Support Officer within 36 hours)');
   await q('DELETE FROM pc2_attendance WHERE id = $1', [r.id]);
   await logEvent(u, 'delete', 'attendance', r.id, 'Removed ' + KIND_LABEL[r.kind] + ' - ' + r.name + ' (' + r.office + ') ' + r.at_txt, { staff: r.name, kind: r.kind, at: r.at_txt }, null);
   back(to, 'Entry removed', true);
