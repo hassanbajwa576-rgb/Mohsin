@@ -5,8 +5,9 @@ import { can } from '@/lib/perms';
 import { addEntry, removeEntry } from '@/lib/att-actions';
 import {
   ATT_ROLES, KIND_LABEL, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff,
-  stateOf, sessionsOf, dutyContacts, fmtTime, fmtDur, todayKey, dateKey,
+  stateOf, sessionsOf, dutyContacts, fmtTime, fmtDur, todayKey, dateKey, editableEntries, conflictIds, inClass, outClass, timeClass,
 } from '@/lib/att';
+import EntryEdit from '@/components/EntryEdit';
 import AttendanceEntryForm from '@/components/AttendanceEntryForm';
 import Flash from '@/components/Flash';
 
@@ -38,15 +39,9 @@ export default async function AttendancePage({ searchParams }) {
 
   const contacts = await dutyContacts(user);
 
-  // Someone granted "see the entries they have made" also gets the times of their own entries.
-  const ownTimes = can(user, 'att_own');
-  let mine = [];
-  if (!see) {
-    mine = await q(
-      `SELECT a.id, a.kind, s.name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id WHERE a.entered_by = $1 AND a.entered_at > now() - ($2::int * interval '1 hour') ORDER BY a.id DESC LIMIT ${ownTimes ? 40 : 8}`,
-      [user.id, ownTimes ? 72 : 12]
-    );
-  }
+  // Entries this person may still fix: their own (the Sr. SO also those of the Support Officer and guards) for 36 hours.
+  const fixable = await editableEntries(user);
+  const bad = conflictIds(await recentEvents([...new Set(fixable.map((x) => x.staff_id))], 4));
 
   const today = todayKey();
   const board = see
@@ -59,6 +54,8 @@ export default async function AttendancePage({ searchParams }) {
           worked: ss.reduce((a, x) => a + x.workedMs, 0),
           breakMs: ss.reduce((a, x) => a + x.breakMs, 0),
           breaks: ss.reduce((a, x) => a + x.breakCount, 0),
+          inAt: ss.length ? ss[0].start : null,
+          outAt: ss.length && ss[ss.length - 1].end ? ss[ss.length - 1].end : null,
         };
       })
     : [];
@@ -85,32 +82,42 @@ export default async function AttendancePage({ searchParams }) {
         <AttendanceEntryForm options={options} action={addEntry} defaultOffice={user.office_code} />
       </div>
 
-      {!see && mine.length > 0 ? (
+      {fixable.length > 0 ? (
         <div className='card'>
-          <h3>Your recent entries</h3>
+          <h3>{user.role === 'om' ? 'Entries from the last 36 hours' : 'Entries you can fix'}</h3>
           <div className='tablewrap'>
             <table>
               <tbody>
-                {mine.map((m) => (
-                  <tr key={m.id}>
-                    <td><b>{m.name}</b></td>
-                    <td>{KIND_LABEL[m.kind]}</td>
-                    {ownTimes ? <td className='nw'>{(dateKey(m.ms) === todayKey() ? '' : dateKey(m.ms) + ' ') + fmtTime(m.ms)}</td> : null}
-                    <td className='act r'>
-                      {m.fresh ? (
-                        <form action={removeEntry} className='inline'>
-                          <input type='hidden' name='id' value={m.id} />
-                          <input type='hidden' name='back' value='/attendance' />
-                          <button className='btn ghost' type='submit'>Undo</button>
-                        </form>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
+                {fixable.map((m) => {
+                  const tm = fmtTime(m.ms);
+                  const isBad = bad.has(m.id);
+                  const canUndo = m.fresh && (user.role === 'om' || (user.role !== 'sso' && m.entered_by === user.id));
+                  return (
+                    <tr key={m.id} className={isBad ? 'conflict' : ''}>
+                      <td>
+                        <OfficeTag o={m.office} /><b>{m.name}</b>
+                        {isBad ? <div className='over-t'>Does not fit with the entries around it - please fix</div> : null}
+                      </td>
+                      <td>{KIND_LABEL[m.kind]}</td>
+                      <td className={'nw ' + timeClass(m.kind, tm)}>{(dateKey(m.ms) === todayKey() ? '' : dateKey(m.ms) + ' ') + tm}</td>
+                      <td className='muted'>{m.by_name || '-'}</td>
+                      <td className='act r'>
+                        <EntryEdit m={m} back='/attendance' />
+                        {canUndo ? (
+                          <form action={removeEntry} className='inline'>
+                            <input type='hidden' name='id' value={m.id} />
+                            <input type='hidden' name='back' value='/attendance' />
+                            <button className='btn ghost' type='submit'>Undo</button>
+                          </form>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          <p className='totals'>You can undo an entry within 30 minutes of adding it.</p>
+          <p className='totals'>Times in green are on time (check in by 09:30, check out from 17:55), red is late or early. You can change the type, date or time of an entry for 36 hours after it was made.</p>
         </div>
       ) : null}
 
@@ -129,7 +136,7 @@ export default async function AttendancePage({ searchParams }) {
               <div className='tablewrap'>
                 <table>
                   <thead>
-                    <tr><th>Employee</th><th>Office</th><th>Status</th><th>Since</th><th>Worked today</th><th>Breaks today</th></tr>
+                    <tr><th>Employee</th><th>Office</th><th>Status</th><th>In</th><th>Out</th><th>Worked today</th><th>Breaks today</th></tr>
                   </thead>
                   <tbody>
                     {board.map((r) => (
@@ -137,7 +144,8 @@ export default async function AttendancePage({ searchParams }) {
                         <td><b>{r.name}</b></td>
                         <td><OfficeTag o={r.office} /></td>
                         <td><span className={'st ' + (r.over ? 'over' : r.state === 'on' ? 'on' : r.state === 'break' ? 'break' : '')}>{r.over ? 'Break overdue' : STATE_LABEL[r.state]}</span></td>
-                        <td className='nw'>{r.since ? (dateKey(r.since) === today ? '' : dateKey(r.since) + ' ') + fmtTime(r.since) : '-'}</td>
+                        <td className={'nw ' + (r.inAt ? inClass(fmtTime(r.inAt)) : '')}>{r.inAt ? fmtTime(r.inAt) : '-'}</td>
+                        <td className={'nw ' + (r.outAt ? outClass(fmtTime(r.outAt)) : '')}>{r.outAt ? fmtTime(r.outAt) : '-'}</td>
                         <td className='nw'>{fmtDur(r.worked)}</td>
                         <td className='nw'>{r.breaks} - {fmtDur(r.breakMs)}</td>
                       </tr>
