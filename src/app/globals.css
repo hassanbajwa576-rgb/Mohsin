@@ -305,3 +305,7 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .filters.compact{padding:10px 14px;gap:10px}
 .filters.compact label{min-width:120px;font-size:12px}
 .filters.compact .muted{font-size:11.5px}
+
+/* view as */
+.impbar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:8px 16px;background:var(--ink);color:#fff;font-size:13px}
+.impbar b{color:var(--gold)}
