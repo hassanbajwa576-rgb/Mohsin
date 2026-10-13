@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }) {
         <div className='logo'>
           <Logo height={40} />
           <h1>OpsTrack</h1>
-          <p className='muted'>Expense Management & Attendance | Pakistan Office</p>
+          <p className='muted'>Operations Platform | Pakistan Office</p>
         </div>
         <Flash sp={sp} />
         <label>Email<input name='email' type='email' required autoComplete='username' /></label>
