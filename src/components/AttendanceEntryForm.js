@@ -181,7 +181,7 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
           <ul className='att-list' role='listbox'>
             {matches.map((o) => (
               <li key={o.id}>
-                <button type='button' onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>{o.label}</button>
+                <button type='button' onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>{o.label}<small className='att-st'>{o.status}</small></button>
               </li>
             ))}
           </ul>
@@ -189,6 +189,9 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
         {open && q && matches.length === 0 ? <p className='att-none'>No employee in {office} matches that name</p> : null}
       </div>
 
+      {chosen ? (
+        <p className='att-hint'><b>{chosen.label}</b> is {String(chosen.status || '').toLowerCase()}. Next step: <b>{(KINDS.find((x) => x[0] === chosen.suggested) || [])[1]}</b> (gold).</p>
+      ) : null}
       <div className='att-seg' role='radiogroup' aria-label='Entry type'>
         {KINDS.map(([k, label, hint]) => (
           <label key={k} className={(kind === k ? 'on' : '') + ((chosen ? chosen.suggested : 'in') === k ? ' pend' : '')}>
