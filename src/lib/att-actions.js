@@ -13,6 +13,7 @@ const PATHS = ['/attendance', '/attendance/logs'];
 async function need(roles) {
   const u = await getUser();
   if (!u) redirect('/login');
+  if (u.totp_required && !u.totp_enabled) redirect('/security');
   if (!roles.includes(u.role)) redirect(u.role === 'guard' ? '/attendance' : '/');
   return u;
 }
@@ -20,6 +21,7 @@ async function need(roles) {
 async function needPerm(key) {
   const u = await getUser();
   if (!u) redirect('/login');
+  if (u.totp_required && !u.totp_enabled) redirect('/security');
   if (!can(u, key)) redirect(u.role === 'guard' ? '/attendance' : '/');
   return u;
 }
