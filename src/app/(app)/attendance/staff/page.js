@@ -1,4 +1,7 @@
+import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
+import { ATT_ROLES } from '@/lib/att';
+import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
 import { addStaff, updateStaff, toggleStaff, importStaff } from '@/lib/att-actions';
 import Flash from '@/components/Flash';
@@ -6,7 +9,8 @@ import Flash from '@/components/Flash';
 export const dynamic = 'force-dynamic';
 
 export default async function AttendanceStaffPage({ searchParams }) {
-  await requireUser(['om']);
+  const user = await requireUser(ATT_ROLES);
+  if (!can(user, 'att_staff')) redirect('/attendance');
   const sp = await searchParams;
   const rows = await q(
     `SELECT s.id, s.code, s.name, s.dept, s.active, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ORDER BY s.active DESC, o.code, s.name`
