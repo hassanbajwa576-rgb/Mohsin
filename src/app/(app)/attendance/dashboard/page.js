@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, canSeeTimes, dayBoard, trend, stateOf, fmtTime, todayKey, validDate, LATE_AFTER, EARLY_BEFORE } from '@/lib/att';
+import { ATT_ROLES, canSeeTimes, dayBoard, trend, stateOf, fmtTime, to12, todayKey, validDate, LATE_AFTER, EARLY_BEFORE } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,7 +63,7 @@ export default async function AttendanceDashboard({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Attendance dashboard</h1>
-          <p className='muted subline'>{office || 'Both offices'} | {day}{day === todayKey() ? ' (today)' : ''} | on time: in by {LATE_AFTER}, out from {EARLY_BEFORE}</p>
+          <p className='muted subline'>{office || 'Both offices'} | {day}{day === todayKey() ? ' (today)' : ''} | on time: in by {to12(LATE_AFTER)}, out from {to12(EARLY_BEFORE)}</p>
         </div>
         <div className='chips'>
           {['', 'LHR', 'ISB'].map((o) => (
@@ -84,7 +84,7 @@ export default async function AttendanceDashboard({ searchParams }) {
         <div className='card kpi alt'><span>On break</span><b>{count((p) => p.state === 'break')}</b></div>
         <div className='card kpi alt'><span>Checked out</span><b>{count((p) => p.state === 'off')}</b></div>
         <div className='card kpi alt'><span>Not in yet</span><b>{count((p) => p.state === 'none')}</b></div>
-        <div className={'card kpi' + (count((p) => p.late) ? ' neg' : '')}><span>Late (after {LATE_AFTER})</span><b>{count((p) => p.late)}</b></div>
+        <div className={'card kpi' + (count((p) => p.late) ? ' neg' : '')}><span>Late (after {to12(LATE_AFTER)})</span><b>{count((p) => p.late)}</b></div>
       </div>
 
       <div className='dgrid'>
@@ -110,7 +110,7 @@ export default async function AttendanceDashboard({ searchParams }) {
       <div className='card'>
         <h3>Who is where</h3>
         {people.length === 0 ? <p className='muted'>No employees yet.</p> : (
-          <div className='who'>
+          <div className='whoq'>
             {COLS.map(([k, label]) => {
               const ps = people.filter((p) => p.state === k);
               return (
@@ -119,8 +119,8 @@ export default async function AttendanceDashboard({ searchParams }) {
                   {ps.length === 0 ? <span className='muted'>-</span> : ps.map((p) => (
                     <span key={p.id} className={'chipn' + (p.late ? ' late' : '')}>
                       {p.name}
-                      {p.firstIn && k !== 'off' ? <small>{p.firstIn}</small> : null}
-                      {k === 'off' && p.lastOut ? <small className={p.early ? 't-bad' : ''}>{p.lastOut}</small> : null}
+                      {p.firstIn && k !== 'off' ? <small>{to12(p.firstIn)}</small> : null}
+                      {k === 'off' && p.lastOut ? <small className={p.early ? 't-bad' : ''}>{to12(p.lastOut)}</small> : null}
                     </span>
                   ))}
                 </div>
