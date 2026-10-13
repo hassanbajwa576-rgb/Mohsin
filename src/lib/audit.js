@@ -8,7 +8,7 @@ export async function logEvent(user, action, entity, entityId, summary, before =
     `INSERT INTO pc2_audit (actor_id, actor_name, actor_role, action, entity, entity_id, summary, before, after) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb)`,
     [
       user ? user.id : null,
-      user ? user.name : 'System',
+      user ? user.name + (user.impersonatedBy ? ' (by ' + user.impersonatedBy.name + ')' : '') : 'System',
       user ? user.role : '',
       action,
       entity,
