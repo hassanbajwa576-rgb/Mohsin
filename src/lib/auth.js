@@ -36,10 +36,11 @@ export const getUser = cache(async function getUser() {
     return null;
   }
   const rows = await q(
-    `SELECT u.id, u.name, u.email, u.role, u.office_id, o.code AS office_code FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1 AND u.active`,
+    `SELECT u.id, u.name, u.email, u.role, u.perms, u.office_id, o.code AS office_code FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1 AND u.active`,
     [uid]
   );
-  return rows[0] || null;
+  if (!rows[0]) return null;
+  return { ...rows[0], perms: String(rows[0].perms || '').split(',').filter(Boolean) };
 });
 
 export async function requireUser(roles) {
