@@ -245,3 +245,12 @@ export async function trend(day, office) {
     office ? [day, office] : [day]
   );
 }
+
+// 12-hour display (am / pm). Comparisons for punctuality still use the 24-hour HH:MM text.
+export const to12 = (hhmm) => {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return ((h % 12) || 12) + ':' + String(m).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM');
+};
+export const fmt12 = (ms) => to12(fmtTime(ms));
+const dayfmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'short' });
+export const fmtDay = (ms) => dayfmt.format(new Date(Number(ms)));
