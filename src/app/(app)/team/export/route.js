@@ -17,11 +17,11 @@ function cell(v) {
 export async function GET() {
   await requireUser(['om']);
   const rows = await q(
-    `SELECT u.name, u.role, o.code AS office, u.email, u.active, to_char(u.created_at, 'YYYY-MM-DD') AS created FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 ELSE 2 END, u.name`
+    `SELECT u.name, u.role, o.code AS office, u.username, u.email, u.active, to_char(u.created_at, 'YYYY-MM-DD') AS created FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 ELSE 2 END, u.name`
   );
-  const header = ['Name', 'Role', 'Office', 'Login ID (email)', 'Status', 'Created'];
+  const header = ['Name', 'Role', 'Office', 'Username', 'Email', 'Status', 'Created'];
   const lines = [header.map(cell).join(',')].concat(
-    rows.map((r) => [r.name, ROLE_LABEL[r.role], r.office, r.email, r.active ? 'Active' : 'Inactive', r.created].map(cell).join(','))
+    rows.map((r) => [r.name, ROLE_LABEL[r.role], r.office, r.username || '', r.email, r.active ? 'Active' : 'Inactive', r.created].map(cell).join(','))
   );
   return new Response('\uFEFF' + lines.join('\r\n') + '\r\n', {
     headers: {
