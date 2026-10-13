@@ -12,6 +12,8 @@ export default async function TeamPage({ searchParams }) {
     `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.perms, u.totp_enabled, u.totp_required, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
   );
 
+  const reqs = await q("SELECT DISTINCT message FROM pc2_notifications WHERE is_read = FALSE AND message LIKE 'Password reset requested by %' AND created_at > now() - interval '7 days'");
+
   return (
     <>
       <div className='head'>
@@ -22,6 +24,12 @@ export default async function TeamPage({ searchParams }) {
         <a href='/team/export' className='btn primary'>Download team list (Excel)</a>
       </div>
       <Flash sp={sp} />
+      {reqs.length > 0 ? (
+        <div className='card'>
+          <b>Password reset requests</b>
+          {reqs.map((r) => <div key={r.message} className='muted'>{r.message.replace('Password reset requested by ', '')} - set a new password below with Reset</div>)}
+        </div>
+      ) : null}
 
       <details className='card' open>
         <summary>Add team member</summary>
