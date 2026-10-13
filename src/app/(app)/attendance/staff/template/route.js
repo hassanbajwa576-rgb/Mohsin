@@ -1,11 +1,14 @@
 import ExcelJS from 'exceljs';
 import { requireUser } from '@/lib/auth';
+import { ATT_ROLES } from '@/lib/att';
+import { can } from '@/lib/perms';
 
 export const dynamic = 'force-dynamic';
 
 // Blank upload template for the Employees page.
 export async function GET() {
-  await requireUser(['om']);
+  const u = await requireUser(ATT_ROLES);
+  if (!can(u, 'att_staff')) return new Response('Not allowed', { status: 403 });
   const wb = new ExcelJS.Workbook();
   wb.creator = 'OpsTrack';
   const ws = wb.addWorksheet('Employees');
