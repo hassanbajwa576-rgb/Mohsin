@@ -37,7 +37,11 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
     setDate(n.date);
     setTime(n.time);
     // Voice search needs the browser speech service (Chrome, Edge, Android; limited on iPhone).
-    setCanListen(!!(window.SpeechRecognition || window.webkitSpeechRecognition));
+    // The microphone is offered on phones and tablets only; laptops and desktops type the name.
+    const supported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    const touchFirst = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') || !!(navigator.userAgentData && navigator.userAgentData.mobile);
+    setCanListen(supported && (mobileUa || touchFirst));
   }, []);
 
   // Employees of the chosen office, narrowed by what has been typed.
@@ -95,7 +99,10 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
       setListening(false);
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setErr('The microphone is blocked. Allow it for this site in your browser settings.');
       else if (e.error === 'no-speech') setErr('Did not hear anything. Tap the microphone and say the name.');
-      else setErr('Voice search is not available right now. Type the name instead.');
+      else if (e.error === 'network') setErr('Voice search could not reach the speech service. Check the internet connection and try again, or type the name.');
+      else if (e.error === 'audio-capture') setErr('No microphone was found on this device. Type the name instead.');
+      else if (e.error === 'language-not-supported') setErr('This browser does not support voice search in this language. Type the name instead.');
+      else setErr('Voice search is not available right now (' + (e.error || 'unknown') + '). Type the name instead.');
     };
     rec.onend = () => setListening(false);
     recRef.current = rec;
