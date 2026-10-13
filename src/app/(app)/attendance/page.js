@@ -5,8 +5,9 @@ import { can } from '@/lib/perms';
 import { addEntry, removeEntry } from '@/lib/att-actions';
 import {
   ATT_ROLES, KIND_LABEL, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff,
-  stateOf, sessionsOf, dutyContacts, fmtTime, fmtDur, todayKey, dateKey, editableEntries, conflictIds, inClass, outClass, timeClass,
+  stateOf, sessionsOf, dutyContacts, fmtTime, fmtDur, todayKey, dateKey, editableEntries, conflictIds, inClass, outClass, timeClass, fmt12, fmtDay,
 } from '@/lib/att';
+import ConfirmButton from '@/components/ConfirmButton';
 import EntryEdit from '@/components/EntryEdit';
 import AttendanceEntryForm from '@/components/AttendanceEntryForm';
 import Flash from '@/components/Flash';
@@ -35,6 +36,7 @@ export default async function AttendancePage({ searchParams }) {
     office: r.office,
     label: r.name,
     suggested: SUGGEST[r.state],
+    status: STATE_LABEL[r.state],
   }));
 
   const contacts = await dutyContacts(user);
@@ -43,25 +45,6 @@ export default async function AttendancePage({ searchParams }) {
   const fixable = await editableEntries(user);
   const bad = conflictIds(await recentEvents([...new Set(fixable.map((x) => x.staff_id))], 4));
 
-  const today = todayKey();
-  const board = see
-    ? rows.map((r) => {
-        const ss = sessionsOf(r.list, now).filter((x) => dateKey(x.start) === today);
-        const over = r.state === 'break' && now - r.since > BREAK_LIMIT_MIN * 60000;
-        return {
-          ...r,
-          over,
-          worked: ss.reduce((a, x) => a + x.workedMs, 0),
-          breakMs: ss.reduce((a, x) => a + x.breakMs, 0),
-          breaks: ss.reduce((a, x) => a + x.breakCount, 0),
-          inAt: ss.length ? ss[0].start : null,
-          outAt: ss.length && ss[ss.length - 1].end ? ss[ss.length - 1].end : null,
-        };
-      })
-    : [];
-  const on = board.filter((r) => r.state === 'on').length;
-  const br = board.filter((r) => r.state === 'break').length;
-  const over = board.filter((r) => r.over).length;
 
   return (
     <>
@@ -87,11 +70,13 @@ export default async function AttendancePage({ searchParams }) {
           <h3>{user.role === 'om' ? 'Entries from the last 36 hours' : 'Entries you can fix'}</h3>
           <div className='tablewrap'>
             <table>
+              <thead>
+                <tr><th>Employee</th><th>Type</th><th>Time</th><th>Added by</th><th></th></tr>
+              </thead>
               <tbody>
                 {fixable.map((m) => {
-                  const tm = fmtTime(m.ms);
                   const isBad = bad.has(m.id);
-                  const canUndo = m.fresh && (user.role === 'om' || (user.role !== 'sso' && m.entered_by === user.id));
+                  const canDelete = user.role === 'om' || (user.role !== 'sso' && m.entered_by === user.id);
                   return (
                     <tr key={m.id} className={isBad ? 'conflict' : ''}>
                       <td>
@@ -99,17 +84,19 @@ export default async function AttendancePage({ searchParams }) {
                         {isBad ? <div className='over-t'>Does not fit with the entries around it - please fix</div> : null}
                       </td>
                       <td>{KIND_LABEL[m.kind]}</td>
-                      <td className={'nw ' + timeClass(m.kind, tm)}>{(dateKey(m.ms) === todayKey() ? '' : dateKey(m.ms) + ' ') + tm}</td>
+                      <td className={'nw ' + timeClass(m.kind, fmtTime(m.ms))}>{(dateKey(m.ms) === todayKey() ? '' : fmtDay(m.ms) + ', ') + fmt12(m.ms)}</td>
                       <td className='muted'>{m.by_name || '-'}</td>
                       <td className='act r'>
-                        <EntryEdit m={m} back='/attendance' />
-                        {canUndo ? (
-                          <form action={removeEntry} className='inline'>
-                            <input type='hidden' name='id' value={m.id} />
-                            <input type='hidden' name='back' value='/attendance' />
-                            <button className='btn ghost' type='submit'>Undo</button>
-                          </form>
-                        ) : null}
+                        <div className='entry-act'>
+                          <EntryEdit m={m} back='/attendance' />
+                          {canDelete ? (
+                            <form action={removeEntry} className='inline'>
+                              <input type='hidden' name='id' value={m.id} />
+                              <input type='hidden' name='back' value='/attendance' />
+                              <ConfirmButton className='btn ghost' message='Delete this entry?'>Delete</ConfirmButton>
+                            </form>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -117,47 +104,8 @@ export default async function AttendancePage({ searchParams }) {
               </tbody>
             </table>
           </div>
-          <p className='totals'>Times in green are on time (check in by 09:30, check out from 17:55), red is late or early. You can change the type, date or time of an entry for 36 hours after it was made.</p>
+          <p className='totals'>Green times are on time (check in by 9:30 AM, check out from 5:55 PM), red is late or early. Type, date and time can be changed for 36 hours after an entry was made.</p>
         </div>
-      ) : null}
-
-      {see ? (
-        <>
-          <div className='kpis'>
-            <div className='card kpi'><span>On duty</span><b>{on}</b></div>
-            <div className='card kpi alt'><span>On break</span><b>{br}</b></div>
-            <div className='card kpi'><span>Not in / checked out</span><b>{board.length - on - br}</b></div>
-            <div className={'card kpi alt' + (over ? ' neg' : '')}><span>Breaks over {BREAK_LIMIT_MIN} min</span><b>{over}</b></div>
-          </div>
-
-          <div className='card'>
-            <h3>Today's board</h3>
-            {board.length ? (
-              <div className='tablewrap'>
-                <table>
-                  <thead>
-                    <tr><th>Employee</th><th>Office</th><th>Status</th><th>In</th><th>Out</th><th>Worked today</th><th>Breaks today</th></tr>
-                  </thead>
-                  <tbody>
-                    {board.map((r) => (
-                      <tr key={r.id}>
-                        <td><b>{r.name}</b></td>
-                        <td><OfficeTag o={r.office} /></td>
-                        <td><span className={'st ' + (r.over ? 'over' : r.state === 'on' ? 'on' : r.state === 'break' ? 'break' : '')}>{r.over ? 'Break overdue' : STATE_LABEL[r.state]}</span></td>
-                        <td className={'nw ' + (r.inAt ? inClass(fmtTime(r.inAt)) : '')}>{r.inAt ? fmtTime(r.inAt) : '-'}</td>
-                        <td className={'nw ' + (r.outAt ? outClass(fmtTime(r.outAt)) : '')}>{r.outAt ? fmtTime(r.outAt) : '-'}</td>
-                        <td className='nw'>{fmtDur(r.worked)}</td>
-                        <td className='nw'>{r.breaks} - {fmtDur(r.breakMs)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className='muted'>No employees yet. The Sr. Ops Manager can add them under Employees.</p>
-            )}
-          </div>
-        </>
       ) : null}
 
       {contacts.map((c) => (
