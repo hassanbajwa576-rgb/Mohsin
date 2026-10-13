@@ -276,3 +276,10 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .att-mic:hover{border-color:var(--ink)}
 .att-mic.on{background:#b42318;border-color:#b42318;color:#fff;animation:attpulse 1.1s ease-in-out infinite}
 @keyframes attpulse{0%,100%{box-shadow:0 0 0 0 rgba(180,35,24,.45)}50%{box-shadow:0 0 0 6px rgba(180,35,24,0)}}
+
+/* access perms */
+.perms{border:1px solid var(--line);border-radius:4px;padding:12px 14px;margin:0}
+.perms legend{font-size:13px;font-weight:600;color:var(--ink);padding:0 6px}
+.perm{flex-direction:row;align-items:flex-start;gap:10px;font-weight:500;color:var(--text);padding:6px 0}
+.perm input{width:auto;margin-top:3px}
+.perm small{color:var(--mut);font-weight:400}
