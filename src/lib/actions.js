@@ -3,7 +3,9 @@
 import { redirect } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 import { q } from './db';
-import { getUser, startSession, endSession } from './auth';
+import { getUser, startSession, endSession, startPending, getPending, clearPending, trustDevice, isTrusted } from './auth';
+import { cookies } from 'next/headers';
+import { verifyTotp, newRecoveryCodes } from './totp';
 import { FUNDS, CATEGORIES, pkr } from './fmt';
 import { fundSummary, custodyFor } from './queries';
 import { notifyRoles, notifyUser } from './notify';
@@ -18,6 +20,7 @@ const dest = (v, d) => (['/', '/expenses', '/advances', '/accounts'].includes(v)
 async function need(roles) {
   const u = await getUser();
   if (!u) redirect('/login');
+  if (u.totp_required && !u.totp_enabled) redirect('/security');
   // Guards may only use the attendance actions (lib/att-actions.js), never the petty cash ones.
   if (u.role === 'guard') redirect('/attendance');
   if (roles && !roles.includes(u.role)) redirect('/');
@@ -40,9 +43,15 @@ const expView = (r) => ({ office: r.office, fund: r.fund, category: r.category, 
 export async function login(fd) {
   const email = s(fd, 'email').toLowerCase();
   const pw = s(fd, 'password');
-  const rows = await q('SELECT id, password_hash FROM pc2_users WHERE lower(email) = $1 AND active', [email]);
+  const rows = await q('SELECT id, password_hash, totp_enabled, totp_epoch FROM pc2_users WHERE lower(email) = $1 AND active', [email]);
   if (!rows[0] || !bcrypt.compareSync(pw, rows[0].password_hash)) back('/login', 'Invalid email or password');
-  await startSession(rows[0].id);
+  const r = rows[0];
+  // With the authenticator on, a device we do not know yet must enter a code first.
+  if (r.totp_enabled && !(await isTrusted(r.id, r.totp_epoch))) {
+    await startPending(r.id);
+    redirect('/login/verify');
+  }
+  await startSession(r.id);
   redirect('/');
 }
 
@@ -481,7 +490,7 @@ export async function editUser(fd) {
   const id = Number(s(fd, 'id'));
   const here = '/team/edit?id=' + id;
   const before = (await q(
-    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.perms, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
+    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.perms, u.totp_required, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
     [id]
   ))[0];
   if (!before) back('/team', 'Team member not found');
@@ -500,13 +509,14 @@ export async function editUser(fd) {
   // Extra attendance access ticked on the form (what the role already includes is not stored).
   const roleBase = ROLE_PERMS[role] || [];
   const permsStr = PERMS.map(([k]) => k).filter((k) => fd.get('perm_' + k) === 'on' && !roleBase.includes(k)).join(',');
-  const old = { name: before.name, email: before.email, role: before.role, office: before.office, phone: before.phone, shift: before.shift, perms: before.perms || '' };
-  const after = { name, email, role, office: off.code, phone, shift, perms: permsStr };
+  const old = { name: before.name, email: before.email, role: before.role, office: before.office, phone: before.phone, shift: before.shift, perms: before.perms || '', authenticator: before.totp_required ? 'required' : 'optional' };
+  const reqTotp = role !== 'om' && fd.get('require_totp') === 'on';
+  const after = { name, email, role, office: off.code, phone, shift, perms: permsStr, authenticator: reqTotp ? 'required' : 'optional' };
   const changes = diff(old, after);
   if (!changes.length) back('/team', 'No changes were made', true);
   let failed = false;
   try {
-    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4, phone = $5, shift = $6, perms = $7 WHERE id = $8', [name, email, role, off.id, phone, shift, permsStr, id]);
+    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4, phone = $5, shift = $6, perms = $7, totp_required = $8 WHERE id = $9', [name, email, role, off.id, phone, shift, permsStr, reqTotp, id]);
   } catch {
     failed = true;
   }
@@ -514,4 +524,82 @@ export async function editUser(fd) {
   await logEvent(u, 'edit', 'user', id, 'Edited team member #' + id + ' - ' + changes.join('; '), old, after);
   if (id !== u.id) await notifyUser(id, u.name + ' updated your profile: ' + changes.join('; '), '/profile');
   back('/team', 'Team member updated', true);
+}
+
+// Second sign-in step on a device that is not trusted yet: authenticator code or a recovery code.
+export async function verifyLogin(fd) {
+  const uid = await getPending();
+  if (!uid) back('/login', 'Your sign-in timed out. Please sign in again.');
+  const row = (await q(
+    'SELECT id, totp_secret, totp_enabled, totp_epoch, totp_recovery, (totp_locked_until IS NOT NULL AND totp_locked_until > now()) AS locked FROM pc2_users WHERE id = $1 AND active',
+    [uid]
+  ))[0];
+  if (!row || !row.totp_enabled) back('/login', 'Please sign in again.');
+  if (row.locked) back('/login/verify', 'Too many wrong codes. Try again in 15 minutes.');
+
+  const code = s(fd, 'code');
+  let ok = verifyTotp(row.totp_secret, code);
+  let usedRecovery = false;
+  if (!ok && row.totp_recovery) {
+    const list = row.totp_recovery.split(',').filter(Boolean);
+    const norm = code.toLowerCase().split(' ').join('').split('-').join('');
+    const i = norm.length === 10 ? list.findIndex((h) => bcrypt.compareSync(norm, h)) : -1;
+    if (i >= 0) {
+      list.splice(i, 1);
+      await q('UPDATE pc2_users SET totp_recovery = $1 WHERE id = $2', [list.join(','), uid]);
+      ok = true;
+      usedRecovery = true;
+    }
+  }
+  if (!ok) {
+    await q("UPDATE pc2_users SET totp_fails = totp_fails + 1, totp_locked_until = CASE WHEN totp_fails + 1 >= 5 THEN now() + interval '15 minutes' ELSE totp_locked_until END WHERE id = $1", [uid]);
+    back('/login/verify', 'That code is not correct');
+  }
+  await q('UPDATE pc2_users SET totp_fails = 0, totp_locked_until = NULL WHERE id = $1', [uid]);
+  await clearPending();
+  if (s(fd, 'remember') === 'on') await trustDevice(uid, row.totp_epoch);
+  await startSession(uid);
+  if (usedRecovery) await logEvent({ id: uid, name: 'User #' + uid, role: '' }, 'update', 'user', uid, 'Signed in with a recovery code');
+  redirect('/');
+}
+
+// Turn the authenticator on after scanning the QR code and typing the first code.
+export async function confirmSetup(fd) {
+  const u = await getUser();
+  if (!u) redirect('/login');
+  const row = (await q('SELECT totp_secret, totp_enabled, totp_epoch FROM pc2_users WHERE id = $1', [u.id]))[0];
+  if (row.totp_enabled) back('/security', 'The authenticator app is already on', true);
+  if (!verifyTotp(row.totp_secret, s(fd, 'code'))) back('/security', 'That code is not correct. Check that the time on your phone is automatic, then try again.');
+  const codes = newRecoveryCodes(8);
+  const hashes = codes.map((c) => bcrypt.hashSync(c.split('-').join(''), 8));
+  await q('UPDATE pc2_users SET totp_enabled = TRUE, totp_recovery = $1, totp_fails = 0, totp_locked_until = NULL WHERE id = $2', [hashes.join(','), u.id]);
+  await trustDevice(u.id, row.totp_epoch);
+  const jar = await cookies();
+  jar.set('pc_rc', codes.join(' '), { httpOnly: true, secure: true, sameSite: 'lax', path: '/security', maxAge: 180 });
+  await logEvent(u, 'update', 'user', u.id, 'Turned on the authenticator app');
+  back('/security', 'Authenticator app is on', true);
+}
+
+// Turn it off again (not allowed while the Sr. Ops Manager requires it). Needs a current code.
+export async function disableTotp(fd) {
+  const u = await getUser();
+  if (!u) redirect('/login');
+  const row = (await q('SELECT totp_secret, totp_enabled, totp_required FROM pc2_users WHERE id = $1', [u.id]))[0];
+  if (row.totp_required) back('/security', 'The Sr. Ops Manager requires the authenticator app for your account');
+  if (!row.totp_enabled) back('/security', 'It is already off', true);
+  if (!verifyTotp(row.totp_secret, s(fd, 'code'))) back('/security', 'That code is not correct');
+  await q("UPDATE pc2_users SET totp_enabled = FALSE, totp_secret = '', totp_recovery = '', totp_epoch = totp_epoch + 1 WHERE id = $1", [u.id]);
+  await logEvent(u, 'update', 'user', u.id, 'Turned off the authenticator app');
+  back('/security', 'Authenticator app is off', true);
+}
+
+// Sr. Ops Manager: clear someone's authenticator (lost phone). They set it up again at next sign-in.
+export async function resetTotp(fd) {
+  const u = await need(['om']);
+  const id = Number(s(fd, 'id'));
+  const t = (await q('SELECT name FROM pc2_users WHERE id = $1', [id]))[0];
+  if (!t) back('/team', 'Team member not found');
+  await q("UPDATE pc2_users SET totp_enabled = FALSE, totp_secret = '', totp_recovery = '', totp_epoch = totp_epoch + 1, totp_fails = 0, totp_locked_until = NULL WHERE id = $1", [id]);
+  await logEvent(u, 'update', 'user', id, 'Reset the authenticator app for ' + t.name);
+  back('/team/edit?id=' + id, 'Authenticator reset for ' + t.name, true);
 }
