@@ -1,5 +1,6 @@
 import 'server-only';
 import { q } from './db';
+import { can } from './perms';
 
 // OpsTrack: staff attendance (check in / out and breaks) for the LHR and ISB offices.
 
@@ -18,8 +19,10 @@ const NEXT = {
 
 // Only the Sr. Ops Manager and the Sr. SO may see the times of entries.
 // Support Officers and guards are data-entry only: they can record, never read times back.
-export const canSeeTimes = (u) => u.role === 'om' || u.role === 'sso';
-export const canEnterFor = (u, officeId) => canSeeTimes(u) || u.office_id === officeId;
+export const canSeeTimes = (u) => can(u, 'att_view');
+// The Sr. OM and Sr. SO work across both offices; everyone else only in their own office.
+export const allOffices = (u) => u.role === 'om' || u.role === 'sso';
+export const canEnterFor = (u, officeId) => allOffices(u) || u.office_id === officeId;
 
 const tfmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false });
 const dfmt = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -95,7 +98,7 @@ export function groupByStaff(events) {
 
 /** Active staff this user may record entries for (Sr. OM / Sr. SO: both offices; others: own office). */
 export async function activeStaff(user) {
-  const all = canSeeTimes(user);
+  const all = allOffices(user);
   return q(
     `SELECT s.id, s.code, s.name, s.dept, s.office_id, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${all ? '' : 'AND s.office_id = $1'} ORDER BY o.code, s.name`,
     all ? [] : [user.office_id]
@@ -119,7 +122,7 @@ export async function dutyContacts(user) {
   const users = await q(
     `SELECT u.name, u.role, u.phone, u.shift, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.active ORDER BY u.name`
   );
-  const offices = canSeeTimes(user) ? ['LHR', 'ISB'] : [user.office_code];
+  const offices = allOffices(user) ? ['LHR', 'ISB'] : [user.office_code];
   return offices.map((code) => {
     const here = users.filter((x) => x.office === code);
     const guards = (shift) => here.filter((x) => x.role === 'guard' && x.shift === shift);
