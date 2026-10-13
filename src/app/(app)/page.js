@@ -6,6 +6,7 @@ import { pkr, STATUS_LABEL, FUNDS } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import FundCard from '@/components/FundCard';
 import CashSplit from '@/components/CashSplit';
+import { OfficeSplit } from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
 import { submitDrafts } from '@/lib/actions';
 
@@ -151,7 +152,7 @@ export default async function Dashboard({ searchParams }) {
   const month = new Date().toISOString().slice(0, 7);
   const n = w.params.length + 1;
 
-  const [pipeRows, tot, cats, offs, months, todo, recent, funds] = await Promise.all([
+  const [pipeRows, tot, cats, offs, months, todo, recent, funds, offSpent] = await Promise.all([
     q(`SELECT e.status, COUNT(*)::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ${EXP_FROM} ${w.where} GROUP BY e.status`, w.params),
     q(`SELECT COALESCE(SUM(e.amount), 0)::float8 AS total, COALESCE(SUM(CASE WHEN to_char(e.spent_on, 'YYYY-MM') = $${n} THEN e.amount END), 0)::float8 AS mtd ${EXP_FROM} ${live}`, [...w.params, month]),
     q(`SELECT e.category AS label, SUM(e.amount)::float8 AS value ${EXP_FROM} ${live} GROUP BY e.category ORDER BY value DESC LIMIT 8`, w.params),
@@ -160,6 +161,7 @@ export default async function Dashboard({ searchParams }) {
     q(`SELECT ${EXP_COLS} ${EXP_FROM} ${todoWhere} ORDER BY e.created_at LIMIT 25`, [...w.params, todoStatuses]),
     q(`SELECT ${EXP_COLS} ${EXP_FROM} ${w.where} ORDER BY e.spent_on DESC, e.id DESC LIMIT 8`, w.params),
     fundSummary({ from, to }),
+    q(`SELECT o.code AS label, SUM(e.amount)::float8 AS value FROM pc2_expenses e JOIN pc2_offices o ON o.id = e.office_id WHERE e.status <> 'rejected' AND ($1::date IS NULL OR e.spent_on >= $1::date) AND ($2::date IS NULL OR e.spent_on <= $2::date) GROUP BY o.code`, [from || null, to || null]),
   ]);
 
   const pipe = byStatus(pipeRows);
@@ -172,7 +174,7 @@ export default async function Dashboard({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Dashboard</h1>
-          <p className='muted'>{office === 'all' ? 'Both offices - LHR and ISB' : office + ' office'} - {isOM ? 'Sr. Ops Manager view' : 'Sr. Support Officer view'} - {periodLabel}</p>
+          <p className='muted subline'>{office === 'all' ? 'Both offices' : office + ' office'} | {isOM ? 'Sr. Ops Manager' : 'Sr. Support Officer'} | {periodLabel}</p>
         </div>
         <div className='chips'>
           {['all', 'LHR', 'ISB'].map((o) => (
@@ -182,7 +184,7 @@ export default async function Dashboard({ searchParams }) {
       </div>
       <Flash sp={sp} />
 
-      <form method='get' className='card filters'>
+      <form method='get' className='card filters compact'>
         {office !== 'all' ? <input type='hidden' name='office' value={office} /> : null}
         <label>Year
           <select name='year' defaultValue={year}>
@@ -198,12 +200,12 @@ export default async function Dashboard({ searchParams }) {
         </label>
         <button className='btn' type='submit'>Apply</button>
         <Link href={office === 'all' ? '/' : '/?office=' + office} className='btn ghost'>Reset</Link>
-        <span className='muted'>Advances, Expenses and totals cover the period. CIH and Advances Outstanding are balances up to the end of the period.</span>
+        <span className='muted'>Advances and Expenses cover the period. CIH and Outstanding are balances to its end.</span>
       </form>
 
       <div className='kpis'>
         <div className='card kpi'><span>Advances</span><b>{pkr(T.received)}</b></div>
-        <div className='card kpi alt'><span>Expenses</span><b>{pkr(T.spent)}</b></div>
+        <div className='card kpi alt'><span>Expenses</span><b>{pkr(T.spent)}</b><OfficeSplit rows={offSpent} /></div>
         <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>CIH</span><b>{pkr(T.remaining)}</b><CashSplit pool={T.pool} sso={T.ssoCash} so={T.soCash} /></div>
         <div className='card kpi alt'><span>Advances Outstanding</span><b>{pkr(T.outstanding)}</b><small>Clears only when expenses are submitted to Accounts - {pkr(T.unsent)} not yet submitted</small></div>
       </div>
