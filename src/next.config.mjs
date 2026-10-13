@@ -1,1 +1,1 @@
-export default { serverExternalPackages: ['exceljs'] };
+export default { serverExternalPackages: ['exceljs', 'qrcode'] };
