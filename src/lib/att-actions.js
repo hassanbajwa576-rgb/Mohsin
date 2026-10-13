@@ -254,3 +254,36 @@ export async function importStaff(fd) {
   await logEvent(u, 'create', 'staff', null, 'Imported ' + add.length + ' employees from Excel (' + dup + ' already existed, ' + bad + ' skipped)', null, { imported: add.length, duplicates: dup, invalid: bad });
   back(page, 'Imported ' + add.length + ' employee(s)' + (dup ? ', ' + dup + ' already in the list' : '') + (bad ? ', ' + bad + ' row(s) without a valid office' : ''), add.length > 0);
 }
+
+// Change the type, date or time of an entry. Sr. OM: any entry. Sr. SO: entries made by the
+// Support Officer, guards or themselves. Support Officers and guards: only their own entries.
+// Everyone except the Sr. OM has 36 hours from when the entry was created.
+export async function editEntry(fd) {
+  const u = await need(ATT_ROLES);
+  const id = Number(s(fd, 'id'));
+  const to = PATHS.includes(s(fd, 'back')) ? s(fd, 'back') : '/attendance';
+  const kind = s(fd, 'kind');
+  const date = s(fd, 'date');
+  const time = s(fd, 'time');
+  if (!KIND_LABEL[kind]) back(to, 'Choose the type of entry');
+  if (!validDate(date) || !validTime(time)) back(to, 'Choose a valid date and time');
+  const r = (await q(
+    `SELECT a.id, a.kind, a.entered_by, s.name, o.code AS office, ub.role AS by_role, to_char(a.at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI') AS at_txt, (a.entered_at > now() - interval '36 hours') AS open36
+     FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.id = $1`,
+    [Number.isInteger(id) ? id : 0]
+  ))[0];
+  if (!r) back(to, 'Entry not found');
+  const mine = r.entered_by === u.id;
+  const allowed = u.role === 'om' || (r.open36 && (u.role === 'sso' ? mine || ['so', 'guard'].includes(r.by_role) : mine));
+  if (!allowed) back(to, r.open36 ? 'You can only change entries you made yourself' : 'This entry is older than 36 hours. Only the Sr. Ops Manager can change it.');
+  const ms = Number((await q(
+    `SELECT (extract(epoch from (($1::date + $2::time) AT TIME ZONE 'Asia/Karachi')) * 1000)::float8 AS ms`,
+    [date, time]
+  ))[0].ms);
+  if (ms > Date.now() + 60000) back(to, 'That time is in the future');
+  await q(`UPDATE pc2_attendance SET kind = $1, at = ($2::date + $3::time) AT TIME ZONE 'Asia/Karachi' WHERE id = $4`, [kind, date, time, r.id]);
+  await logEvent(u, 'edit', 'attendance', r.id,
+    'Changed ' + r.name + ' (' + r.office + '): ' + KIND_LABEL[r.kind] + ' ' + r.at_txt + ' to ' + KIND_LABEL[kind] + ' ' + date + ' ' + time,
+    { kind: r.kind, at: r.at_txt }, { kind, at: date + ' ' + time });
+  back(to, 'Entry updated', true);
+}
