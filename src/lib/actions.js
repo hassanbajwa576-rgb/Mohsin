@@ -426,6 +426,11 @@ export async function resetPassword(fd) {
   const t = (await q('SELECT name, email FROM pc2_users WHERE id = $1', [id]))[0];
   await q('UPDATE pc2_users SET password_hash = $1 WHERE id = $2', [bcrypt.hashSync(pw, 10), id]);
   await logEvent(u, 'update', 'user', id, 'Reset password for ' + (t ? t.name + ' (' + t.email + ')' : 'user #' + id));
+  if (t) {
+    // Close the open request and tell the person it is done.
+    await q('UPDATE pc2_notifications SET is_read = TRUE WHERE message = $1', ['Password reset requested by ' + t.name + ' (' + t.email + ')']);
+    await notifyUser(id, 'The Sr. Ops Manager has reset your password. Sign in with the new password you were given.', '/');
+  }
   back('/team', 'Password updated', true);
 }
 
@@ -602,4 +607,21 @@ export async function resetTotp(fd) {
   await q("UPDATE pc2_users SET totp_enabled = FALSE, totp_secret = '', totp_recovery = '', totp_epoch = totp_epoch + 1, totp_fails = 0, totp_locked_until = NULL WHERE id = $1", [id]);
   await logEvent(u, 'update', 'user', id, 'Reset the authenticator app for ' + t.name);
   back('/team/edit?id=' + id, 'Authenticator reset for ' + t.name, true);
+}
+
+// Login page "Forgot password?": nobody resets their own password, so this only asks the Sr. Ops Manager.
+export async function requestReset(fd) {
+  const email = s(fd, 'email').toLowerCase();
+  const done = 'If that email is on the team, the Sr. Ops Manager has been notified and will give you a new password.';
+  const r = (await q('SELECT id, name, email FROM pc2_users WHERE lower(email) = $1 AND active', [email]))[0];
+  if (r) {
+    const msg = 'Password reset requested by ' + r.name + ' (' + r.email + ')';
+    // One open request per person per hour, so the form cannot be used to flood notifications.
+    const open = await q("SELECT 1 FROM pc2_notifications WHERE message = $1 AND created_at > now() - interval '1 hour' LIMIT 1", [msg]);
+    if (!open[0]) {
+      await notifyRoles(['om'], msg, '/team', r.id);
+      await notifyUser(r.id, 'Your password reset request has been sent to the Sr. Ops Manager.', '/');
+    }
+  }
+  back('/login', done, true);
 }
