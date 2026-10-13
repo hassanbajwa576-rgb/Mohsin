@@ -1,3 +1,4 @@
+import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { fundSummary, issueRows } from '@/lib/queries';
@@ -133,7 +134,7 @@ export default async function AdvancesPage({ searchParams }) {
                     <tr key={i.id}>
                       <td>{i.id}</td>
                       <td className='nw'>{i.issued_on}</td>
-                      <td>{i.holder}{i.note ? <div className='muted'>{i.note}</div> : null}</td>
+                      <td><OfficeTag o={i.office} />{i.holder}{i.note ? <div className='muted'>{i.note}</div> : null}</td>
                       <td>{FUNDS[i.fund]}</td>
                       <td className='r nw'>{pkr(i.amount)}</td>
                       <td className='r nw'>{pkr(i.spent)}</td>
