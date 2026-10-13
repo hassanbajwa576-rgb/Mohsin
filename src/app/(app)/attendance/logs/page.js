@@ -5,7 +5,7 @@ import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { removeEntry } from '@/lib/att-actions';
-import { ATT_ROLES, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass } from '@/lib/att';
+import { ATT_ROLES, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass, fmt12 } from '@/lib/att';
 import EntryEdit from '@/components/EntryEdit';
 import Flash from '@/components/Flash';
 
@@ -59,7 +59,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} className={bad.has(r.id) ? 'conflict' : ''}>
-                    <td className={'nw ' + timeClass(r.kind, fmtTime(r.ms))}><b>{fmtTime(r.ms)}</b></td>
+                    <td className={'nw ' + timeClass(r.kind, fmtTime(r.ms))}><b>{fmt12(r.ms)}</b></td>
                     <td><OfficeTag o={r.office} /></td>
                     <td>{r.name}</td>
                     <td>{KIND_LABEL[r.kind]}{bad.has(r.id) ? <div className='over-t'>Does not fit - please fix</div> : null}</td>
