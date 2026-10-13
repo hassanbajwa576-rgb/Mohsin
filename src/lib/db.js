@@ -42,6 +42,10 @@ const DDL = [
   `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS totp_recovery TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS totp_fails INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS totp_locked_until TIMESTAMPTZ`,
+  // Username login (om1, sso1, so1, gmor, gevn).
+  `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS username TEXT`,
+  `UPDATE pc2_users u SET username = x.un FROM (SELECT id, (CASE WHEN role = 'guard' AND shift = 'morning' THEN 'gmor' WHEN role = 'guard' AND shift = 'evening' THEN 'gevn' WHEN role = 'guard' THEN 'guard' ELSE role END) || (CASE WHEN role = 'guard' AND shift IN ('morning', 'evening') AND rn = 1 THEN '' ELSE rn::text END) AS un FROM (SELECT id, role, shift, row_number() OVER (PARTITION BY role, COALESCE(shift, '') ORDER BY id) AS rn FROM pc2_users WHERE username IS NULL) t) x WHERE u.id = x.id AND u.username IS NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS pc2_users_username_key ON pc2_users (lower(username))`,
   `ALTER TABLE pc2_users DROP CONSTRAINT IF EXISTS pc2_users_role_check`,
   `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pc2_users_role_v2') THEN ALTER TABLE pc2_users ADD CONSTRAINT pc2_users_role_v2 CHECK (role IN ('om','sso','so','guard')); END IF; END $$`,
 ];
@@ -51,7 +55,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-13-2';
+const SCHEMA_VERSION = '2026-10-13-3';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
