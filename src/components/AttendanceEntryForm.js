@@ -191,13 +191,14 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
 
       <div className='att-seg' role='radiogroup' aria-label='Entry type'>
         {KINDS.map(([k, label, hint]) => (
-          <label key={k} className={kind === k ? 'on' : ''}>
+          <label key={k} className={(kind === k ? 'on' : '') + ((chosen ? chosen.suggested : 'in') === k ? ' pend' : '')}>
             <input type='radio' name='kind' value={k} checked={kind === k} onChange={() => setKind(k)} required />
             <span>{label}</span>
             <small>{hint}</small>
           </label>
         ))}
       </div>
+      <p className='att-hint'>Gold is the step still pending for this person.</p>
 
       <div className='att-when'>
         <label>Date<input type='date' name='date' value={date} onChange={(e) => setDate(e.target.value)} required /></label>
