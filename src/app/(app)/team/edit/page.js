@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { editUser } from '@/lib/actions';
 import { ROLE_LABEL } from '@/lib/fmt';
+import { PERMS, ROLE_PERMS } from '@/lib/perms';
 import Flash from '@/components/Flash';
 
 export default async function EditUserPage({ searchParams }) {
@@ -11,7 +12,7 @@ export default async function EditUserPage({ searchParams }) {
   const sp = await searchParams;
   const id = Number(sp.id);
   const t = (await q(
-    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
+    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.perms, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
     [Number.isInteger(id) ? id : 0]
   ))[0];
   if (!t) redirect('/team');
@@ -48,6 +49,22 @@ export default async function EditUserPage({ searchParams }) {
           <label>Guard shift
             <select name='shift' defaultValue={t.shift}><option value=''>Not a guard</option><option value='morning'>Morning</option><option value='evening'>Evening</option></select>
           </label>
+          {t.role !== 'om' ? (
+            <fieldset className='wide perms'>
+              <legend>Attendance access</legend>
+              <p className='muted'>Tick what this person may do in AttendTrack, on top of what their role already includes.</p>
+              {PERMS.map(([key, label, hint]) => {
+                const base = (ROLE_PERMS[t.role] || []).includes(key);
+                const on = base || String(t.perms || '').split(',').includes(key);
+                return (
+                  <label key={key} className='perm'>
+                    <input type='checkbox' name={'perm_' + key} defaultChecked={on} disabled={base} />
+                    <span>{label} <small>{base ? '- included in this role' : '- ' + hint}</small></span>
+                  </label>
+                );
+              })}
+            </fieldset>
+          ) : null}
           <button className='btn primary' type='submit'>Save changes</button>
           <Link href='/team' className='btn ghost'>Cancel</Link>
         </form>
