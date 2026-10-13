@@ -29,6 +29,12 @@ export default async function ProfilePage({ searchParams }) {
         <p className='muted'>{locked ? 'Your name, email, role and office are managed by the Sr. Ops Manager.' : 'Role and office are managed by the Sr. Ops Manager.'}</p>
       </div>
 
+      <div className='card'>
+        <h3>Authenticator app</h3>
+        <p className='muted'>Add a 6-digit code from your phone when signing in from a new device.</p>
+        <a className='btn' href='/security'>Manage authenticator app</a>
+      </div>
+
       {user.role === 'om' ? (
         <div className='card'>
           <h3>Change password</h3>
