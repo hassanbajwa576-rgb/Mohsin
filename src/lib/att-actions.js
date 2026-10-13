@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { q } from './db';
 import { getUser } from './auth';
 import { logEvent } from './audit';
+import { can } from './perms';
 import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime } from './att';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
@@ -13,6 +14,13 @@ async function need(roles) {
   const u = await getUser();
   if (!u) redirect('/login');
   if (!roles.includes(u.role)) redirect(u.role === 'guard' ? '/attendance' : '/');
+  return u;
+}
+
+async function needPerm(key) {
+  const u = await getUser();
+  if (!u) redirect('/login');
+  if (!can(u, key)) redirect(u.role === 'guard' ? '/attendance' : '/');
   return u;
 }
 
@@ -92,7 +100,7 @@ export async function removeEntry(fd) {
 /* ---------- employees (Sr. Ops Manager only) ---------- */
 
 export async function addStaff(fd) {
-  const u = await need(['om']);
+  const u = await needPerm('att_staff');
   const name = s(fd, 'name');
   let code = s(fd, 'code');
   const dept = s(fd, 'dept');
@@ -117,7 +125,7 @@ export async function addStaff(fd) {
 }
 
 export async function updateStaff(fd) {
-  const u = await need(['om']);
+  const u = await needPerm('att_staff');
   const id = Number(s(fd, 'id'));
   const name = s(fd, 'name');
   let code = s(fd, 'code');
@@ -140,7 +148,7 @@ export async function updateStaff(fd) {
 }
 
 export async function toggleStaff(fd) {
-  const u = await need(['om']);
+  const u = await needPerm('att_staff');
   const id = Number(s(fd, 'id'));
   const r = await q('UPDATE pc2_staff SET active = NOT active WHERE id = $1 RETURNING name, active', [id]);
   if (r[0]) await logEvent(u, 'update', 'staff', id, (r[0].active ? 'Activated ' : 'Deactivated ') + r[0].name);
@@ -149,7 +157,7 @@ export async function toggleStaff(fd) {
 
 // Bulk-add employees from an Excel sheet with the columns Name, Department, Office, Code (optional).
 export async function importStaff(fd) {
-  const u = await need(['om']);
+  const u = await needPerm('att_staff');
   const page = '/attendance/staff';
   const file = fd.get('file');
   const defOffice = s(fd, 'office');
