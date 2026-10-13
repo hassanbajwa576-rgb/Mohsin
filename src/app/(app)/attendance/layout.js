@@ -6,6 +6,7 @@ import AttTabs from '@/components/AttTabs';
 export default async function AttendanceLayout({ children }) {
   const u = await requireUser(ATT_ROLES);
   const tabs = [['/attendance', 'Add entry']];
+  if (canSeeTimes(u)) tabs.push(['/attendance/board', "Today's board"]);
   if (canSeeTimes(u)) tabs.push(['/attendance/dashboard', 'Dashboard']);
   if (u.role === 'om') tabs.push(['/attendance/logs', 'Logs']);
   if (canSeeTimes(u)) tabs.push(['/attendance/reports', 'Reports']);
