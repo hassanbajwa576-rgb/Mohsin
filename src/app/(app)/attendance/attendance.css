@@ -5,7 +5,9 @@
 .att-seg label{margin:0;cursor:pointer}
 .att-seg input{position:absolute;opacity:0;width:0;height:0}
 .att-seg span{display:block;text-align:center;padding:12px 6px;border:1.5px solid var(--line);border-radius:3px;font-weight:600;color:var(--ink);background:var(--card)}
-.att-seg label.on span{background:var(--gold);border-color:var(--gold);color:#000}
+.att-seg label.pend span{background:var(--gold);border-color:var(--gold);color:#000}
+.att-seg label.on span{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.att-hint{margin:-6px 0 0;font-size:12px;color:var(--mut)}
 .att-seg label:focus-within span{outline:2px solid var(--gold);outline-offset:2px}
 .att-when{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
 .att-submit{padding:14px;font-size:16px}
@@ -24,3 +26,24 @@
   .att-when{grid-template-columns:1fr 1fr}
   .att-when .btn{grid-column:1/-1}
 }
+.t-ok{color:var(--ok);font-weight:600}
+.t-bad{color:var(--bad);font-weight:600}
+tr.conflict td{background:var(--badbg)}
+.entry-edit{display:inline-block;text-align:left}
+.entry-edit summary{list-style:none;cursor:pointer;display:inline-block}
+.entry-edit summary::-webkit-details-marker{display:none}
+.entry-edit-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:8px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:3px;min-width:260px}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:14px}
+.dgrid .card{margin:0}
+.pbar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:8px 0 10px}
+.pbar i{display:block;height:100%;background:var(--gold)}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:12px;color:var(--mut)}
+.mini b{display:block;font-size:16px;color:var(--ink)}
+.who{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.who h4{margin:0 0 6px;font-size:13px}
+.chipn{display:inline-block;padding:2px 8px;margin:2px 4px 2px 0;border:1px solid var(--line);border-radius:3px;font-size:12px;background:var(--card)}
+.chipn.late{color:var(--bad);border-color:var(--bad);background:var(--badbg)}
+.chipn small{color:var(--mut);margin-left:4px}
+.vbars{display:flex;align-items:flex-end;gap:6px;height:110px}
+.vbars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--mut);gap:2px}
+.vbars i{display:block;width:100%;background:var(--gold);border-radius:2px 2px 0 0;min-height:2px}
