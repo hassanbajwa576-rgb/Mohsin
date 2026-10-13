@@ -5,7 +5,8 @@ import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { removeEntry } from '@/lib/att-actions';
-import { ATT_ROLES, KIND_LABEL, fmtTime, dateKey, todayKey, validDate } from '@/lib/att';
+import { ATT_ROLES, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass } from '@/lib/att';
+import EntryEdit from '@/components/EntryEdit';
 import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
   const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
 
   const rows = await q(
-    `SELECT a.id, a.kind, a.entered_by, s.name, s.code, o.code AS office, u.name AS by_name,
+    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, s.code, o.code AS office, u.name AS by_name,
             (extract(epoch from a.at) * 1000)::float8 AS ms, (extract(epoch from a.entered_at) * 1000)::float8 AS entered_ms,
             (a.entered_at > now() - interval '30 minutes') AS fresh
      FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users u ON u.id = a.entered_by
@@ -27,6 +28,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
      ORDER BY a.at DESC, a.id DESC`,
     office ? [day, office] : [day]
   );
+  const bad = conflictIds(await eventsAround([...new Set(rows.map((r) => r.staff_id))], day));
 
   return (
     <>
@@ -56,14 +58,15 @@ export default async function AttendanceLogsPage({ searchParams }) {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id}>
-                    <td className='nw'><b>{fmtTime(r.ms)}</b></td>
+                  <tr key={r.id} className={bad.has(r.id) ? 'conflict' : ''}>
+                    <td className={'nw ' + timeClass(r.kind, fmtTime(r.ms))}><b>{fmtTime(r.ms)}</b></td>
                     <td><OfficeTag o={r.office} /></td>
                     <td>{r.name}</td>
-                    <td>{KIND_LABEL[r.kind]}</td>
+                    <td>{KIND_LABEL[r.kind]}{bad.has(r.id) ? <div className='over-t'>Does not fit - please fix</div> : null}</td>
                     <td>{r.by_name || '-'}</td>
                     <td className='nw muted'>{(dateKey(r.entered_ms) === day ? '' : dateKey(r.entered_ms) + ' ') + fmtTime(r.entered_ms)}</td>
                     <td className='act'>
+                      {user.role === 'om' ? <EntryEdit m={r} back='/attendance/logs' /> : null}
                       {user.role === 'om' ? (
                         <form action={removeEntry} className='inline'>
                           <input type='hidden' name='id' value={r.id} />
