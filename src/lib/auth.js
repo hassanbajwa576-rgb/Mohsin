@@ -36,7 +36,7 @@ export const getUser = cache(async function getUser() {
     return null;
   }
   const rows = await q(
-    `SELECT u.id, u.name, u.email, u.role, u.perms, u.office_id, o.code AS office_code FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1 AND u.active`,
+    `SELECT u.id, u.name, u.email, u.role, u.perms, u.totp_enabled, u.totp_required, u.office_id, o.code AS office_code FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1 AND u.active`,
     [uid]
   );
   if (!rows[0]) return null;
@@ -46,8 +46,56 @@ export const getUser = cache(async function getUser() {
 export async function requireUser(roles) {
   const u = await getUser();
   if (!u) redirect('/login');
+  // Someone the Sr. Ops Manager asked to use the authenticator must set it up first.
+  if (u.totp_required && !u.totp_enabled) redirect('/security');
   // Guards only ever see the attendance module: every other page sends them there.
   if (u.role === 'guard' && !(roles && roles.includes('guard'))) redirect('/attendance');
   if (roles && !roles.includes(u.role)) redirect('/');
   return u;
+}
+
+// ---- authenticator app: step between password and session, and trusted devices
+const PENDING = 'pc_mfa';
+const DEVICE = 'pc_dev';
+
+export async function startPending(uid) {
+  const token = await new SignJWT({ uid, k: 'mfa' }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('10m').sign(key());
+  const jar = await cookies();
+  jar.set(PENDING, token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 });
+}
+
+export async function getPending() {
+  const jar = await cookies();
+  const t = jar.get(PENDING)?.value;
+  if (!t) return null;
+  try {
+    const { payload } = await jwtVerify(t, key());
+    return payload.k === 'mfa' ? Number(payload.uid) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearPending() {
+  const jar = await cookies();
+  jar.delete(PENDING);
+}
+
+// A device that passed the check once is trusted for 30 days (until the epoch changes on a reset).
+export async function trustDevice(uid, epoch) {
+  const token = await new SignJWT({ uid, e: epoch, k: 'dev' }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('30d').sign(key());
+  const jar = await cookies();
+  jar.set(DEVICE, token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+}
+
+export async function isTrusted(uid, epoch) {
+  const jar = await cookies();
+  const t = jar.get(DEVICE)?.value;
+  if (!t) return false;
+  try {
+    const { payload } = await jwtVerify(t, key());
+    return payload.k === 'dev' && Number(payload.uid) === Number(uid) && Number(payload.e) === Number(epoch);
+  } catch {
+    return false;
+  }
 }
