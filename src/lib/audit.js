@@ -34,6 +34,7 @@ const LABELS = {
   phone: 'Phone',
   shift: 'Shift',
   role: 'Role',
+  perms: 'Extra access',
 };
 
 // Human-readable list of what changed between two snapshots.
