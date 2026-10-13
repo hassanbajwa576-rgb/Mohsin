@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, reportRows, departments, fmtDur, todayKey, validDate, BREAK_LIMIT_MIN, inClass, outClass } from '@/lib/att';
+import { ATT_ROLES, reportRows, departments, fmtDur, todayKey, validDate, BREAK_LIMIT_MIN, inClass, outClass, to12 } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,8 +64,8 @@ export default async function AttendanceReportsPage({ searchParams }) {
                     <td><OfficeTag o={r.office} /></td>
                     <td>{r.dept || '-'}</td>
                     <td><b>{r.name}</b></td>
-                    <td className={'nw ' + inClass(r.in)}>{r.in}</td>
-                    <td className={'nw ' + (/^[0-9]/.test(r.out) ? outClass(r.out) : '')}>{r.out}</td>
+                    <td className={'nw ' + inClass(r.in)}>{to12(r.in)}</td>
+                    <td className={'nw ' + (/^[0-9]/.test(r.out) ? outClass(r.out) : '')}>{/^[0-9]/.test(r.out) ? to12(r.out) : r.out}</td>
                     <td>{r.breaks}</td>
                     <td className={'nw' + (r.over ? ' over-t' : '')}>{fmtDur(r.breakMs)}</td>
                     <td className='nw'>{fmtDur(r.workedMs)}</td>
