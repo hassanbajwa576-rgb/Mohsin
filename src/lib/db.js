@@ -32,6 +32,8 @@ const DDL = [
   `CREATE INDEX IF NOT EXISTS pc2_attendance_staff_at ON pc2_attendance (staff_id, at)`,
   `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS shift TEXT NOT NULL DEFAULT ''`,
+  // Extra access granted to one person by the Sr. Ops Manager (comma separated keys).
+  `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS perms TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE pc2_users DROP CONSTRAINT IF EXISTS pc2_users_role_check`,
   `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pc2_users_role_v2') THEN ALTER TABLE pc2_users ADD CONSTRAINT pc2_users_role_v2 CHECK (role IN ('om','sso','so','guard')); END IF; END $$`,
 ];
@@ -41,7 +43,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-12-2';
+const SCHEMA_VERSION = '2026-10-13-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
