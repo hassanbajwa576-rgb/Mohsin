@@ -2,13 +2,14 @@ import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { addUser, resetPassword, toggleUser } from '@/lib/actions';
 import { ROLE_LABEL } from '@/lib/fmt';
+import { PERM_SHORT } from '@/lib/perms';
 import Flash from '@/components/Flash';
 
 export default async function TeamPage({ searchParams }) {
   const me = await requireUser(['om']);
   const sp = await searchParams;
   const users = await q(
-    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
+    `SELECT u.id, u.name, u.email, u.role, u.phone, u.shift, u.perms, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
   );
 
   return (
@@ -54,7 +55,10 @@ export default async function TeamPage({ searchParams }) {
               {users.map((u) => (
                 <tr key={u.id}>
                   <td><b>{u.name}</b></td>
-                  <td>{ROLE_LABEL[u.role]}{u.shift ? ' - ' + (u.shift === 'morning' ? 'Morning' : 'Evening') : ''}</td>
+                  <td>
+                    {ROLE_LABEL[u.role]}{u.shift ? ' - ' + (u.shift === 'morning' ? 'Morning' : 'Evening') : ''}
+                    {u.perms ? <div className='muted'>+ {u.perms.split(',').map((k) => PERM_SHORT[k] || k).join(', ')}</div> : null}
+                  </td>
                   <td><span className='pill'>{u.office}</span></td>
                   <td>{u.phone || '-'}</td>
                   <td>{u.email}</td>
