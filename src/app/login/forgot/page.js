@@ -12,10 +12,10 @@ export default async function ForgotPage({ searchParams }) {
         <div className='logo'>
           <Logo height={40} />
           <h1>Forgot password</h1>
-          <p className='muted'>Enter your email. The Sr. Ops Manager is notified and will give you a new password.</p>
+          <p className='muted'>Enter your username. The Sr. Ops Manager is notified and will give you a new password.</p>
         </div>
         <Flash sp={sp} />
-        <label>Email<input name='email' type='email' required autoComplete='username' /></label>
+        <label>Username<input name='username' type='text' required autoComplete='username' autoCapitalize='none' spellCheck={false} /></label>
         <button className='btn primary' type='submit'>Send request</button>
         <a className='muted' href='/login'>Back to sign in</a>
       </form>
