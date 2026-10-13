@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { requireUser } from '@/lib/auth';
-import { reportRows, todayKey, validDate } from '@/lib/att';
+import { ATT_ROLES, reportRows, todayKey, validDate } from '@/lib/att';
+import { can } from '@/lib/perms';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,8 @@ const hhmm = (ms) => {
 
 // Attendance report as a real Excel workbook: one row per shift, plus a summary per employee.
 export async function GET(req) {
-  await requireUser(['om', 'sso']);
+  const u = await requireUser(ATT_ROLES);
+  if (!can(u, 'att_reports')) return new Response('Not allowed', { status: 403 });
   const sp = new URL(req.url).searchParams;
   const today = todayKey();
   const to = validDate(sp.get('to') || '') ? sp.get('to') : today;
