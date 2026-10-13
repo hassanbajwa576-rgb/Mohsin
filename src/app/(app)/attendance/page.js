@@ -76,7 +76,7 @@ export default async function AttendancePage({ searchParams }) {
               <tbody>
                 {fixable.map((m) => {
                   const isBad = bad.has(m.id);
-                  const canDelete = user.role === 'om' || (user.role !== 'sso' && m.entered_by === user.id);
+                  const canDelete = user.role === 'om' || user.role === 'sso';
                   return (
                     <tr key={m.id} className={isBad ? 'conflict' : ''}>
                       <td>
