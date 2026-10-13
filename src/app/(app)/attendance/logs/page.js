@@ -1,3 +1,4 @@
+import OfficeTag from '@/components/OfficeTag';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { can } from '@/lib/perms';
@@ -57,7 +58,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
                 {rows.map((r) => (
                   <tr key={r.id}>
                     <td className='nw'><b>{fmtTime(r.ms)}</b></td>
-                    <td><span className='pill'>{r.office}</span></td>
+                    <td><OfficeTag o={r.office} /></td>
                     <td>{r.name}</td>
                     <td>{KIND_LABEL[r.kind]}</td>
                     <td>{r.by_name || '-'}</td>
