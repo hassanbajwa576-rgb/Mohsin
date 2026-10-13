@@ -25,7 +25,7 @@ export default async function LoginPage({ searchParams }) {
           <p className='muted'>Operations Platform | Pakistan Office</p>
         </div>
         <Flash sp={sp} />
-        <label>Email<input name='email' type='email' required autoComplete='username' /></label>
+        <label>Username<input name='username' type='text' required autoComplete='username' autoCapitalize='none' spellCheck={false} /></label>
         <label>Password<input name='password' type='password' required autoComplete='current-password' /></label>
         <button className='btn primary' type='submit'>Sign in</button>
         <a className='muted' href='/login/forgot'>Forgot password?</a>
