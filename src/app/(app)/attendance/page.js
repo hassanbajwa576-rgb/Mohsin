@@ -1,5 +1,6 @@
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
+import { can } from '@/lib/perms';
 import { addEntry, removeEntry } from '@/lib/att-actions';
 import {
   ATT_ROLES, KIND_LABEL, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff,
@@ -36,13 +37,14 @@ export default async function AttendancePage({ searchParams }) {
 
   const contacts = await dutyContacts(user);
 
+  // Someone granted "see the entries they have made" also gets the times of their own entries.
+  const ownTimes = can(user, 'att_own');
   let mine = [];
   if (!see) {
-    const raw = await q(
-      `SELECT a.id, a.kind, s.name, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id WHERE a.entered_by = $1 AND a.entered_at > now() - interval '12 hours' ORDER BY a.id DESC LIMIT 8`,
-      [user.id]
+    mine = await q(
+      `SELECT a.id, a.kind, s.name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id WHERE a.entered_by = $1 AND a.entered_at > now() - ($2::int * interval '1 hour') ORDER BY a.id DESC LIMIT ${ownTimes ? 40 : 8}`,
+      [user.id, ownTimes ? 72 : 12]
     );
-    mine = raw;
   }
 
   const today = todayKey();
@@ -92,6 +94,7 @@ export default async function AttendancePage({ searchParams }) {
                   <tr key={m.id}>
                     <td><b>{m.name}</b></td>
                     <td>{KIND_LABEL[m.kind]}</td>
+                    {ownTimes ? <td className='nw'>{(dateKey(m.ms) === todayKey() ? '' : dateKey(m.ms) + ' ') + fmtTime(m.ms)}</td> : null}
                     <td className='act r'>
                       {m.fresh ? (
                         <form action={removeEntry} className='inline'>
