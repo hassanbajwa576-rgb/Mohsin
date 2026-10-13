@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 
 // Second header row: PettyTrack / AttendTrack switch, the menu of the active module, and the
 // admin links (Team, Logs, Guide) on the right.
-export default function ModuleTier({ role }) {
+export default function ModuleTier({ role, access = [] }) {
   const path = usePathname() || '/';
   const attend = path === '/attendance' || path.indexOf('/attendance/') === 0;
   const guard = role === 'guard';
@@ -15,9 +15,9 @@ export default function ModuleTier({ role }) {
   if (role !== 'so') petty.push(['/accounts', 'Accounts']);
 
   const att = [['/attendance', 'Add entry']];
-  if (om) att.push(['/attendance/logs', 'Logs']);
-  if (om || role === 'sso') att.push(['/attendance/reports', 'Reports']);
-  if (om) att.push(['/attendance/staff', 'Employees']);
+  if (access.includes('att_logs')) att.push(['/attendance/logs', 'Logs']);
+  if (access.includes('att_reports')) att.push(['/attendance/reports', 'Reports']);
+  if (access.includes('att_staff')) att.push(['/attendance/staff', 'Employees']);
 
   const menu = guard || attend ? att : petty;
   const admin = [];
