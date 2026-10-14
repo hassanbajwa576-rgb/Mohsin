@@ -30,6 +30,9 @@ export default async function AttendanceLogsPage({ searchParams }) {
     office ? [day, office] : [day]
   );
   const bad = conflictIds(await eventsAround([...new Set(rows.map((r) => r.staff_id))], day));
+  const allRows = sp.all === '1';
+  const shownRows = allRows ? rows : rows.slice(0, 10);
+  const moreHref = '/attendance/logs?date=' + day + (office ? '&office=' + office : '') + (allRows ? '' : '&all=1');
 
   return (
     <>
@@ -58,7 +61,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
                 <tr><th>Time</th><th>Office</th><th>Employee</th><th>Entry</th><th>Added by</th><th>Entered at</th><th></th></tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {shownRows.map((r) => (
                   <tr key={r.id} className={bad.has(r.id) ? 'conflict' : ''}>
                     <td className={'nw ' + timeClass(r.kind, fmtTime(r.ms))}><b>{fmt12(r.ms)}</b></td>
                     <td><OfficeTag o={r.office} /></td>
@@ -84,7 +87,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
         ) : (
           <p className='muted'>No entries on this day.</p>
         )}
-        <p className='totals'>{rows.length} entries. Only the Sr. Ops Manager can delete entries from here.</p>
+        <p className='totals'>{allRows || rows.length <= 10 ? rows.length + ' entries' : 'Showing the latest 10 of ' + rows.length + ' entries'}{rows.length > 10 ? <> - <Link href={moreHref}>{allRows ? 'Show fewer' : 'See more'}</Link></> : null}. Only the Sr. Ops Manager can delete entries from here.</p>
       </div>
     </>
   );
