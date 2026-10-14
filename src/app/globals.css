@@ -312,3 +312,7 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 
 /* active menu */
 .tier-menu a.on{background:#fbf1cf;border-radius:3px;color:#000;font-weight:600}
+
+/* see more links */
+.totals a{color:var(--gold-d);font-weight:600}
+.totals a:hover{text-decoration:underline}
