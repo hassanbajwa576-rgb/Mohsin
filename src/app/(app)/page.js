@@ -1,34 +1,15 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { expWhere, fundSummary, issueRows, soAccount, fundOfficeSpend, waitingByFund, EXP_FROM, EXP_COLS } from '@/lib/queries';
-import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
+import { expWhere, fundSummary, issueRows, soAccount, waitingByFund, EXP_FROM, EXP_COLS } from '@/lib/queries';
 import { pkr, STATUS_LABEL, FUNDS } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
-import FundCard from '@/components/FundCard';
-import CashSplit from '@/components/CashSplit';
-import OfficeTag, { OfficeSplit } from '@/components/OfficeTag';
+import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
 import { submitDrafts } from '@/lib/actions';
 
 const PIPE = ['draft', 'submitted', 'approved', 'sent'];
 
-function Bars({ rows }) {
-  if (!rows.length) return <p className='muted'>Nothing recorded yet.</p>;
-  const max = Math.max(1, ...rows.map((r) => r.value));
-  return (
-    <div className='bars'>
-      {rows.map((r) => (
-        <div className='bar' key={r.label}>
-          <div className='bar-top'><span>{r.label}</span><b>{pkr(r.value)}</b></div>
-          <div className='track'><div className='fill' style={{ width: (r.value / max) * 100 + '%' }} /></div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const num = (rows) => rows.map((r) => ({ label: r.label, value: Number(r.value) }));
 const byStatus = (rows) => Object.fromEntries(rows.map((r) => [r.status, { c: Number(r.c), v: Number(r.v) }]));
 
 function Pipeline({ pipe, hot }) {
@@ -97,9 +78,6 @@ async function SoDashboard({ user, sp }) {
     q(`SELECT e.status, COUNT(*)::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ${EXP_FROM} ${w.where} GROUP BY e.status`, w.params),
     q(`SELECT ${EXP_COLS} ${EXP_FROM} ${w.where} ORDER BY e.spent_on DESC, e.id DESC LIMIT 10`, w.params),
   ]);
-  const inHand = issues.reduce((a, i) => a + i.amount - i.returned - Number(i.spent), 0);
-  const received = issues.reduce((a, i) => a + i.amount, 0);
-  const spent = issues.reduce((a, i) => a + Number(i.spent), 0);
   return (
     <>
       <div className='head'>
@@ -110,6 +88,136 @@ async function SoDashboard({ user, sp }) {
         <Link href='/expenses' className='btn primary'>Submit an expense</Link>
       </div>
       <Flash sp={sp} />
+      <div className='kpis'>
+        <div className='card kpi'><span>Advances</span><b>{pkr(acct.advances)}</b></div>
+        <div className='card kpi alt'><span>Expenses</span><b>{pkr(acct.spent)}</b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
+        <div className='card kpi'><span>Advances Outstanding</span><b>{pkr(acct.outstanding)}</b><small>Reduces only when you submit your expenses</small></div>
+        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b>{pkr(acct.cash)}</b></div>
+      </div>
+      {acct.draft > 0 ? (
+        <form action={submitDrafts} className='card submitbar'>
+          <div>
+            <b>{pkr(acct.draft)}</b> of expenses are ready to submit
+            <div className='muted'>Submitting sends them to the Sr. Ops Manager for review and clears them from your advance.</div>
+          </div>
+          <button className='btn primary' type='submit'>Submit expenses</button>
+        </form>
+      ) : null}
+      <h2>Where my expenses stand</h2>
+      <Pipeline pipe={byStatus(pipeRows)} hot={['draft']} />
+      <h2>My advances</h2>
+      <div className='card'>
+        {issues.length === 0 ? <p className='muted'>No advance has been issued to you yet.</p> : (
+          <div className='tablewrap'>
+            <table>
+              <thead><tr><th>#</th><th>Date</th><th>Fund</th><th className='r'>Issued</th><th className='r'>Spent</th><th className='r'>Returned</th><th className='r'>In hand</th></tr></thead>
+              <tbody>
+                {issues.map((i) => (
+                  <tr key={i.id}>
+                    <td>{i.id}</td><td className='nw'>{i.issued_on}</td><td>{FUNDS[i.fund]}</td>
+                    <td className='r nw'>{pkr(i.amount)}</td><td className='r nw'>{pkr(i.spent)}</td><td className='r nw'>{pkr(i.returned)}</td>
+                    <td className='r nw'><b>{pkr(i.amount - i.returned - Number(i.spent))}</b></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <h2>Recent expenses</h2>
+      <div className='card'><ExpenseTable rows={recent} user={user} back='/' /></div>
+    </>
+  );
+}
+
+export default async function Dashboard({ searchParams }) {
+  const user = await requireUser();
+  const sp = await searchParams;
+  if (user.role === 'so') return <SoDashboard user={user} sp={sp} />;
+
+  const isOM = user.role === 'om';
+  const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : 'all';
+
+  // Period filter (year and/or month). Empty means all time.
+  const nowYear = new Date().getFullYear();
+  const years = [0, 1, 2].map((i) => String(nowYear - i));
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const year = years.includes(sp.year) ? sp.year : '';
+  const mm = MONTH_NAMES.some((_, i) => String(i + 1).padStart(2, '0') === sp.month) ? sp.month : '';
+  const yy = year || (mm ? String(nowYear) : '');
+  let from = '';
+  let to = '';
+  if (yy && mm) {
+    const last = new Date(Number(yy), Number(mm), 0).getDate();
+    from = yy + '-' + mm + '-01';
+    to = yy + '-' + mm + '-' + String(last).padStart(2, '0');
+  } else if (yy) {
+    from = yy + '-01-01';
+    to = yy + '-12-31';
+  }
+  const periodLabel = from ? (mm ? MONTH_NAMES[Number(mm) - 1] + ' ' + yy : yy) : 'All time';
+  const qs = (o) => {
+    const params = new URLSearchParams();
+    if (o !== 'all') params.set('office', o);
+    if (year) params.set('year', year);
+    if (mm) params.set('month', mm);
+    const s = params.toString();
+    return s ? '/?' + s : '/';
+  };
+  const w = expWhere(user, { office, from, to });
+  const todoStatuses = isOM ? ['submitted', 'verified'] : [];
+  const todoWhere = (w.where ? w.where + ' AND ' : 'WHERE ') + 'e.status = ANY($' + (w.params.length + 1) + '::text[])';
+
+  const [pipeRows, todo, funds, offSpent, waiting] = await Promise.all([
+    q(`SELECT e.status, COUNT(*)::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ${EXP_FROM} ${w.where} GROUP BY e.status`, w.params),
+    q(`SELECT ${EXP_COLS} ${EXP_FROM} ${todoWhere} ORDER BY e.created_at LIMIT 25`, [...w.params, todoStatuses]),
+    fundSummary({ from, to }),
+    q(`SELECT o.code AS label, SUM(e.amount)::float8 AS value FROM pc2_expenses e JOIN pc2_offices o ON o.id = e.office_id WHERE e.status <> 'rejected' AND ($1::date IS NULL OR e.spent_on >= $1::date) AND ($2::date IS NULL OR e.spent_on <= $2::date) GROUP BY o.code`, [from || null, to || null]),
+    waitingByFund({ to }),
+  ]);
+
+  const pipe = byStatus(pipeRows);
+  const T = funds.total;
+  const isEmptyFund = (f) => ['received', 'spent', 'sent', 'returned', 'outstanding', 'remaining', 'pool', 'ssoCash', 'soCash'].every((k) => !Number(f[k]));
+  const usedFunds = funds.rows.filter((f) => !isEmptyFund(f));
+  const emptyFunds = funds.rows.filter(isEmptyFund);
+  const offLine = (c) => Number((offSpent.find((r) => r.label === c) || {}).value || 0);
+
+  return (
+    <>
+      <div className='head'>
+        <div>
+          <p className='muted subline'>{office === 'all' ? 'Both offices' : office + ' office'} | {isOM ? 'Sr. Ops Manager' : 'Sr. Support Officer'} | {periodLabel}</p>
+        </div>
+        <div className='chips'>
+          {['all', 'LHR', 'ISB'].map((o) => (
+            <Link key={o} href={qs(o)} className={'chip' + (office === o ? ' on' : '')}>{o === 'all' ? 'Both offices' : o}</Link>
+          ))}
+        </div>
+      </div>
+      <Flash sp={sp} />
+
+      <AdjustedPosition rows={funds.rows} waiting={waiting} />
+
+      <form method='get' className='card filters compact'>
+        {office !== 'all' ? <input type='hidden' name='office' value={office} /> : null}
+        <label>Year
+          <select name='year' defaultValue={year}>
+            <option value=''>All years</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </label>
+        <label>Month
+          <select name='month' defaultValue={mm}>
+            <option value=''>All months</option>
+            {MONTH_NAMES.map((m, i) => <option key={m} value={String(i + 1).padStart(2, '0')}>{m}</option>)}
+          </select>
+        </label>
+        <button className='btn' type='submit'>Apply</button>
+        <Link href={office === 'all' ? '/' : '/?office=' + office} className='btn ghost'>Reset</Link>
+        <span className='muted'>Advances and Expenses cover the period. CIH and Outstanding are balances to its end.</span>
+      </form>
+
       <h2>Expense pipeline</h2>
       <Pipeline pipe={pipe} hot={todoStatuses} />
 
