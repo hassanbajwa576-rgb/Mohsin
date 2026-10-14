@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES } from '@/lib/att';
+import { ATT_ROLES, allOffices } from '@/lib/att';
 import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
 import { addStaff, updateStaff, toggleStaff, importStaff } from '@/lib/att-actions';
@@ -13,7 +13,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
   if (!can(user, 'att_staff')) redirect('/attendance');
   const sp = await searchParams;
   const rows = await q(
-    `SELECT s.id, s.code, s.name, s.dept, s.active, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ORDER BY s.active DESC, o.code, s.name`
+    `SELECT s.id, s.code, s.name, s.dept, s.active, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
   );
 
   return (
