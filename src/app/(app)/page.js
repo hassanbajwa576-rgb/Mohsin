@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { expWhere, fundSummary, issueRows, soAccount, fundOfficeSpend, EXP_FROM, EXP_COLS } from '@/lib/queries';
+import { expWhere, fundSummary, issueRows, soAccount, fundOfficeSpend, waitingByFund, EXP_FROM, EXP_COLS } from '@/lib/queries';
 import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
 import { pkr, STATUS_LABEL, FUNDS } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
@@ -45,6 +45,46 @@ function Pipeline({ pipe, hot }) {
           </Link>
         );
       })}
+    </div>
+  );
+}
+
+// Net position per fund: what is still open after everything settled with Accounts.
+function AdjustedPosition({ rows, waiting }) {
+  const w = (k, g) => Number((waiting.find((x) => x.fund === k && x.grp === g) || {}).v || 0);
+  const data = rows.map((f) => ({ key: f.key, label: f.label, cash: f.remaining, drafts: w(f.key, 'draft'), review: w(f.key, 'review'), ready: w(f.key, 'ready'), net: f.outstanding }));
+  const tot = (k) => data.reduce((a, r) => a + r[k], 0);
+  return (
+    <div className='card'>
+      <h3>Adjusted position</h3>
+      <div className='tablewrap'>
+        <table>
+          <thead>
+            <tr><th>Fund</th><th className='r'>Cash in hand</th><th className='r'>Not yet submitted</th><th className='r'>Awaiting approval</th><th className='r'>Ready for Accounts</th><th className='r'>Net position</th></tr>
+          </thead>
+          <tbody>
+            {data.map((r) => (
+              <tr key={r.key}>
+                <td><b>{r.label}</b></td>
+                <td className='r nw'>{pkr(r.cash)}</td>
+                <td className='r nw'>{pkr(r.drafts)}</td>
+                <td className='r nw'>{pkr(r.review)}</td>
+                <td className='r nw'>{pkr(r.ready)}</td>
+                <td className='r nw'><b>{pkr(r.net)}</b></td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td><b>Total</b></td>
+              {['cash', 'drafts', 'review', 'ready', 'net'].map((k) => (
+                <td key={k} className='r nw' style={{ fontWeight: 700 }}>{pkr(tot(k))}</td>
+              ))}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p className='muted' style={{ marginTop: 8 }}>Net position = cash in hand + expenses still waiting for adjustment with Accounts. Anything already adjusted is not shown.</p>
     </div>
   );
 }
@@ -118,6 +158,7 @@ export default async function Dashboard({ searchParams }) {
   if (user.role === 'so') return <SoDashboard user={user} sp={sp} />;
 
   const isOM = user.role === 'om';
+  const adjusted = sp.view === 'adjusted';
   const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : 'all';
 
   // Period filter (year and/or month). Empty means all time.
@@ -143,6 +184,16 @@ export default async function Dashboard({ searchParams }) {
     if (o !== 'all') params.set('office', o);
     if (year) params.set('year', year);
     if (mm) params.set('month', mm);
+    const s = params.toString();
+    return s ? '/?' + s : '/';
+  };
+  // Link that switches between the full dashboard and the adjusted position only (keeps office and period).
+  const vq = (adj) => {
+    const params = new URLSearchParams();
+    if (office !== 'all') params.set('office', office);
+    if (year) params.set('year', year);
+    if (mm) params.set('month', mm);
+    if (adj) params.set('view', 'adjusted');
     const s = params.toString();
     return s ? '/?' + s : '/';
   };
@@ -173,6 +224,7 @@ export default async function Dashboard({ searchParams }) {
     fundOfficeSpend({ from: month + '-01', to: monthEnd }),
     fundOfficeSpend({ from, to }),
   ]);
+  const waiting = await waitingByFund({ to });
   const total = Number(tot[0].total);
   const mtd = Number(tot[0].mtd);
   const T = funds.total;
@@ -192,8 +244,14 @@ export default async function Dashboard({ searchParams }) {
       </div>
       <Flash sp={sp} />
 
+      <div className='chips' style={{ marginBottom: 12 }}>
+        <Link href={vq(false)} className={'chip' + (!adjusted ? ' on' : '')}>Full dashboard</Link>
+        <Link href={vq(true)} className={'chip' + (adjusted ? ' on' : '')}>Adjusted position only</Link>
+      </div>
+
       <form method='get' className='card filters compact'>
         {office !== 'all' ? <input type='hidden' name='office' value={office} /> : null}
+        {adjusted ? <input type='hidden' name='view' value='adjusted' /> : null}
         <label>Year
           <select name='year' defaultValue={year}>
             <option value=''>All years</option>
@@ -211,6 +269,10 @@ export default async function Dashboard({ searchParams }) {
         <span className='muted'>Advances and Expenses cover the period. CIH and Outstanding are balances to its end.</span>
       </form>
 
+      <AdjustedPosition rows={funds.rows} waiting={waiting} />
+
+      {!adjusted ? (
+        <>
       <div className='kpis'>
         <div className='card kpi'><span>Advances</span><b>{pkr(T.received)}</b></div>
         <div className='card kpi alt'><span>Expenses</span><b>{pkr(T.spent)}</b><OfficeSplit rows={offSpent} /></div>
@@ -229,6 +291,9 @@ export default async function Dashboard({ searchParams }) {
         ))}
       </div>
 
+        </>
+      ) : null}
+
       <h2>Expense pipeline</h2>
       <Pipeline pipe={pipe} hot={todoStatuses} />
 
@@ -239,6 +304,8 @@ export default async function Dashboard({ searchParams }) {
         </>
       ) : null}
 
+      {!adjusted ? (
+        <>
       <div className='grid2'>
         <div className='card'><h3>Spend by office</h3><Bars rows={num(offs)} /></div>
         <div className='card'><h3>Spend by category</h3><Bars rows={num(cats)} /></div>
@@ -247,6 +314,8 @@ export default async function Dashboard({ searchParams }) {
 
       <div className='head' style={{ marginTop: 24 }}><h2 style={{ margin: 0 }}>Recent expenses</h2><Link href='/expenses' className='btn ghost'>View all</Link></div>
       <div className='card'><ExpenseTable rows={recent} user={user} back='/' /></div>
+        </>
+      ) : null}
     </>
   );
 }
