@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, canSeeTimes, dayBoard, trend, stateOf, fmtTime, to12, todayKey, validDate, LATE_AFTER, EARLY_BEFORE } from '@/lib/att';
+import { ATT_ROLES, allOffices, canSeeTimes, dayBoard, trend, stateOf, fmtTime, to12, todayKey, validDate, LATE_AFTER, EARLY_BEFORE } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,8 @@ export default async function AttendanceDashboard({ searchParams }) {
   if (!canSeeTimes(user)) redirect('/attendance');
   const sp = await searchParams;
   const day = validDate(sp.date || '') ? sp.date : todayKey();
-  const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
+  // Only the Sr. OM and Sr. SO see both offices; everyone else sees their own office only.
+  const office = allOffices(user) ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
   const { staff, by } = await dayBoard(day, office);
   const tr = await trend(day, office);
 
@@ -66,7 +67,7 @@ export default async function AttendanceDashboard({ searchParams }) {
           <p className='muted subline'>{office || 'Both offices'} | {day}{day === todayKey() ? ' (today)' : ''} | on time: in by {to12(LATE_AFTER)}, out from {to12(EARLY_BEFORE)}</p>
         </div>
         <div className='chips'>
-          {['', 'LHR', 'ISB'].map((o) => (
+          {(allOffices(user) ? ['', 'LHR', 'ISB'] : [user.office_code]).map((o) => (
             <Link key={o || 'all'} href={qs(o)} className={'chip' + (office === o ? ' on' : '')}>{o || 'Both offices'}</Link>
           ))}
         </div>
