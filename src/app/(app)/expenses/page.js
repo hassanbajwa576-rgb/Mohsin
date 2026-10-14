@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { expWhere, issueRows, EXP_FROM, EXP_COLS } from '@/lib/queries';
-import { addExpense, addExpensesBulk, submitDrafts } from '@/lib/actions';
+import { addExpense, addExpensesBulk, approveAll, submitDrafts } from '@/lib/actions';
+import ConfirmButton from '@/components/ConfirmButton';
 import { pkr, today, FUNDS, CATEGORIES, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import PasteExpenses from '@/components/PasteExpenses';
@@ -28,6 +29,9 @@ export default async function ExpensesPage({ searchParams }) {
   const dq = isSO
     ? (await q(`SELECT COUNT(*)::int AS c, COALESCE(SUM(amount), 0)::float8 AS v FROM pc2_expenses WHERE submitted_by = $1 AND status = 'draft'`, [user.id]))[0]
     : null;
+
+  const waiting = isOM ? rows.filter((r) => ['submitted', 'verified'].includes(r.status)) : [];
+  const waitingTotal = waiting.reduce((a, r) => a + Number(r.amount), 0);
 
   return (
     <>
@@ -124,6 +128,16 @@ export default async function ExpensesPage({ searchParams }) {
       </form>
 
       <div className='card'>
+        {waiting.length > 0 ? (
+          <form action={approveAll} className='submitbar'>
+            <input type='hidden' name='ids' value={waiting.map((r) => r.id).join(',')} />
+            <div>
+              <b>{waiting.length} expense(s) - {pkr(waitingTotal)}</b> waiting for your approval in this list
+              <div className='muted'>Approve all moves them to Accounts, ready to submit. Use Reject on a row first for any you do not accept.</div>
+            </div>
+            <ConfirmButton className='btn primary' message={'Approve all ' + waiting.length + ' expenses (' + pkr(waitingTotal) + ')?'}>Approve all</ConfirmButton>
+          </form>
+        ) : null}
         <ExpenseTable rows={rows} user={user} back='/expenses' />
         <p className='totals'>
           Not yet submitted <b>{pkr(sum('draft'))}</b> - Awaiting SOM review <b>{pkr(sum('submitted') + sum('verified'))}</b> - Ready for Accounts <b>{pkr(sum('approved'))}</b> - Sent <b>{pkr(sum('sent'))}</b> ({rows.length} shown)
