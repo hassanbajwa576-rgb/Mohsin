@@ -62,6 +62,8 @@ function AdjustedPosition({ rows, waiting }) {
       review: 0, reviewWho: who(f.key, 'review'),
       ready: 0, readyWho: who(f.key, 'ready'),
     };
+    // Not yet submitted by the Support Officer and awaiting approval are shown together.
+    r.draftsWho = r.draftsWho.map((v, i) => v + r.reviewWho[i]);
     r.drafts = r.draftsWho.reduce((a, b) => a + b, 0);
     r.review = r.reviewWho.reduce((a, b) => a + b, 0);
     r.ready = r.readyWho.reduce((a, b) => a + b, 0);
@@ -83,9 +85,9 @@ function AdjustedPosition({ rows, waiting }) {
     return (
       <tr>
         <td>{bold ? <b>{label}</b> : <b>{r.label}</b>}<Lines roles={roles} gold values={[]} /></td>
-        <td className='r nw' style={st}>{pkr(r.cash)}<Lines roles={roles} values={r.cashWho} /></td>
-        <td className='r nw' style={st}>{pkr(r.drafts)}<Lines roles={roles} values={r.draftsWho} /></td>
         <td className='r nw' style={st}>{pkr(r.ready)}<Lines roles={roles} values={r.readyWho} /></td>
+        <td className='r nw' style={st}>{pkr(r.drafts)}<Lines roles={roles} values={r.draftsWho} /></td>
+        <td className='r nw' style={st}>{pkr(r.cash)}<Lines roles={roles} values={r.cashWho} /></td>
         <td className='r nw'><b>{pkr(r.net)}</b></td>
       </tr>
     );
@@ -96,7 +98,7 @@ function AdjustedPosition({ rows, waiting }) {
       <div className='tablewrap'>
         <table>
           <thead>
-            <tr><th>Fund</th><th className='r'>Cash in hand</th><th className='r'>Not yet submitted</th><th className='r'>Ready for Accounts</th><th className='r'>Net position</th></tr>
+            <tr><th>Fund</th><th className='r'>Ready for Accounts</th><th className='r'>Not yet approved</th><th className='r'>Cash in hand</th><th className='r'>Net position</th></tr>
           </thead>
           <tbody>
             {data.map((r) => <Row key={r.key} r={r} />)}
@@ -106,7 +108,7 @@ function AdjustedPosition({ rows, waiting }) {
           </tfoot>
         </table>
       </div>
-      <p className='muted' style={{ marginTop: 8 }}>Net position = cash in hand + expenses still waiting for adjustment with Accounts (including those awaiting approval). The gold names under a fund are who holds the cash and who made the expenses; the amounts under each figure follow the same order. Anything already adjusted is not shown.</p>
+      <p className='muted' style={{ marginTop: 8 }}>Net position = Ready for Accounts + Not yet approved + Cash in hand. The gold names under a fund are who holds the cash and who made the expenses; the amounts under each figure follow the same order. Anything already adjusted is not shown.</p>
     </div>
   );
 }
