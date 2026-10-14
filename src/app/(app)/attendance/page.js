@@ -42,11 +42,6 @@ export default async function AttendancePage({ searchParams }) {
 
   const contacts = await dutyContacts(user);
 
-  // Entries this person may still fix: their own (the Sr. SO also those of the Support Officer and guards) for 36 hours.
-  const fixable = await editableEntries(user);
-  const bad = conflictIds(await recentEvents([...new Set(fixable.map((x) => x.staff_id))], 4));
-  const allFix = sp.all === '1';
-  const shownFix = allFix ? fixable : fixable.slice(0, 10);
 
 
   return (
@@ -68,51 +63,7 @@ export default async function AttendancePage({ searchParams }) {
         <AttendanceEntryForm options={options} action={addEntry} defaultOffice={user.office_code} />
       </div>
 
-      {fixable.length > 0 ? (
-        <div className='card'>
-          <h3>{user.role === 'om' ? 'Entries from the last 36 hours' : 'Entries you can fix'}</h3>
-          <div className='tablewrap'>
-            <table>
-              <thead>
-                <tr><th>Employee</th><th>Type</th><th>Time</th><th>Added by</th><th></th></tr>
-              </thead>
-              <tbody>
-                {shownFix.map((m) => {
-                  const isBad = bad.has(m.id);
-                  const canDelete = user.role === 'om' || user.role === 'sso';
-                  return (
-                    <tr key={m.id} className={isBad ? 'conflict' : ''}>
-                      <td>
-                        <OfficeTag o={m.office} /><b>{m.name}</b>
-                        {isBad ? <div className='over-t'>Does not fit with the entries around it - please fix</div> : null}
-                      </td>
-                      <td>{KIND_LABEL[m.kind]}</td>
-                      <td className={'nw ' + timeClass(m.kind, fmtTime(m.ms))}>{(dateKey(m.ms) === todayKey() ? '' : fmtDay(m.ms) + ', ') + fmt12(m.ms)}</td>
-                      <td className='muted'>{m.by_name || '-'}</td>
-                      <td className='act r'>
-                        <div className='entry-act'>
-                          <EntryEdit m={m} back='/attendance' />
-                          {canDelete ? (
-                            <form action={removeEntry} className='inline'>
-                              <input type='hidden' name='id' value={m.id} />
-                              <input type='hidden' name='back' value='/attendance' />
-                              <ConfirmButton className='btn ghost' message='Delete this entry?'>Delete</ConfirmButton>
-                            </form>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {fixable.length > 10 ? (
-            <p className='totals'>{allFix ? 'Showing all ' + fixable.length : 'Showing the latest 10 of ' + fixable.length} - <Link href={allFix ? '/attendance' : '/attendance?all=1'}>{allFix ? 'Show fewer' : 'See more'}</Link></p>
-          ) : null}
-          <p className='totals'>Green times are on time (check in by 9:30 AM, check out from 5:55 PM), red is late or early. Type, date and time can be changed for 36 hours after an entry was made.</p>
-        </div>
-      ) : null}
+      <p className='muted'>Made a mistake? Open the <Link href='/attendance/entries'>Entries</Link> tab to change or delete an entry.</p>
 
       {contacts.map((c) => (
         <div className='card' key={c.office}>
