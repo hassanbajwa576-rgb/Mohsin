@@ -10,6 +10,7 @@ export default function FundCard({ f }) {
         <div><dt>Advances</dt><dd>{pkr(f.received)}</dd></div>
         <div><dt>Expenses</dt><dd>{pkr(f.spent)}</dd></div>
         <div><dt>Submitted to Accounts</dt><dd>{pkr(f.sent)}</dd></div>
+        <div><dt>Returned to Accounts</dt><dd>{pkr(f.returned)}</dd></div>
         <div><dt>Advances Outstanding</dt><dd>{pkr(f.outstanding)}</dd></div>
         <div className={'total' + (f.remaining < 0 ? ' neg' : '')}><dt>CIH</dt><dd>{pkr(f.remaining)}</dd></div>
       </dl>
