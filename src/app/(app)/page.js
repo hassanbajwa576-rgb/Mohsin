@@ -31,10 +31,30 @@ function Pipeline({ pipe, hot }) {
 }
 
 // Net position per fund: what is still open after everything settled with Accounts.
+const n0 = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
+
+// Small grey line under a figure: how much of it sits with (or was spent by) each person.
+function Split({ parts, prefix = '' }) {
+  const shown = parts.filter(([, v]) => Number(v) > 0);
+  if (!shown.length) return null;
+  return <div className='muted' style={{ fontSize: 11, fontWeight: 400, lineHeight: 1.5 }}>{prefix}{shown.map(([l, v]) => l + ' ' + n0(v)).join(' | ')}</div>;
+}
+
 function AdjustedPosition({ rows, waiting }) {
-  const w = (k, g) => Number((waiting.find((x) => x.fund === k && x.grp === g) || {}).v || 0);
-  const data = rows.map((f) => ({ key: f.key, label: f.label, cash: f.remaining, drafts: w(f.key, 'draft'), review: w(f.key, 'review'), ready: w(f.key, 'ready'), net: f.outstanding }));
+  const w = (k, g, role) => waiting.filter((x) => x.fund === k && x.grp === g && (!role || x.by_role === role)).reduce((a, x) => a + Number(x.v), 0);
+  const who = (k, g) => [['Sr. OM', w(k, g, 'om')], ['Sr. SO', w(k, g, 'sso')], ['SO', w(k, g, 'so')]];
+  const data = rows.map((f) => ({
+    key: f.key,
+    label: f.label,
+    cash: f.remaining,
+    net: f.outstanding,
+    cashWho: [['Sr. OM', f.pool], ['Sr. SO', f.ssoCash], ['SO', f.soCash]],
+    drafts: w(f.key, 'draft'), draftsWho: who(f.key, 'draft'),
+    review: w(f.key, 'review'), reviewWho: who(f.key, 'review'),
+    ready: w(f.key, 'ready'), readyWho: who(f.key, 'ready'),
+  }));
   const tot = (k) => data.reduce((a, r) => a + r[k], 0);
+  const totWho = (k) => ['Sr. OM', 'Sr. SO', 'SO'].map((l, i) => [l, data.reduce((a, r) => a + r[k][i][1], 0)]);
   return (
     <div className='card'>
       <h3>Adjusted position</h3>
@@ -46,26 +66,28 @@ function AdjustedPosition({ rows, waiting }) {
           <tbody>
             {data.map((r) => (
               <tr key={r.key}>
-                <td><b>{r.label}</b></td>
+                <td><b>{r.label}</b><Split parts={r.cashWho} prefix='Cash: ' /></td>
                 <td className='r nw'>{pkr(r.cash)}</td>
-                <td className='r nw'>{pkr(r.drafts)}</td>
-                <td className='r nw'>{pkr(r.review)}</td>
-                <td className='r nw'>{pkr(r.ready)}</td>
+                <td className='r nw'>{pkr(r.drafts)}<Split parts={r.draftsWho} /></td>
+                <td className='r nw'>{pkr(r.review)}<Split parts={r.reviewWho} /></td>
+                <td className='r nw'>{pkr(r.ready)}<Split parts={r.readyWho} /></td>
                 <td className='r nw'><b>{pkr(r.net)}</b></td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr>
-              <td><b>Total</b></td>
-              {['cash', 'drafts', 'review', 'ready', 'net'].map((k) => (
-                <td key={k} className='r nw' style={{ fontWeight: 700 }}>{pkr(tot(k))}</td>
-              ))}
+              <td><b>Total</b><Split parts={totWho('cashWho')} prefix='Cash: ' /></td>
+              <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('cash'))}</td>
+              <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('drafts'))}<Split parts={totWho('draftsWho')} /></td>
+              <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('review'))}<Split parts={totWho('reviewWho')} /></td>
+              <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('ready'))}<Split parts={totWho('readyWho')} /></td>
+              <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('net'))}</td>
             </tr>
           </tfoot>
         </table>
       </div>
-      <p className='muted' style={{ marginTop: 8 }}>Net position = cash in hand + expenses still waiting for adjustment with Accounts. Anything already adjusted is not shown.</p>
+      <p className='muted' style={{ marginTop: 8 }}>Net position = cash in hand + expenses still waiting for adjustment with Accounts. Under each fund: who holds the cash. Under the expense columns: who made those expenses. Anything already adjusted is not shown.</p>
     </div>
   );
 }
