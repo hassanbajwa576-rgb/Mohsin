@@ -67,6 +67,8 @@ function AdjustedPosition({ rows, waiting }) {
     r.drafts = r.draftsWho.reduce((a, b) => a + b, 0);
     r.review = r.reviewWho.reduce((a, b) => a + b, 0);
     r.ready = r.readyWho.reduce((a, b) => a + b, 0);
+    // Each person's own open total: cash they hold + their expenses waiting for adjustment.
+    r.totWho = [0, 1, 2].map((i) => Number(r.cashWho[i]) + r.draftsWho[i] + r.readyWho[i]);
     return r;
   });
   const rolesOf = (r) => [0, 1, 2].filter((i) => [r.cashWho, r.draftsWho, r.readyWho].some((arr) => Number(arr[i]) > 0));
@@ -77,7 +79,7 @@ function AdjustedPosition({ rows, waiting }) {
     review: data.reduce((a, r) => a + r.review, 0),
     ready: data.reduce((a, r) => a + r.ready, 0),
     net: data.reduce((a, r) => a + r.net, 0),
-    cashWho: sumArr('cashWho'), draftsWho: sumArr('draftsWho'), reviewWho: sumArr('reviewWho'), readyWho: sumArr('readyWho'),
+    cashWho: sumArr('cashWho'), draftsWho: sumArr('draftsWho'), reviewWho: sumArr('reviewWho'), readyWho: sumArr('readyWho'), totWho: sumArr('totWho'),
   };
   const Row = ({ r, bold, label }) => {
     const roles = rolesOf(r);
@@ -88,7 +90,7 @@ function AdjustedPosition({ rows, waiting }) {
         <td className='r nw' style={st}>{pkr(r.ready)}<Lines roles={roles} values={r.readyWho} /></td>
         <td className='r nw' style={st}>{pkr(r.drafts)}<Lines roles={roles} values={r.draftsWho} /></td>
         <td className='r nw' style={st}>{pkr(r.cash)}<Lines roles={roles} values={r.cashWho} /></td>
-        <td className='r nw'><b>{pkr(r.net)}</b></td>
+        <td className='r nw'><b>{pkr(r.net)}</b><Lines roles={roles} values={r.totWho} /></td>
       </tr>
     );
   };
