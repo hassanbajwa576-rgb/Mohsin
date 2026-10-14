@@ -33,34 +33,64 @@ function Pipeline({ pipe, hot }) {
 // Net position per fund: what is still open after everything settled with Accounts.
 const n0 = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
 
-// Under a figure: each person on their own line, the role in gold and the amount in black.
-function Split({ parts }) {
-  const shown = parts.filter(([, v]) => Number(v) > 0);
-  if (!shown.length) return null;
+// Role names go under the fund (gold); the amounts go under each figure (black) on the same lines.
+const ROLE_NAMES = ['Sr. OM', 'Sr. SO', 'SO'];
+function Lines({ values, roles, gold }) {
+  if (!roles.length) return null;
   return (
     <div style={{ fontSize: 11.5, fontWeight: 400, lineHeight: 1.6 }}>
-      {shown.map(([l, v]) => (
-        <div key={l}><span style={{ color: 'var(--gold-d)', fontWeight: 600 }}>{l}</span> <span style={{ color: 'var(--ink)' }}>{n0(v)}</span></div>
+      {roles.map((i) => (
+        <div key={i} style={gold ? { color: 'var(--gold-d)', fontWeight: 600 } : { color: Number(values[i]) > 0 ? 'var(--ink)' : 'var(--mut)' }}>
+          {gold ? ROLE_NAMES[i] : n0(values[i])}
+        </div>
       ))}
     </div>
   );
 }
 
 function AdjustedPosition({ rows, waiting }) {
-  const w = (k, g, role) => waiting.filter((x) => x.fund === k && x.grp === g && (!role || x.by_role === role)).reduce((a, x) => a + Number(x.v), 0);
-  const who = (k, g) => [['Sr. OM', w(k, g, 'om')], ['Sr. SO', w(k, g, 'sso')], ['SO', w(k, g, 'so')]];
-  const data = rows.map((f) => ({
-    key: f.key,
-    label: f.label,
-    cash: f.remaining,
-    net: f.outstanding,
-    cashWho: [['Sr. OM', f.pool], ['Sr. SO', f.ssoCash], ['SO', f.soCash]],
-    drafts: w(f.key, 'draft'), draftsWho: who(f.key, 'draft'),
-    review: w(f.key, 'review'), reviewWho: who(f.key, 'review'),
-    ready: w(f.key, 'ready'), readyWho: who(f.key, 'ready'),
-  }));
-  const tot = (k) => data.reduce((a, r) => a + r[k], 0);
-  const totWho = (k) => ['Sr. OM', 'Sr. SO', 'SO'].map((l, i) => [l, data.reduce((a, r) => a + r[k][i][1], 0)]);
+  const w = (k, g, role) => waiting.filter((x) => x.fund === k && x.grp === g && x.by_role === role).reduce((a, x) => a + Number(x.v), 0);
+  const who = (k, g) => [w(k, g, 'om'), w(k, g, 'sso'), w(k, g, 'so')];
+  const data = rows.map((f) => {
+    const r = {
+      key: f.key,
+      label: f.label,
+      cash: f.remaining,
+      net: f.outstanding,
+      cashWho: [f.pool, f.ssoCash, f.soCash],
+      drafts: 0, draftsWho: who(f.key, 'draft'),
+      review: 0, reviewWho: who(f.key, 'review'),
+      ready: 0, readyWho: who(f.key, 'ready'),
+    };
+    r.drafts = r.draftsWho.reduce((a, b) => a + b, 0);
+    r.review = r.reviewWho.reduce((a, b) => a + b, 0);
+    r.ready = r.readyWho.reduce((a, b) => a + b, 0);
+    return r;
+  });
+  const rolesOf = (r) => [0, 1, 2].filter((i) => [r.cashWho, r.draftsWho, r.reviewWho, r.readyWho].some((arr) => Number(arr[i]) > 0));
+  const sumArr = (k) => [0, 1, 2].map((i) => data.reduce((a, r) => a + Number(r[k][i]), 0));
+  const total = {
+    cash: data.reduce((a, r) => a + r.cash, 0),
+    drafts: data.reduce((a, r) => a + r.drafts, 0),
+    review: data.reduce((a, r) => a + r.review, 0),
+    ready: data.reduce((a, r) => a + r.ready, 0),
+    net: data.reduce((a, r) => a + r.net, 0),
+    cashWho: sumArr('cashWho'), draftsWho: sumArr('draftsWho'), reviewWho: sumArr('reviewWho'), readyWho: sumArr('readyWho'),
+  };
+  const Row = ({ r, bold, label }) => {
+    const roles = rolesOf(r);
+    const st = bold ? { fontWeight: 700 } : undefined;
+    return (
+      <tr>
+        <td>{bold ? <b>{label}</b> : <b>{r.label}</b>}<Lines roles={roles} gold values={[]} /></td>
+        <td className='r nw' style={st}>{pkr(r.cash)}<Lines roles={roles} values={r.cashWho} /></td>
+        <td className='r nw' style={st}>{pkr(r.drafts)}<Lines roles={roles} values={r.draftsWho} /></td>
+        <td className='r nw' style={st}>{pkr(r.review)}<Lines roles={roles} values={r.reviewWho} /></td>
+        <td className='r nw' style={st}>{pkr(r.ready)}<Lines roles={roles} values={r.readyWho} /></td>
+        <td className='r nw'><b>{pkr(r.net)}</b></td>
+      </tr>
+    );
+  };
   return (
     <div className='card'>
       <h3>Adjusted position</h3>
@@ -70,30 +100,14 @@ function AdjustedPosition({ rows, waiting }) {
             <tr><th>Fund</th><th className='r'>Cash in hand</th><th className='r'>Not yet submitted</th><th className='r'>Awaiting approval</th><th className='r'>Ready for Accounts</th><th className='r'>Net position</th></tr>
           </thead>
           <tbody>
-            {data.map((r) => (
-              <tr key={r.key}>
-                <td><b>{r.label}</b><Split parts={r.cashWho} /></td>
-                <td className='r nw'>{pkr(r.cash)}</td>
-                <td className='r nw'>{pkr(r.drafts)}<Split parts={r.draftsWho} /></td>
-                <td className='r nw'>{pkr(r.review)}<Split parts={r.reviewWho} /></td>
-                <td className='r nw'>{pkr(r.ready)}<Split parts={r.readyWho} /></td>
-                <td className='r nw'><b>{pkr(r.net)}</b></td>
-              </tr>
-            ))}
+            {data.map((r) => <Row key={r.key} r={r} />)}
           </tbody>
           <tfoot>
-            <tr>
-              <td><b>Total</b><Split parts={totWho('cashWho')} /></td>
-              <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('cash'))}</td>
-              <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('drafts'))}<Split parts={totWho('draftsWho')} /></td>
-              <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('review'))}<Split parts={totWho('reviewWho')} /></td>
-              <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('ready'))}<Split parts={totWho('readyWho')} /></td>
-              <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('net'))}</td>
-            </tr>
+            <Row r={total} bold label='Total' />
           </tfoot>
         </table>
       </div>
-      <p className='muted' style={{ marginTop: 8 }}>Net position = cash in hand + expenses still waiting for adjustment with Accounts. Under each fund: who holds the cash. Under the expense columns: who made those expenses. Anything already adjusted is not shown.</p>
+      <p className='muted' style={{ marginTop: 8 }}>Net position = cash in hand + expenses still waiting for adjustment with Accounts. The gold names under a fund are who holds the cash and who made the expenses; the amounts under each figure follow the same order. Anything already adjusted is not shown.</p>
     </div>
   );
 }
