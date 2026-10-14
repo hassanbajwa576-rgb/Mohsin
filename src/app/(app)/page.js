@@ -110,6 +110,19 @@ async function SoDashboard({ user, sp }) {
         <Link href='/expenses' className='btn primary'>Submit an expense</Link>
       </div>
       <Flash sp={sp} />
+      <h2>Expense pipeline</h2>
+      <Pipeline pipe={pipe} hot={todoStatuses} />
+
+      {todo.length ? (
+        <>
+          <h2>{isOM ? 'Needs your review' : 'Waiting for your verification'}</h2>
+          <div className='card'>
+            <ExpenseTable rows={todo.slice(0, 5)} user={user} back='/' />
+            {todo.length > 5 ? <p className='totals'>Showing 5 of {todo.length} - <Link href='/expenses?status=submitted'>View all on the Expenses page</Link></p> : null}
+          </div>
+        </>
+      ) : null}
+
       <div className='kpis'>
         <div className='card kpi'><span>Advances</span><b>{pkr(acct.advances)}</b></div>
         <div className='card kpi alt'><span>Expenses</span><b>{pkr(acct.spent)}</b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
@@ -217,13 +230,6 @@ export default async function Dashboard({ searchParams }) {
   ]);
 
   const pipe = byStatus(pipeRows);
-  // Fund x office tables: this calendar month, and the chosen period (all time when no filter).
-  const [yNow, mNow] = month.split('-').map(Number);
-  const monthEnd = month + '-' + String(new Date(Date.UTC(yNow, mNow, 0)).getUTCDate()).padStart(2, '0');
-  const [spentMonth, spentPeriod] = await Promise.all([
-    fundOfficeSpend({ from: month + '-01', to: monthEnd }),
-    fundOfficeSpend({ from, to }),
-  ]);
   const waiting = await waitingByFund({ to });
   const total = Number(tot[0].total);
   const mtd = Number(tot[0].mtd);
@@ -268,13 +274,7 @@ export default async function Dashboard({ searchParams }) {
         <div className='card kpi'><span>Advances</span><b>{pkr(T.received)}</b></div>
         <div className='card kpi alt'><span>Expenses</span><b>{pkr(T.spent)}</b><OfficeSplit rows={offSpent} /></div>
         <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>CIH</span><b>{pkr(T.remaining)}</b><CashSplit pool={T.pool} sso={T.ssoCash} so={T.soCash} /></div>
-        <div className='card kpi alt'><span>Advances Outstanding</span><b>{pkr(T.outstanding)}</b><small>Clears only when expenses are submitted to Accounts - {pkr(T.unsent)} not yet submitted</small></div>
       </div>
-      <div className='grid2'>
-        <FundMatrix title={'Spent this month (' + month + ') - PKR'} cols={['LHR', 'ISB']} rows={buildMatrix(spentMonth, 'office', ['LHR', 'ISB'])} />
-        <FundMatrix title={'Spent ' + (from ? periodLabel.toLowerCase() : 'in total') + ' - PKR'} cols={['LHR', 'ISB']} rows={buildMatrix(spentPeriod, 'office', ['LHR', 'ISB'])} />
-      </div>
-
       <h2>Funds</h2>
       <div className='funds'>
         {funds.rows.map((f) => (
@@ -282,24 +282,6 @@ export default async function Dashboard({ searchParams }) {
         ))}
       </div>
 
-      <h2>Expense pipeline</h2>
-      <Pipeline pipe={pipe} hot={todoStatuses} />
-
-      {todo.length ? (
-        <>
-          <h2>{isOM ? 'Needs your review' : 'Waiting for your verification'}</h2>
-          <div className='card'><ExpenseTable rows={todo} user={user} back='/' /></div>
-        </>
-      ) : null}
-
-      <div className='grid2'>
-        <div className='card'><h3>Spend by office</h3><Bars rows={num(offs)} /></div>
-        <div className='card'><h3>Spend by category</h3><Bars rows={num(cats)} /></div>
-        <div className='card'><h3>{from ? 'By month' : 'Last 6 months'}</h3><Bars rows={num(months)} /></div>
-      </div>
-
-      <div className='head' style={{ marginTop: 24 }}><h2 style={{ margin: 0 }}>Recent expenses</h2><Link href='/expenses' className='btn ghost'>View all</Link></div>
-      <div className='card'><ExpenseTable rows={recent} user={user} back='/' /></div>
     </>
   );
 }
