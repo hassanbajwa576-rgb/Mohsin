@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices } from '@/lib/att';
@@ -16,6 +17,19 @@ export default async function AttendanceStaffPage({ searchParams }) {
     `SELECT s.id, s.code, s.name, s.dept, s.active, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
   );
 
+  const fo = allOffices(user) && ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
+  const fs = ['active', 'inactive'].includes(sp.status) ? sp.status : '';
+  const inOffice = rows.filter((r) => !fo || r.office === fo);
+  const shown = inOffice.filter((r) => !fs || (fs === 'active') === r.active);
+  const nActive = inOffice.filter((r) => r.active).length;
+  const href = (o, s) => {
+    const p = new URLSearchParams();
+    if (o) p.set('office', o);
+    if (s) p.set('status', s);
+    const q2 = p.toString();
+    return '/attendance/staff' + (q2 ? '?' + q2 : '');
+  };
+
   return (
     <>
       <div className='head'>
@@ -30,7 +44,6 @@ export default async function AttendanceStaffPage({ searchParams }) {
         <summary>Add employee</summary>
         <form action={addStaff} className='form'>
           <label>Full name<input name='name' required /></label>
-          <label>Employee code (optional)<input name='code' /></label>
           <label>Department<input name='dept' /></label>
           <label>Office
             <select name='office' defaultValue='LHR'><option>LHR</option><option>ISB</option></select>
@@ -52,18 +65,31 @@ export default async function AttendanceStaffPage({ searchParams }) {
         </form>
       </details>
 
+      <div className='chips' style={{ marginBottom: 8 }}>
+        <Link href={href(fo, '')} className={'chip' + (!fs ? ' on' : '')}>Total ({inOffice.length})</Link>
+        <Link href={href(fo, 'active')} className={'chip' + (fs === 'active' ? ' on' : '')}>Active ({nActive})</Link>
+        <Link href={href(fo, 'inactive')} className={'chip' + (fs === 'inactive' ? ' on' : '')}>Inactive ({inOffice.length - nActive})</Link>
+      </div>
+      {allOffices(user) ? (
+        <div className='chips' style={{ marginBottom: 12 }}>
+          {['', 'LHR', 'ISB'].map((o) => (
+            <Link key={o || 'all'} href={href(o, fs)} className={'chip' + (fo === o ? ' on' : '')}>{o || 'Both offices'}</Link>
+          ))}
+        </div>
+      ) : null}
+
       <div className='card'>
-        {rows.length ? (
+        {shown.length ? (
           <div className='tablewrap'>
             <table>
               <thead>
-                <tr><th>Name</th><th>Code</th><th>Department</th><th>Office</th><th>Status</th><th></th></tr>
+                <tr><th>Sr #</th><th>Name</th><th>Department</th><th>Office</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {shown.map((r, i) => (
                   <tr key={r.id}>
+                    <td>{i + 1}</td>
                     <td><b>{r.name}</b></td>
-                    <td>{r.code}</td>
                     <td>{r.dept || '-'}</td>
                     <td><span className='pill'>{r.office}</span></td>
                     <td><span className={'badge ' + (r.active ? 'approved' : 'rejected')}>{r.active ? 'Active' : 'Inactive'}</span></td>
@@ -73,7 +99,6 @@ export default async function AttendanceStaffPage({ searchParams }) {
                         <form action={updateStaff} className='form'>
                           <input type='hidden' name='id' value={r.id} />
                           <label>Name<input name='name' defaultValue={r.name} required /></label>
-                          <label>Code<input name='code' defaultValue={r.code} /></label>
                           <label>Department<input name='dept' defaultValue={r.dept} /></label>
                           <label>Office
                             <select name='office' defaultValue={r.office}><option>LHR</option><option>ISB</option></select>
@@ -92,7 +117,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
             </table>
           </div>
         ) : (
-          <p className='muted'>No employees yet. Add the first one above.</p>
+          <p className='muted'>{rows.length === 0 ? 'No employees yet. Add the first one above.' : 'No employees match this filter.'}</p>
         )}
       </div>
     </>
