@@ -32,6 +32,12 @@ export default async function ExpensesPage({ searchParams }) {
     ? (await q(`SELECT COUNT(*)::int AS c, COALESCE(SUM(amount), 0)::float8 AS v FROM pc2_expenses WHERE submitted_by = $1 AND status = 'draft'`, [user.id]))[0]
     : null;
 
+  const showAll = sp.more === '1';
+  const shown = showAll ? rows : rows.slice(0, 10);
+  const mp = new URLSearchParams();
+  for (const k of ['office', 'status', 'fund', 'month']) if (sp[k]) mp.set(k, sp[k]);
+  if (!showAll) mp.set('more', '1');
+  const moreHref = '/expenses' + (mp.toString() ? '?' + mp.toString() : '');
   const waiting = isOM ? rows.filter((r) => ['submitted', 'verified'].includes(r.status)) : [];
   const waitingTotal = waiting.reduce((a, r) => a + Number(r.amount), 0);
 
@@ -149,7 +155,10 @@ export default async function ExpensesPage({ searchParams }) {
             <ConfirmButton className='btn primary' message={'Approve all ' + waiting.length + ' expenses (' + pkr(waitingTotal) + ')?'}>Approve all</ConfirmButton>
           </form>
         ) : null}
-        <ExpenseTable rows={rows} user={user} back='/expenses' />
+        <ExpenseTable rows={shown} user={user} back='/expenses' />
+        {rows.length > 10 ? (
+          <p className='totals'>{showAll ? 'Showing all ' + rows.length : 'Showing the latest 10 of ' + rows.length} - <Link href={moreHref}>{showAll ? 'Show fewer' : 'See more'}</Link></p>
+        ) : null}
         <p className='totals'>
           Not yet submitted <b>{pkr(sum('draft'))}</b> - Awaiting SOM review <b>{pkr(sum('submitted') + sum('verified'))}</b> - Ready for Accounts <b>{pkr(sum('approved'))}</b> - Sent <b>{pkr(sum('sent'))}</b> ({rows.length} shown)
         </p>
