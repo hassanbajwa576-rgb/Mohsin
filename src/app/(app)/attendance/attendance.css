@@ -51,3 +51,4 @@ tr.conflict td{background:var(--badbg)}
 .vbars{display:flex;align-items:flex-end;gap:6px;height:110px}
 .vbars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--mut);gap:2px}
 .vbars i{display:block;width:100%;background:var(--gold);border-radius:2px 2px 0 0;min-height:2px}
+.chipn.ok{color:var(--ok);border-color:var(--ok);background:var(--okbg)}
