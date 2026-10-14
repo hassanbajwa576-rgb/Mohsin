@@ -6,6 +6,7 @@ import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
 import { addAdvance, deleteAdvance, deleteIssue, issueAdvance, recordReturn, returnToAccounts, deleteReturn } from '@/lib/actions';
 import { pkr, today, FUNDS } from '@/lib/fmt';
 import Flash from '@/components/Flash';
+import ScrollTo from '@/components/ScrollTo';
 import FundCard from '@/components/FundCard';
 import ConfirmButton from '@/components/ConfirmButton';
 
@@ -197,7 +198,8 @@ export default async function AdvancesPage({ searchParams }) {
         </details>
       ) : null}
 
-      <form method='get' action='/advances#issued' id='issued' className='card filters compact'>
+      <ScrollTo id='issued' when={!!(fTo || fBy || fFund || fMonth || fStatus)} />
+      <form method='get' action='/advances#issued' id='issued' className='card filters compact' style={{ scrollMarginTop: 90 }}>
         {manage ? (
           <label>Issued to
             <select name='to' defaultValue={fTo}>
