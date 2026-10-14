@@ -69,6 +69,12 @@ export function sessionsOf(evs, now = Date.now()) {
     else if (e.kind === 'break_out') cur.open = ms;
     else if (e.kind === 'break_in') {
       if (cur.open != null) { cur.breaks.push([cur.open, ms]); cur.open = null; }
+    } else if (e.kind === 'out' && e.virtual) {
+      // Never checked out and a new day started: the shift stays on record but counts no hours.
+      cur.missed = true;
+      cur.open = null;
+      out.push(cur);
+      cur = null;
     } else if (e.kind === 'out') {
       if (cur.open != null) { cur.breaks.push([cur.open, ms]); cur.open = null; }
       cur.end = ms;
@@ -81,7 +87,7 @@ export function sessionsOf(evs, now = Date.now()) {
     const br = s.breaks.slice();
     if (s.open != null) br.push([s.open, now]);
     const breakMs = br.reduce((a, b) => a + (b[1] - b[0]), 0);
-    return { start: s.start, end: s.end, live: s.end == null, breakCount: br.length, breakMs, workedMs: Math.max(0, (s.end ?? now) - s.start - breakMs) };
+    return { start: s.start, end: s.end, missed: !!s.missed, live: s.end == null && !s.missed, breakCount: br.length, breakMs, workedMs: s.missed ? 0 : Math.max(0, (s.end ?? now) - s.start - breakMs) };
   });
 }
 
@@ -93,6 +99,8 @@ export function groupByStaff(events) {
     if (!m.has(e.staff_id)) m.set(e.staff_id, []);
     m.get(e.staff_id).push(e);
   }
+  // A check in left open from an earlier day is closed (as a missed check out) when a new check in follows.
+  for (const [k, list] of m) m.set(k, closeStale(list));
   return m;
 }
 
@@ -161,7 +169,7 @@ export async function reportRows({ from, to, office, dept }) {
       if (d < from || d > to) continue;
       rows.push({
         date: d, office: s.office, dept: s.dept, name: s.name, code: s.code,
-        in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : '(on duty)',
+        in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : x.missed ? '(missed check out)' : '(on duty)',
         breaks: x.breakCount, breakMs: x.breakMs, workedMs: x.workedMs, over: x.breakMs > limit,
       });
     }
@@ -190,6 +198,11 @@ export function conflictIds(evs) {
     let s = 'off';
     let openBreak = null;
     for (const e of sorted) {
+      if (e.virtual) {
+        s = 'off';
+        openBreak = null;
+        continue;
+      }
       const n = NEXT[s][e.kind];
       if (!n) {
         bad.add(e.id);
@@ -254,3 +267,24 @@ export const to12 = (hhmm) => {
 export const fmt12 = (ms) => to12(fmtTime(ms));
 const dayfmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'short' });
 export const fmtDay = (ms) => dayfmt.format(new Date(Number(ms)));
+
+/**
+ * While people are new to the system, a check in that was never closed does not block the next day:
+ * when a new check in arrives on a later day, the old shift is closed as a missed check out.
+ */
+export function closeStale(evs) {
+  const sorted = evs.slice().sort((a, b) => Number(a.ms) - Number(b.ms) || a.id - b.id);
+  const out = [];
+  let s = 'off';
+  let last = null;
+  for (const e of sorted) {
+    if (e.kind === 'in' && s !== 'off' && last && dateKey(last.ms) < dateKey(e.ms)) {
+      out.push({ id: -1 - out.length, staff_id: last.staff_id, office_id: last.office_id, kind: 'out', ms: Number(last.ms) + 1, virtual: true });
+      s = 'off';
+    }
+    out.push(e);
+    s = NEXT[s][e.kind] ?? s;
+    last = e;
+  }
+  return out;
+}
