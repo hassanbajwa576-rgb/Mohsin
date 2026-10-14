@@ -1,7 +1,8 @@
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { fundSummary, issueRows } from '@/lib/queries';
+import { fundSummary, issueRows, receivedByFund } from '@/lib/queries';
+import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
 import { addAdvance, deleteAdvance, deleteIssue, issueAdvance, recordReturn, returnToAccounts, deleteReturn } from '@/lib/actions';
 import { pkr, today, FUNDS } from '@/lib/fmt';
 import Flash from '@/components/Flash';
@@ -28,6 +29,8 @@ export default async function AdvancesPage({ searchParams }) {
       : Promise.resolve([]),
   ]);
 
+  const recvByFund = manage ? await receivedByFund() : [];
+
   return (
     <>
       <div className='head'>
@@ -48,6 +51,8 @@ export default async function AdvancesPage({ searchParams }) {
               <FundCard key={f.key} f={f} />
             ))}
           </div>
+
+          <FundMatrix title='Received from Accounts by fund - PKR' cols={['Amount']} rows={buildMatrix(recvByFund, 'office', ['All'])} />
 
           {isOM ? (
             <details className='card'>
@@ -166,6 +171,15 @@ export default async function AdvancesPage({ searchParams }) {
             </form>
           )}
         </details>
+      ) : null}
+
+      {manage && issues.length > 0 ? (
+        <FundMatrix
+          title='Issued to the team by fund and office - PKR'
+          cols={['LHR', 'ISB']}
+          rows={buildMatrix(issues, 'office', ['LHR', 'ISB'])}
+          note='By the office of the person the advance was issued to.'
+        />
       ) : null}
 
       <div className='card'>
