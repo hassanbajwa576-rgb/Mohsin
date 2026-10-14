@@ -32,16 +32,18 @@ export async function fundSummary(opts = {}) {
   const to = opts.to || null;
   const from = opts.from || null;
   const [recv, iss, exp, ret] = await Promise.all([
-    q(`SELECT fund, SUM(amount)::float8 AS cum, COALESCE(SUM(amount) FILTER (WHERE $2::date IS NULL OR received_on >= $2::date), 0)::float8 AS inrange FROM pc2_advances WHERE $1::date IS NULL OR received_on <= $1::date GROUP BY fund`, [to, from]),
+    q(`SELECT a.fund, COALESCE(u.role, 'om') AS by_role, SUM(a.amount)::float8 AS cum, COALESCE(SUM(a.amount) FILTER (WHERE $2::date IS NULL OR a.received_on >= $2::date), 0)::float8 AS inrange FROM pc2_advances a LEFT JOIN pc2_users u ON u.id = a.created_by WHERE $1::date IS NULL OR a.received_on <= $1::date GROUP BY a.fund, COALESCE(u.role, 'om')`, [to, from]),
     q(`SELECT i.fund, h.role AS holder_role, b.role AS issuer_role, SUM(i.amount - i.returned)::float8 AS v FROM pc2_issues i JOIN pc2_users h ON h.id = i.issued_to JOIN pc2_users b ON b.id = i.issued_by WHERE $1::date IS NULL OR i.issued_on <= $1::date GROUP BY i.fund, h.role, b.role`, [to]),
     q(`SELECT e.fund, u.role AS role, SUM(e.amount)::float8 AS v, COALESCE(SUM(CASE WHEN e.status = 'sent' THEN e.amount END), 0)::float8 AS sent, COALESCE(SUM(e.amount) FILTER (WHERE $2::date IS NULL OR e.spent_on >= $2::date), 0)::float8 AS vin, COALESCE(SUM(CASE WHEN e.status = 'sent' THEN e.amount END) FILTER (WHERE $2::date IS NULL OR e.spent_on >= $2::date), 0)::float8 AS sentin FROM pc2_expenses e JOIN pc2_users u ON u.id = e.submitted_by WHERE e.status <> 'rejected' AND ($1::date IS NULL OR e.spent_on <= $1::date) GROUP BY e.fund, u.role`, [to, from]),
     q(`SELECT r.fund, b.role AS by_role, SUM(r.amount)::float8 AS v, COALESCE(SUM(r.amount) FILTER (WHERE $2::date IS NULL OR r.returned_on >= $2::date), 0)::float8 AS inrange FROM pc2_returns r JOIN pc2_users b ON b.id = r.returned_by WHERE $1::date IS NULL OR r.returned_on <= $1::date GROUP BY r.fund, b.role`, [to, from]),
   ]);
   const sum = (rows, fund, test, f = 'v') => rows.filter((r) => r.fund === fund && test(r)).reduce((a, r) => a + Number(r[f]), 0);
   const rows = Object.keys(FUNDS).map((key) => {
-    const rr = recv.find((r) => r.fund === key);
-    const receivedCum = Number(rr ? rr.cum : 0);
-    const received = Number(rr ? rr.inrange : 0);
+    // Funds the Sr. SO recorded as received from Accounts stay with the Sr. SO; the rest is the Sr. OM's pool.
+    const recvSso = sum(recv, key, (r) => r.by_role === 'sso', 'cum');
+    const receivedCum = sum(recv, key, () => true, 'cum');
+    const recvOm = receivedCum - recvSso;
+    const received = sum(recv, key, () => true, 'inrange');
     const toSso = sum(iss, key, (r) => r.holder_role === 'sso');
     const soByOm = sum(iss, key, (r) => r.holder_role === 'so' && r.issuer_role !== 'sso');
     const soBySso = sum(iss, key, (r) => r.holder_role === 'so' && r.issuer_role === 'sso');
@@ -58,8 +60,8 @@ export async function fundSummary(opts = {}) {
     const spent = sum(exp, key, () => true, 'vin');
     const sent = sum(exp, key, () => true, 'sentin');
     // If the Sr. SO has issued more than they hold, the difference came out of the pool.
-    const ssoRaw = toSso - soBySso - ssoExp - retSso;
-    const pool = receivedCum - toSso - soByOm - omExp - retOm + Math.min(0, ssoRaw);
+    const ssoRaw = recvSso + toSso - soBySso - ssoExp - retSso;
+    const pool = recvOm - toSso - soByOm - omExp - retOm + Math.min(0, ssoRaw);
     const ssoCash = Math.max(0, ssoRaw);
     const soCash = soByOm + soBySso - soExp;
     return {
@@ -95,7 +97,7 @@ export async function soAccount(userId) {
 // minus what was passed on to Support Officers, minus what they spent themselves.
 export async function custodyFor(userId, fund) {
   const r = await q(
-    `SELECT COALESCE((SELECT SUM(amount - returned) FROM pc2_issues WHERE issued_to = $1 AND fund = $2), 0) - COALESCE((SELECT SUM(amount - returned) FROM pc2_issues WHERE issued_by = $1 AND fund = $2), 0) - COALESCE((SELECT SUM(amount) FROM pc2_expenses WHERE submitted_by = $1 AND fund = $2 AND status <> 'rejected'), 0) - COALESCE((SELECT SUM(amount) FROM pc2_returns WHERE returned_by = $1 AND fund = $2), 0) AS v`,
+    `SELECT COALESCE((SELECT SUM(amount - returned) FROM pc2_issues WHERE issued_to = $1 AND fund = $2), 0) + COALESCE((SELECT SUM(amount) FROM pc2_advances WHERE created_by = $1 AND fund = $2), 0) - COALESCE((SELECT SUM(amount - returned) FROM pc2_issues WHERE issued_by = $1 AND fund = $2), 0) - COALESCE((SELECT SUM(amount) FROM pc2_expenses WHERE submitted_by = $1 AND fund = $2 AND status <> 'rejected'), 0) - COALESCE((SELECT SUM(amount) FROM pc2_returns WHERE returned_by = $1 AND fund = $2), 0) AS v`,
     [userId, fund]
   );
   return Number(r[0].v);
