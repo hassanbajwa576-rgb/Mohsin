@@ -31,6 +31,28 @@ export default async function AdvancesPage({ searchParams }) {
 
   const recvByFund = manage ? await receivedByFund() : [];
 
+  // Filters for the list of advances issued to the team.
+  const fTo = sp.to || '';
+  const fBy = ['om', 'sso'].includes(sp.by) ? sp.by : '';
+  const fFund = FUNDS[sp.fund] ? sp.fund : '';
+  const fMonth = /^\d{4}-\d{2}$/.test(sp.month || '') ? sp.month : '';
+  const fStatus = ['left', 'spent', 'returned'].includes(sp.status) ? sp.status : '';
+  const holders = [...new Map(issues.map((i) => [i.issued_to, i.holder])).entries()];
+  const shown = issues.filter((i) => {
+    const left = i.amount - i.returned - Number(i.spent);
+    if (fTo === 'me' ? i.issued_to !== user.id : fTo && String(i.issued_to) !== fTo) return false;
+    if (fBy && i.issuer_role !== fBy) return false;
+    if (fFund && i.fund !== fFund) return false;
+    if (fMonth && i.issued_on.slice(0, 7) !== fMonth) return false;
+    if (fStatus === 'left' && !(left > 0)) return false;
+    if (fStatus === 'spent' && !(left <= 0)) return false;
+    if (fStatus === 'returned' && !(i.returned > 0)) return false;
+    return true;
+  });
+  const tIssued = shown.reduce((a, i) => a + i.amount, 0);
+  const tSpent = shown.reduce((a, i) => a + Number(i.spent), 0);
+  const tReturned = shown.reduce((a, i) => a + i.returned, 0);
+
   return (
     <>
       <div className='head'>
@@ -175,6 +197,44 @@ export default async function AdvancesPage({ searchParams }) {
         </details>
       ) : null}
 
+      <form method='get' className='card filters compact'>
+        {manage ? (
+          <label>Issued to
+            <select name='to' defaultValue={fTo}>
+              <option value=''>Everyone</option>
+              {!isOM ? <option value='me'>Me</option> : null}
+              {holders.filter(([id]) => id !== user.id).map(([id, name]) => <option key={id} value={String(id)}>{name}</option>)}
+            </select>
+          </label>
+        ) : null}
+        {manage ? (
+          <label>Issued by
+            <select name='by' defaultValue={fBy}>
+              <option value=''>Anyone</option>
+              <option value='om'>Sr. Ops Manager</option>
+              <option value='sso'>Sr. SO</option>
+            </select>
+          </label>
+        ) : null}
+        <label>Fund
+          <select name='fund' defaultValue={fFund}>
+            <option value=''>All</option>
+            {Object.entries(FUNDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </label>
+        <label>Month<input type='month' name='month' defaultValue={fMonth} /></label>
+        <label>Status
+          <select name='status' defaultValue={fStatus}>
+            <option value=''>All</option>
+            <option value='left'>With cash left</option>
+            <option value='spent'>Fully spent</option>
+            <option value='returned'>Has a return</option>
+          </select>
+        </label>
+        <button className='btn' type='submit'>Apply</button>
+        <a href='/advances' className='btn ghost'>Reset</a>
+      </form>
+
       {manage && issues.length > 0 ? (
         <FundMatrix
           title='Issued to the team by fund and office - PKR'
@@ -185,14 +245,14 @@ export default async function AdvancesPage({ searchParams }) {
       ) : null}
 
       <div className='card'>
-        {issues.length === 0 ? <p className='muted'>No advances issued yet.</p> : (
+        {shown.length === 0 ? <p className='muted'>{issues.length === 0 ? 'No advances issued yet.' : 'No advances match these filters.'}</p> : (
           <div className='tablewrap'>
             <table>
               <thead>
                 <tr><th>#</th><th>Date</th><th>Officer</th><th>Fund</th><th className='r'>Issued</th><th className='r'>Spent</th><th className='r'>Returned</th><th className='r'>In hand</th>{manage ? <th></th> : null}</tr>
               </thead>
               <tbody>
-                {issues.map((i) => {
+                {shown.map((i) => {
                   const left = i.amount - i.returned - Number(i.spent);
                   return (
                     <tr key={i.id}>
@@ -231,6 +291,9 @@ export default async function AdvancesPage({ searchParams }) {
             </table>
           </div>
         )}
+        {shown.length > 0 ? (
+          <p className='totals'>{shown.length} advance(s) - Issued <b>{pkr(tIssued)}</b> - Spent <b>{pkr(tSpent)}</b> - Returned <b>{pkr(tReturned)}</b> - In hand <b>{pkr(tIssued - tReturned - tSpent)}</b></p>
+        ) : null}
       </div>
     </>
   );
