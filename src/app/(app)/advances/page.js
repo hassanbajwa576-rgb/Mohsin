@@ -19,7 +19,7 @@ export default async function AdvancesPage({ searchParams }) {
     issueRows(user),
     manage ? fundSummary() : Promise.resolve(null),
     manage
-      ? q(`SELECT a.id, a.fund, a.amount, a.reference, a.note, to_char(a.received_on, 'YYYY-MM-DD') AS received_on FROM pc2_advances a ORDER BY a.received_on DESC, a.id DESC LIMIT 200`)
+      ? q(`SELECT a.id, a.fund, a.amount, a.reference, a.note, to_char(a.received_on, 'YYYY-MM-DD') AS received_on, u.name AS by_name FROM pc2_advances a LEFT JOIN pc2_users u ON u.id = a.created_by ORDER BY a.received_on DESC, a.id DESC LIMIT 200`)
       : Promise.resolve([]),
     manage
       ? q(`SELECT u.id, u.name, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.role = ANY($1::text[]) AND u.active ORDER BY u.role DESC, u.name`, [isOM ? ['so', 'sso'] : ['so']])
@@ -54,7 +54,7 @@ export default async function AdvancesPage({ searchParams }) {
 
           <FundMatrix title='Received from Accounts by fund - PKR' cols={['Amount']} rows={buildMatrix(recvByFund, 'office', ['All'])} />
 
-          {isOM ? (
+          {manage ? (
             <details className='card'>
               <summary>Record funds received from Accounts</summary>
               <form action={addAdvance} className='form'>
@@ -67,6 +67,7 @@ export default async function AdvancesPage({ searchParams }) {
                 <label className='wide'>Note<input name='note' placeholder='Optional' /></label>
                 <button className='btn primary' type='submit'>Record funds</button>
               </form>
+              {!isOM ? <p className='muted'>Funds you record here are held by you (the Sr. SO) and can be issued to Support Officers. The Sr. Ops Manager is notified.</p> : null}
             </details>
           ) : null}
 
@@ -74,7 +75,7 @@ export default async function AdvancesPage({ searchParams }) {
             {received.length === 0 ? <p className='muted'>No funds recorded from Accounts yet.</p> : (
               <div className='tablewrap'>
                 <table>
-                  <thead><tr><th>Date</th><th>Fund</th><th>Reference</th><th>Note</th><th className='r'>Amount</th>{isOM ? <th></th> : null}</tr></thead>
+                  <thead><tr><th>Date</th><th>Fund</th><th>Reference</th><th>Note</th><th>Recorded by</th><th className='r'>Amount</th>{isOM ? <th></th> : null}</tr></thead>
                   <tbody>
                     {received.map((a) => (
                       <tr key={a.id}>
@@ -82,6 +83,7 @@ export default async function AdvancesPage({ searchParams }) {
                         <td>{FUNDS[a.fund]}</td>
                         <td>{a.reference}</td>
                         <td>{a.note}</td>
+                        <td>{a.by_name || '-'}</td>
                         <td className='r nw'><b>{pkr(a.amount)}</b></td>
                         {isOM ? (
                           <td className='act'>
