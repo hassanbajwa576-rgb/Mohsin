@@ -98,7 +98,7 @@ function AdjustedPosition({ rows, waiting }) {
       <div className='tablewrap'>
         <table>
           <thead>
-            <tr><th>Fund</th><th className='r'>Ready for Accounts</th><th className='r'>Not yet approved</th><th className='r'>Cash in hand</th><th className='r'>Net position</th></tr>
+            <tr><th>Fund</th><th className='r'>Ready for Accounts</th><th className='r'>Not yet approved</th><th className='r'>Cash in hand</th><th className='r'>Advances Outstanding</th></tr>
           </thead>
           <tbody>
             {data.map((r) => <Row key={r.key} r={r} />)}
@@ -108,7 +108,7 @@ function AdjustedPosition({ rows, waiting }) {
           </tfoot>
         </table>
       </div>
-      <p className='muted' style={{ marginTop: 8 }}>Net position = Ready for Accounts + Not yet approved + Cash in hand. The gold names under a fund are who holds the cash and who made the expenses; the amounts under each figure follow the same order. Anything already adjusted is not shown.</p>
+      <p className='muted' style={{ marginTop: 8 }}>Advances Outstanding = Ready for Accounts + Not yet approved + Cash in hand. The gold names under a fund are who holds the cash and who made the expenses; the amounts under each figure follow the same order. Anything already adjusted is not shown.</p>
     </div>
   );
 }
