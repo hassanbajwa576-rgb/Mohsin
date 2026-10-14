@@ -5,7 +5,7 @@ import { q } from './db';
 import { getUser } from './auth';
 import { logEvent } from './audit';
 import { can } from './perms';
-import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime } from './att';
+import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime, closeStale } from './att';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const PATHS = ['/attendance', '/attendance/logs', '/attendance/entries'];
@@ -58,7 +58,7 @@ export async function addEntry(fd) {
   // The whole history, with the new entry slotted in, must still be a valid in / break / out order.
   const hist = await allEventsOf(st.id);
   const cand = { id: Number.MAX_SAFE_INTEGER, kind, ms };
-  const seq = hist.concat(cand).sort((a, b) => Number(a.ms) - Number(b.ms) || a.id - b.id);
+  const seq = closeStale(hist.concat(cand));
   const bad = firstBad(seq);
   if (bad) {
     const e = seq[bad.i];
