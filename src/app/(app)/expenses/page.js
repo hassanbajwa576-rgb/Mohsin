@@ -8,6 +8,7 @@ import { pkr, today, FUNDS, CATEGORIES, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import PasteExpenses from '@/components/PasteExpenses';
 import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
+import ExpenseInsights from '@/components/ExpenseInsights';
 import Flash from '@/components/Flash';
 
 export default async function ExpensesPage({ searchParams }) {
@@ -153,6 +154,8 @@ export default async function ExpensesPage({ searchParams }) {
           Not yet submitted <b>{pkr(sum('draft'))}</b> - Awaiting SOM review <b>{pkr(sum('submitted') + sum('verified'))}</b> - Ready for Accounts <b>{pkr(sum('approved'))}</b> - Sent <b>{pkr(sum('sent'))}</b> ({rows.length} shown)
         </p>
       </div>
+
+      {!isSO ? <ExpenseInsights /> : null}
     </>
   );
 }
