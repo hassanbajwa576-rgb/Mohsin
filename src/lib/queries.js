@@ -114,3 +114,16 @@ export async function unreadCount(userId) {
   const r = await q('SELECT count(*)::int AS n FROM pc2_notifications WHERE user_id = $1 AND NOT is_read', [userId]);
   return r[0].n;
 }
+
+// Expenses (not rejected) by fund and office for a period, for the fund x office tables.
+export async function fundOfficeSpend({ from, to } = {}) {
+  return q(
+    `SELECT e.fund, o.code AS office, SUM(e.amount)::float8 AS amount FROM pc2_expenses e JOIN pc2_offices o ON o.id = e.office_id WHERE e.status <> 'rejected' AND ($1::date IS NULL OR e.spent_on >= $1::date) AND ($2::date IS NULL OR e.spent_on <= $2::date) GROUP BY e.fund, o.code`,
+    [from || null, to || null]
+  );
+}
+
+// Funds received from Accounts, by fund (not tied to an office).
+export async function receivedByFund() {
+  return q(`SELECT fund, 'All' AS office, SUM(amount)::float8 AS amount FROM pc2_advances GROUP BY fund`);
+}
