@@ -244,14 +244,10 @@ export default async function Dashboard({ searchParams }) {
       </div>
       <Flash sp={sp} />
 
-      <div className='chips' style={{ marginBottom: 12 }}>
-        <Link href={vq(false)} className={'chip' + (!adjusted ? ' on' : '')}>Full dashboard</Link>
-        <Link href={vq(true)} className={'chip' + (adjusted ? ' on' : '')}>Adjusted position only</Link>
-      </div>
+      <AdjustedPosition rows={funds.rows} waiting={waiting} />
 
       <form method='get' className='card filters compact'>
         {office !== 'all' ? <input type='hidden' name='office' value={office} /> : null}
-        {adjusted ? <input type='hidden' name='view' value='adjusted' /> : null}
         <label>Year
           <select name='year' defaultValue={year}>
             <option value=''>All years</option>
@@ -269,10 +265,6 @@ export default async function Dashboard({ searchParams }) {
         <span className='muted'>Advances and Expenses cover the period. CIH and Outstanding are balances to its end.</span>
       </form>
 
-      <AdjustedPosition rows={funds.rows} waiting={waiting} />
-
-      {!adjusted ? (
-        <>
       <div className='kpis'>
         <div className='card kpi'><span>Advances</span><b>{pkr(T.received)}</b></div>
         <div className='card kpi alt'><span>Expenses</span><b>{pkr(T.spent)}</b><OfficeSplit rows={offSpent} /></div>
@@ -291,9 +283,6 @@ export default async function Dashboard({ searchParams }) {
         ))}
       </div>
 
-        </>
-      ) : null}
-
       <h2>Expense pipeline</h2>
       <Pipeline pipe={pipe} hot={todoStatuses} />
 
@@ -304,8 +293,6 @@ export default async function Dashboard({ searchParams }) {
         </>
       ) : null}
 
-      {!adjusted ? (
-        <>
       <div className='grid2'>
         <div className='card'><h3>Spend by office</h3><Bars rows={num(offs)} /></div>
         <div className='card'><h3>Spend by category</h3><Bars rows={num(cats)} /></div>
@@ -314,8 +301,6 @@ export default async function Dashboard({ searchParams }) {
 
       <div className='head' style={{ marginTop: 24 }}><h2 style={{ margin: 0 }}>Recent expenses</h2><Link href='/expenses' className='btn ghost'>View all</Link></div>
       <div className='card'><ExpenseTable rows={recent} user={user} back='/' /></div>
-        </>
-      ) : null}
     </>
   );
 }
