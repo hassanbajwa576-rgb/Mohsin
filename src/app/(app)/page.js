@@ -67,7 +67,7 @@ function AdjustedPosition({ rows, waiting }) {
     r.ready = r.readyWho.reduce((a, b) => a + b, 0);
     return r;
   });
-  const rolesOf = (r) => [0, 1, 2].filter((i) => [r.cashWho, r.draftsWho, r.reviewWho, r.readyWho].some((arr) => Number(arr[i]) > 0));
+  const rolesOf = (r) => [0, 1, 2].filter((i) => [r.cashWho, r.draftsWho, r.readyWho].some((arr) => Number(arr[i]) > 0));
   const sumArr = (k) => [0, 1, 2].map((i) => data.reduce((a, r) => a + Number(r[k][i]), 0));
   const total = {
     cash: data.reduce((a, r) => a + r.cash, 0),
@@ -85,7 +85,6 @@ function AdjustedPosition({ rows, waiting }) {
         <td>{bold ? <b>{label}</b> : <b>{r.label}</b>}<Lines roles={roles} gold values={[]} /></td>
         <td className='r nw' style={st}>{pkr(r.cash)}<Lines roles={roles} values={r.cashWho} /></td>
         <td className='r nw' style={st}>{pkr(r.drafts)}<Lines roles={roles} values={r.draftsWho} /></td>
-        <td className='r nw' style={st}>{pkr(r.review)}<Lines roles={roles} values={r.reviewWho} /></td>
         <td className='r nw' style={st}>{pkr(r.ready)}<Lines roles={roles} values={r.readyWho} /></td>
         <td className='r nw'><b>{pkr(r.net)}</b></td>
       </tr>
@@ -93,11 +92,11 @@ function AdjustedPosition({ rows, waiting }) {
   };
   return (
     <div className='card'>
-      <h3>Adjusted position</h3>
+      <h3>Adjusted Position</h3>
       <div className='tablewrap'>
         <table>
           <thead>
-            <tr><th>Fund</th><th className='r'>Cash in hand</th><th className='r'>Not yet submitted</th><th className='r'>Awaiting approval</th><th className='r'>Ready for Accounts</th><th className='r'>Net position</th></tr>
+            <tr><th>Fund</th><th className='r'>Cash in hand</th><th className='r'>Not yet submitted</th><th className='r'>Ready for Accounts</th><th className='r'>Net position</th></tr>
           </thead>
           <tbody>
             {data.map((r) => <Row key={r.key} r={r} />)}
@@ -107,7 +106,7 @@ function AdjustedPosition({ rows, waiting }) {
           </tfoot>
         </table>
       </div>
-      <p className='muted' style={{ marginTop: 8 }}>Net position = cash in hand + expenses still waiting for adjustment with Accounts. The gold names under a fund are who holds the cash and who made the expenses; the amounts under each figure follow the same order. Anything already adjusted is not shown.</p>
+      <p className='muted' style={{ marginTop: 8 }}>Net position = cash in hand + expenses still waiting for adjustment with Accounts (including those awaiting approval). The gold names under a fund are who holds the cash and who made the expenses; the amounts under each figure follow the same order. Anything already adjusted is not shown.</p>
     </div>
   );
 }
@@ -229,7 +228,6 @@ export default async function Dashboard({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <p className='muted subline'>{office === 'all' ? 'Both offices' : office + ' office'} | {isOM ? 'Sr. Ops Manager' : 'Sr. Support Officer'} | {periodLabel}</p>
         </div>
         <div className='chips'>
           {['all', 'LHR', 'ISB'].map((o) => (
