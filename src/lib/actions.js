@@ -750,3 +750,25 @@ export async function addExpensesBulk(fd) {
   else if (u.role === 'sso') await notifyRoles(['om'], msg, '/expenses?status=submitted', u.id);
   back('/expenses', clean.length + ' expenses added (' + pkr(total) + ')' + (u.role === 'so' ? '. They stay with you until you submit your expenses.' : ''), true);
 }
+
+// Sr. Ops Manager approves every expense in the list currently shown (only those awaiting review).
+export async function approveAll(fd) {
+  const u = await need(['om']);
+  const ids = s(fd, 'ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 300);
+  if (!ids.length) back('/expenses', 'Nothing to approve');
+  const done = await q(
+    `UPDATE pc2_expenses SET status = 'approved', decided_by = $1, decided_at = now() WHERE id = ANY($2::int[]) AND status IN ('submitted', 'verified') RETURNING id, amount, submitted_by`,
+    [u.id, ids]
+  );
+  if (!done.length) back('/expenses', 'Nothing was waiting for approval');
+  const total = done.reduce((a, d) => a + Number(d.amount), 0);
+  await logEvent(u, 'decision', 'expense', null, 'Approved ' + done.length + ' expenses together (' + pkr(total) + '): #' + done.map((d) => d.id).join(', #'), { status: 'submitted' }, { status: 'approved' });
+  const by = {};
+  done.forEach((d) => {
+    by[d.submitted_by] = (by[d.submitted_by] || 0) + Number(d.amount);
+  });
+  for (const [uid, sum] of Object.entries(by)) {
+    if (Number(uid) !== u.id) await notifyUser(Number(uid), u.name + ' approved your expenses totalling ' + pkr(sum), '/expenses');
+  }
+  back('/expenses', done.length + ' expenses approved (' + pkr(total) + '). Submit them to Accounts from the Accounts page.', true);
+}
