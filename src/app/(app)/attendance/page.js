@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
@@ -44,6 +45,8 @@ export default async function AttendancePage({ searchParams }) {
   // Entries this person may still fix: their own (the Sr. SO also those of the Support Officer and guards) for 36 hours.
   const fixable = await editableEntries(user);
   const bad = conflictIds(await recentEvents([...new Set(fixable.map((x) => x.staff_id))], 4));
+  const allFix = sp.all === '1';
+  const shownFix = allFix ? fixable : fixable.slice(0, 10);
 
 
   return (
@@ -74,7 +77,7 @@ export default async function AttendancePage({ searchParams }) {
                 <tr><th>Employee</th><th>Type</th><th>Time</th><th>Added by</th><th></th></tr>
               </thead>
               <tbody>
-                {fixable.map((m) => {
+                {shownFix.map((m) => {
                   const isBad = bad.has(m.id);
                   const canDelete = user.role === 'om' || user.role === 'sso';
                   return (
@@ -104,6 +107,9 @@ export default async function AttendancePage({ searchParams }) {
               </tbody>
             </table>
           </div>
+          {fixable.length > 10 ? (
+            <p className='totals'>{allFix ? 'Showing all ' + fixable.length : 'Showing the latest 10 of ' + fixable.length} - <Link href={allFix ? '/attendance' : '/attendance?all=1'}>{allFix ? 'Show fewer' : 'See more'}</Link></p>
+          ) : null}
           <p className='totals'>Green times are on time (check in by 9:30 AM, check out from 5:55 PM), red is late or early. Type, date and time can be changed for 36 hours after an entry was made.</p>
         </div>
       ) : null}
