@@ -197,7 +197,7 @@ export default async function AdvancesPage({ searchParams }) {
         </details>
       ) : null}
 
-      <form method='get' className='card filters compact'>
+      <form method='get' action='/advances#issued' id='issued' className='card filters compact'>
         {manage ? (
           <label>Issued to
             <select name='to' defaultValue={fTo}>
@@ -232,15 +232,15 @@ export default async function AdvancesPage({ searchParams }) {
           </select>
         </label>
         <button className='btn' type='submit'>Apply</button>
-        <a href='/advances' className='btn ghost'>Reset</a>
+        <a href='/advances#issued' className='btn ghost'>Reset</a>
       </form>
 
-      {manage && issues.length > 0 ? (
+      {manage && shown.length > 0 ? (
         <FundMatrix
           title='Issued to the team by fund and office - PKR'
           cols={['LHR', 'ISB']}
-          rows={buildMatrix(issues, 'office', ['LHR', 'ISB'])}
-          note='By the office of the person the advance was issued to.'
+          rows={buildMatrix(shown, 'office', ['LHR', 'ISB'])}
+          note='By the office of the person the advance was issued to. Follows the filters above.'
         />
       ) : null}
 
