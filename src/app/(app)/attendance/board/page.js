@@ -77,7 +77,7 @@ export default async function TodaysBoardPage({ searchParams }) {
                     <td className={'nw ' + (r.inAt ? inClass(fmtTime(r.inAt)) : '')}>{r.inAt ? fmt12(r.inAt) : '-'}</td>
                     <td className={'nw ' + (r.outAt ? outClass(fmtTime(r.outAt)) : '')}>{r.outAt ? fmt12(r.outAt) : '-'}</td>
                     <td className={'nw ' + (r.outAt ? (r.worked >= 28800000 ? 't-ok' : 't-bad') : '')}>{fmtDur(r.worked)}</td>
-                    <td className={'nw ' + (r.breakMs > 3600000 ? 't-bad' : 't-ok')}>{r.breaks} - {fmtDur(r.breakMs)}</td>
+                    <td className={'nw ' + (r.breakMs === 0 ? '' : r.breakMs > 3600000 ? 't-bad' : 't-ok')}>{r.breaks} - {fmtDur(r.breakMs)}</td>
                   </tr>
                 ))}
               </tbody>
