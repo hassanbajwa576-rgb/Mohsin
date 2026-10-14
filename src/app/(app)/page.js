@@ -40,7 +40,7 @@ function Lines({ values, roles, gold }) {
   return (
     <div style={{ fontSize: 11.5, fontWeight: 400, lineHeight: 1.6 }}>
       {roles.map((i) => (
-        <div key={i} style={gold ? { color: 'var(--gold-d)', fontWeight: 600 } : { color: Number(values[i]) > 0 ? 'var(--ink)' : 'var(--mut)' }}>
+        <div key={i} style={gold ? { color: 'var(--gold-d)', fontWeight: 600 } : { color: 'var(--gold-d)', fontWeight: 500 }}>
           {gold ? ROLE_NAMES[i] : n0(values[i])}
         </div>
       ))}
@@ -98,7 +98,7 @@ function AdjustedPosition({ rows, waiting }) {
     <div className='card'>
       <h3>Adjusted Position</h3>
       <div className='tablewrap'>
-        <table>
+        <table className='adjpos'>
           <thead>
             <tr><th>Fund</th><th className='r'>Ready for Accounts</th><th className='r'>Not yet approved</th><th className='r'>Cash in hand</th><th className='r'>Advances Outstanding</th></tr>
           </thead>
