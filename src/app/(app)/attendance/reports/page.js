@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, reportRows, departments, fmtDur, todayKey, validDate, BREAK_LIMIT_MIN, inClass, outClass, to12 } from '@/lib/att';
+import { ATT_ROLES, allOffices, reportRows, departments, fmtDur, todayKey, validDate, BREAK_LIMIT_MIN, inClass, outClass, to12 } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +15,8 @@ export default async function AttendanceReportsPage({ searchParams }) {
   const to = validDate(sp.to || '') ? sp.to : today;
   let from = validDate(sp.from || '') ? sp.from : today.slice(0, 8) + '01';
   if (from > to) from = to;
-  const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
+  // Only the Sr. OM and Sr. SO see both offices; everyone else sees their own office only.
+  const office = allOffices(user) ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
   const depts = await departments();
   const dept = depts.includes(sp.dept) ? sp.dept : '';
   const rows = await reportRows({ from, to, office, dept });
@@ -38,7 +39,7 @@ export default async function AttendanceReportsPage({ searchParams }) {
         <label>From<input type='date' name='from' defaultValue={from} /></label>
         <label>To<input type='date' name='to' defaultValue={to} /></label>
         <label>Office
-          <select name='office' defaultValue={office}><option value=''>Both</option><option>LHR</option><option>ISB</option></select>
+          <select name='office' defaultValue={office}>{(allOffices(user) ? ['', 'LHR', 'ISB'] : [user.office_code]).map((o) => <option key={o} value={o}>{o || 'Both'}</option>)}</select>
         </label>
         <label>Department
           <select name='dept' defaultValue={dept}>
