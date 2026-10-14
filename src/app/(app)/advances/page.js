@@ -16,7 +16,7 @@ export default async function AdvancesPage({ searchParams }) {
   const isOM = user.role === 'om';
   const manage = user.role !== 'so';
 
-  const [issues, funds, received, officers, returns] = await Promise.all([
+  const [issuesRaw, funds, received, officers, returns] = await Promise.all([
     issueRows(user),
     manage ? fundSummary() : Promise.resolve(null),
     manage
@@ -31,6 +31,42 @@ export default async function AdvancesPage({ searchParams }) {
   ]);
 
   const recvByFund = manage ? await receivedByFund() : [];
+
+  // The Sr. SO does not pick an advance when spending, so what they spent, passed on to Support
+  // Officers or returned to Accounts is applied to their advances and receipts oldest first.
+  let issues = issuesRaw;
+  let allocBy = {};
+  if (manage) {
+    const [sExp, sOut, sRet] = await Promise.all([
+      q(`SELECT e.submitted_by AS uid, e.fund, SUM(e.amount)::float8 AS v FROM pc2_expenses e JOIN pc2_users u ON u.id = e.submitted_by WHERE u.role = 'sso' AND e.status <> 'rejected' GROUP BY 1, 2`),
+      q(`SELECT i.issued_by AS uid, i.fund, SUM(i.amount - i.returned)::float8 AS v FROM pc2_issues i JOIN pc2_users u ON u.id = i.issued_by WHERE u.role = 'sso' GROUP BY 1, 2`),
+      q(`SELECT r.returned_by AS uid, r.fund, SUM(r.amount)::float8 AS v FROM pc2_returns r JOIN pc2_users u ON u.id = r.returned_by WHERE u.role = 'sso' GROUP BY 1, 2`),
+    ]);
+    const pool = {};
+    const add = (rows, k) => rows.forEach((r) => {
+      const key = r.uid + '|' + r.fund;
+      pool[key] = pool[key] || { spent: 0, ret: 0 };
+      pool[key][k] += Number(r.v);
+    });
+    add(sExp, 'spent');
+    add(sOut, 'spent');
+    add(sRet, 'ret');
+    const sources = [
+      ...issuesRaw.filter((i) => i.holder_role === 'sso').map((i) => ({ k: 'I' + i.id, uid: i.issued_to, fund: i.fund, on: i.issued_on, id: i.id, avail: i.amount - i.returned })),
+      ...received.filter((r) => r.by_role === 'sso').map((r) => ({ k: 'A' + r.id, uid: r.created_by, fund: r.fund, on: r.received_on, id: r.id, avail: r.amount })),
+    ].sort((a, b) => (a.on < b.on ? -1 : a.on > b.on ? 1 : a.id - b.id));
+    for (const s of sources) {
+      const pl = pool[s.uid + '|' + s.fund] || { spent: 0, ret: 0 };
+      const useSpent = Math.min(s.avail, pl.spent);
+      pl.spent -= useSpent;
+      s.avail -= useSpent;
+      const useRet = Math.min(s.avail, pl.ret);
+      pl.ret -= useRet;
+      s.avail -= useRet;
+      allocBy[s.k] = { spent: useSpent, ret: useRet };
+    }
+    issues = issuesRaw.map((i) => (allocBy['I' + i.id] ? { ...i, spent: allocBy['I' + i.id].spent, returned: i.returned + allocBy['I' + i.id].ret } : i));
+  }
 
   // Filters for the list of advances issued to the team.
   const fTo = sp.to || '';
@@ -57,7 +93,7 @@ export default async function AdvancesPage({ searchParams }) {
   // Funds the Sr. SO recorded as received straight from Accounts, shown beside the advances issued to the team.
   const directAll = received
     .filter((r) => r.by_role === 'sso')
-    .map((r) => ({ kind: 'accounts', id: r.id, fund: r.fund, amount: r.amount, issued_on: r.received_on, holder: r.by_name, issued_to: r.created_by, office: r.by_office, note: r.reference || r.note || '' }));
+    .map((r) => ({ kind: 'accounts', id: r.id, fund: r.fund, amount: r.amount, issued_on: r.received_on, holder: r.by_name, issued_to: r.created_by, office: r.by_office, note: r.reference || r.note || '', spent: (allocBy['A' + r.id] || {}).spent || 0, returned: (allocBy['A' + r.id] || {}).ret || 0 }));
   const direct = fStatus ? [] : directAll.filter((r) => {
     if (fTo === 'me' ? r.issued_to !== user.id : fTo && String(r.issued_to) !== fTo) return false;
     if (fBy && fBy !== 'accounts') return false;
@@ -278,9 +314,9 @@ export default async function AdvancesPage({ searchParams }) {
                         <td><OfficeTag o={i.office} />{i.holder}<div className='muted'>From Accounts{i.note ? ' - ' + i.note : ''}</div></td>
                         <td>{FUNDS[i.fund]}</td>
                         <td className='r nw'>{pkr(i.amount)}</td>
-                        <td className='r nw'>-</td>
-                        <td className='r nw'>-</td>
-                        <td className='r nw'>-</td>
+                        <td className='r nw'>{pkr(i.spent)}</td>
+                        <td className='r nw'>{pkr(i.returned)}</td>
+                        <td className='r nw'><b>{pkr(i.amount - i.returned - i.spent)}</b></td>
                         {manage ? <td></td> : null}
                       </tr>
                     );
@@ -327,7 +363,10 @@ export default async function AdvancesPage({ searchParams }) {
           <p className='totals'>Issued to the team: {shown.length} advance(s) - Issued <b>{pkr(tIssued)}</b> - Spent <b>{pkr(tSpent)}</b> - Returned <b>{pkr(tReturned)}</b> - In hand <b>{pkr(tIssued - tReturned - tSpent)}</b></p>
         ) : null}
         {direct.length > 0 ? (
-          <p className='totals'>From Accounts (recorded by the Sr. SO): {direct.length} entr{direct.length === 1 ? 'y' : 'ies'} - <b>{pkr(tDirect)}</b>. Shown separately so the same money is not counted twice; their spending and cash in hand are in the Adjusted Position on the Dashboard.</p>
+          <p className='totals'>From Accounts (recorded by the Sr. SO): {direct.length} entr{direct.length === 1 ? 'y' : 'ies'} - <b>{pkr(tDirect)}</b>. Shown separately so the same money is not counted twice.</p>
+        ) : null}
+        {rowsAll.some((r) => r.holder_role === 'sso' || r.kind === 'accounts') ? (
+          <p className='muted' style={{ marginTop: 6 }}>For advances and receipts held by the Sr. SO, Spent includes cash passed on to Support Officers, and Returned includes cash returned to Accounts. They are applied oldest first because the Sr. SO does not pick an advance when spending.</p>
         ) : null}
       </div>
     </>
