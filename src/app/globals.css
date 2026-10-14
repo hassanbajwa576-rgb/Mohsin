@@ -316,3 +316,8 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 /* see more links */
 .totals a{color:var(--gold-d);font-weight:600}
 .totals a:hover{text-decoration:underline}
+
+/* adjusted position */
+.adjpos thead th{background:var(--gold);color:var(--slate);border-bottom:0}
+.adjpos tbody tr:nth-child(even) td{background:#fdf8e7}
+.adjpos tfoot td{background:#fbf1cf;border-top:2px solid var(--gold);border-bottom:0}
