@@ -680,3 +680,73 @@ export async function deleteReturn(fd) {
   if (r) await logEvent(u, 'delete', 'return', id, 'Removed return of ' + pkr(r.amount) + ' (' + FUNDS[r.fund] + ') to Accounts', { fund: r.fund, amount: r.amount }, null);
   back('/advances', 'Return removed', true);
 }
+
+// Several expenses pasted from Excel in one go. Same rules as adding one expense at a time.
+export async function addExpensesBulk(fd) {
+  const u = await need();
+  const spentOn = s(fd, 'spent_on');
+  if (badDate(spentOn)) back('/expenses', 'Pick a valid date');
+  let rows = [];
+  try {
+    rows = JSON.parse(s(fd, 'rows') || '[]');
+  } catch {
+    rows = [];
+  }
+  if (!Array.isArray(rows) || rows.length === 0) back('/expenses', 'Paste at least one row first');
+  if (rows.length > 200) back('/expenses', 'Please paste at most 200 rows at a time');
+  const clean = [];
+  for (const r of rows) {
+    const amount = Math.round(Number(r && r.a));
+    const category = String((r && r.c) || '');
+    const description = String((r && r.d) || '').trim().slice(0, 200);
+    const on = r && r.on && !badDate(String(r.on)) ? String(r.on) : spentOn;
+    if (!(amount > 0) || !CATEGORIES.includes(category)) back('/expenses', 'Every row needs an amount above zero and a category. Check the preview.');
+    clean.push({ amount, category, description, on });
+  }
+  const total = clean.reduce((a, r) => a + r.amount, 0);
+
+  let fund = s(fd, 'fund');
+  let issueId = null;
+  let officeId = u.office_id;
+  let officeCode = u.office_code;
+  let status;
+  if (u.role === 'so') {
+    const i = (await q(
+      `SELECT i.id, i.fund, i.amount - i.returned - COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0) AS remaining FROM pc2_issues i WHERE i.id = $1 AND i.issued_to = $2`,
+      [Number(s(fd, 'issue_id')), u.id]
+    ))[0];
+    if (!i) back('/expenses', 'Pick one of your advances');
+    if (total > Number(i.remaining)) back('/expenses', 'These rows total ' + pkr(total) + ', more than your cash in hand (' + pkr(i.remaining) + ')');
+    fund = i.fund;
+    issueId = i.id;
+    status = 'draft';
+  } else {
+    if (!FUNDS[fund]) back('/expenses', 'Pick a fund');
+    status = u.role === 'om' ? 'approved' : 'submitted';
+    if (u.role === 'om') {
+      const o = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
+      if (o) {
+        officeId = o.id;
+        officeCode = o.code;
+      }
+    }
+  }
+
+  const decided = u.role === 'om';
+  const when = decided ? new Date().toISOString() : null;
+  const vals = [];
+  const params = [];
+  for (const r of clean) {
+    const b = params.length;
+    params.push(officeId, fund, r.category, r.description, r.amount, r.on, status, u.id, issueId, decided ? u.id : null, when);
+    vals.push('(' + Array.from({ length: 11 }, (_, k) => '$' + (b + k + 1)).join(',') + ')');
+  }
+  await q(`INSERT INTO pc2_expenses (office_id, fund, category, description, amount, spent_on, status, submitted_by, issue_id, decided_by, decided_at) VALUES ${vals.join(',')}`, params);
+  await logEvent(u, 'create', 'expense', null, 'Added ' + clean.length + ' expenses from Excel totalling ' + pkr(total) + ' (' + officeCode + ', ' + FUNDS[fund] + ')', null,
+    { count: clean.length, total, office: officeCode, fund, status });
+
+  const msg = u.name + ' added ' + clean.length + ' expenses from Excel totalling ' + pkr(total);
+  if (u.role === 'so') await notifyRoles(['om', 'sso'], msg + ' (kept with them until submitted)', '/expenses?status=draft', u.id);
+  else if (u.role === 'sso') await notifyRoles(['om'], msg, '/expenses?status=submitted', u.id);
+  back('/expenses', clean.length + ' expenses added (' + pkr(total) + ')' + (u.role === 'so' ? '. They stay with you until you submit your expenses.' : ''), true);
+}
