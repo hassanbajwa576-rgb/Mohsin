@@ -233,7 +233,6 @@ export default async function Dashboard({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Dashboard</h1>
           <p className='muted subline'>{office === 'all' ? 'Both offices' : office + ' office'} | {isOM ? 'Sr. Ops Manager' : 'Sr. Support Officer'} | {periodLabel}</p>
         </div>
         <div className='chips'>
