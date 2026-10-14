@@ -133,7 +133,7 @@ export async function receivedByFund() {
 // Expenses still waiting for adjustment, by fund and stage (draft / review / ready), up to the end of a period.
 export async function waitingByFund({ to } = {}) {
   return q(
-    `SELECT e.fund, CASE WHEN e.status = 'draft' THEN 'draft' WHEN e.status = 'approved' THEN 'ready' ELSE 'review' END AS grp, SUM(e.amount)::float8 AS v FROM pc2_expenses e WHERE e.status IN ('draft', 'submitted', 'verified', 'approved') AND ($1::date IS NULL OR e.spent_on <= $1::date) GROUP BY e.fund, 2`,
+    `SELECT e.fund, CASE WHEN e.status = 'draft' THEN 'draft' WHEN e.status = 'approved' THEN 'ready' ELSE 'review' END AS grp, u.role AS by_role, SUM(e.amount)::float8 AS v FROM pc2_expenses e JOIN pc2_users u ON u.id = e.submitted_by WHERE e.status IN ('draft', 'submitted', 'verified', 'approved') AND ($1::date IS NULL OR e.spent_on <= $1::date) GROUP BY e.fund, 2, u.role`,
     [to || null]
   );
 }
