@@ -381,14 +381,20 @@ export async function submitDrafts() {
 // Support Officers can never do this.
 export async function submitToAccounts(fd) {
   const u = await need(['om', 'sso']);
-  const rows = await q(`SELECT id, amount FROM pc2_expenses WHERE status = 'approved' AND batch_id IS NULL`);
+  // Only the ticked expenses when a selection is sent, otherwise everything that is ready.
+  const picked = fd.has('ids');
+  const ids = s(fd, 'ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  if (picked && ids.length === 0) back('/accounts', 'Select at least one expense to submit');
+  const rows = picked
+    ? await q("SELECT id, amount FROM pc2_expenses WHERE status = 'approved' AND batch_id IS NULL AND id = ANY($1::int[])", [ids])
+    : await q("SELECT id, amount FROM pc2_expenses WHERE status = 'approved' AND batch_id IS NULL");
   if (!rows.length) back('/accounts', 'No verified expenses to submit');
   const total = rows.reduce((a, r) => a + Number(r.amount), 0);
   const b = (await q(
     `INSERT INTO pc2_batches (created_by, note, total, item_count) VALUES ($1,$2,$3,$4) RETURNING id`,
     [u.id, s(fd, 'note'), total, rows.length]
   ))[0];
-  await q(`UPDATE pc2_expenses SET status = 'sent', batch_id = $1 WHERE status = 'approved' AND batch_id IS NULL`, [b.id]);
+  await q("UPDATE pc2_expenses SET status = 'sent', batch_id = $1 WHERE status = 'approved' AND batch_id IS NULL AND id = ANY($2::int[])", [b.id, rows.map((r) => r.id)]);
   await logEvent(u, 'create', 'batch', b.id, 'Submitted batch #' + b.id + ' to Accounts: ' + rows.length + ' expenses, ' + pkr(total), null, { total, count: rows.length, note: s(fd, 'note') });
   await notifyRoles(u.role === 'om' ? ['sso'] : ['om'], u.name + ' submitted batch #' + b.id + ' to Accounts: ' + rows.length + ' expenses, ' + pkr(total), '/accounts', u.id);
   back('/accounts', 'Batch #' + b.id + ' submitted to Accounts', true);
