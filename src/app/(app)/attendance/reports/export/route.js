@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, reportRows, todayKey, validDate } from '@/lib/att';
+import { ATT_ROLES, allOffices, reportRows, todayKey, validDate } from '@/lib/att';
 import { can } from '@/lib/perms';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +22,8 @@ export async function GET(req) {
   const to = validDate(sp.get('to') || '') ? sp.get('to') : today;
   let from = validDate(sp.get('from') || '') ? sp.get('from') : today.slice(0, 8) + '01';
   if (from > to) from = to;
-  const office = ['LHR', 'ISB'].includes(sp.get('office')) ? sp.get('office') : '';
+  // Own office only unless the person works across both offices.
+  const office = allOffices(u) ? (['LHR', 'ISB'].includes(sp.get('office')) ? sp.get('office') : '') : u.office_code;
   const rows = await reportRows({ from, to, office });
   const mins = (ms) => Math.round(ms / 60000);
   const header = ['Date', 'Office', 'Employee', 'Check In', 'Check Out', 'Breaks', 'Break minutes', 'Worked minutes'];
