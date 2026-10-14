@@ -5,7 +5,7 @@ import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { removeEntry } from '@/lib/att-actions';
-import { ATT_ROLES, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass, fmt12 } from '@/lib/att';
+import { ATT_ROLES, allOffices, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass, fmt12 } from '@/lib/att';
 import EntryEdit from '@/components/EntryEdit';
 import Flash from '@/components/Flash';
 
@@ -16,7 +16,8 @@ export default async function AttendanceLogsPage({ searchParams }) {
   if (!can(user, 'att_logs')) redirect('/attendance');
   const sp = await searchParams;
   const day = validDate(sp.date || '') ? sp.date : todayKey();
-  const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
+  // Only the Sr. OM and Sr. SO see both offices; everyone else sees their own office only.
+  const office = allOffices(user) ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
 
   const rows = await q(
     `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, s.code, o.code AS office, u.name AS by_name,
@@ -43,7 +44,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
       <form method='get' className='card filters'>
         <label>Date<input type='date' name='date' defaultValue={day} /></label>
         <label>Office
-          <select name='office' defaultValue={office}><option value=''>Both</option><option>LHR</option><option>ISB</option></select>
+          <select name='office' defaultValue={office}>{(allOffices(user) ? ['', 'LHR', 'ISB'] : [user.office_code]).map((o) => <option key={o} value={o}>{o || 'Both'}</option>)}</select>
         </label>
         <button className='btn' type='submit'>Apply</button>
         <Link href='/attendance/logs' className='btn ghost'>Today</Link>
