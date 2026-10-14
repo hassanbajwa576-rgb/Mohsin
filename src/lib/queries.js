@@ -31,10 +31,11 @@ export function expWhere(user, f = {}) {
 export async function fundSummary(opts = {}) {
   const to = opts.to || null;
   const from = opts.from || null;
-  const [recv, iss, exp] = await Promise.all([
+  const [recv, iss, exp, ret] = await Promise.all([
     q(`SELECT fund, SUM(amount)::float8 AS cum, COALESCE(SUM(amount) FILTER (WHERE $2::date IS NULL OR received_on >= $2::date), 0)::float8 AS inrange FROM pc2_advances WHERE $1::date IS NULL OR received_on <= $1::date GROUP BY fund`, [to, from]),
     q(`SELECT i.fund, h.role AS holder_role, b.role AS issuer_role, SUM(i.amount - i.returned)::float8 AS v FROM pc2_issues i JOIN pc2_users h ON h.id = i.issued_to JOIN pc2_users b ON b.id = i.issued_by WHERE $1::date IS NULL OR i.issued_on <= $1::date GROUP BY i.fund, h.role, b.role`, [to]),
     q(`SELECT e.fund, u.role AS role, SUM(e.amount)::float8 AS v, COALESCE(SUM(CASE WHEN e.status = 'sent' THEN e.amount END), 0)::float8 AS sent, COALESCE(SUM(e.amount) FILTER (WHERE $2::date IS NULL OR e.spent_on >= $2::date), 0)::float8 AS vin, COALESCE(SUM(CASE WHEN e.status = 'sent' THEN e.amount END) FILTER (WHERE $2::date IS NULL OR e.spent_on >= $2::date), 0)::float8 AS sentin FROM pc2_expenses e JOIN pc2_users u ON u.id = e.submitted_by WHERE e.status <> 'rejected' AND ($1::date IS NULL OR e.spent_on <= $1::date) GROUP BY e.fund, u.role`, [to, from]),
+    q(`SELECT r.fund, b.role AS by_role, SUM(r.amount)::float8 AS v, COALESCE(SUM(r.amount) FILTER (WHERE $2::date IS NULL OR r.returned_on >= $2::date), 0)::float8 AS inrange FROM pc2_returns r JOIN pc2_users b ON b.id = r.returned_by WHERE $1::date IS NULL OR r.returned_on <= $1::date GROUP BY r.fund, b.role`, [to, from]),
   ]);
   const sum = (rows, fund, test, f = 'v') => rows.filter((r) => r.fund === fund && test(r)).reduce((a, r) => a + Number(r[f]), 0);
   const rows = Object.keys(FUNDS).map((key) => {
@@ -47,22 +48,27 @@ export async function fundSummary(opts = {}) {
     const omExp = sum(exp, key, (r) => r.role === 'om');
     const ssoExp = sum(exp, key, (r) => r.role === 'sso');
     const soExp = sum(exp, key, (r) => r.role === 'so');
+    // Cash handed back to Accounts: from the pool (Sr. OM) or from the Sr. SO's own cash.
+    const retOm = sum(ret, key, (r) => r.by_role !== 'sso');
+    const retSso = sum(ret, key, (r) => r.by_role === 'sso');
+    const retCum = retOm + retSso;
+    const returned = sum(ret, key, () => true, 'inrange');
     const spentCum = omExp + ssoExp + soExp;
     const sentCum = sum(exp, key, () => true, 'sent');
     const spent = sum(exp, key, () => true, 'vin');
     const sent = sum(exp, key, () => true, 'sentin');
     // If the Sr. SO has issued more than they hold, the difference came out of the pool.
-    const ssoRaw = toSso - soBySso - ssoExp;
-    const pool = receivedCum - toSso - soByOm - omExp + Math.min(0, ssoRaw);
+    const ssoRaw = toSso - soBySso - ssoExp - retSso;
+    const pool = receivedCum - toSso - soByOm - omExp - retOm + Math.min(0, ssoRaw);
     const ssoCash = Math.max(0, ssoRaw);
     const soCash = soByOm + soBySso - soExp;
     return {
       key, label: FUNDS[key], received, issued: toSso + soByOm, spent, sent,
-      unsent: spentCum - sentCum, outstanding: receivedCum - sentCum,
-      pool, ssoCash, soCash, held: ssoCash + soCash, remaining: receivedCum - spentCum,
+      unsent: spentCum - sentCum, outstanding: receivedCum - sentCum - retCum, returned,
+      pool, ssoCash, soCash, held: ssoCash + soCash, remaining: receivedCum - spentCum - retCum,
     };
   });
-  const zero = { received: 0, issued: 0, spent: 0, sent: 0, unsent: 0, outstanding: 0, pool: 0, ssoCash: 0, soCash: 0, held: 0, remaining: 0 };
+  const zero = { returned: 0, received: 0, issued: 0, spent: 0, sent: 0, unsent: 0, outstanding: 0, pool: 0, ssoCash: 0, soCash: 0, held: 0, remaining: 0 };
   const total = rows.reduce((a, r) => {
     const o = {};
     Object.keys(zero).forEach((k) => { o[k] = a[k] + r[k]; });
@@ -89,7 +95,7 @@ export async function soAccount(userId) {
 // minus what was passed on to Support Officers, minus what they spent themselves.
 export async function custodyFor(userId, fund) {
   const r = await q(
-    `SELECT COALESCE((SELECT SUM(amount - returned) FROM pc2_issues WHERE issued_to = $1 AND fund = $2), 0) - COALESCE((SELECT SUM(amount - returned) FROM pc2_issues WHERE issued_by = $1 AND fund = $2), 0) - COALESCE((SELECT SUM(amount) FROM pc2_expenses WHERE submitted_by = $1 AND fund = $2 AND status <> 'rejected'), 0) AS v`,
+    `SELECT COALESCE((SELECT SUM(amount - returned) FROM pc2_issues WHERE issued_to = $1 AND fund = $2), 0) - COALESCE((SELECT SUM(amount - returned) FROM pc2_issues WHERE issued_by = $1 AND fund = $2), 0) - COALESCE((SELECT SUM(amount) FROM pc2_expenses WHERE submitted_by = $1 AND fund = $2 AND status <> 'rejected'), 0) - COALESCE((SELECT SUM(amount) FROM pc2_returns WHERE returned_by = $1 AND fund = $2), 0) AS v`,
     [userId, fund]
   );
   return Number(r[0].v);
