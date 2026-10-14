@@ -4,7 +4,8 @@ import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices } from '@/lib/att';
 import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
-import { addStaff, updateStaff, toggleStaff, importStaff } from '@/lib/att-actions';
+import { addStaff, updateStaff, toggleStaff, importStaff, deleteStaff } from '@/lib/att-actions';
+import ConfirmButton from '@/components/ConfirmButton';
 import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +15,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
   if (!can(user, 'att_staff')) redirect('/attendance');
   const sp = await searchParams;
   const rows = await q(
-    `SELECT s.id, s.code, s.name, s.dept, s.active, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
+    `SELECT s.id, s.code, s.name, s.dept, s.active, o.code AS office, (SELECT COUNT(*)::int FROM pc2_attendance a WHERE a.staff_id = s.id) AS entries FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
   );
 
   const fo = allOffices(user) && ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
@@ -110,6 +111,12 @@ export default async function AttendanceStaffPage({ searchParams }) {
                         <input type='hidden' name='id' value={r.id} />
                         <button className='btn ghost' type='submit'>{r.active ? 'Deactivate' : 'Activate'}</button>
                       </form>
+                      {user.role === 'om' ? (
+                        <form action={deleteStaff} className='inline'>
+                          <input type='hidden' name='id' value={r.id} />
+                          <ConfirmButton className='btn ghost' message={'Delete ' + r.name + ' and all ' + r.entries + ' of their attendance entries? This cannot be undone.'}>Delete</ConfirmButton>
+                        </form>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
