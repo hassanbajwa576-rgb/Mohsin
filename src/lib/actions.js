@@ -653,3 +653,30 @@ export async function stopViewAs() {
   }
   redirect('/team');
 }
+
+// Cash handed back to Accounts. The Sr. OM returns from the pool, the Sr. SO from the cash they hold.
+export async function returnToAccounts(fd) {
+  const u = await need(['om', 'sso']);
+  const fund = s(fd, 'fund');
+  const amount = amt(fd);
+  const on = s(fd, 'returned_on');
+  if (!FUNDS[fund]) back('/advances', 'Pick a fund');
+  if (!Number.isInteger(amount) || amount <= 0) back('/advances', 'Enter the amount returned');
+  if (badDate(on)) back('/advances', 'Choose a valid date');
+  const held = u.role === 'om' ? (await fundSummary()).rows.find((r) => r.key === fund).pool : await custodyFor(u.id, fund);
+  if (amount > held) back('/advances', 'You hold only ' + pkr(Math.max(0, held)) + ' of ' + FUNDS[fund] + ' to return');
+  const reference = s(fd, 'reference');
+  const note = s(fd, 'note');
+  const r = await q('INSERT INTO pc2_returns (fund, amount, returned_on, reference, note, returned_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id', [fund, amount, on, reference, note, u.id]);
+  await logEvent(u, 'create', 'return', r[0].id, 'Returned ' + pkr(amount) + ' (' + FUNDS[fund] + ') to Accounts' + (reference ? ' - ' + reference : ''), null, { fund, amount, returned_on: on, reference, note });
+  if (u.role !== 'om') await notifyRoles(['om'], u.name + ' returned ' + pkr(amount) + ' (' + FUNDS[fund] + ') to Accounts', '/advances', u.id);
+  back('/advances', pkr(amount) + ' returned to Accounts', true);
+}
+
+export async function deleteReturn(fd) {
+  const u = await need(['om']);
+  const id = Number(s(fd, 'id'));
+  const r = (await q('DELETE FROM pc2_returns WHERE id = $1 RETURNING fund, amount, returned_on', [Number.isInteger(id) ? id : 0]))[0];
+  if (r) await logEvent(u, 'delete', 'return', id, 'Removed return of ' + pkr(r.amount) + ' (' + FUNDS[r.fund] + ') to Accounts', { fund: r.fund, amount: r.amount }, null);
+  back('/advances', 'Return removed', true);
+}
