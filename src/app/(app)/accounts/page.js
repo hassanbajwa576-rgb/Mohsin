@@ -2,7 +2,8 @@ import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { EXP_FROM, EXP_COLS } from '@/lib/queries';
 import { submitToAccounts } from '@/lib/actions';
-import { pkr } from '@/lib/fmt';
+import { pkr, FUNDS } from '@/lib/fmt';
+import ReadySubmit from '@/components/ReadySubmit';
 import ExpenseTable from '@/components/ExpenseTable';
 import Flash from '@/components/Flash';
 
@@ -28,17 +29,12 @@ export default async function AccountsPage({ searchParams }) {
 
       <h2 style={{ marginTop: 0 }}>Ready to submit</h2>
       <div className='card'>
-        <ExpenseTable rows={ready} user={user} back='/accounts' actions={false} />
-        {ready.length ? (
-          <p className='totals'>{ready.length} expenses - <b>{pkr(total)}</b></p>
-        ) : null}
-        {ready.length ? (
-          <form action={submitToAccounts} className='form'>
-            <label className='wide'>Note for Accounts<input name='note' placeholder='Optional, e.g. October petty cash settlement' /></label>
-            <button className='btn primary' type='submit'>Submit to Accounts</button>
-          </form>
-        ) : null}
-        
+        {ready.length === 0 ? <p className='muted'>Nothing to show yet.</p> : (
+          <ReadySubmit
+            action={submitToAccounts}
+            rows={ready.map((r) => ({ id: r.id, spent_on: r.spent_on, office: r.office, fund: FUNDS[r.fund], category: r.category, description: r.description, submitter: r.submitter, amount: Number(r.amount) }))}
+          />
+        )}
       </div>
 
       <h2>Submitted batches</h2>
