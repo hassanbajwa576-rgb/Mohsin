@@ -1,17 +1,20 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import {
-  ATT_ROLES, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff,
+  ATT_ROLES, allOffices, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff,
   stateOf, sessionsOf, fmtTime, fmt12, fmtDur, todayKey, dateKey, inClass, outClass,
 } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TodaysBoardPage() {
+export default async function TodaysBoardPage({ searchParams }) {
   const user = await requireUser(ATT_ROLES);
+  const sp = await searchParams;
+  const officeSel = allOffices(user) && ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
   if (!canSeeTimes(user)) redirect('/attendance');
-  const staff = await activeStaff(user);
+  const staff = (await activeStaff(user)).filter((x) => !officeSel || x.office === officeSel);
   const by = groupByStaff(await recentEvents(staff.map((x) => x.id), 3));
   const now = Date.now();
   const today = todayKey();
@@ -43,6 +46,14 @@ export default async function TodaysBoardPage() {
         </div>
       </div>
 
+      {allOffices(user) ? (
+        <div className='chips' style={{ marginBottom: 12 }}>
+          {['', 'LHR', 'ISB'].map((o) => (
+            <Link key={o || 'all'} href={o ? '/attendance/board?office=' + o : '/attendance/board'} className={'chip' + (officeSel === o ? ' on' : '')}>{o || 'Both offices'}</Link>
+          ))}
+        </div>
+      ) : null}
+
       <div className='kpis'>
         <div className='card kpi'><span>On duty</span><b>{on}</b></div>
         <div className='card kpi alt'><span>On break</span><b>{br}</b></div>
@@ -65,8 +76,8 @@ export default async function TodaysBoardPage() {
                     <td><span className={'st ' + (r.over ? 'over' : r.state === 'on' ? 'on' : r.state === 'break' ? 'break' : '')}>{r.over ? 'Break overdue' : STATE_LABEL[r.state]}</span></td>
                     <td className={'nw ' + (r.inAt ? inClass(fmtTime(r.inAt)) : '')}>{r.inAt ? fmt12(r.inAt) : '-'}</td>
                     <td className={'nw ' + (r.outAt ? outClass(fmtTime(r.outAt)) : '')}>{r.outAt ? fmt12(r.outAt) : '-'}</td>
-                    <td className='nw'>{fmtDur(r.worked)}</td>
-                    <td className='nw'>{r.breaks} - {fmtDur(r.breakMs)}</td>
+                    <td className={'nw ' + (r.outAt ? (r.worked >= 28800000 ? 't-ok' : 't-bad') : '')}>{fmtDur(r.worked)}</td>
+                    <td className={'nw ' + (r.breakMs > 3600000 ? 't-bad' : 't-ok')}>{r.breaks} - {fmtDur(r.breakMs)}</td>
                   </tr>
                 ))}
               </tbody>
