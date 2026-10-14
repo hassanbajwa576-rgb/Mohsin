@@ -36,8 +36,9 @@ export default async function AttendancePage({ searchParams }) {
     id: r.id,
     office: r.office,
     label: r.name,
-    suggested: SUGGEST[r.state],
-    status: STATE_LABEL[r.state],
+    // An open check in from an earlier day means the next step is a new Check In.
+    suggested: r.state !== 'off' && r.since && dateKey(r.since) < todayKey() ? 'in' : SUGGEST[r.state],
+    status: r.state !== 'off' && r.since && dateKey(r.since) < todayKey() ? 'Missed check out' : STATE_LABEL[r.state],
   }));
 
   const contacts = await dutyContacts(user);
