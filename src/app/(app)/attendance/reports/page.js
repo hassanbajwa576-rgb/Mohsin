@@ -68,8 +68,8 @@ export default async function AttendanceReportsPage({ searchParams }) {
                     <td className={'nw ' + inClass(r.in)}>{to12(r.in)}</td>
                     <td className={'nw ' + (/^[0-9]/.test(r.out) ? outClass(r.out) : '')}>{/^[0-9]/.test(r.out) ? to12(r.out) : r.out}</td>
                     <td>{r.breaks}</td>
-                    <td className={'nw' + (r.over ? ' over-t' : '')}>{fmtDur(r.breakMs)}</td>
-                    <td className='nw'>{fmtDur(r.workedMs)}</td>
+                    <td className={'nw ' + (r.over ? 't-bad' : 't-ok')}>{fmtDur(r.breakMs)}</td>
+                    <td className={'nw ' + (/^[0-9]/.test(r.out) ? (r.workedMs >= 28800000 ? 't-ok' : 't-bad') : '')}>{fmtDur(r.workedMs)}</td>
                   </tr>
                 ))}
               </tbody>
