@@ -1,4 +1,4 @@
-import { FUNDS } from '@/lib/fmt';
+import { FUNDS, pkr } from '@/lib/fmt';
 
 // Rows Petty / BRC / Others, one column per entry of cols (for example LHR and ISB).
 export function buildMatrix(list, colKey, cols, amountKey = 'amount') {
@@ -8,7 +8,8 @@ export function buildMatrix(list, colKey, cols, amountKey = 'amount') {
   }));
 }
 
-const num = (n) => Math.round(Number(n) || 0).toLocaleString('en-US');
+// Same style as the rest of the app: every amount carries PKR.
+const num = (n) => pkr(n);
 
 export default function FundMatrix({ title, cols, rows, note }) {
   const sums = cols.map((_, i) => rows.reduce((a, r) => a + r.cells[i], 0));
@@ -16,7 +17,7 @@ export default function FundMatrix({ title, cols, rows, note }) {
   const many = cols.length > 1;
   return (
     <div className='card'>
-      <h3>{title}</h3>
+      <h3>{String(title).replace(/ - PKR$/, '')}</h3>
       <div className='tablewrap'>
         <table>
           <thead>
