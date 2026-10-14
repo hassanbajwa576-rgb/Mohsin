@@ -287,3 +287,18 @@ export async function editEntry(fd) {
     { kind: r.kind, at: r.at_txt }, { kind, at: date + ' ' + time });
   back(to, 'Entry updated', true);
 }
+
+// Remove an employee for good, together with their attendance entries. Sr. Ops Manager only.
+export async function deleteStaff(fd) {
+  const u = await need(['om']);
+  const id = Number(s(fd, 'id'));
+  const r = (await q(
+    'SELECT s.name, o.code AS office, (SELECT COUNT(*)::int FROM pc2_attendance a WHERE a.staff_id = s.id) AS n FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.id = $1',
+    [Number.isInteger(id) ? id : 0]
+  ))[0];
+  if (!r) back('/attendance/staff', 'Employee not found');
+  await q('DELETE FROM pc2_attendance WHERE staff_id = $1', [id]);
+  await q('DELETE FROM pc2_staff WHERE id = $1', [id]);
+  await logEvent(u, 'delete', 'staff', id, 'Deleted employee ' + r.name + ' (' + r.office + ') and ' + r.n + ' attendance entries', { name: r.name, office: r.office, entries: r.n }, null);
+  back('/attendance/staff', r.name + ' deleted', true);
+}
