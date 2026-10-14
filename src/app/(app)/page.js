@@ -33,11 +33,17 @@ function Pipeline({ pipe, hot }) {
 // Net position per fund: what is still open after everything settled with Accounts.
 const n0 = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
 
-// Small grey line under a figure: how much of it sits with (or was spent by) each person.
-function Split({ parts, prefix = '' }) {
+// Under a figure: each person on their own line, the role in gold and the amount in black.
+function Split({ parts }) {
   const shown = parts.filter(([, v]) => Number(v) > 0);
   if (!shown.length) return null;
-  return <div className='muted' style={{ fontSize: 11, fontWeight: 400, lineHeight: 1.5 }}>{prefix}{shown.map(([l, v]) => l + ' ' + n0(v)).join(' | ')}</div>;
+  return (
+    <div style={{ fontSize: 11.5, fontWeight: 400, lineHeight: 1.6 }}>
+      {shown.map(([l, v]) => (
+        <div key={l}><span style={{ color: 'var(--gold-d)', fontWeight: 600 }}>{l}</span> <span style={{ color: 'var(--ink)' }}>{n0(v)}</span></div>
+      ))}
+    </div>
+  );
 }
 
 function AdjustedPosition({ rows, waiting }) {
@@ -66,7 +72,7 @@ function AdjustedPosition({ rows, waiting }) {
           <tbody>
             {data.map((r) => (
               <tr key={r.key}>
-                <td><b>{r.label}</b><Split parts={r.cashWho} prefix='Cash: ' /></td>
+                <td><b>{r.label}</b><Split parts={r.cashWho} /></td>
                 <td className='r nw'>{pkr(r.cash)}</td>
                 <td className='r nw'>{pkr(r.drafts)}<Split parts={r.draftsWho} /></td>
                 <td className='r nw'>{pkr(r.review)}<Split parts={r.reviewWho} /></td>
@@ -77,7 +83,7 @@ function AdjustedPosition({ rows, waiting }) {
           </tbody>
           <tfoot>
             <tr>
-              <td><b>Total</b><Split parts={totWho('cashWho')} prefix='Cash: ' /></td>
+              <td><b>Total</b><Split parts={totWho('cashWho')} /></td>
               <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('cash'))}</td>
               <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('drafts'))}<Split parts={totWho('draftsWho')} /></td>
               <td className='r nw' style={{ fontWeight: 700 }}>{pkr(tot('review'))}<Split parts={totWho('reviewWho')} /></td>
