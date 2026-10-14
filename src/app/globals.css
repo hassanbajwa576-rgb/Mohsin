@@ -321,3 +321,8 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .adjpos thead th{background:var(--gold);color:var(--slate);border-bottom:0}
 .adjpos tbody tr:nth-child(even) td{background:#fdf8e7}
 .adjpos tfoot td{background:#fbf1cf;border-top:2px solid var(--gold);border-bottom:0}
+
+/* adjusted position text */
+.adjpos thead th{font-size:13px;font-weight:700;letter-spacing:.04em}
+.adjpos tbody td,.adjpos tfoot td{font-size:15px;font-weight:600}
+.adjpos tbody td:first-child b,.adjpos tfoot td:first-child b{font-size:16px;font-weight:700}
