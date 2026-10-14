@@ -55,22 +55,8 @@ export async function addEntry(fd) {
   ))[0].ms);
   if (ms > Date.now() + 60000) back('/attendance', 'That time is in the future');
 
-  // The whole history, with the new entry slotted in, must still be a valid in / break / out order.
-  const hist = await allEventsOf(st.id);
-  const cand = { id: Number.MAX_SAFE_INTEGER, kind, ms };
-  const seq = closeStale(hist.concat(cand));
-  const bad = firstBad(seq);
-  if (bad) {
-    const e = seq[bad.i];
-    if (e === cand) {
-      const was = { off: 'not checked in', on: 'on duty', break: 'on a break' }[bad.state];
-      back('/attendance', st.name + ' is ' + was + (see ? ' at ' + time : ' at that time') + ', so ' + KIND_LABEL[kind] + ' cannot be recorded');
-    }
-    back('/attendance', see
-      ? 'That conflicts with an existing ' + KIND_LABEL[e.kind] + ' entry for ' + st.name
-      : 'That time conflicts with an existing entry for ' + st.name + '. Check the time and try again.');
-  }
-
+  // Any of the four entry types can be recorded in any order. Entries that do not fit together are shown
+  // in red on the Entries and Logs pages so they can be fixed.
   const ins = await q(
     `INSERT INTO pc2_attendance (staff_id, office_id, kind, at, entered_by) VALUES ($1, $2, $3, ($4::date + $5::time) AT TIME ZONE 'Asia/Karachi', $6) RETURNING id`,
     [st.id, st.office_id, kind, date, time, u.id]
