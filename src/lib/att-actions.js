@@ -8,7 +8,7 @@ import { can } from './perms';
 import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime } from './att';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
-const PATHS = ['/attendance', '/attendance/logs'];
+const PATHS = ['/attendance', '/attendance/logs', '/attendance/entries'];
 
 async function need(roles) {
   const u = await getUser();
@@ -92,8 +92,10 @@ export async function removeEntry(fd) {
     [Number.isInteger(id) ? id : 0]
   ))[0];
   if (!r) back(to, 'Entry not found');
-  const allowed = u.role === 'om' || (u.role === 'sso' && r.fresh && (r.entered_by === u.id || ['so', 'guard'].includes(r.by_role)));
-  if (!allowed) back(to, 'Only the Sr. Ops Manager and Sr. Support Officer can delete entries (the Sr. Support Officer within 36 hours)');
+  // Sr. OM: any entry. Sr. SO: own and the Support Officer's and guards'. Support Officer and guards: their own. 36 hours.
+  const mineEntry = r.entered_by === u.id;
+  const allowed = u.role === 'om' || (r.fresh && (u.role === 'sso' ? mineEntry || ['so', 'guard'].includes(r.by_role) : mineEntry));
+  if (!allowed) back(to, 'You can delete entries you made yourself within 36 hours (the Sr. Support Officer also those of the Support Officer and guards)');
   await q('DELETE FROM pc2_attendance WHERE id = $1', [r.id]);
   await logEvent(u, 'delete', 'attendance', r.id, 'Removed ' + KIND_LABEL[r.kind] + ' - ' + r.name + ' (' + r.office + ') ' + r.at_txt, { staff: r.name, kind: r.kind, at: r.at_txt }, null);
   back(to, 'Entry removed', true);
