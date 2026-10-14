@@ -107,7 +107,7 @@ export async function custodyFor(userId, fund) {
 export async function issueRows(user) {
   const so = user.role === 'so';
   return q(
-    `SELECT i.id, i.fund, i.amount, i.returned, i.note, i.issued_to, to_char(i.issued_on, 'YYYY-MM-DD') AS issued_on, u.name AS holder, ho.code AS office, COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0)::float8 AS spent FROM pc2_issues i JOIN pc2_users u ON u.id = i.issued_to JOIN pc2_offices ho ON ho.id = u.office_id ${so ? 'WHERE i.issued_to = $1' : ''} ORDER BY i.id DESC LIMIT 200`,
+    `SELECT i.id, i.fund, i.amount, i.returned, i.note, i.issued_to, to_char(i.issued_on, 'YYYY-MM-DD') AS issued_on, u.name AS holder, bu.name AS issuer, bu.role AS issuer_role, ho.code AS office, COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0)::float8 AS spent FROM pc2_issues i JOIN pc2_users u ON u.id = i.issued_to LEFT JOIN pc2_users bu ON bu.id = i.issued_by JOIN pc2_offices ho ON ho.id = u.office_id ${so ? 'WHERE i.issued_to = $1' : ''} ORDER BY i.id DESC LIMIT 200`,
     so ? [user.id] : []
   );
 }
