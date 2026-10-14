@@ -14,7 +14,7 @@ export default function ModuleTier({ role, access = [] }) {
   const petty = [['/', 'Dashboard'], ['/expenses', 'Expenses'], ['/advances', 'Advances']];
   if (role !== 'so') petty.push(['/accounts', 'Accounts']);
 
-  const att = [['/attendance', 'Add entry']];
+  const att = [['/attendance', 'Add entry'], ['/attendance/entries', 'Entries']];
   if (access.includes('att_view')) att.push(['/attendance/board', "Today's board"], ['/attendance/dashboard', 'Dashboard']);
   if (access.includes('att_logs')) att.push(['/attendance/logs', 'Logs']);
   if (access.includes('att_reports')) att.push(['/attendance/reports', 'Reports']);
