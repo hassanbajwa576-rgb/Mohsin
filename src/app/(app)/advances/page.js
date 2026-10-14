@@ -2,7 +2,7 @@ import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { fundSummary, issueRows } from '@/lib/queries';
-import { addAdvance, deleteAdvance, deleteIssue, issueAdvance, recordReturn } from '@/lib/actions';
+import { addAdvance, deleteAdvance, deleteIssue, issueAdvance, recordReturn, returnToAccounts, deleteReturn } from '@/lib/actions';
 import { pkr, today, FUNDS } from '@/lib/fmt';
 import Flash from '@/components/Flash';
 import FundCard from '@/components/FundCard';
@@ -14,7 +14,7 @@ export default async function AdvancesPage({ searchParams }) {
   const isOM = user.role === 'om';
   const manage = user.role !== 'so';
 
-  const [issues, funds, received, officers] = await Promise.all([
+  const [issues, funds, received, officers, returns] = await Promise.all([
     issueRows(user),
     manage ? fundSummary() : Promise.resolve(null),
     manage
@@ -22,6 +22,9 @@ export default async function AdvancesPage({ searchParams }) {
       : Promise.resolve([]),
     manage
       ? q(`SELECT u.id, u.name, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.role = ANY($1::text[]) AND u.active ORDER BY u.role DESC, u.name`, [isOM ? ['so', 'sso'] : ['so']])
+      : Promise.resolve([]),
+    manage
+      ? q(`SELECT r.id, r.fund, r.amount, r.reference, r.note, to_char(r.returned_on, 'YYYY-MM-DD') AS returned_on, u.name AS by_name FROM pc2_returns r LEFT JOIN pc2_users u ON u.id = r.returned_by ORDER BY r.returned_on DESC, r.id DESC LIMIT 100`)
       : Promise.resolve([]),
   ]);
 
@@ -91,6 +94,51 @@ export default async function AdvancesPage({ searchParams }) {
               </div>
             )}
           </div>
+          <details className='card'>
+            <summary>Return cash to Accounts</summary>
+            <form action={returnToAccounts} className='form'>
+              <label>Date returned<input type='date' name='returned_on' defaultValue={today()} required /></label>
+              <label>Fund
+                <select name='fund'>{Object.entries(FUNDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+              </label>
+              <label>Amount (PKR)<input name='amount' type='number' min='1' step='1' inputMode='numeric' required /></label>
+              <label>Reference<input name='reference' placeholder='Voucher / receipt no.' /></label>
+              <label className='wide'>Note<input name='note' placeholder='Optional' /></label>
+              <button className='btn primary' type='submit'>Record return to Accounts</button>
+            </form>
+            <p className='muted'>{isOM ? 'Taken from the cash held by the Sr. Ops Manager.' : 'Taken from the cash you hold.'} It lowers Advances Outstanding and CIH.</p>
+          </details>
+
+          {returns.length > 0 ? (
+            <div className='card'>
+              <h3>Returned to Accounts</h3>
+              <div className='tablewrap'>
+                <table>
+                  <thead><tr><th>Date</th><th>Fund</th><th>By</th><th>Reference</th><th>Note</th><th className='r'>Amount</th>{isOM ? <th></th> : null}</tr></thead>
+                  <tbody>
+                    {returns.map((r) => (
+                      <tr key={r.id}>
+                        <td className='nw'>{r.returned_on}</td>
+                        <td>{FUNDS[r.fund]}</td>
+                        <td>{r.by_name || '-'}</td>
+                        <td>{r.reference}</td>
+                        <td>{r.note}</td>
+                        <td className='r nw'><b>{pkr(r.amount)}</b></td>
+                        {isOM ? (
+                          <td className='act'>
+                            <form action={deleteReturn} className='inline'>
+                              <input type='hidden' name='id' value={r.id} />
+                              <ConfirmButton className='btn ghost' message='Remove this return? This cannot be undone.'>Remove</ConfirmButton>
+                            </form>
+                          </td>
+                        ) : null}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : null}
 
