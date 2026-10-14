@@ -243,7 +243,7 @@ export async function deleteIssue(fd) {
 
 // Funds received from the Accounts team (Petty, BRC, Others) - Sr. Ops Manager only.
 export async function addAdvance(fd) {
-  const u = await need(['om']);
+  const u = await need(['om', 'sso']);
   const amount = amt(fd);
   const fund = s(fd, 'fund');
   const on = s(fd, 'received_on');
@@ -255,7 +255,7 @@ export async function addAdvance(fd) {
   );
   await logEvent(u, 'create', 'received_funds', r[0].id, 'Recorded funds from Accounts: ' + pkr(amount) + ' (' + FUNDS[fund] + ')', null,
     { fund, amount, received_on: on, reference: s(fd, 'reference'), note: s(fd, 'note') });
-  await notifyRoles(['sso'], 'Funds received from Accounts: ' + pkr(amount) + ' (' + FUNDS[fund] + ')', '/advances', u.id);
+  await notifyRoles(u.role === 'om' ? ['sso'] : ['om'], (u.role === 'om' ? 'Funds received from Accounts: ' : u.name + ' recorded funds received from Accounts: ') + pkr(amount) + ' (' + FUNDS[fund] + ')', '/advances', u.id);
   back('/advances', 'Funds recorded', true);
 }
 
