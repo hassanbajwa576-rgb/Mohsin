@@ -252,12 +252,12 @@ export default async function AdvancesPage({ searchParams }) {
         <a href='/advances#issued' className='btn ghost'>Reset</a>
       </form>
 
-      {manage && shown.length > 0 ? (
+      {manage && rowsAll.length > 0 ? (
         <FundMatrix
           title='Issued to the team by fund and office - PKR'
           cols={['LHR', 'ISB']}
-          rows={buildMatrix(shown, 'office', ['LHR', 'ISB'])}
-          note='By the office of the person the advance was issued to. Follows the filters above.'
+          rows={buildMatrix(rowsAll, 'office', ['LHR', 'ISB'])}
+          note='By the office of the person the advance was issued to, including funds the Sr. SO received straight from Accounts. Follows the filters above.'
         />
       ) : null}
 
