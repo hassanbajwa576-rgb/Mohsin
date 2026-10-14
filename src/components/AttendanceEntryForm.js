@@ -14,7 +14,10 @@ const KINDS = [
 function nowPk() {
   const d = new Date();
   const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-  const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d);
+  const hh = (parts.find((x) => x.type === 'hour') || {}).value || '00';
+  const mi = (parts.find((x) => x.type === 'minute') || {}).value || '00';
+  const time = (hh === '24' ? '00' : hh) + ':' + mi;
   return { date, time };
 }
 
@@ -118,7 +121,9 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
     }
   }
 
-  function useNow() {
+  // Fill the date and time with the current Pakistan time at the moment of the click.
+  function fillNow(e) {
+    if (e && e.preventDefault) e.preventDefault();
     const n = nowPk();
     setDate(n.date);
     setTime(n.time);
@@ -213,7 +218,7 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
       <div className='att-when'>
         <label>Date<input type='date' name='date' value={date} onChange={(e) => setDate(e.target.value)} required /></label>
         <label>Time<input type='time' name='time' value={time} onChange={(e) => setTime(e.target.value)} required /></label>
-        <button type='button' className='btn ghost' onClick={useNow}>Use current time</button>
+        <button type='button' className='btn ghost' onClick={fillNow}>Use current time</button>
       </div>
 
       {err ? <p className='att-err'>{err}</p> : null}
