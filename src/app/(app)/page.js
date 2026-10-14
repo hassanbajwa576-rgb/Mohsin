@@ -7,7 +7,7 @@ import { pkr, STATUS_LABEL, FUNDS } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import FundCard from '@/components/FundCard';
 import CashSplit from '@/components/CashSplit';
-import { OfficeSplit } from '@/components/OfficeTag';
+import OfficeTag, { OfficeSplit } from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
 import { submitDrafts } from '@/lib/actions';
 
@@ -123,165 +123,73 @@ async function SoDashboard({ user, sp }) {
         </>
       ) : null}
 
-      <div className='kpis'>
-        <div className='card kpi'><span>Advances</span><b>{pkr(acct.advances)}</b></div>
-        <div className='card kpi alt'><span>Expenses</span><b>{pkr(acct.spent)}</b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
-        <div className='card kpi'><span>Advances Outstanding</span><b>{pkr(acct.outstanding)}</b><small>Reduces only when you submit your expenses</small></div>
-        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b>{pkr(acct.cash)}</b></div>
-      </div>
-      {acct.draft > 0 ? (
-        <form action={submitDrafts} className='card submitbar'>
-          <div>
-            <b>{pkr(acct.draft)}</b> of expenses are ready to submit
-            <div className='muted'>Submitting sends them to the Sr. Ops Manager for review and clears them from your advance.</div>
-          </div>
-          <button className='btn primary' type='submit'>Submit expenses</button>
-        </form>
-      ) : null}
-      <h2>Where my expenses stand</h2>
-      <Pipeline pipe={byStatus(pipeRows)} hot={['draft']} />
-      <h2>My advances</h2>
       <div className='card'>
-        {issues.length === 0 ? <p className='muted'>No advance has been issued to you yet.</p> : (
-          <div className='tablewrap'>
-            <table>
-              <thead><tr><th>#</th><th>Date</th><th>Fund</th><th className='r'>Issued</th><th className='r'>Spent</th><th className='r'>Returned</th><th className='r'>In hand</th></tr></thead>
-              <tbody>
-                {issues.map((i) => (
-                  <tr key={i.id}>
-                    <td>{i.id}</td><td className='nw'>{i.issued_on}</td><td>{FUNDS[i.fund]}</td>
-                    <td className='r nw'>{pkr(i.amount)}</td><td className='r nw'>{pkr(i.spent)}</td><td className='r nw'>{pkr(i.returned)}</td>
-                    <td className='r nw'><b>{pkr(i.amount - i.returned - Number(i.spent))}</b></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-      <h2>Recent expenses</h2>
-      <div className='card'><ExpenseTable rows={recent} user={user} back='/' /></div>
-    </>
-  );
-}
-
-export default async function Dashboard({ searchParams }) {
-  const user = await requireUser();
-  const sp = await searchParams;
-  if (user.role === 'so') return <SoDashboard user={user} sp={sp} />;
-
-  const isOM = user.role === 'om';
-  const adjusted = sp.view === 'adjusted';
-  const office = ['LHR', 'ISB'].includes(sp.office) ? sp.office : 'all';
-
-  // Period filter (year and/or month). Empty means all time.
-  const nowYear = new Date().getFullYear();
-  const years = [0, 1, 2].map((i) => String(nowYear - i));
-  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  const year = years.includes(sp.year) ? sp.year : '';
-  const mm = MONTH_NAMES.some((_, i) => String(i + 1).padStart(2, '0') === sp.month) ? sp.month : '';
-  const yy = year || (mm ? String(nowYear) : '');
-  let from = '';
-  let to = '';
-  if (yy && mm) {
-    const last = new Date(Number(yy), Number(mm), 0).getDate();
-    from = yy + '-' + mm + '-01';
-    to = yy + '-' + mm + '-' + String(last).padStart(2, '0');
-  } else if (yy) {
-    from = yy + '-01-01';
-    to = yy + '-12-31';
-  }
-  const periodLabel = from ? (mm ? MONTH_NAMES[Number(mm) - 1] + ' ' + yy : yy) : 'All time';
-  const qs = (o) => {
-    const params = new URLSearchParams();
-    if (o !== 'all') params.set('office', o);
-    if (year) params.set('year', year);
-    if (mm) params.set('month', mm);
-    const s = params.toString();
-    return s ? '/?' + s : '/';
-  };
-  // Link that switches between the full dashboard and the adjusted position only (keeps office and period).
-  const vq = (adj) => {
-    const params = new URLSearchParams();
-    if (office !== 'all') params.set('office', office);
-    if (year) params.set('year', year);
-    if (mm) params.set('month', mm);
-    if (adj) params.set('view', 'adjusted');
-    const s = params.toString();
-    return s ? '/?' + s : '/';
-  };
-  const w = expWhere(user, { office, from, to });
-  const live = w.where ? w.where + ` AND e.status <> 'rejected'` : `WHERE e.status <> 'rejected'`;
-  const todoStatuses = isOM ? ['submitted', 'verified'] : [];
-  const todoWhere = (w.where ? w.where + ' AND ' : 'WHERE ') + 'e.status = ANY($' + (w.params.length + 1) + '::text[])';
-  const month = new Date().toISOString().slice(0, 7);
-  const n = w.params.length + 1;
-
-  const [pipeRows, tot, cats, offs, months, todo, recent, funds, offSpent] = await Promise.all([
-    q(`SELECT e.status, COUNT(*)::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ${EXP_FROM} ${w.where} GROUP BY e.status`, w.params),
-    q(`SELECT COALESCE(SUM(e.amount), 0)::float8 AS total, COALESCE(SUM(CASE WHEN to_char(e.spent_on, 'YYYY-MM') = $${n} THEN e.amount END), 0)::float8 AS mtd ${EXP_FROM} ${live}`, [...w.params, month]),
-    q(`SELECT e.category AS label, SUM(e.amount)::float8 AS value ${EXP_FROM} ${live} GROUP BY e.category ORDER BY value DESC LIMIT 8`, w.params),
-    q(`SELECT o.code AS label, SUM(e.amount)::float8 AS value ${EXP_FROM} ${live} GROUP BY o.code ORDER BY o.code`, w.params),
-    q(`SELECT to_char(e.spent_on, 'YYYY-MM') AS label, SUM(e.amount)::float8 AS value ${EXP_FROM} ${live} ${from ? '' : `AND e.spent_on >= (date_trunc('month', now()) - interval '5 months')::date`} GROUP BY 1 ORDER BY 1`, w.params),
-    q(`SELECT ${EXP_COLS} ${EXP_FROM} ${todoWhere} ORDER BY e.created_at LIMIT 25`, [...w.params, todoStatuses]),
-    q(`SELECT ${EXP_COLS} ${EXP_FROM} ${w.where} ORDER BY e.spent_on DESC, e.id DESC LIMIT 8`, w.params),
-    fundSummary({ from, to }),
-    q(`SELECT o.code AS label, SUM(e.amount)::float8 AS value FROM pc2_expenses e JOIN pc2_offices o ON o.id = e.office_id WHERE e.status <> 'rejected' AND ($1::date IS NULL OR e.spent_on >= $1::date) AND ($2::date IS NULL OR e.spent_on <= $2::date) GROUP BY o.code`, [from || null, to || null]),
-  ]);
-
-  const pipe = byStatus(pipeRows);
-  const waiting = await waitingByFund({ to });
-  const total = Number(tot[0].total);
-  const mtd = Number(tot[0].mtd);
-  const T = funds.total;
-
-  return (
-    <>
-      <div className='head'>
-        <div>
-          <p className='muted subline'>{office === 'all' ? 'Both offices' : office + ' office'} | {isOM ? 'Sr. Ops Manager' : 'Sr. Support Officer'} | {periodLabel}</p>
+        <h3>Funds</h3>
+        <div className='tablewrap'>
+          <table>
+            <thead>
+              <tr><th>Fund</th><th className='r'>Advances</th><th className='r'>Expenses</th><th className='r'>Submitted to Accounts</th><th className='r'>Returned to Accounts</th><th className='r'>Advances Outstanding</th><th className='r'>CIH</th></tr>
+            </thead>
+            <tbody>
+              {usedFunds.map((f) => (
+                <tr key={f.key}>
+                  <td><b>{f.label}</b></td>
+                  <td className='r nw'>{pkr(f.received)}</td>
+                  <td className='r nw'>{pkr(f.spent)}</td>
+                  <td className='r nw'>{pkr(f.sent)}</td>
+                  <td className='r nw'>{pkr(f.returned)}</td>
+                  <td className='r nw'>{pkr(f.outstanding)}</td>
+                  <td className={'r nw' + (f.remaining < 0 ? ' neg-t' : '')}><b>{pkr(f.remaining)}</b></td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td><b>Total</b></td>
+                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.received)}</td>
+                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.spent)}</td>
+                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.sent)}</td>
+                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.returned)}</td>
+                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.outstanding)}</td>
+                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.remaining)}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
-        <div className='chips'>
-          {['all', 'LHR', 'ISB'].map((o) => (
-            <Link key={o} href={qs(o)} className={'chip' + (office === o ? ' on' : '')}>{o === 'all' ? 'Both offices' : o}</Link>
-          ))}
+        {emptyFunds.length ? <p className='muted' style={{ marginTop: 8 }}>{emptyFunds.map((f) => f.label).join(', ')} - nothing recorded yet.</p> : null}
+        <p className='muted' style={{ marginTop: 8 }}>Expenses by office: <OfficeTag o='LHR' /> {pkr(offLine('LHR'))} <OfficeTag o='ISB' /> {pkr(offLine('ISB'))}</p>
+      </div>
+
+      <div className='card'>
+        <h3>Where the cash sits</h3>
+        <div className='tablewrap'>
+          <table>
+            <thead>
+              <tr><th>Fund</th><th className='r'>With Sr. Ops Manager</th><th className='r'>With Sr. SO</th><th className='r'>With SO</th><th className='r'>CIH</th></tr>
+            </thead>
+            <tbody>
+              {usedFunds.map((f) => (
+                <tr key={f.key}>
+                  <td><b>{f.label}</b></td>
+                  <td className='r nw'>{pkr(f.pool)}</td>
+                  <td className='r nw'>{pkr(f.ssoCash)}</td>
+                  <td className='r nw'>{pkr(f.soCash)}</td>
+                  <td className='r nw'><b>{pkr(f.remaining)}</b></td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td><b>Total</b></td>
+                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.pool)}</td>
+                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.ssoCash)}</td>
+                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.soCash)}</td>
+                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.remaining)}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
-      <Flash sp={sp} />
-
-      <AdjustedPosition rows={funds.rows} waiting={waiting} />
-
-      <form method='get' className='card filters compact'>
-        {office !== 'all' ? <input type='hidden' name='office' value={office} /> : null}
-        <label>Year
-          <select name='year' defaultValue={year}>
-            <option value=''>All years</option>
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </label>
-        <label>Month
-          <select name='month' defaultValue={mm}>
-            <option value=''>All months</option>
-            {MONTH_NAMES.map((m, i) => <option key={m} value={String(i + 1).padStart(2, '0')}>{m}</option>)}
-          </select>
-        </label>
-        <button className='btn' type='submit'>Apply</button>
-        <Link href={office === 'all' ? '/' : '/?office=' + office} className='btn ghost'>Reset</Link>
-        <span className='muted'>Advances and Expenses cover the period. CIH and Outstanding are balances to its end.</span>
-      </form>
-
-      <div className='kpis'>
-        <div className='card kpi'><span>Advances</span><b>{pkr(T.received)}</b></div>
-        <div className='card kpi alt'><span>Expenses</span><b>{pkr(T.spent)}</b><OfficeSplit rows={offSpent} /></div>
-        <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>CIH</span><b>{pkr(T.remaining)}</b><CashSplit pool={T.pool} sso={T.ssoCash} so={T.soCash} /></div>
-      </div>
-      <h2>Funds</h2>
-      <div className='funds'>
-        {funds.rows.map((f) => (
-          <FundCard key={f.key} f={f} />
-        ))}
-      </div>
-
     </>
   );
 }
