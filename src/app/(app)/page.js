@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { expWhere, fundSummary, issueRows, soAccount, EXP_FROM, EXP_COLS } from '@/lib/queries';
+import { expWhere, fundSummary, issueRows, soAccount, fundOfficeSpend, EXP_FROM, EXP_COLS } from '@/lib/queries';
+import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
 import { pkr, STATUS_LABEL, FUNDS } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import FundCard from '@/components/FundCard';
@@ -165,6 +166,13 @@ export default async function Dashboard({ searchParams }) {
   ]);
 
   const pipe = byStatus(pipeRows);
+  // Fund x office tables: this calendar month, and the chosen period (all time when no filter).
+  const [yNow, mNow] = month.split('-').map(Number);
+  const monthEnd = month + '-' + String(new Date(Date.UTC(yNow, mNow, 0)).getUTCDate()).padStart(2, '0');
+  const [spentMonth, spentPeriod] = await Promise.all([
+    fundOfficeSpend({ from: month + '-01', to: monthEnd }),
+    fundOfficeSpend({ from, to }),
+  ]);
   const total = Number(tot[0].total);
   const mtd = Number(tot[0].mtd);
   const T = funds.total;
@@ -209,9 +217,9 @@ export default async function Dashboard({ searchParams }) {
         <div className={'card kpi' + (T.remaining < 0 ? ' neg' : '')}><span>CIH</span><b>{pkr(T.remaining)}</b><CashSplit pool={T.pool} sso={T.ssoCash} so={T.soCash} /></div>
         <div className='card kpi alt'><span>Advances Outstanding</span><b>{pkr(T.outstanding)}</b><small>Clears only when expenses are submitted to Accounts - {pkr(T.unsent)} not yet submitted</small></div>
       </div>
-      <div className='kpis'>
-        <div className='card kpi alt'><span>Spent this month{office === 'all' ? '' : ' (' + office + ')'}</span><b>{pkr(mtd)}</b></div>
-        <div className='card kpi alt'><span>Spent in total{office === 'all' ? '' : ' (' + office + ')'}</span><b>{pkr(total)}</b></div>
+      <div className='grid2'>
+        <FundMatrix title={'Spent this month (' + month + ') - PKR'} cols={['LHR', 'ISB']} rows={buildMatrix(spentMonth, 'office', ['LHR', 'ISB'])} />
+        <FundMatrix title={'Spent ' + (from ? periodLabel.toLowerCase() : 'in total') + ' - PKR'} cols={['LHR', 'ISB']} rows={buildMatrix(spentPeriod, 'office', ['LHR', 'ISB'])} />
       </div>
 
       <h2>Funds</h2>
