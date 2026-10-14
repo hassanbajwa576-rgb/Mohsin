@@ -85,9 +85,11 @@ export function sessionsOf(evs, now = Date.now()) {
   if (cur) out.push(cur);
   return out.map((s) => {
     const br = s.breaks.slice();
-    if (s.open != null) br.push([s.open, now]);
+    // A check in older than 16 hours with no check out is a missed check out, not a shift still running.
+    const miss = !!s.missed || (s.end == null && now - s.start > 16 * 3600000);
+    if (s.open != null && !miss) br.push([s.open, now]);
     const breakMs = br.reduce((a, b) => a + (b[1] - b[0]), 0);
-    return { start: s.start, end: s.end, missed: !!s.missed, live: s.end == null && !s.missed, breakCount: br.length, breakMs, workedMs: s.missed ? 0 : Math.max(0, (s.end ?? now) - s.start - breakMs) };
+    return { start: s.start, end: s.end, missed: miss, live: s.end == null && !miss, breakCount: br.length, breakMs, workedMs: miss ? 0 : Math.max(0, (s.end ?? now) - s.start - breakMs) };
   });
 }
 
