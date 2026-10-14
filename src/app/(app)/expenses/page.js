@@ -2,9 +2,10 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { expWhere, issueRows, EXP_FROM, EXP_COLS } from '@/lib/queries';
-import { addExpense, submitDrafts } from '@/lib/actions';
+import { addExpense, addExpensesBulk, submitDrafts } from '@/lib/actions';
 import { pkr, today, FUNDS, CATEGORIES, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
+import PasteExpenses from '@/components/PasteExpenses';
 import Flash from '@/components/Flash';
 
 export default async function ExpensesPage({ searchParams }) {
@@ -82,6 +83,22 @@ export default async function ExpensesPage({ searchParams }) {
           </form>
         )}
       </details>
+
+      {isSO && open.length === 0 ? null : (
+        <details className='card'>
+          <summary>Paste expenses from Excel</summary>
+          <PasteExpenses
+            action={addExpensesBulk}
+            isSO={isSO}
+            isOM={isOM}
+            officeCode={user.office_code}
+            advances={open.map((i) => ({ id: i.id, label: '#' + i.id + ' - ' + FUNDS[i.fund] + ' - in hand ' + pkr(i.left) }))}
+            funds={Object.entries(FUNDS)}
+            categories={CATEGORIES}
+            today={today()}
+          />
+        </details>
+      )}
 
       <form method='get' className='card filters'>
         {!isSO ? (
