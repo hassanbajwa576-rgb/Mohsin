@@ -7,6 +7,7 @@ import ConfirmButton from '@/components/ConfirmButton';
 import { pkr, today, FUNDS, CATEGORIES, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import PasteExpenses from '@/components/PasteExpenses';
+import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
 import Flash from '@/components/Flash';
 
 export default async function ExpensesPage({ searchParams }) {
@@ -126,6 +127,15 @@ export default async function ExpensesPage({ searchParams }) {
         <button className='btn' type='submit'>Apply</button>
         <Link href='/expenses' className='btn ghost'>Reset</Link>
       </form>
+
+      {rows.length > 0 ? (
+        <FundMatrix
+          title='Expenses in this list by fund and office - PKR'
+          cols={['LHR', 'ISB']}
+          rows={buildMatrix(rows.filter((r) => r.status !== 'rejected'), 'office', ['LHR', 'ISB'])}
+          note='Follows the filters above (rejected expenses are left out).'
+        />
+      ) : null}
 
       <div className='card'>
         {waiting.length > 0 ? (
