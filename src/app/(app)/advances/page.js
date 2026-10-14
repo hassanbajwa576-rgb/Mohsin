@@ -20,7 +20,7 @@ export default async function AdvancesPage({ searchParams }) {
     issueRows(user),
     manage ? fundSummary() : Promise.resolve(null),
     manage
-      ? q(`SELECT a.id, a.fund, a.amount, a.reference, a.note, to_char(a.received_on, 'YYYY-MM-DD') AS received_on, u.name AS by_name FROM pc2_advances a LEFT JOIN pc2_users u ON u.id = a.created_by ORDER BY a.received_on DESC, a.id DESC LIMIT 200`)
+      ? q(`SELECT a.id, a.fund, a.amount, a.reference, a.note, to_char(a.received_on, 'YYYY-MM-DD') AS received_on, a.created_by, u.name AS by_name, u.role AS by_role, ou.code AS by_office FROM pc2_advances a LEFT JOIN pc2_users u ON u.id = a.created_by LEFT JOIN pc2_offices ou ON ou.id = u.office_id ORDER BY a.received_on DESC, a.id DESC LIMIT 200`)
       : Promise.resolve([]),
     manage
       ? q(`SELECT u.id, u.name, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.role = ANY($1::text[]) AND u.active ORDER BY u.role DESC, u.name`, [isOM ? ['so', 'sso'] : ['so']])
@@ -34,7 +34,7 @@ export default async function AdvancesPage({ searchParams }) {
 
   // Filters for the list of advances issued to the team.
   const fTo = sp.to || '';
-  const fBy = ['om', 'sso'].includes(sp.by) ? sp.by : '';
+  const fBy = ['om', 'sso', 'accounts'].includes(sp.by) ? sp.by : '';
   const fFund = FUNDS[sp.fund] ? sp.fund : '';
   const fMonth = /^\d{4}-\d{2}$/.test(sp.month || '') ? sp.month : '';
   const fStatus = ['left', 'spent', 'returned'].includes(sp.status) ? sp.status : '';
@@ -53,6 +53,20 @@ export default async function AdvancesPage({ searchParams }) {
   const tIssued = shown.reduce((a, i) => a + i.amount, 0);
   const tSpent = shown.reduce((a, i) => a + Number(i.spent), 0);
   const tReturned = shown.reduce((a, i) => a + i.returned, 0);
+
+  // Funds the Sr. SO recorded as received straight from Accounts, shown beside the advances issued to the team.
+  const directAll = received
+    .filter((r) => r.by_role === 'sso')
+    .map((r) => ({ kind: 'accounts', id: r.id, fund: r.fund, amount: r.amount, issued_on: r.received_on, holder: r.by_name, issued_to: r.created_by, office: r.by_office, note: r.reference || r.note || '' }));
+  const direct = fStatus ? [] : directAll.filter((r) => {
+    if (fTo === 'me' ? r.issued_to !== user.id : fTo && String(r.issued_to) !== fTo) return false;
+    if (fBy && fBy !== 'accounts') return false;
+    if (fFund && r.fund !== fFund) return false;
+    if (fMonth && r.issued_on.slice(0, 7) !== fMonth) return false;
+    return true;
+  });
+  const rowsAll = [...shown, ...direct].sort((a, b) => (a.issued_on < b.issued_on ? 1 : a.issued_on > b.issued_on ? -1 : 0));
+  const tDirect = direct.reduce((a, r) => a + r.amount, 0);
 
   return (
     <>
@@ -213,6 +227,7 @@ export default async function AdvancesPage({ searchParams }) {
           <label>Issued by
             <select name='by' defaultValue={fBy}>
               <option value=''>Anyone</option>
+              <option value='accounts'>Accounts</option>
               <option value='om'>Sr. Ops Manager</option>
               <option value='sso'>Sr. SO</option>
             </select>
@@ -247,14 +262,29 @@ export default async function AdvancesPage({ searchParams }) {
       ) : null}
 
       <div className='card'>
-        {shown.length === 0 ? <p className='muted'>{issues.length === 0 ? 'No advances issued yet.' : 'No advances match these filters.'}</p> : (
+        {rowsAll.length === 0 ? <p className='muted'>{issues.length === 0 ? 'No advances issued yet.' : 'No advances match these filters.'}</p> : (
           <div className='tablewrap'>
             <table>
               <thead>
                 <tr><th>#</th><th>Date</th><th>Officer</th><th>Fund</th><th className='r'>Issued</th><th className='r'>Spent</th><th className='r'>Returned</th><th className='r'>In hand</th>{manage ? <th></th> : null}</tr>
               </thead>
               <tbody>
-                {shown.map((i) => {
+                {rowsAll.map((i) => {
+                  if (i.kind === 'accounts') {
+                    return (
+                      <tr key={'a' + i.id}>
+                        <td>-</td>
+                        <td className='nw'>{i.issued_on}</td>
+                        <td><OfficeTag o={i.office} />{i.holder}<div className='muted'>From Accounts{i.note ? ' - ' + i.note : ''}</div></td>
+                        <td>{FUNDS[i.fund]}</td>
+                        <td className='r nw'>{pkr(i.amount)}</td>
+                        <td className='r nw'>-</td>
+                        <td className='r nw'>-</td>
+                        <td className='r nw'>-</td>
+                        {manage ? <td></td> : null}
+                      </tr>
+                    );
+                  }
                   const left = i.amount - i.returned - Number(i.spent);
                   return (
                     <tr key={i.id}>
@@ -294,7 +324,10 @@ export default async function AdvancesPage({ searchParams }) {
           </div>
         )}
         {shown.length > 0 ? (
-          <p className='totals'>{shown.length} advance(s) - Issued <b>{pkr(tIssued)}</b> - Spent <b>{pkr(tSpent)}</b> - Returned <b>{pkr(tReturned)}</b> - In hand <b>{pkr(tIssued - tReturned - tSpent)}</b></p>
+          <p className='totals'>Issued to the team: {shown.length} advance(s) - Issued <b>{pkr(tIssued)}</b> - Spent <b>{pkr(tSpent)}</b> - Returned <b>{pkr(tReturned)}</b> - In hand <b>{pkr(tIssued - tReturned - tSpent)}</b></p>
+        ) : null}
+        {direct.length > 0 ? (
+          <p className='totals'>From Accounts (recorded by the Sr. SO): {direct.length} entr{direct.length === 1 ? 'y' : 'ies'} - <b>{pkr(tDirect)}</b>. Shown separately so the same money is not counted twice; their spending and cash in hand are in the Adjusted Position on the Dashboard.</p>
         ) : null}
       </div>
     </>
