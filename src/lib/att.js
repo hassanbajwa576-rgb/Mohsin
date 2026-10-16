@@ -29,6 +29,22 @@ const dfmt = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', m
 export const fmtTime = (ms) => tfmt.format(new Date(Number(ms)));
 export const dateKey = (ms) => dfmt.format(new Date(Number(ms)));
 export const todayKey = () => dateKey(Date.now());
+
+/** Report default day: the latest day before today that has any entries (yesterday on a normal weekday). */
+export async function lastWorkDay(today) {
+  const r = await q(
+    `SELECT COALESCE(to_char(max(a.at AT TIME ZONE '${TZ}'), 'YYYY-MM-DD'), to_char($1::date - 1, 'YYYY-MM-DD')) AS d FROM pc2_attendance a WHERE a.at < (($1::date)::timestamp AT TIME ZONE '${TZ}')`,
+    [today]
+  );
+  return (r[0] && r[0].d) || today;
+}
+
+/** Break filter for report rows: 'normal' = a break of up to the limit, 'extended' = over it. Shifts with no break only show under all. */
+export function breakFilter(rows, brk) {
+  if (brk === 'normal') return rows.filter((r) => r.breaks > 0 && !r.over);
+  if (brk === 'extended') return rows.filter((r) => r.over);
+  return rows;
+}
 export const fmtDur = (ms) => {
   const m = Math.round(Math.max(0, ms) / 60000);
   return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm';
