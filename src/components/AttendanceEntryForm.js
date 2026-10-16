@@ -35,9 +35,11 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
   const [listening, setListening] = useState(false);
   const [touched, setTouched] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [listMax, setListMax] = useState(260);
+  const [small, setSmall] = useState(false);
+  const [sheet, setSheet] = useState(false);
+  const [vp, setVp] = useState({ h: 0, t: 0 });
   const recRef = useRef(null);
-  const wrapRef = useRef(null);
+  const sheetIn = useRef(null);
 
   useEffect(() => {
     const n = nowPk();
@@ -75,36 +77,41 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
     if (chosen && !touched) setKind(chosen.suggested);
   }, [effectiveId]);
 
-  // On a phone the keyboard covers about 40% of the screen. Keep the search box at the top and size the list to what is left.
-  const fit = () => {
-    const el = wrapRef.current && wrapRef.current.querySelector('.att-inputrow');
-    if (!el) return;
-    const vv = window.visualViewport;
-    const bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
-    setListMax(Math.max(150, Math.min(520, Math.floor(bottom - el.getBoundingClientRect().bottom - 12))));
-  };
-  const lift = () => {
-    const small = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
-    if (!small || !wrapRef.current) return;
-    setTimeout(() => {
-      const nav = document.querySelector('.nav');
-      const top = wrapRef.current.getBoundingClientRect().top + window.scrollY - (nav ? nav.offsetHeight : 0) - 8;
-      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-      setTimeout(fit, 350);
-    }, 250);
-  };
+  // Phones: the employee list opens as a full-screen picker pinned above the keyboard, so nothing needs scrolling.
   useEffect(() => {
-    if (!open) return undefined;
-    fit();
-    const vv = window.visualViewport;
-    if (!vv) return undefined;
-    vv.addEventListener('resize', fit);
-    vv.addEventListener('scroll', fit);
+    const mq = window.matchMedia('(max-width: 700px)');
+    const on = () => setSmall(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  useEffect(() => {
+    if (!sheet) return undefined;
+    const v = window.visualViewport;
+    const sync = () => setVp({ h: v ? v.height : window.innerHeight, t: v ? v.offsetTop : 0 });
+    sync();
+    if (v) {
+      v.addEventListener('resize', sync);
+      v.addEventListener('scroll', sync);
+    }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     return () => {
-      vv.removeEventListener('resize', fit);
-      vv.removeEventListener('scroll', fit);
+      if (v) {
+        v.removeEventListener('resize', sync);
+        v.removeEventListener('scroll', sync);
+      }
+      document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [sheet]);
+  function openSheet(focus) {
+    if (picked) {
+      setPicked('');
+      setText('');
+    }
+    setSheet(true);
+    if (focus) setTimeout(() => sheetIn.current && sheetIn.current.focus(), 60);
+  }
 
   function chooseOffice(o) {
     setOffice(o);
@@ -117,6 +124,7 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
     setPicked(String(o.id));
     setText(o.label);
     setOpen(false);
+    setSheet(false);
     setErr('');
   }
 
@@ -154,6 +162,7 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
     setPicked('');
     setText('');
     setOpen(true);
+    if (small) setSheet(true);
     try {
       rec.start();
       setListening(true);
@@ -208,7 +217,7 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
         </div>
       </div>
 
-      <div className='att-field att-search' ref={wrapRef}>
+      <div className='att-field att-search'>
         <label htmlFor='att-emp' className='att-lbl'>Employee</label>
         <div className='att-inputrow'>
         <input
@@ -223,7 +232,9 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
             setOpen(true);
             setErr('');
           }}
-          onFocus={() => { setOpen(true); lift(); }}
+          readOnly={small}
+          onFocus={() => { if (small) openSheet(true); else setOpen(true); }}
+          onClick={() => { if (small && !sheet) openSheet(true); }}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
         />
         {canListen ? (
@@ -243,8 +254,8 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
         ) : null}
         </div>
         <input type='hidden' name='staff_id' value={effectiveId} />
-        {open && (matches.length > 0 || hiddenCount > 0) ? (
-          <ul className='att-list' role='listbox' style={{ maxHeight: listMax }}>
+        {!small && open && (matches.length > 0 || hiddenCount > 0) ? (
+          <ul className='att-list' role='listbox'>
             {matches.map((o) => (
               <li key={o.id}>
                 <button type='button' onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>{o.label}<small className='att-st'>{o.status}</small></button>
@@ -258,8 +269,45 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
             ) : null}
           </ul>
         ) : null}
-        {open && q && matches.length === 0 ? <p className='att-none'>No employee in {office} matches that name</p> : null}
+        {!small && open && q && matches.length === 0 ? <p className='att-none'>No employee in {office} matches that name</p> : null}
       </div>
+
+      {sheet ? (
+        <div className='att-sheet' style={{ top: vp.t, height: vp.h || '100%' }} role='dialog' aria-label='Choose employee'>
+          <div className='att-sheet-head'>
+            <b>Employee - {office}</b>
+            <button type='button' className='btn ghost' onClick={() => setSheet(false)}>Close</button>
+          </div>
+          <div className='att-sheet-in'>
+            <input
+              ref={sheetIn}
+              type='text'
+              value={text}
+              placeholder={listening ? 'Listening... say the name' : 'Type a name'}
+              autoComplete='off'
+              onChange={(e) => {
+                setText(e.target.value);
+                setPicked('');
+                setErr('');
+              }}
+            />
+          </div>
+          <ul className='att-sheet-list'>
+            {matches.map((o) => (
+              <li key={o.id}>
+                <button type='button' onClick={() => pick(o)}>{o.label}<small>{o.status}</small></button>
+              </li>
+            ))}
+            {matches.length === 0 ? <li className='att-note'>No employee in {office} matches that name</li> : null}
+            {hiddenCount > 0 ? (
+              <li className='att-note'>
+                {showAll ? 'Showing everyone, including ' + hiddenCount + ' already checked in. ' : hiddenCount + ' already checked in ' + (hiddenCount === 1 ? 'is' : 'are') + ' hidden. '}
+                <button type='button' onClick={() => setShowAll(!showAll)}>{showAll ? 'Hide them' : 'Show everyone'}</button>
+              </li>
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
 
       {chosen ? (
         <p className='att-hint'><b>{chosen.label}</b> is {String(chosen.status || '').toLowerCase()}. Usual next step: <b>{(KINDS.find((x) => x[0] === chosen.suggested) || [])[1]}</b> (gold).</p>
