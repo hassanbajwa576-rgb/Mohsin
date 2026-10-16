@@ -147,17 +147,17 @@ export default async function AdvancesPage({ searchParams }) {
           <div className='card'>
             {received.length === 0 ? <p className='muted'>No funds recorded from Accounts yet.</p> : (
               <div className='tablewrap'>
-                <table>
+                <table className='tx'>
                   <thead><tr><th>Date</th><th>Fund</th><th>Reference</th><th>Note</th><th>Recorded by</th><th className='r'>Amount</th>{isOM ? <th></th> : null}</tr></thead>
                   <tbody>
                     {received.map((a) => (
                       <tr key={a.id}>
-                        <td className='nw'>{a.received_on}</td>
-                        <td>{FUNDS[a.fund]}</td>
-                        <td>{a.reference}</td>
-                        <td>{a.note}</td>
-                        <td>{a.by_name || '-'}</td>
-                        <td className='r nw'><b>{pkr(a.amount)}</b></td>
+                        <td className='nw c-meta'>{a.received_on}</td>
+                        <td className='c-title'>{FUNDS[a.fund]}</td>
+                        <td className='c-meta'>{a.reference}</td>
+                        <td className='c-meta'>{a.note}</td>
+                        <td className='c-meta'>{a.by_name || '-'}</td>
+                        <td className='r nw c-amt'><b>{pkr(a.amount)}</b></td>
                         {isOM ? (
                           <td className='act'>
                             <a href={'/advances/edit?type=received&id=' + a.id} className='btn'>Edit</a>
@@ -193,17 +193,17 @@ export default async function AdvancesPage({ searchParams }) {
             <div className='card'>
               <h3>Returned to Accounts</h3>
               <div className='tablewrap'>
-                <table>
+                <table className='tx'>
                   <thead><tr><th>Date</th><th>Fund</th><th>By</th><th>Reference</th><th>Note</th><th className='r'>Amount</th>{isOM ? <th></th> : null}</tr></thead>
                   <tbody>
                     {returns.map((r) => (
                       <tr key={r.id}>
-                        <td className='nw'>{r.returned_on}</td>
-                        <td>{FUNDS[r.fund]}</td>
-                        <td>{r.by_name || '-'}</td>
-                        <td>{r.reference}</td>
-                        <td>{r.note}</td>
-                        <td className='r nw'><b>{pkr(r.amount)}</b></td>
+                        <td className='nw c-meta'>{r.returned_on}</td>
+                        <td className='c-title'>{FUNDS[r.fund]}</td>
+                        <td className='c-meta'>{r.by_name || '-'}</td>
+                        <td className='c-meta'>{r.reference}</td>
+                        <td className='c-meta'>{r.note}</td>
+                        <td className='r nw c-amt'><b>{pkr(r.amount)}</b></td>
                         {isOM ? (
                           <td className='act'>
                             <form action={deleteReturn} className='inline'>
