@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices, reportRows, departments, fmtDur, todayKey, validDate, BREAK_LIMIT_MIN, inClass, outClass, to12 } from '@/lib/att';
+import { ATT_ROLES, allOffices, reportRows, departments, fmtDur, todayKey, validDate, lastWorkDay, breakFilter, BREAK_LIMIT_MIN, inClass, outClass, to12 } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,15 +12,18 @@ export default async function AttendanceReportsPage({ searchParams }) {
   if (!can(user, 'att_reports')) redirect('/attendance');
   const sp = await searchParams;
   const today = todayKey();
-  const to = validDate(sp.to || '') ? sp.to : today;
-  let from = validDate(sp.from || '') ? sp.from : today.slice(0, 8) + '01';
+  // Opens on the latest working day before today (yesterday on a normal weekday).
+  const day = validDate(sp.from || '') || validDate(sp.to || '') ? '' : await lastWorkDay(today);
+  const to = validDate(sp.to || '') ? sp.to : day || today;
+  let from = validDate(sp.from || '') ? sp.from : day || today.slice(0, 8) + '01';
   if (from > to) from = to;
+  const brk = ['normal', 'extended'].includes(sp.brk) ? sp.brk : '';
   // Only the Sr. OM and Sr. SO see both offices; everyone else sees their own office only.
   const office = allOffices(user) ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
   const depts = await departments();
   const dept = depts.includes(sp.dept) ? sp.dept : '';
-  const rows = await reportRows({ from, to, office, dept });
-  const qs = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(dept ? { dept } : {}) }).toString();
+  const rows = breakFilter(await reportRows({ from, to, office, dept }), brk);
+  const qs = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(dept ? { dept } : {}), ...(brk ? { brk } : {}) }).toString();
 
   return (
     <>
@@ -45,6 +48,13 @@ export default async function AttendanceReportsPage({ searchParams }) {
           <select name='dept' defaultValue={dept}>
             <option value=''>All departments</option>
             {depts.map((d) => <option key={d}>{d}</option>)}
+          </select>
+        </label>
+        <label>Breaks
+          <select name='brk' defaultValue={brk}>
+            <option value=''>All breaks</option>
+            <option value='normal'>Normal (up to {BREAK_LIMIT_MIN / 60} hour)</option>
+            <option value='extended'>Extended (over {BREAK_LIMIT_MIN / 60} hour)</option>
           </select>
         </label>
         <button className='btn' type='submit'>Apply</button>
