@@ -279,18 +279,35 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
             <button type='button' className='btn ghost' onClick={() => setSheet(false)}>Close</button>
           </div>
           <div className='att-sheet-in'>
-            <input
-              ref={sheetIn}
-              type='text'
-              value={text}
-              placeholder={listening ? 'Listening... say the name' : 'Type a name'}
-              autoComplete='off'
-              onChange={(e) => {
-                setText(e.target.value);
-                setPicked('');
-                setErr('');
-              }}
-            />
+            <div className='att-inputrow'>
+              <input
+                ref={sheetIn}
+                type='text'
+                value={text}
+                placeholder={listening ? 'Listening... say the name' : 'Type a name'}
+                autoComplete='off'
+                onChange={(e) => {
+                  setText(e.target.value);
+                  setPicked('');
+                  setErr('');
+                }}
+              />
+              {canListen ? (
+                <button
+                  type='button'
+                  className={'att-mic' + (listening ? ' on' : '')}
+                  onClick={listen}
+                  aria-label={listening ? 'Stop listening' : 'Say the employee name'}
+                >
+                  <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
+                    <rect x='9' y='3' width='6' height='11' rx='3' />
+                    <path d='M5 11a7 7 0 0 0 14 0' />
+                    <path d='M12 18v3' />
+                  </svg>
+                </button>
+              ) : null}
+            </div>
+            {err ? <p className='att-err' style={{ margin: '6px 0 0' }}>{err}</p> : null}
           </div>
           <ul className='att-sheet-list'>
             {matches.map((o) => (
