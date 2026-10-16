@@ -396,3 +396,61 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
   .adjtile.gold small,.adjtile.gold b,.adjtile.gold i{color:#2c3138}
   .adjnote{border:1px dashed var(--line);border-radius:6px;padding:10px;margin-bottom:10px;color:var(--mut);font-size:13px;background:#fdf8e7}
 }
+
+/* phone cards: tiles, expense-style lists and attendance shifts */
+.only-m{display:none}
+@media (max-width:720px){
+  .only-m{display:inline}
+  table.tiles tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:10px}
+  table.tiles td{display:block;background:var(--surface);border:0;border-radius:6px;padding:8px 10px;text-align:left;min-width:0;color:var(--ink);font-weight:700;font-size:15px}
+  table.tiles td::before{display:block;flex:none;color:var(--ink);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;padding:0 0 2px}
+  table.tiles td:first-child{grid-column:1/-1;background:transparent;padding:0 0 2px;font-size:16px}
+  table.tiles td:first-child::before,table.tiles td[data-label='']::before{display:none}
+  table.tiles td.g{background:var(--gold);color:#2c3138}
+  table.tiles td.g::before{color:#2c3138}
+  table.tiles tfoot tr{background:#fbf1cf}
+  table.tiles tfoot td{background:#fff}
+  table.tiles tfoot td:first-child{background:transparent}
+  table.tiles tfoot td.g{background:var(--gold)}
+
+  table.tx tr,table.shift tr{display:flex;flex-wrap:wrap;align-items:flex-start;gap:4px 12px;padding:10px}
+  table.tx td,table.shift td{display:block;width:auto;border:0;padding:0;text-align:left;min-width:0}
+  table.tx td::before,table.shift td::before{display:none}
+  table.tx tr::after,table.shift tr::after{content:'';order:3;flex:0 0 100%;height:0}
+  table.tx .muted,table.shift .muted{color:var(--ink);font-size:13px}
+  table.tx td>.muted{flex:none;text-align:left;margin:2px 0 0}
+  table.tx td.c-chk{order:0;flex:none}
+  table.tx td.c-title{order:1;flex:1 1 0;color:var(--ink);font-size:14.5px}
+  table.tx td.c-amt{order:2;flex:none;min-width:96px;background:var(--gold);color:#2c3138;border-radius:6px;padding:6px 10px;text-align:right}
+  table.tx td.c-amt::before{display:block;content:attr(data-label);font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:#2c3138}
+  table.tx td.c-amt b{font-size:14px}
+  table.tx td.c-meta,table.shift td.c-meta{order:4;flex:0 0 auto;color:var(--ink);font-size:12.5px}
+  table.shift td.c-meta{order:2}
+  table.tx td.c-meta ~ td.c-meta::before,table.shift td.c-meta ~ td.c-meta::before{display:inline;content:'\00b7';margin-right:12px;color:var(--ink)}
+  table.tx td.c-stage{order:7;flex:0 0 100%}
+  table.tx td.act{order:8;flex:0 0 100%}
+  table.tx td:empty,table.shift td:empty{display:none}
+  table.shift td.c-name{order:1;flex:0 0 100%;color:var(--ink);font-size:15px}
+  table.shift td.c-tile{order:4;flex:1 1 calc(50% - 6px);background:var(--surface);border-radius:6px;padding:8px 10px;font-weight:700;font-size:15px}
+  table.shift td.c-tile::before{display:block;content:attr(data-label);color:var(--ink);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;padding-bottom:2px}
+  table.shift td.c-tile.g{background:var(--gold);color:#2c3138}
+  table.shift td.c-tile.g::before{color:#2c3138}
+}
+
+/* phone cards: stronger rules so striped cards keep their tiles */
+@media (max-width:720px){
+  .tablewrap table.tiles tbody tr:nth-child(n) td{background:var(--surface)}
+  .tablewrap table.tiles tbody tr:nth-child(even) td{background:#fff}
+  .tablewrap table.tiles tbody tr:nth-child(n) td:first-child{background:transparent}
+  .tablewrap table.tiles tbody tr:nth-child(n) td.g{background:var(--gold)}
+  .tablewrap table.tiles tfoot tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:10px}
+  .tablewrap table.tiles tfoot td{background:#fff}
+  .tablewrap table.tiles tfoot td:first-child{background:transparent}
+  .tablewrap table.tiles tfoot td.g{background:var(--gold)}
+  .tablewrap table.tx tbody tr:nth-child(n) td.c-amt{background:var(--gold)}
+  .tablewrap table.shift tbody tr:nth-child(n) td.c-tile{background:var(--surface)}
+  .tablewrap table.shift tbody tr:nth-child(even) td.c-tile{background:#fff}
+  .tablewrap table.shift tbody tr:nth-child(n) td.c-tile.g{background:var(--gold)}
+  table.tx td.act{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  table.tx td.act .inline{margin:0}
+}
