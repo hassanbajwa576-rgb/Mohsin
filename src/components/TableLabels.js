@@ -8,9 +8,14 @@ export default function TableLabels() {
     const label = () => {
       document.querySelectorAll('table').forEach((t) => {
         const heads = Array.from(t.querySelectorAll('thead th')).map((h) => h.textContent.trim());
-        t.querySelectorAll('tbody tr').forEach((tr) => {
+        // Body and Total rows; cells that span columns push the following labels along.
+        t.querySelectorAll('tbody tr, tfoot tr').forEach((tr) => {
+          const foot = !!tr.closest('tfoot');
+          let col = 0;
           Array.from(tr.children).forEach((td, i) => {
-            if (heads[i] && td.getAttribute('data-label') !== heads[i]) td.setAttribute('data-label', heads[i]);
+            const h = foot && i === 0 && /^total/i.test(td.textContent.trim()) ? '' : heads[col];
+            if (h !== undefined && td.getAttribute('data-label') !== h) td.setAttribute('data-label', h);
+            col += td.colSpan || 1;
           });
         });
       });
