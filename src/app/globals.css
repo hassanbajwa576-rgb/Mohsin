@@ -454,3 +454,10 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
   table.tx td.act{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   table.tx td.act .inline{margin:0}
 }
+
+/* phone tiles: let the small labels wrap inside their tile */
+@media (max-width:720px){
+  table.tiles td::before,table.shift td.c-tile::before,table.tx td.c-amt::before{white-space:normal;overflow-wrap:anywhere;line-height:1.25;letter-spacing:.02em}
+  table.tiles td::before{font-size:10px}
+  table.tiles td{overflow:hidden;display:flex;flex-direction:column;justify-content:space-between}
+}
