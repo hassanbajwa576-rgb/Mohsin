@@ -361,3 +361,19 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .att-sheet-list small{display:block;color:var(--mut);font-size:12.5px}
 .att-sheet-list .att-note{padding:10px 14px;font-size:13px;color:var(--mut)}
 .att-sheet-list .att-note button{display:inline;width:auto;padding:0;border:0;font-size:13px;font-weight:600;color:var(--gold-d);text-decoration:underline}
+
+/* phone cards: whole-card stripes, Total card, no clipped text */
+@media (max-width:720px){
+  .tablewrap table tbody tr:nth-child(even),.adjpos tbody tr:nth-child(even){background:#fdf8e7}
+  .tablewrap table tbody tr:nth-child(even) td,.adjpos tbody tr:nth-child(even) td{background:transparent}
+  .tablewrap table tbody tr.conflict{background:var(--badbg)}
+  .tablewrap table tbody tr.conflict td{background:transparent}
+  .tablewrap table tfoot,.adjpos tfoot{display:block;width:100%}
+  .tablewrap table tfoot tr,.adjpos tfoot tr{display:block;width:100%;background:#fbf1cf;border:1px solid var(--line);border-top:2px solid var(--gold);border-radius:4px;padding:4px 12px;margin-bottom:10px}
+  .tablewrap table tfoot td,.adjpos tfoot td{background:transparent;border-top:0;border-bottom:1px solid rgba(203,147,40,.3);font-weight:700}
+  .tablewrap table tfoot td:last-child,.adjpos tfoot td:last-child{border-bottom:0}
+  td[data-label='']::before{display:none}
+  td[data-label='']{justify-content:flex-start}
+  td{flex-wrap:wrap}
+  td>.muted{flex:1 1 100%;text-align:right;margin:0}
+}
