@@ -67,20 +67,20 @@ export default async function TodaysBoardPage({ searchParams }) {
       <div className='card'>
         {board.length ? (
           <div className='tablewrap'>
-            <table>
+            <table className='shift'>
               <thead>
                 <tr><th>Employee</th><th>Office</th><th>Status</th><th>In</th><th>Out</th><th>Worked today</th><th>Breaks today</th></tr>
               </thead>
               <tbody>
                 {board.map((r) => (
                   <tr key={r.id}>
-                    <td><b>{r.name}</b></td>
-                    <td><OfficeTag o={r.office} /></td>
-                    <td><span className={'st ' + (r.over ? 'over' : r.state === 'on' ? 'on' : r.state === 'break' ? 'break' : '')}>{r.over ? 'Break overdue' : r.state === 'stale' ? 'Off duty' : STATE_LABEL[r.state]}</span>{r.state === 'stale' ? <div className='muted' style={{ fontSize: 11 }}>Missed check out {fmtDay(r.since)}</div> : null}</td>
-                    <td className={'nw ' + (r.inAt ? inClass(fmtTime(r.inAt)) : '')}>{r.inAt ? fmt12(r.inAt) : '-'}</td>
-                    <td className={'nw ' + (r.outAt ? outClass(fmtTime(r.outAt)) : '')}>{r.outAt ? fmt12(r.outAt) : '-'}</td>
-                    <td className={'nw ' + (r.outAt ? (r.worked >= 28800000 ? 't-ok' : 't-bad') : '')}>{fmtDur(r.worked)}</td>
-                    <td className={'nw ' + (r.breakMs === 0 ? '' : r.breakMs > 3600000 ? 't-bad' : 't-ok')}>{r.breaks} - {fmtDur(r.breakMs)}</td>
+                    <td className='c-name'><b>{r.name}</b></td>
+                    <td className='c-meta'><OfficeTag o={r.office} /></td>
+                    <td className='c-meta'><span className={'st ' + (r.over ? 'over' : r.state === 'on' ? 'on' : r.state === 'break' ? 'break' : '')}>{r.over ? 'Break overdue' : r.state === 'stale' ? 'Off duty' : STATE_LABEL[r.state]}</span>{r.state === 'stale' ? <div className='muted' style={{ fontSize: 11 }}>Missed check out {fmtDay(r.since)}</div> : null}</td>
+                    <td className={'nw c-tile ' + (r.inAt ? inClass(fmtTime(r.inAt)) : '')}>{r.inAt ? fmt12(r.inAt) : '-'}</td>
+                    <td className={'nw c-tile ' + (r.outAt ? outClass(fmtTime(r.outAt)) : '')}>{r.outAt ? fmt12(r.outAt) : '-'}</td>
+                    <td className={'nw c-tile g ' + (r.outAt ? (r.worked >= 28800000 ? 't-ok' : 't-bad') : '')}>{fmtDur(r.worked)}</td>
+                    <td className={'nw c-tile ' + (r.breakMs === 0 ? '' : r.breakMs > 3600000 ? 't-bad' : 't-ok')}>{r.breaks} - {fmtDur(r.breakMs)}</td>
                   </tr>
                 ))}
               </tbody>
