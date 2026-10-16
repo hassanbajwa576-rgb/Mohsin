@@ -377,3 +377,22 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
   td{flex-wrap:wrap}
   td>.muted{flex:1 1 100%;text-align:right;margin:0}
 }
+
+/* adjusted position cards (phones) */
+.adjcards{display:none}
+@media (max-width:720px){
+  .adj-desk{display:none}
+  .adjcards{display:block}
+  .adjcard{border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:10px;background:#fff}
+  .adjcard h4{margin:0 0 8px;font-size:16px;font-weight:700;color:var(--ink)}
+  .adjcard.tot{background:#fbf1cf;border-top:2px solid var(--gold)}
+  .adjgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+  .adjtile{background:var(--surface);border-radius:6px;padding:8px 10px;min-width:0}
+  .adjcard.tot .adjtile{background:#fff}
+  .adjtile small{display:block;color:var(--mut);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .adjtile b{display:block;font-size:15px;font-weight:700;color:var(--ink);margin:2px 0}
+  .adjtile i{display:block;font-style:normal;color:var(--gold-d);font-size:12px;line-height:1.45}
+  .adjtile.gold{background:var(--gold)}
+  .adjtile.gold small,.adjtile.gold b,.adjtile.gold i{color:#2c3138}
+  .adjnote{border:1px dashed var(--line);border-radius:6px;padding:10px;margin-bottom:10px;color:var(--mut);font-size:13px;background:#fdf8e7}
+}
