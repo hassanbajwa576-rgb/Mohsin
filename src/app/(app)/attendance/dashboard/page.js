@@ -66,11 +66,11 @@ export default async function AttendanceDashboard({ searchParams }) {
           <h1>Attendance dashboard</h1>
           <p className='muted subline'>{office || 'Both offices'} | {day}{day === todayKey() ? ' (today)' : ''} | on time: in by {to12(LATE_AFTER)}, out from {to12(EARLY_BEFORE)}</p>
         </div>
-        <div className='chips'>
-          {(allOffices(user) ? ['', 'LHR', 'ISB'] : [user.office_code]).map((o) => (
-            <Link key={o || 'all'} href={qs(o)} className={'chip' + (office === o ? ' on' : '')}>{o || 'Both offices'}</Link>
-          ))}
-        </div>
+      </div>
+      <div className='chips' style={{ marginBottom: 12 }}>
+        {(allOffices(user) ? ['', 'LHR', 'ISB'] : [user.office_code]).map((o) => (
+          <Link key={o || 'all'} href={qs(o)} className={'chip' + (office === o ? ' on' : '')}>{o || 'Both offices'}</Link>
+        ))}
       </div>
 
       <form method='get' className='card filters compact'>
