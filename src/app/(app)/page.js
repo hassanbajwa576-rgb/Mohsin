@@ -94,10 +94,40 @@ function AdjustedPosition({ rows, waiting }) {
       </tr>
     );
   };
+  // Phones: one card per fund with four tiles instead of a wide table; funds with nothing open collapse into one line.
+  const isZero = (r) => !Number(r.ready) && !Number(r.drafts) && !Number(r.cash) && !Number(r.net);
+  const openFunds = data.filter((r) => !isZero(r));
+  const emptyFunds = data.filter(isZero);
+  const Tile = ({ label, amt, who, roles, gold }) => (
+    <div className={'adjtile' + (gold ? ' gold' : '')}>
+      <small>{label}</small>
+      <b>{pkr(amt)}</b>
+      {roles.map((i) => <i key={i}>{ROLE_NAMES[i]} {n0(who[i])}</i>)}
+    </div>
+  );
+  const FundCard = ({ r, title, tot }) => {
+    const roles = rolesOf(r);
+    return (
+      <div className={'adjcard' + (tot ? ' tot' : '')}>
+        <h4>{title || r.label}</h4>
+        <div className='adjgrid'>
+          <Tile label='Ready for Accounts' amt={r.ready} who={r.readyWho} roles={roles} />
+          <Tile label='Not yet approved' amt={r.drafts} who={r.draftsWho} roles={roles} />
+          <Tile label='Cash in hand' amt={r.cash} who={r.cashWho} roles={roles} />
+          <Tile label='Advances Outstanding' amt={r.net} who={r.totWho} roles={roles} gold />
+        </div>
+      </div>
+    );
+  };
   return (
     <div className='card'>
       <h3>Adjusted Position</h3>
-      <div className='tablewrap'>
+      <div className='adjcards'>
+        {openFunds.map((r) => <FundCard key={r.key} r={r} />)}
+        {emptyFunds.length ? <div className='adjnote'>{emptyFunds.map((r) => r.label).join(', ')}: nothing open (all PKR 0)</div> : null}
+        <FundCard r={total} title='Total' tot />
+      </div>
+      <div className='tablewrap adj-desk'>
         <table className='adjpos'>
           <thead>
             <tr><th>Fund</th><th className='r'>Ready for Accounts</th><th className='r'>Not yet approved</th><th className='r'>Cash in hand</th><th className='r'>Advances Outstanding</th></tr>
