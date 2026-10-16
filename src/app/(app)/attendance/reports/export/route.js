@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices, reportRows, todayKey, validDate } from '@/lib/att';
+import { ATT_ROLES, allOffices, reportRows, breakFilter, todayKey, validDate } from '@/lib/att';
 import { can } from '@/lib/perms';
 
 export const dynamic = 'force-dynamic';
@@ -24,13 +24,13 @@ export async function GET(req) {
   if (from > to) from = to;
   // Own office only unless the person works across both offices.
   const office = allOffices(u) ? (['LHR', 'ISB'].includes(sp.get('office')) ? sp.get('office') : '') : u.office_code;
-  const rows = await reportRows({ from, to, office });
+  const rows = breakFilter(await reportRows({ from, to, office }), sp.get('brk'));
   const mins = (ms) => Math.round(ms / 60000);
   const header = ['Date', 'Office', 'Employee', 'Check In', 'Check Out', 'Breaks', 'Break minutes', 'Worked minutes'];
   const lines = [header.map(cell).join(',')].concat(
     rows.map((r) => [r.date, r.office, r.name, r.in, r.out, r.breaks, mins(r.breakMs), mins(r.workedMs)].map(cell).join(','))
   );
-  return new Response('﻿' + lines.join('\r\n') + '\r\n', {
+  return new Response('ï»¿' + lines.join('\r\n') + '\r\n', {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': 'attachment; filename=' + DQ + 'attendance-' + from + '-to-' + to + '.csv' + DQ,
