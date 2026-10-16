@@ -33,7 +33,11 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
   const [time, setTime] = useState('');
   const [canListen, setCanListen] = useState(false);
   const [listening, setListening] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [listMax, setListMax] = useState(260);
   const recRef = useRef(null);
+  const wrapRef = useRef(null);
 
   useEffect(() => {
     const n = nowPk();
@@ -49,21 +53,58 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
 
   // Employees of the chosen office, narrowed by what has been typed.
   const inOffice = options.filter((o) => o.office === office);
+  // For Check In, people who are already checked in (on duty or on a break) are left out unless "show everyone" is tapped.
+  const checkedIn = (o) => o.status === 'On duty' || o.status === 'On break';
+  const hiddenCount = kind === 'in' ? inOffice.filter(checkedIn).length : 0;
+  const pool = kind === 'in' && !showAll ? inOffice.filter((o) => !checkedIn(o) || String(o.id) === picked) : inOffice;
   const q = text.trim().toLowerCase();
   const words = q.split(' ').filter(Boolean);
-  let found = q ? inOffice.filter((o) => words.every((w) => o.label.toLowerCase().includes(w))) : inOffice;
+  let found = q ? pool.filter((o) => words.every((w) => o.label.toLowerCase().includes(w))) : pool;
   if (q && found.length === 0 && words.length > 1) {
-    found = inOffice.filter((o) => words.some((w) => o.label.toLowerCase().includes(w)));
+    found = pool.filter((o) => words.some((w) => o.label.toLowerCase().includes(w)));
   }
-  const matches = found.slice(0, 8);
+  // The whole list is available (scrolls); typing only narrows it down.
+  const matches = found;
   // A single remaining match counts as chosen, so typing "zub" is enough.
   const effectiveId = picked || (q && matches.length === 1 ? String(matches[0].id) : '');
   const chosen = options.find((o) => String(o.id) === effectiveId);
 
   // Suggest the most likely next entry for the chosen employee.
+  // (Only until the entry type has been tapped by hand, so a deliberate choice is never overridden.)
   useEffect(() => {
-    if (chosen) setKind(chosen.suggested);
+    if (chosen && !touched) setKind(chosen.suggested);
   }, [effectiveId]);
+
+  // On a phone the keyboard covers about 40% of the screen. Keep the search box at the top and size the list to what is left.
+  const fit = () => {
+    const el = wrapRef.current && wrapRef.current.querySelector('.att-inputrow');
+    if (!el) return;
+    const vv = window.visualViewport;
+    const bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    setListMax(Math.max(150, Math.min(520, Math.floor(bottom - el.getBoundingClientRect().bottom - 12))));
+  };
+  const lift = () => {
+    const small = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+    if (!small || !wrapRef.current) return;
+    setTimeout(() => {
+      const nav = document.querySelector('.nav');
+      const top = wrapRef.current.getBoundingClientRect().top + window.scrollY - (nav ? nav.offsetHeight : 0) - 8;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      setTimeout(fit, 350);
+    }, 250);
+  };
+  useEffect(() => {
+    if (!open) return undefined;
+    fit();
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    vv.addEventListener('resize', fit);
+    vv.addEventListener('scroll', fit);
+    return () => {
+      vv.removeEventListener('resize', fit);
+      vv.removeEventListener('scroll', fit);
+    };
+  }, [open]);
 
   function chooseOffice(o) {
     setOffice(o);
@@ -154,7 +195,20 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
         </div>
       </div>
 
-      <div className='att-field att-search'>
+      <div className='att-field'>
+        <span className='att-lbl'>Entry</span>
+        <div className='att-seg' role='radiogroup' aria-label='Entry type'>
+          {KINDS.map(([k, label, hint]) => (
+            <label key={k} className={(kind === k ? 'on' : '') + ((chosen ? chosen.suggested : 'in') === k ? ' pend' : '')}>
+              <input type='radio' name='kind' value={k} checked={kind === k} onChange={() => { setKind(k); setTouched(true); }} required />
+              <span>{label}</span>
+              <small>{hint}</small>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className='att-field att-search' ref={wrapRef}>
         <label htmlFor='att-emp' className='att-lbl'>Employee</label>
         <div className='att-inputrow'>
         <input
@@ -169,7 +223,7 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
             setOpen(true);
             setErr('');
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => { setOpen(true); lift(); }}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
         />
         {canListen ? (
@@ -189,31 +243,27 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
         ) : null}
         </div>
         <input type='hidden' name='staff_id' value={effectiveId} />
-        {open && matches.length > 0 ? (
-          <ul className='att-list' role='listbox'>
+        {open && (matches.length > 0 || hiddenCount > 0) ? (
+          <ul className='att-list' role='listbox' style={{ maxHeight: listMax }}>
             {matches.map((o) => (
               <li key={o.id}>
                 <button type='button' onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>{o.label}<small className='att-st'>{o.status}</small></button>
               </li>
             ))}
+            {hiddenCount > 0 ? (
+              <li className='att-note'>
+                {showAll ? 'Showing everyone, including ' + hiddenCount + ' already checked in. ' : hiddenCount + ' already checked in ' + (hiddenCount === 1 ? 'is' : 'are') + ' hidden. '}
+                <button type='button' onMouseDown={(e) => e.preventDefault()} onClick={() => setShowAll(!showAll)}>{showAll ? 'Hide them' : 'Show everyone'}</button>
+              </li>
+            ) : null}
           </ul>
         ) : null}
         {open && q && matches.length === 0 ? <p className='att-none'>No employee in {office} matches that name</p> : null}
       </div>
 
       {chosen ? (
-        <p className='att-hint'><b>{chosen.label}</b> is {String(chosen.status || '').toLowerCase()}. Next step: <b>{(KINDS.find((x) => x[0] === chosen.suggested) || [])[1]}</b> (gold).</p>
+        <p className='att-hint'><b>{chosen.label}</b> is {String(chosen.status || '').toLowerCase()}. Usual next step: <b>{(KINDS.find((x) => x[0] === chosen.suggested) || [])[1]}</b> (gold).</p>
       ) : null}
-      <div className='att-seg' role='radiogroup' aria-label='Entry type'>
-        {KINDS.map(([k, label, hint]) => (
-          <label key={k} className={(kind === k ? 'on' : '') + ((chosen ? chosen.suggested : 'in') === k ? ' pend' : '')}>
-            <input type='radio' name='kind' value={k} checked={kind === k} onChange={() => setKind(k)} required />
-            <span>{label}</span>
-            <small>{hint}</small>
-          </label>
-        ))}
-      </div>
-      <p className='att-hint'>Gold is the step still pending for this person.</p>
 
       <div className='att-when'>
         <label>Date<input type='date' name='date' value={date} onChange={(e) => setDate(e.target.value)} required /></label>
