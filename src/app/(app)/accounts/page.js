@@ -41,17 +41,17 @@ export default async function AccountsPage({ searchParams }) {
       <div className='card'>
         {batches.length === 0 ? <p className='muted'>Nothing has been submitted to Accounts yet.</p> : (
           <div className='tablewrap'>
-            <table>
+            <table className='tx'>
               <thead><tr><th>Batch</th><th>Submitted</th><th>By</th><th>Note</th><th className='r'>Expenses</th><th className='r'>Total</th><th></th></tr></thead>
               <tbody>
                 {batches.map((b) => (
                   <tr key={b.id}>
-                    <td><b>#{b.id}</b></td>
-                    <td className='nw'>{b.created}</td>
-                    <td>{b.creator}</td>
-                    <td>{b.note}</td>
-                    <td className='r'>{b.item_count}</td>
-                    <td className='r nw'><b>{pkr(b.total)}</b></td>
+                    <td className='c-title'><b><span className='only-m'>Batch </span>#{b.id}</b></td>
+                    <td className='nw c-meta'>{b.created}</td>
+                    <td className='c-meta'>{b.creator}</td>
+                    <td className='c-meta'>{b.note}</td>
+                    <td className='r c-meta'>{b.item_count}<span className='only-m'> expenses</span></td>
+                    <td className='r nw c-amt'><b>{pkr(b.total)}</b></td>
                     <td className='act'><a className='btn' href={'/accounts/export?batch=' + b.id}>Download Excel</a></td>
                   </tr>
                 ))}
