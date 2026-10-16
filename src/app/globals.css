@@ -348,3 +348,16 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
   .nav-top .btn{padding:6px 10px}
 }
 @media (max-width:380px){.nav-top .sep{display:none}.nav-top .brand-name{font-size:13px}}
+
+/* phone employee picker */
+.att-sheet{position:fixed;left:0;right:0;z-index:60;background:#fff;display:flex;flex-direction:column}
+.att-sheet-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:#fafaf8}
+.att-sheet-head b{flex:1;font-size:15px}
+.att-sheet-in{padding:10px 12px;border-bottom:1px solid var(--line)}
+.att-sheet-in input{width:100%;font-size:16px}
+.att-sheet-list{flex:1;min-height:0;overflow-y:auto;list-style:none;margin:0;padding:0;-webkit-overflow-scrolling:touch}
+.att-sheet-list button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:12px 14px;font-size:16px;cursor:pointer}
+.att-sheet-list button:active{background:#fff3cf}
+.att-sheet-list small{display:block;color:var(--mut);font-size:12.5px}
+.att-sheet-list .att-note{padding:10px 14px;font-size:13px;color:var(--mut)}
+.att-sheet-list .att-note button{display:inline;width:auto;padding:0;border:0;font-size:13px;font-weight:600;color:var(--gold-d);text-decoration:underline}
