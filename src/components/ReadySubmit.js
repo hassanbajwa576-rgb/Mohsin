@@ -20,7 +20,7 @@ export default function ReadySubmit({ rows, action }) {
   return (
     <form action={action}>
       <div className='tablewrap'>
-        <table>
+        <table className='tx'>
           <thead>
             <tr>
               <th><input type='checkbox' checked={all} onChange={() => setOn(all ? new Set() : new Set(rows.map((r) => r.id)))} aria-label='Select all' /></th>
@@ -30,15 +30,15 @@ export default function ReadySubmit({ rows, action }) {
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} onClick={() => toggle(r.id)} style={{ cursor: 'pointer', opacity: on.has(r.id) ? 1 : 0.55 }}>
-                <td><input type='checkbox' checked={on.has(r.id)} onChange={() => toggle(r.id)} onClick={(e) => e.stopPropagation()} aria-label={'Select expense ' + r.id} /></td>
-                <td className='nw'>{r.spent_on}</td>
-                <td>
+                <td className='c-chk'><input type='checkbox' checked={on.has(r.id)} onChange={() => toggle(r.id)} onClick={(e) => e.stopPropagation()} aria-label={'Select expense ' + r.id} /></td>
+                <td className='nw c-meta'>{r.spent_on}</td>
+                <td className='c-title'>
                   <OfficeTag o={r.office} /><b>{r.category}</b>
                   {r.description ? <div className='muted'>{r.description}</div> : null}
                 </td>
-                <td>{r.fund}</td>
-                <td>{r.submitter}</td>
-                <td className='r nw'><b>{pkr(r.amount)}</b></td>
+                <td className='c-meta'>{r.fund}</td>
+                <td className='c-meta'>{r.submitter}</td>
+                <td className='r nw c-amt'><b>{pkr(r.amount)}</b></td>
               </tr>
             ))}
           </tbody>
