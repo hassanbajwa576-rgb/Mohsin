@@ -230,14 +230,10 @@ export default async function Dashboard({ searchParams }) {
 
   return (
     <>
-      <div className='head'>
-        <div>
-        </div>
-        <div className='chips'>
-          {['all', 'LHR', 'ISB'].map((o) => (
-            <Link key={o} href={qs(o)} className={'chip' + (office === o ? ' on' : '')}>{o === 'all' ? 'Both offices' : o}</Link>
-          ))}
-        </div>
+      <div className='chips' style={{ marginBottom: 12 }}>
+        {['all', 'LHR', 'ISB'].map((o) => (
+          <Link key={o} href={qs(o)} className={'chip' + (office === o ? ' on' : '')}>{o === 'all' ? 'Both offices' : o}</Link>
+        ))}
       </div>
       <Flash sp={sp} />
 
