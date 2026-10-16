@@ -304,7 +304,7 @@ export default async function Dashboard({ searchParams }) {
       <div className='card'>
         <h3>Funds</h3>
         <div className='tablewrap'>
-          <table>
+          <table className='tiles'>
             <thead>
               <tr><th>Fund</th><th className='r'>Advances</th><th className='r'>Expenses</th><th className='r'>Submitted to Accounts</th><th className='r'>Returned to Accounts</th><th className='r'>Advances Outstanding</th><th className='r'>CIH</th></tr>
             </thead>
@@ -316,8 +316,8 @@ export default async function Dashboard({ searchParams }) {
                   <td className='r nw'>{pkr(f.spent)}</td>
                   <td className='r nw'>{pkr(f.sent)}</td>
                   <td className='r nw'>{pkr(f.returned)}</td>
-                  <td className='r nw'>{pkr(f.outstanding)}</td>
-                  <td className={'r nw' + (f.remaining < 0 ? ' neg-t' : '')}><b>{pkr(f.remaining)}</b></td>
+                  <td className='r nw g'>{pkr(f.outstanding)}</td>
+                  <td className={'r nw g' + (f.remaining < 0 ? ' neg-t' : '')}><b>{pkr(f.remaining)}</b></td>
                 </tr>
               ))}
             </tbody>
@@ -328,8 +328,8 @@ export default async function Dashboard({ searchParams }) {
                 <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.spent)}</td>
                 <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.sent)}</td>
                 <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.returned)}</td>
-                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.outstanding)}</td>
-                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.remaining)}</td>
+                <td className='r nw g' style={{ fontWeight: 700 }}>{pkr(T.outstanding)}</td>
+                <td className='r nw g' style={{ fontWeight: 700 }}>{pkr(T.remaining)}</td>
               </tr>
             </tfoot>
           </table>
@@ -341,7 +341,7 @@ export default async function Dashboard({ searchParams }) {
       <div className='card'>
         <h3>Where the cash sits</h3>
         <div className='tablewrap'>
-          <table>
+          <table className='tiles'>
             <thead>
               <tr><th>Fund</th><th className='r'>With Sr. Ops Manager</th><th className='r'>With Sr. SO</th><th className='r'>With SO</th><th className='r'>CIH</th></tr>
             </thead>
@@ -352,7 +352,7 @@ export default async function Dashboard({ searchParams }) {
                   <td className='r nw'>{pkr(f.pool)}</td>
                   <td className='r nw'>{pkr(f.ssoCash)}</td>
                   <td className='r nw'>{pkr(f.soCash)}</td>
-                  <td className='r nw'><b>{pkr(f.remaining)}</b></td>
+                  <td className='r nw g'><b>{pkr(f.remaining)}</b></td>
                 </tr>
               ))}
             </tbody>
@@ -362,7 +362,7 @@ export default async function Dashboard({ searchParams }) {
                 <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.pool)}</td>
                 <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.ssoCash)}</td>
                 <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.soCash)}</td>
-                <td className='r nw' style={{ fontWeight: 700 }}>{pkr(T.remaining)}</td>
+                <td className='r nw g' style={{ fontWeight: 700 }}>{pkr(T.remaining)}</td>
               </tr>
             </tfoot>
           </table>
