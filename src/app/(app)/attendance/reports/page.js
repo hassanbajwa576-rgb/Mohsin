@@ -64,22 +64,22 @@ export default async function AttendanceReportsPage({ searchParams }) {
       <div className='card'>
         {rows.length ? (
           <div className='tablewrap'>
-            <table>
+            <table className='shift'>
               <thead>
                 <tr><th>Date</th><th>Office</th><th>Department</th><th>Employee</th><th>In</th><th>Out</th><th>Breaks</th><th>Break time</th><th>Worked</th></tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={i}>
-                    <td className='nw'>{r.date}</td>
-                    <td><OfficeTag o={r.office} /></td>
-                    <td>{r.dept || '-'}</td>
-                    <td><b>{r.name}</b></td>
-                    <td className={'nw ' + inClass(r.in)}>{to12(r.in)}</td>
-                    <td className={'nw ' + (/^[0-9]/.test(r.out) ? outClass(r.out) : '')}>{/^[0-9]/.test(r.out) ? to12(r.out) : r.out}</td>
-                    <td>{r.breaks}</td>
-                    <td className={'nw ' + (r.breakMs === 0 ? '' : r.over ? 't-bad' : 't-ok')}>{fmtDur(r.breakMs)}</td>
-                    <td className={'nw ' + (/^[0-9]/.test(r.out) ? (r.workedMs >= 28800000 ? 't-ok' : 't-bad') : '')}>{fmtDur(r.workedMs)}</td>
+                    <td className='nw c-meta'>{r.date}</td>
+                    <td className='c-meta'><OfficeTag o={r.office} /></td>
+                    <td className='c-meta'>{r.dept || '-'}</td>
+                    <td className='c-name'><b>{r.name}</b></td>
+                    <td className={'nw c-tile ' + inClass(r.in)}>{to12(r.in)}</td>
+                    <td className={'nw c-tile ' + (/^[0-9]/.test(r.out) ? outClass(r.out) : '')}>{/^[0-9]/.test(r.out) ? to12(r.out) : r.out}</td>
+                    <td className='c-tile'>{r.breaks}</td>
+                    <td className={'nw c-tile ' + (r.breakMs === 0 ? '' : r.over ? 't-bad' : 't-ok')}>{fmtDur(r.breakMs)}</td>
+                    <td className={'nw c-tile g ' + (/^[0-9]/.test(r.out) ? (r.workedMs >= 28800000 ? 't-ok' : 't-bad') : '')}>{fmtDur(r.workedMs)}</td>
                   </tr>
                 ))}
               </tbody>
