@@ -56,19 +56,19 @@ export default async function AttendanceLogsPage({ searchParams }) {
       <div className='card'>
         {rows.length ? (
           <div className='tablewrap'>
-            <table>
+            <table className='shift'>
               <thead>
                 <tr><th>Time</th><th>Office</th><th>Employee</th><th>Entry</th><th>Added by</th><th>Entered at</th><th></th></tr>
               </thead>
               <tbody>
                 {shownRows.map((r) => (
                   <tr key={r.id} className={bad.has(r.id) ? 'conflict' : ''}>
-                    <td className={'nw ' + timeClass(r.kind, fmtTime(r.ms))}><b>{fmt12(r.ms)}</b></td>
-                    <td><OfficeTag o={r.office} /></td>
-                    <td>{r.name}</td>
-                    <td>{KIND_LABEL[r.kind]}{bad.has(r.id) ? <div className='over-t'>Does not fit - please fix</div> : null}</td>
-                    <td>{r.by_name || '-'}</td>
-                    <td className='nw muted'>{(dateKey(r.entered_ms) === day ? '' : dateKey(r.entered_ms) + ' ') + fmtTime(r.entered_ms)}</td>
+                    <td className={'nw c-tile ' + timeClass(r.kind, fmtTime(r.ms))}><b>{fmt12(r.ms)}</b></td>
+                    <td className='c-meta'><OfficeTag o={r.office} /></td>
+                    <td className='c-name'>{r.name}</td>
+                    <td className='c-tile'>{KIND_LABEL[r.kind]}{bad.has(r.id) ? <div className='over-t'>Does not fit - please fix</div> : null}</td>
+                    <td className='c-tile'>{r.by_name || '-'}</td>
+                    <td className='nw c-tile'>{(dateKey(r.entered_ms) === day ? '' : dateKey(r.entered_ms) + ' ') + fmtTime(r.entered_ms)}</td>
                     <td className='act'>
                       {user.role === 'om' ? <EntryEdit m={r} back='/attendance/logs' /> : null}
                       {user.role === 'om' ? (

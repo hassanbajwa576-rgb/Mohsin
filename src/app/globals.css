@@ -461,3 +461,14 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
   table.tiles td::before{font-size:10px}
   table.tiles td{overflow:hidden;display:flex;flex-direction:column;justify-content:space-between}
 }
+
+/* phone cards: attendance entries and logs, and right-aligned wrapped cells */
+@media (max-width:720px){
+  td{justify-content:flex-end}
+  td::before{margin-right:auto}
+  table.shift td.c-tile.wide{flex:1 1 100%}
+  table.shift td.act{order:8;flex:0 0 100%;display:flex;gap:8px;flex-wrap:wrap;align-items:center;text-align:left;justify-content:flex-start}
+  table.shift td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  table.shift td.act .inline{margin:0}
+  table.shift td.c-name .over-t{display:block;font-size:12.5px;font-weight:500;margin-top:2px}
+}

@@ -36,7 +36,7 @@ export default async function EntriesPage({ searchParams }) {
         ) : (
           <>
             <div className='tablewrap'>
-              <table>
+              <table className='shift'>
                 <thead>
                   <tr><th>Employee</th><th>Type</th><th>Time</th><th>Added by</th><th></th></tr>
                 </thead>
@@ -45,13 +45,13 @@ export default async function EntriesPage({ searchParams }) {
                     const isBad = bad.has(m.id);
                     return (
                       <tr key={m.id} className={isBad ? 'conflict' : ''}>
-                        <td>
+                        <td className='c-name'>
                           <OfficeTag o={m.office} /><b>{m.name}</b>
                           {isBad ? <div className='over-t'>Does not fit with the entries around it - please fix</div> : null}
                         </td>
-                        <td>{KIND_LABEL[m.kind]}</td>
-                        <td className={'nw ' + timeClass(m.kind, fmtTime(m.ms))}>{(dateKey(m.ms) === todayKey() ? '' : fmtDay(m.ms) + ', ') + fmt12(m.ms)}</td>
-                        <td className='muted'>{m.by_name || '-'}</td>
+                        <td className='c-tile'>{KIND_LABEL[m.kind]}</td>
+                        <td className={'nw c-tile ' + timeClass(m.kind, fmtTime(m.ms))}>{(dateKey(m.ms) === todayKey() ? '' : fmtDay(m.ms) + ', ') + fmt12(m.ms)}</td>
+                        <td className='c-tile wide'>{m.by_name || '-'}</td>
                         <td className='act r'>
                           <div className='entry-act'>
                             <EntryEdit m={m} back='/attendance/entries' />
