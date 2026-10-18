@@ -211,9 +211,8 @@ export async function departments() {
 }
 
 // Punctuality (green = on time, red = late or early).
-// Morning shift, and anyone without a shift: check in by the shift start (09:30 unless changed) and check out from
-// 5 minutes before the shift end (17:55 for 6 pm). Evening and night shifts: check in within 30 minutes of the shift
-// start is green; check out from 5 minutes before the shift end is green.
+// Every shift gets a 30 minute grace period: check in up to 30 minutes after the shift start is green (the standard
+// start is 09:30, so green until 10:00). Check out from 5 minutes before the shift end is green (17:55 for 6 pm).
 export const LATE_AFTER = '09:30';
 export const EARLY_BEFORE = '17:55';
 export const SHIFT_GRACE_MIN = 30;
@@ -226,13 +225,14 @@ const fromMin = (n) => {
   return String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0');
 };
 const circ = (a, b) => (((a - b) % 1440) + 1440) % 1440;
+export const LATE_LIMIT = fromMin(toMin(LATE_AFTER) + SHIFT_GRACE_MIN);
 const night = (st) => st && (st.shift === 'evening' || st.shift === 'night') && st.shift_start;
 export const inClassFor = (hhmm, st) => {
   if (night(st)) {
     const d = circ(toMin(hhmm), toMin(st.shift_start));
     return d <= SHIFT_GRACE_MIN || d > 720 ? 't-ok' : 't-bad';
   }
-  const lim = st && st.shift === 'morning' && st.shift_start ? st.shift_start : LATE_AFTER;
+  const lim = fromMin(toMin(st && st.shift === 'morning' && st.shift_start ? st.shift_start : LATE_AFTER) + SHIFT_GRACE_MIN);
   return hhmm <= lim ? 't-ok' : 't-bad';
 };
 export const outClassFor = (hhmm, st) => {

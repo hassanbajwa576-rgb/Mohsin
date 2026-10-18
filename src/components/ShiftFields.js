@@ -6,7 +6,7 @@ const SHIFTS = [['', 'None'], ['morning', 'Morning'], ['evening', 'Evening'], ['
 
 // Shift picker for an employee: Morning, Evening or Night with editable start and end times.
 // Morning starts at 9:30 AM and ends at 6:00 PM unless changed; Evening and Night times are typed in.
-export default function ShiftFields({ shift = '', start = '', end = '', noneLabel = 'None', noneHint = 'With no shift of their own, a person follows their department shift if there is one, otherwise the standard rule: check in by 9:30 AM and check out from 5:55 PM.' }) {
+export default function ShiftFields({ shift = '', start = '', end = '', noneLabel = 'None', noneHint = 'With no shift of their own, a person follows their department shift if there is one, otherwise the standard rule: check in by 9:30 AM (green until 10:00 AM with the 30 minute grace) and check out from 5:55 PM.' }) {
   const [sh, setSh] = useState(shift);
   const [a, setA] = useState(start);
   const [b, setB] = useState(end);
@@ -38,8 +38,8 @@ export default function ShiftFields({ shift = '', start = '', end = '', noneLabe
       ) : null}
 
       <p className='muted'>
-        {sh === 'morning' ? 'Check in after the shift start is shown in red, and check out more than 5 minutes before the shift end is red.' : null}
-        {sh === 'evening' || sh === 'night' ? 'Check in within 30 minutes of the shift start is green, later is red. A night shift may end after midnight.' : null}
+        {sh === 'morning' ? 'Check in up to 30 minutes after the shift start is green, later is red. Check out more than 5 minutes before the shift end is red.' : null}
+        {sh === 'evening' || sh === 'night' ? 'Check in up to 30 minutes after the shift start is green, later is red. A night shift may end after midnight.' : null}
         {!sh ? noneHint : null}
       </p>
     </div>

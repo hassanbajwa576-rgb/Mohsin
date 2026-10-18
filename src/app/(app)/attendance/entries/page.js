@@ -71,7 +71,7 @@ export default async function EntriesPage({ searchParams }) {
             {list.length > 10 ? (
               <p className='totals'>{all ? 'Showing all ' + list.length : 'Showing the latest 10 of ' + list.length} - <Link href={all ? '/attendance/entries' : '/attendance/entries?all=1'}>{all ? 'Show fewer' : 'See more'}</Link></p>
             ) : null}
-            <p className='totals'>Green times are on time (check in by 9:30 AM, check out from 5:55 PM), red is late or early.</p>
+            <p className='totals'>Green is on time: check in within 30 minutes of the shift start (9:30 AM unless the employee has another shift) and check out from 5 minutes before the shift end (5:55 PM for 6:00 PM). Red is late or early.</p>
           </>
         )}
       </div>

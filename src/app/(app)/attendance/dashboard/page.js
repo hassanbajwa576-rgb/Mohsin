@@ -64,7 +64,7 @@ export default async function AttendanceDashboard({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Attendance dashboard</h1>
-          <p className='muted subline'>{office || 'Both offices'} | {day}{day === todayKey() ? ' (today)' : ''} | on time: in by {to12(LATE_AFTER)}, out from {to12(EARLY_BEFORE)}</p>
+          <p className='muted subline'>{office || 'Both offices'} | {day}{day === todayKey() ? ' (today)' : ''} | on time: in by {to12(LATE_AFTER)} (+30 min grace), out from {to12(EARLY_BEFORE)}</p>
         </div>
       </div>
       <div className='chips' style={{ marginBottom: 12 }}>
@@ -85,7 +85,7 @@ export default async function AttendanceDashboard({ searchParams }) {
         <div className='card kpi alt'><span>On break</span><b>{count((p) => p.state === 'break')}</b></div>
         <div className='card kpi alt'><span>Checked out</span><b>{count((p) => p.state === 'off')}</b></div>
         <div className='card kpi alt'><span>Not in yet</span><b>{count((p) => p.state === 'none')}</b></div>
-        <div className={'card kpi' + (count((p) => p.late) ? ' neg' : '')}><span>Late (after shift start)</span><b>{count((p) => p.late)}</b></div>
+        <div className={'card kpi' + (count((p) => p.late) ? ' neg' : '')}><span>Late (over 30 min after shift start)</span><b>{count((p) => p.late)}</b></div>
       </div>
 
       <div className='dgrid'>
