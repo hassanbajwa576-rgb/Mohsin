@@ -55,6 +55,8 @@ const DDL = [
   `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS shift_start TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS shift_end TEXT NOT NULL DEFAULT ''`,
   `UPDATE pc2_staff SET dept = 'Operations' WHERE lower(trim(dept)) = 'ops'`,
+  // A shift set for a whole department; employees without their own shift follow it.
+  `CREATE TABLE IF NOT EXISTS pc2_dept_shifts (dept TEXT PRIMARY KEY, shift TEXT NOT NULL, shift_start TEXT NOT NULL, shift_end TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
 ];
 
 let sql;
@@ -62,7 +64,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-18-1';
+const SCHEMA_VERSION = '2026-10-18-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

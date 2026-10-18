@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices, shiftText } from '@/lib/att';
+import { ATT_ROLES, allOffices, shiftText, SHIFT_COLS, SHIFT_JOIN } from '@/lib/att';
 import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
-import { addStaff, toggleStaff, importStaff, deleteStaff } from '@/lib/att-actions';
+import { addStaff, toggleStaff, importStaff, deleteStaff, saveDeptShift } from '@/lib/att-actions';
 import ConfirmButton from '@/components/ConfirmButton';
 import Flash from '@/components/Flash';
 import ShiftFields from '@/components/ShiftFields';
@@ -16,10 +16,11 @@ export default async function AttendanceStaffPage({ searchParams }) {
   if (!can(user, 'att_staff')) redirect('/attendance');
   const sp = await searchParams;
   const rows = await q(
-    `SELECT s.id, s.code, s.name, s.dept, s.shift, s.shift_start, s.shift_end, s.active, o.code AS office, (SELECT COUNT(*)::int FROM pc2_attendance a WHERE a.staff_id = s.id) AS entries FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
+    `SELECT s.id, s.code, s.name, s.dept, ${SHIFT_COLS}, s.active, o.code AS office, (SELECT COUNT(*)::int FROM pc2_attendance a WHERE a.staff_id = s.id) AS entries FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
   );
 
   const depts = [...new Set(rows.map((r) => r.dept).filter(Boolean))].sort();
+  const deptShifts = await q('SELECT dept, shift, shift_start, shift_end FROM pc2_dept_shifts ORDER BY dept');
   const fd = depts.includes(sp.dept) ? sp.dept : '';
   const fo = allOffices(user) && ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
   const fs = ['active', 'inactive'].includes(sp.status) ? sp.status : '';
@@ -57,6 +58,37 @@ export default async function AttendanceStaffPage({ searchParams }) {
           <ShiftFields />
           <button className='btn primary' type='submit'>Add employee</button>
         </form>
+      </details>
+
+      <details className='card'>
+        <summary>Department shifts{deptShifts.length ? ' (' + deptShifts.length + ' set)' : ''}</summary>
+        <p className='muted'>Give a whole department one shift. Everyone in it follows it, unless you set a shift on that employee's own Edit page (their own shift always wins).</p>
+        <form action={saveDeptShift} className='form'>
+          <label>Department
+            <select name='dept' required>
+              <option value=''>Choose a department</option>
+              {depts.map((d) => <option key={d}>{d}</option>)}
+            </select>
+          </label>
+          <ShiftFields noneLabel='No shift' noneHint='No department shift. Saving removes the shift this department has now.' />
+          <button className='btn primary' type='submit'>Save department shift</button>
+        </form>
+        {deptShifts.length ? (
+          <div className='tablewrap'>
+            <table>
+              <thead><tr><th>Department</th><th>Shift</th><th>Employees</th></tr></thead>
+              <tbody>
+                {deptShifts.map((d) => (
+                  <tr key={d.dept}>
+                    <td><b>{d.dept}</b></td>
+                    <td><span className='shiftpill'>{shiftText(d)}</span></td>
+                    <td>{rows.filter((r) => r.dept === d.dept).length}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </details>
 
       <details className='card'>
@@ -119,7 +151,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
                     <td className='c-title'><b>{r.name}</b></td>
                     <td className='c-meta'>{r.dept || '-'}</td>
                     <td className='c-meta'><span className='pill'>{r.office}</span></td>
-                    <td className='c-meta'>{r.shift ? <span className='shiftpill'>{shiftText(r)}</span> : '-'}</td>
+                    <td className='c-meta'>{r.shift ? <><span className='shiftpill'>{shiftText(r)}</span>{r.shift_src === 'department' ? <span className='srctag'>from department</span> : null}</> : '-'}</td>
                     <td className='c-stage'><span className={'badge ' + (r.active ? 'approved' : 'rejected')}>{r.active ? 'Active' : 'Inactive'}</span></td>
                     <td className='act'>
                       <div className='staffact'>

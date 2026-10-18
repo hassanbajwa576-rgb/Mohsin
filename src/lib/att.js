@@ -5,6 +5,14 @@ import { can } from './perms';
 // OpsTrack: staff attendance (check in / out and breaks) for the LHR and ISB offices.
 
 export const TZ = 'Asia/Karachi';
+
+// An employee's shift is their own if set, otherwise their department's (use with SHIFT_JOIN after pc2_staff s).
+export const SHIFT_JOIN = 'LEFT JOIN pc2_dept_shifts d ON d.dept = s.dept';
+export const SHIFT_COLS =
+  "CASE WHEN s.shift <> '' THEN s.shift ELSE COALESCE(d.shift, '') END AS shift, " +
+  "CASE WHEN s.shift <> '' THEN s.shift_start ELSE COALESCE(d.shift_start, '') END AS shift_start, " +
+  "CASE WHEN s.shift <> '' THEN s.shift_end ELSE COALESCE(d.shift_end, '') END AS shift_end, " +
+  "CASE WHEN s.shift <> '' THEN 'own' WHEN d.shift IS NOT NULL THEN 'department' ELSE '' END AS shift_src";
 export const BREAK_LIMIT_MIN = 60;
 export const KIND_LABEL = { in: 'Check In', out: 'Check Out', break_out: 'Break Out', break_in: 'Break In' };
 export const STATE_LABEL = { off: 'Off duty', on: 'On duty', break: 'On break' };
@@ -126,7 +134,7 @@ export function groupByStaff(events) {
 export async function activeStaff(user) {
   const all = allOffices(user);
   return q(
-    `SELECT s.id, s.code, s.name, s.dept, s.shift, s.shift_start, s.shift_end, s.office_id, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${all ? '' : 'AND s.office_id = $1'} ORDER BY o.code, s.name`,
+    `SELECT s.id, s.code, s.name, s.dept, ${SHIFT_COLS}, s.office_id, o.code AS office FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${all ? '' : 'AND s.office_id = $1'} ORDER BY o.code, s.name`,
     all ? [] : [user.office_id]
   );
 }
@@ -171,7 +179,7 @@ export async function reportRows({ from, to, office, dept }) {
     cond.push('s.dept = ANY($' + params.length + '::text[])');
   }
   const staff = await q(
-    `SELECT s.id, s.code, s.name, s.dept, s.shift, s.shift_start, s.shift_end, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''} ORDER BY o.code, s.dept, s.name`,
+    `SELECT s.id, s.code, s.name, s.dept, ${SHIFT_COLS}, o.code AS office FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''} ORDER BY o.code, s.dept, s.name`,
     params
   );
   if (!staff.length) return [];
@@ -187,7 +195,7 @@ export async function reportRows({ from, to, office, dept }) {
       const d = dateKey(x.start);
       if (d < from || d > to) continue;
       rows.push({
-        date: d, office: s.office, dept: s.dept, shift: s.shift, shift_start: s.shift_start, shift_end: s.shift_end, name: s.name, code: s.code,
+        date: d, office: s.office, dept: s.dept, shift: s.shift, shift_start: s.shift_start, shift_end: s.shift_end, shift_src: s.shift_src, name: s.name, code: s.code,
         in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : x.missed ? '(missed check out)' : '(on duty)',
         breaks: x.breakCount, breakMs: x.breakMs, workedMs: x.workedMs, over: x.breakMs > limit,
       });
@@ -277,7 +285,7 @@ export function conflictIds(evs) {
 export async function editableEntries(user) {
   const cond = user.role === 'om' ? '' : user.role === 'sso' ? "AND (a.entered_by = $1 OR ub.role IN ('so', 'guard'))" : 'AND a.entered_by = $1';
   return q(
-    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, s.shift, s.shift_start, s.shift_end, o.code AS office, ub.name AS by_name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.entered_at > now() - interval '36 hours' ${cond} ORDER BY a.at DESC, a.id DESC LIMIT 60`,
+    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, ${SHIFT_COLS}, o.code AS office, ub.name AS by_name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.entered_at > now() - interval '36 hours' ${cond} ORDER BY a.at DESC, a.id DESC LIMIT 60`,
     user.role === 'om' ? [] : [user.id]
   );
 }
@@ -294,7 +302,7 @@ export async function eventsAround(staffIds, day) {
 /** Active staff and their entries for one day (Karachi time). */
 export async function dayBoard(day, office) {
   const staff = await q(
-    `SELECT s.id, s.name, s.dept, s.shift, s.shift_start, s.shift_end, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${office ? 'AND o.code = $1' : ''} ORDER BY o.code, s.name`,
+    `SELECT s.id, s.name, s.dept, ${SHIFT_COLS}, o.code AS office FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${office ? 'AND o.code = $1' : ''} ORDER BY o.code, s.name`,
     office ? [office] : []
   );
   if (!staff.length) return { staff, by: new Map() };

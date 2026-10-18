@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices, departments } from '@/lib/att';
+import { ATT_ROLES, allOffices, departments, shiftText } from '@/lib/att';
 import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
 import { updateStaff } from '@/lib/att-actions';
@@ -23,6 +23,7 @@ export default async function EditEmployeePage({ searchParams }) {
   )[0];
   if (!r || (!allOffices(user) && r.office_id !== user.office_id)) redirect('/attendance/staff');
   const depts = await departments();
+  const ds = (await q('SELECT dept, shift, shift_start, shift_end FROM pc2_dept_shifts WHERE dept = $1', [r.dept]))[0];
 
   return (
     <>
@@ -43,7 +44,8 @@ export default async function EditEmployeePage({ searchParams }) {
           <label>Office
             <select name='office' defaultValue={r.office}><option>LHR</option><option>ISB</option></select>
           </label>
-          <ShiftFields shift={r.shift} start={r.shift_start} end={r.shift_end} />
+          {ds ? <p className='muted wide'>The {r.dept} department shift is {shiftText(ds)}. Leave this employee on <b>Same as department</b> to follow it, or pick a shift below to give just this person their own.</p> : null}
+          <ShiftFields shift={r.shift} start={r.shift_start} end={r.shift_end} noneLabel={ds ? 'Same as department' : 'None'} />
           <button className='btn primary' type='submit'>Save</button>
         </form>
       </div>

@@ -495,3 +495,4 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
   table.tx td.hide-m,table.tx th.hide-m{display:none}
   table.tx td.act{justify-content:flex-start}
 }
+.srctag{display:inline-block;margin-left:6px;font-size:11px;color:var(--mut);white-space:nowrap}

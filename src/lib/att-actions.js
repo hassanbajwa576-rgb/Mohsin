@@ -24,12 +24,6 @@ function shiftFrom(fd) {
   return { shift, start, end };
 }
 
-// "Use these times for everyone in this department on this shift" (evening and night shifts).
-async function shareShift(fd, dept, sh) {
-  if (s(fd, 'apply_dept') === '1' && dept && ['evening', 'night'].includes(sh.shift)) {
-    await q('UPDATE pc2_staff SET shift_start = $1, shift_end = $2 WHERE dept = $3 AND shift = $4', [sh.start, sh.end, dept, sh.shift]);
-  }
-}
 
 async function need(roles) {
   const u = await getUser();
@@ -133,7 +127,6 @@ export async function addStaff(fd) {
     failed = true;
   }
   if (failed) back('/attendance/staff', 'That employee code is already in use');
-  await shareShift(fd, dept, sh);
   await logEvent(u, 'create', 'staff', id, 'Added employee ' + name + ' #' + code + ' (' + off.code + ')', null, { name, code, dept, office: off.code, shift: sh.shift, shift_start: sh.start, shift_end: sh.end });
   back('/attendance/staff', 'Employee added', true);
 }
@@ -159,9 +152,30 @@ export async function updateStaff(fd) {
     failed = true;
   }
   if (failed) back('/attendance/staff', 'That employee code is already in use');
-  await shareShift(fd, dept, sh);
   await logEvent(u, 'edit', 'staff', id, 'Edited employee ' + name + ' #' + code + ' (' + off.code + ')', null, { name, code, dept, office: off.code, shift: sh.shift, shift_start: sh.start, shift_end: sh.end });
   back('/attendance/staff', 'Employee updated', true);
+}
+
+// One shift for a whole department; employees without a shift of their own follow it. "No shift" removes it.
+export async function saveDeptShift(fd) {
+  const u = await needPerm('att_staff');
+  const dept = normDept(s(fd, 'dept'));
+  const sh = shiftFrom(fd);
+  if (!dept) back('/attendance/staff', 'Pick a department');
+  if (sh.err) back('/attendance/staff', sh.err);
+  const has = await q('SELECT 1 FROM pc2_staff WHERE dept = $1 LIMIT 1', [dept]);
+  if (!has.length) back('/attendance/staff', 'That department has no employees yet');
+  if (!sh.shift) {
+    await q('DELETE FROM pc2_dept_shifts WHERE dept = $1', [dept]);
+    await logEvent(u, 'update', 'staff', null, 'Removed the shift for the ' + dept + ' department');
+    back('/attendance/staff', 'Shift removed for ' + dept, true);
+  }
+  await q(
+    'INSERT INTO pc2_dept_shifts (dept, shift, shift_start, shift_end) VALUES ($1,$2,$3,$4) ON CONFLICT (dept) DO UPDATE SET shift = EXCLUDED.shift, shift_start = EXCLUDED.shift_start, shift_end = EXCLUDED.shift_end, updated_at = now()',
+    [dept, sh.shift, sh.start, sh.end]
+  );
+  await logEvent(u, 'update', 'staff', null, 'Set the ' + sh.shift + ' shift ' + sh.start + ' - ' + sh.end + ' for the ' + dept + ' department', null, { dept, shift: sh.shift, shift_start: sh.start, shift_end: sh.end });
+  back('/attendance/staff', 'Shift saved for ' + dept, true);
 }
 
 export async function toggleStaff(fd) {

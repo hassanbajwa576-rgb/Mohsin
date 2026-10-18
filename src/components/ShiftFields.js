@@ -6,7 +6,7 @@ const SHIFTS = [['', 'None'], ['morning', 'Morning'], ['evening', 'Evening'], ['
 
 // Shift picker for an employee: Morning, Evening or Night with editable start and end times.
 // Morning starts at 9:30 AM and ends at 6:00 PM unless changed; Evening and Night times are typed in.
-export default function ShiftFields({ shift = '', start = '', end = '' }) {
+export default function ShiftFields({ shift = '', start = '', end = '', noneLabel = 'None', noneHint = 'With no shift of their own, a person follows their department shift if there is one, otherwise the standard rule: check in by 9:30 AM and check out from 5:55 PM.' }) {
   const [sh, setSh] = useState(shift);
   const [a, setA] = useState(start);
   const [b, setB] = useState(end);
@@ -26,7 +26,7 @@ export default function ShiftFields({ shift = '', start = '', end = '' }) {
         {SHIFTS.map(([v, label]) => (
           <label key={v || 'none'} className={sh === v ? 'on' : ''}>
             <input type='radio' name='shift' value={v} checked={sh === v} onChange={() => pick(v)} />
-            <span>{label}</span>
+            <span>{v ? label : noneLabel}</span>
           </label>
         ))}
       </div>
@@ -36,15 +36,11 @@ export default function ShiftFields({ shift = '', start = '', end = '' }) {
           <label>Shift ends<input type='time' name='shift_end' value={b} onChange={(e) => setB(e.target.value)} required /></label>
         </div>
       ) : null}
-      {sh === 'evening' || sh === 'night' ? (
-        <label className='checkrow'>
-          <input type='checkbox' name='apply_dept' value='1' /> Use these times for everyone in this department on this shift
-        </label>
-      ) : null}
+
       <p className='muted'>
         {sh === 'morning' ? 'Check in after the shift start is shown in red, and check out more than 5 minutes before the shift end is red.' : null}
         {sh === 'evening' || sh === 'night' ? 'Check in within 30 minutes of the shift start is green, later is red. A night shift may end after midnight.' : null}
-        {!sh ? 'With no shift, the standard rule applies: check in by 9:30 AM and check out from 5:55 PM.' : null}
+        {!sh ? noneHint : null}
       </p>
     </div>
   );

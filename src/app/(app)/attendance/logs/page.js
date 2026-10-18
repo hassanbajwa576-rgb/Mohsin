@@ -5,7 +5,7 @@ import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { removeEntry } from '@/lib/att-actions';
-import { ATT_ROLES, allOffices, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass, fmt12 } from '@/lib/att';
+import { ATT_ROLES, allOffices, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass, fmt12, SHIFT_COLS, SHIFT_JOIN } from '@/lib/att';
 import EntryEdit from '@/components/EntryEdit';
 import Flash from '@/components/Flash';
 
@@ -20,10 +20,10 @@ export default async function AttendanceLogsPage({ searchParams }) {
   const office = allOffices(user) ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
 
   const rows = await q(
-    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, s.code, s.shift, s.shift_start, s.shift_end, o.code AS office, u.name AS by_name,
+    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, s.code, ${SHIFT_COLS}, o.code AS office, u.name AS by_name,
             (extract(epoch from a.at) * 1000)::float8 AS ms, (extract(epoch from a.entered_at) * 1000)::float8 AS entered_ms,
             (a.entered_at > now() - interval '30 minutes') AS fresh
-     FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users u ON u.id = a.entered_by
+     FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users u ON u.id = a.entered_by
      WHERE a.at >= ($1::date)::timestamp AT TIME ZONE 'Asia/Karachi' AND a.at < ($1::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi'
      ${office ? 'AND o.code = $2' : ''}
      ORDER BY a.at DESC, a.id DESC`,
