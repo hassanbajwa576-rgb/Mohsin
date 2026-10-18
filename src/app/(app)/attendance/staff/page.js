@@ -8,6 +8,7 @@ import { addStaff, toggleStaff, importStaff, deleteStaff, saveDeptShift } from '
 import ConfirmButton from '@/components/ConfirmButton';
 import Flash from '@/components/Flash';
 import ShiftFields from '@/components/ShiftFields';
+import DeptShiftForm from '@/components/DeptShiftForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,17 +63,8 @@ export default async function AttendanceStaffPage({ searchParams }) {
 
       <details className='card'>
         <summary>Department shifts{deptShifts.length ? ' (' + deptShifts.length + ' set)' : ''}</summary>
-        <p className='muted'>Give a whole department one shift. Everyone in it follows it, unless you set a shift on that employee's own Edit page (their own shift always wins).</p>
-        <form action={saveDeptShift} className='form'>
-          <label>Department
-            <select name='dept' required>
-              <option value=''>Choose a department</option>
-              {depts.map((d) => <option key={d}>{d}</option>)}
-            </select>
-          </label>
-          <ShiftFields noneLabel='No shift' noneHint='No department shift. Saving removes the shift this department has now.' />
-          <button className='btn primary' type='submit'>Save department shift</button>
-        </form>
+        <p className='muted'>Give one or more departments the same shift. Everyone in them follows it, unless you set a shift on that employee's own Edit page (their own shift always wins).</p>
+        <DeptShiftForm depts={depts} action={saveDeptShift} />
         {deptShifts.length ? (
           <div className='tablewrap'>
             <table>

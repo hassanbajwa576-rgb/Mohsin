@@ -156,28 +156,31 @@ export async function updateStaff(fd) {
   back('/attendance/staff', 'Employee updated', true);
 }
 
-// One shift for a whole department; employees without a shift of their own follow it. "No shift" removes it.
+// One shift for one or more departments; employees without a shift of their own follow it. "No shift" removes it.
 export async function saveDeptShift(fd) {
   const u = await needPerm('att_staff');
-  const dept = normDept(s(fd, 'dept'));
+  const depts = [...new Set(fd.getAll('dept').map((x) => normDept(String(x))).filter(Boolean))];
   const sh = shiftFrom(fd);
-  if (!dept) back('/attendance/staff', 'Pick a department');
+  if (!depts.length) back('/attendance/staff', 'Tick at least one department');
   if (sh.err) back('/attendance/staff', sh.err);
-  const has = await q('SELECT 1 FROM pc2_staff WHERE dept = $1 LIMIT 1', [dept]);
-  if (!has.length) back('/attendance/staff', 'That department has no employees yet');
+  const known = (await q('SELECT DISTINCT dept FROM pc2_staff WHERE dept = ANY($1::text[])', [depts])).map((r) => r.dept);
+  const missing = depts.filter((d) => !known.includes(d));
+  if (missing.length) back('/attendance/staff', 'No employees yet in: ' + missing.join(', '));
+  const names = depts.join(', ');
   if (!sh.shift) {
-    await q('DELETE FROM pc2_dept_shifts WHERE dept = $1', [dept]);
-    await logEvent(u, 'update', 'staff', null, 'Removed the shift for the ' + dept + ' department');
-    back('/attendance/staff', 'Shift removed for ' + dept, true);
+    await q('DELETE FROM pc2_dept_shifts WHERE dept = ANY($1::text[])', [depts]);
+    await logEvent(u, 'update', 'staff', null, 'Removed the shift for: ' + names);
+    back('/attendance/staff', 'Shift removed for ' + names, true);
   }
-  await q(
-    'INSERT INTO pc2_dept_shifts (dept, shift, shift_start, shift_end) VALUES ($1,$2,$3,$4) ON CONFLICT (dept) DO UPDATE SET shift = EXCLUDED.shift, shift_start = EXCLUDED.shift_start, shift_end = EXCLUDED.shift_end, updated_at = now()',
-    [dept, sh.shift, sh.start, sh.end]
-  );
-  await logEvent(u, 'update', 'staff', null, 'Set the ' + sh.shift + ' shift ' + sh.start + ' - ' + sh.end + ' for the ' + dept + ' department', null, { dept, shift: sh.shift, shift_start: sh.start, shift_end: sh.end });
-  back('/attendance/staff', 'Shift saved for ' + dept, true);
+  for (const dept of depts) {
+    await q(
+      'INSERT INTO pc2_dept_shifts (dept, shift, shift_start, shift_end) VALUES ($1,$2,$3,$4) ON CONFLICT (dept) DO UPDATE SET shift = EXCLUDED.shift, shift_start = EXCLUDED.shift_start, shift_end = EXCLUDED.shift_end, updated_at = now()',
+      [dept, sh.shift, sh.start, sh.end]
+    );
+  }
+  await logEvent(u, 'update', 'staff', null, 'Set the ' + sh.shift + ' shift ' + sh.start + ' - ' + sh.end + ' for: ' + names, null, { depts, shift: sh.shift, shift_start: sh.start, shift_end: sh.end });
+  back('/attendance/staff', 'Shift saved for ' + names, true);
 }
-
 export async function toggleStaff(fd) {
   const u = await needPerm('att_staff');
   const id = Number(s(fd, 'id'));
