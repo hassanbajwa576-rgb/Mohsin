@@ -10,6 +10,27 @@ import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf,
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const PATHS = ['/attendance', '/attendance/logs', '/attendance/entries'];
 
+// Ops is called Operations everywhere.
+const normDept = (d) => (/^ops$/i.test(String(d).trim()) ? 'Operations' : String(d).trim());
+
+// Shift fields from the employee form: { shift, start, end } or { err }.
+function shiftFrom(fd) {
+  const shift = s(fd, 'shift');
+  if (!shift) return { shift: '', start: '', end: '' };
+  if (!['morning', 'evening', 'night'].includes(shift)) return { err: 'Pick a valid shift' };
+  const start = s(fd, 'shift_start');
+  const end = s(fd, 'shift_end');
+  if (!validTime(start) || !validTime(end)) return { err: 'Enter the shift start and end times' };
+  return { shift, start, end };
+}
+
+// "Use these times for everyone in this department on this shift" (evening and night shifts).
+async function shareShift(fd, dept, sh) {
+  if (s(fd, 'apply_dept') === '1' && dept && ['evening', 'night'].includes(sh.shift)) {
+    await q('UPDATE pc2_staff SET shift_start = $1, shift_end = $2 WHERE dept = $3 AND shift = $4', [sh.start, sh.end, dept, sh.shift]);
+  }
+}
+
 async function need(roles) {
   const u = await getUser();
   if (!u) redirect('/login');
@@ -93,9 +114,11 @@ export async function addStaff(fd) {
   const u = await needPerm('att_staff');
   const name = s(fd, 'name');
   let code = s(fd, 'code');
-  const dept = s(fd, 'dept');
+  const dept = normDept(s(fd, 'dept'));
+  const sh = shiftFrom(fd);
   const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
   if (!name) back('/attendance/staff', 'Enter the employee name');
+  if (sh.err) back('/attendance/staff', sh.err);
   if (!code) {
     // No code given: use the next free number (001, 002, ...)
     const nx = await q(`SELECT COALESCE(MAX(CASE WHEN code ~ '^[0-9]+$' THEN code::int END), 0) + 1 AS n FROM pc2_staff`);
@@ -105,12 +128,13 @@ export async function addStaff(fd) {
   let failed = false;
   let id = null;
   try {
-    id = (await q('INSERT INTO pc2_staff (code, name, dept, office_id) VALUES ($1,$2,$3,$4) RETURNING id', [code, name, dept, off.id]))[0].id;
+    id = (await q('INSERT INTO pc2_staff (code, name, dept, office_id, shift, shift_start, shift_end) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [code, name, dept, off.id, sh.shift, sh.start, sh.end]))[0].id;
   } catch {
     failed = true;
   }
   if (failed) back('/attendance/staff', 'That employee code is already in use');
-  await logEvent(u, 'create', 'staff', id, 'Added employee ' + name + ' #' + code + ' (' + off.code + ')', null, { name, code, dept, office: off.code });
+  await shareShift(fd, dept, sh);
+  await logEvent(u, 'create', 'staff', id, 'Added employee ' + name + ' #' + code + ' (' + off.code + ')', null, { name, code, dept, office: off.code, shift: sh.shift, shift_start: sh.start, shift_end: sh.end });
   back('/attendance/staff', 'Employee added', true);
 }
 
@@ -119,8 +143,10 @@ export async function updateStaff(fd) {
   const id = Number(s(fd, 'id'));
   const name = s(fd, 'name');
   let code = s(fd, 'code');
-  const dept = s(fd, 'dept');
+  const dept = normDept(s(fd, 'dept'));
+  const sh = shiftFrom(fd);
   const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
+  if (sh.err) back('/attendance/staff/edit?id=' + id, sh.err);
   if (!code) {
     const cur = (await q('SELECT code FROM pc2_staff WHERE id = $1', [id]))[0];
     code = cur ? cur.code : '';
@@ -128,12 +154,13 @@ export async function updateStaff(fd) {
   if (!name || !code || !off) back('/attendance/staff', 'Enter the name and office');
   let failed = false;
   try {
-    await q('UPDATE pc2_staff SET name = $1, code = $2, dept = $3, office_id = $4 WHERE id = $5', [name, code, dept, off.id, id]);
+    await q('UPDATE pc2_staff SET name = $1, code = $2, dept = $3, office_id = $4, shift = $5, shift_start = $6, shift_end = $7 WHERE id = $8', [name, code, dept, off.id, sh.shift, sh.start, sh.end, id]);
   } catch {
     failed = true;
   }
   if (failed) back('/attendance/staff', 'That employee code is already in use');
-  await logEvent(u, 'edit', 'staff', id, 'Edited employee ' + name + ' #' + code + ' (' + off.code + ')', null, { name, code, dept, office: off.code });
+  await shareShift(fd, dept, sh);
+  await logEvent(u, 'edit', 'staff', id, 'Edited employee ' + name + ' #' + code + ' (' + off.code + ')', null, { name, code, dept, office: off.code, shift: sh.shift, shift_start: sh.start, shift_end: sh.end });
   back('/attendance/staff', 'Employee updated', true);
 }
 
@@ -232,7 +259,7 @@ export async function importStaff(fd) {
     }
     seen.add(key);
     codes.add(code);
-    add.push([code, name, iDept >= 0 ? (r[iDept] || '').trim() : '', oid]);
+    add.push([code, name, iDept >= 0 ? normDept(r[iDept] || '') : '', oid]);
   }
 
   if (add.length) {

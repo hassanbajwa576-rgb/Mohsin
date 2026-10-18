@@ -126,7 +126,7 @@ export function groupByStaff(events) {
 export async function activeStaff(user) {
   const all = allOffices(user);
   return q(
-    `SELECT s.id, s.code, s.name, s.dept, s.office_id, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${all ? '' : 'AND s.office_id = $1'} ORDER BY o.code, s.name`,
+    `SELECT s.id, s.code, s.name, s.dept, s.shift, s.shift_start, s.shift_end, s.office_id, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${all ? '' : 'AND s.office_id = $1'} ORDER BY o.code, s.name`,
     all ? [] : [user.office_id]
   );
 }
@@ -159,18 +159,19 @@ export async function dutyContacts(user) {
 
 /** One row per shift (check in .. check out) between two dates (inclusive), Karachi time. */
 export async function reportRows({ from, to, office, dept }) {
+  const deptList = Array.isArray(dept) ? dept.filter(Boolean) : dept ? [dept] : [];
   const cond = [];
   const params = [];
   if (office) {
     params.push(office);
     cond.push('o.code = $' + params.length);
   }
-  if (dept) {
-    params.push(dept);
-    cond.push('s.dept = $' + params.length);
+  if (deptList.length) {
+    params.push(deptList);
+    cond.push('s.dept = ANY($' + params.length + '::text[])');
   }
   const staff = await q(
-    `SELECT s.id, s.code, s.name, s.dept, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''} ORDER BY o.code, s.dept, s.name`,
+    `SELECT s.id, s.code, s.name, s.dept, s.shift, s.shift_start, s.shift_end, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''} ORDER BY o.code, s.dept, s.name`,
     params
   );
   if (!staff.length) return [];
@@ -186,7 +187,7 @@ export async function reportRows({ from, to, office, dept }) {
       const d = dateKey(x.start);
       if (d < from || d > to) continue;
       rows.push({
-        date: d, office: s.office, dept: s.dept, name: s.name, code: s.code,
+        date: d, office: s.office, dept: s.dept, shift: s.shift, shift_start: s.shift_start, shift_end: s.shift_end, name: s.name, code: s.code,
         in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : x.missed ? '(missed check out)' : '(on duty)',
         breaks: x.breakCount, breakMs: x.breakMs, workedMs: x.workedMs, over: x.breakMs > limit,
       });
@@ -201,12 +202,47 @@ export async function departments() {
   return r.map((x) => x.dept);
 }
 
-// Punctuality: checking in by 09:30 and checking out from 17:55 is on time (green), otherwise red.
+// Punctuality (green = on time, red = late or early).
+// Morning shift, and anyone without a shift: check in by the shift start (09:30 unless changed) and check out from
+// 5 minutes before the shift end (17:55 for 6 pm). Evening and night shifts: check in within 30 minutes of the shift
+// start is green; check out from 5 minutes before the shift end is green.
 export const LATE_AFTER = '09:30';
 export const EARLY_BEFORE = '17:55';
-export const inClass = (hhmm) => (hhmm <= LATE_AFTER ? 't-ok' : 't-bad');
-export const outClass = (hhmm) => (hhmm >= EARLY_BEFORE ? 't-ok' : 't-bad');
-export const timeClass = (kind, hhmm) => (kind === 'in' ? inClass(hhmm) : kind === 'out' ? outClass(hhmm) : '');
+export const SHIFT_GRACE_MIN = 30;
+const toMin = (hhmm) => {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return h * 60 + m;
+};
+const fromMin = (n) => {
+  const x = ((n % 1440) + 1440) % 1440;
+  return String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0');
+};
+const circ = (a, b) => (((a - b) % 1440) + 1440) % 1440;
+const night = (st) => st && (st.shift === 'evening' || st.shift === 'night') && st.shift_start;
+export const inClassFor = (hhmm, st) => {
+  if (night(st)) {
+    const d = circ(toMin(hhmm), toMin(st.shift_start));
+    return d <= SHIFT_GRACE_MIN || d > 720 ? 't-ok' : 't-bad';
+  }
+  const lim = st && st.shift === 'morning' && st.shift_start ? st.shift_start : LATE_AFTER;
+  return hhmm <= lim ? 't-ok' : 't-bad';
+};
+export const outClassFor = (hhmm, st) => {
+  if (st && (st.shift === 'evening' || st.shift === 'night') && st.shift_end) {
+    return circ(toMin(hhmm), toMin(st.shift_end) - 5) <= 720 ? 't-ok' : 't-bad';
+  }
+  const lim = st && st.shift === 'morning' && st.shift_end ? fromMin(toMin(st.shift_end) - 5) : EARLY_BEFORE;
+  return hhmm >= lim ? 't-ok' : 't-bad';
+};
+export const inClass = (hhmm) => inClassFor(hhmm, null);
+export const outClass = (hhmm) => outClassFor(hhmm, null);
+export const timeClass = (kind, hhmm, st) => (kind === 'in' ? inClassFor(hhmm, st) : kind === 'out' ? outClassFor(hhmm, st) : '');
+/** Short text for an employee's shift, e.g. "Morning 9:30 AM - 6:00 PM". */
+export const shiftText = (st) => {
+  if (!st || !st.shift) return '-';
+  const name = st.shift.charAt(0).toUpperCase() + st.shift.slice(1);
+  return st.shift_start && st.shift_end ? name + ' ' + to12(st.shift_start) + ' - ' + to12(st.shift_end) : name + ' (times not set)';
+};
 
 /** Ids of entries that contradict the entries around them (shown red so someone fixes them). */
 export function conflictIds(evs) {
@@ -241,7 +277,7 @@ export function conflictIds(evs) {
 export async function editableEntries(user) {
   const cond = user.role === 'om' ? '' : user.role === 'sso' ? "AND (a.entered_by = $1 OR ub.role IN ('so', 'guard'))" : 'AND a.entered_by = $1';
   return q(
-    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, o.code AS office, ub.name AS by_name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.entered_at > now() - interval '36 hours' ${cond} ORDER BY a.at DESC, a.id DESC LIMIT 60`,
+    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, s.shift, s.shift_start, s.shift_end, o.code AS office, ub.name AS by_name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.entered_at > now() - interval '36 hours' ${cond} ORDER BY a.at DESC, a.id DESC LIMIT 60`,
     user.role === 'om' ? [] : [user.id]
   );
 }
@@ -258,7 +294,7 @@ export async function eventsAround(staffIds, day) {
 /** Active staff and their entries for one day (Karachi time). */
 export async function dayBoard(day, office) {
   const staff = await q(
-    `SELECT s.id, s.name, s.dept, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${office ? 'AND o.code = $1' : ''} ORDER BY o.code, s.name`,
+    `SELECT s.id, s.name, s.dept, s.shift, s.shift_start, s.shift_end, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${office ? 'AND o.code = $1' : ''} ORDER BY o.code, s.name`,
     office ? [office] : []
   );
   if (!staff.length) return { staff, by: new Map() };

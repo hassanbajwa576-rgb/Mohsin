@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices, canSeeTimes, dayBoard, trend, stateOf, fmtTime, to12, todayKey, validDate, LATE_AFTER, EARLY_BEFORE } from '@/lib/att';
+import { ATT_ROLES, allOffices, canSeeTimes, dayBoard, trend, stateOf, fmtTime, to12, todayKey, validDate, LATE_AFTER, EARLY_BEFORE, inClassFor, outClassFor } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,8 +35,8 @@ export default async function AttendanceDashboard({ searchParams }) {
       state: ins.length ? stateOf(list).state : 'none',
       firstIn,
       lastOut,
-      late: !!firstIn && firstIn > LATE_AFTER,
-      early: !!lastOut && lastOut < EARLY_BEFORE,
+      late: !!firstIn && inClassFor(firstIn, s) === 't-bad',
+      early: !!lastOut && outClassFor(lastOut, s) === 't-bad',
     };
   });
   const count = (f) => people.filter(f).length;
@@ -85,7 +85,7 @@ export default async function AttendanceDashboard({ searchParams }) {
         <div className='card kpi alt'><span>On break</span><b>{count((p) => p.state === 'break')}</b></div>
         <div className='card kpi alt'><span>Checked out</span><b>{count((p) => p.state === 'off')}</b></div>
         <div className='card kpi alt'><span>Not in yet</span><b>{count((p) => p.state === 'none')}</b></div>
-        <div className={'card kpi' + (count((p) => p.late) ? ' neg' : '')}><span>Late (after {to12(LATE_AFTER)})</span><b>{count((p) => p.late)}</b></div>
+        <div className={'card kpi' + (count((p) => p.late) ? ' neg' : '')}><span>Late (after shift start)</span><b>{count((p) => p.late)}</b></div>
       </div>
 
       <div className='dgrid'>

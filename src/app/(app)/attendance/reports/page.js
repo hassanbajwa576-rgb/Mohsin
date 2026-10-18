@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices, reportRows, departments, fmtDur, todayKey, validDate, lastWorkDay, breakFilter, BREAK_LIMIT_MIN, inClass, outClass, to12 } from '@/lib/att';
+import { ATT_ROLES, allOffices, reportRows, departments, fmtDur, todayKey, validDate, lastWorkDay, breakFilter, BREAK_LIMIT_MIN, inClassFor, outClassFor, to12 } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,9 +21,12 @@ export default async function AttendanceReportsPage({ searchParams }) {
   // Only the Sr. OM and Sr. SO see both offices; everyone else sees their own office only.
   const office = allOffices(user) ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
   const depts = await departments();
-  const dept = depts.includes(sp.dept) ? sp.dept : '';
-  const rows = breakFilter(await reportRows({ from, to, office, dept }), brk);
-  const qs = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(dept ? { dept } : {}), ...(brk ? { brk } : {}) }).toString();
+  // One or more departments (none ticked means all of them).
+  const dsel = [].concat(sp.dept || []).filter((d) => depts.includes(d));
+  const rows = breakFilter(await reportRows({ from, to, office, dept: dsel }), brk);
+  const qp = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(brk ? { brk } : {}) });
+  dsel.forEach((d) => qp.append('dept', d));
+  const qs = qp.toString();
 
   return (
     <>
@@ -44,12 +47,18 @@ export default async function AttendanceReportsPage({ searchParams }) {
         <label>Office
           <select name='office' defaultValue={office}>{(allOffices(user) ? ['', 'LHR', 'ISB'] : [user.office_code]).map((o) => <option key={o} value={o}>{o || 'Both'}</option>)}</select>
         </label>
-        <label>Department
-          <select name='dept' defaultValue={dept}>
-            <option value=''>All departments</option>
-            {depts.map((d) => <option key={d}>{d}</option>)}
-          </select>
-        </label>
+        <div className='multi'>
+          <span className='multi-lbl'>Departments</span>
+          <details>
+            <summary>{dsel.length ? dsel.join(', ') : 'All departments'}</summary>
+            <div className='multi-list'>
+              {depts.map((d) => (
+                <label key={d}><input type='checkbox' name='dept' value={d} defaultChecked={dsel.includes(d)} /> {d}</label>
+              ))}
+              <p className='muted'>Tick one or more. Tick none for all departments.</p>
+            </div>
+          </details>
+        </div>
         <label>Breaks
           <select name='brk' defaultValue={brk}>
             <option value=''>All breaks</option>
@@ -75,8 +84,8 @@ export default async function AttendanceReportsPage({ searchParams }) {
                     <td className='c-meta'><OfficeTag o={r.office} /></td>
                     <td className='c-meta'>{r.dept || '-'}</td>
                     <td className='c-name'><b>{r.name}</b></td>
-                    <td className={'nw c-tile ' + inClass(r.in)}>{to12(r.in)}</td>
-                    <td className={'nw c-tile ' + (/^[0-9]/.test(r.out) ? outClass(r.out) : '')}>{/^[0-9]/.test(r.out) ? to12(r.out) : r.out}</td>
+                    <td className={'nw c-tile ' + inClassFor(r.in, r)}>{to12(r.in)}</td>
+                    <td className={'nw c-tile ' + (/^[0-9]/.test(r.out) ? outClassFor(r.out, r) : '')}>{/^[0-9]/.test(r.out) ? to12(r.out) : r.out}</td>
                     <td className='c-tile'>{r.breaks}</td>
                     <td className={'nw c-tile ' + (r.breakMs === 0 ? '' : r.over ? 't-bad' : 't-ok')}>{fmtDur(r.breakMs)}</td>
                     <td className={'nw c-tile g ' + (/^[0-9]/.test(r.out) ? (r.workedMs >= 28800000 ? 't-ok' : 't-bad') : '')}>{fmtDur(r.workedMs)}</td>

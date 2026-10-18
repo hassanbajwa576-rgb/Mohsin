@@ -4,7 +4,7 @@ import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import {
   ATT_ROLES, allOffices, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff,
-  stateOf, sessionsOf, fmtTime, fmt12, fmtDay, fmtDur, todayKey, dateKey, inClass, outClass,
+  stateOf, sessionsOf, fmtTime, fmt12, fmtDay, fmtDur, todayKey, dateKey, inClassFor, outClassFor,
 } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
@@ -77,8 +77,8 @@ export default async function TodaysBoardPage({ searchParams }) {
                     <td className='c-name'><b>{r.name}</b></td>
                     <td className='c-meta'><OfficeTag o={r.office} /></td>
                     <td className='c-meta'><span className={'st ' + (r.over ? 'over' : r.state === 'on' ? 'on' : r.state === 'break' ? 'break' : '')}>{r.over ? 'Break overdue' : r.state === 'stale' ? 'Off duty' : STATE_LABEL[r.state]}</span>{r.state === 'stale' ? <div className='muted' style={{ fontSize: 11 }}>Missed check out {fmtDay(r.since)}</div> : null}</td>
-                    <td className={'nw c-tile ' + (r.inAt ? inClass(fmtTime(r.inAt)) : '')}>{r.inAt ? fmt12(r.inAt) : '-'}</td>
-                    <td className={'nw c-tile ' + (r.outAt ? outClass(fmtTime(r.outAt)) : '')}>{r.outAt ? fmt12(r.outAt) : '-'}</td>
+                    <td className={'nw c-tile ' + (r.inAt ? inClassFor(fmtTime(r.inAt), r) : '')}>{r.inAt ? fmt12(r.inAt) : '-'}</td>
+                    <td className={'nw c-tile ' + (r.outAt ? outClassFor(fmtTime(r.outAt), r) : '')}>{r.outAt ? fmt12(r.outAt) : '-'}</td>
                     <td className={'nw c-tile g ' + (r.outAt ? (r.worked >= 28800000 ? 't-ok' : 't-bad') : '')}>{fmtDur(r.worked)}</td>
                     <td className={'nw c-tile ' + (r.breakMs === 0 ? '' : r.breakMs > 3600000 ? 't-bad' : 't-ok')}>{r.breaks} - {fmtDur(r.breakMs)}</td>
                   </tr>

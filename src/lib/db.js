@@ -50,6 +50,11 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS pc2_returns (id SERIAL PRIMARY KEY, fund TEXT NOT NULL, amount INTEGER NOT NULL CHECK (amount > 0), returned_on DATE NOT NULL, reference TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', returned_by INTEGER REFERENCES pc2_users(id), created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `ALTER TABLE pc2_users DROP CONSTRAINT IF EXISTS pc2_users_role_check`,
   `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pc2_users_role_v2') THEN ALTER TABLE pc2_users ADD CONSTRAINT pc2_users_role_v2 CHECK (role IN ('om','sso','so','guard')); END IF; END $$`,
+  // Employee shifts (morning / evening / night) with editable times; Ops is now called Operations.
+  `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS shift TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS shift_start TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS shift_end TEXT NOT NULL DEFAULT ''`,
+  `UPDATE pc2_staff SET dept = 'Operations' WHERE lower(trim(dept)) = 'ops'`,
 ];
 
 let sql;
@@ -57,7 +62,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-14-1';
+const SCHEMA_VERSION = '2026-10-18-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

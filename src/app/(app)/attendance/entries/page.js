@@ -50,7 +50,7 @@ export default async function EntriesPage({ searchParams }) {
                           {isBad ? <div className='over-t'>Does not fit with the entries around it - please fix</div> : null}
                         </td>
                         <td className='c-tile'>{KIND_LABEL[m.kind]}</td>
-                        <td className={'nw c-tile ' + timeClass(m.kind, fmtTime(m.ms))}>{(dateKey(m.ms) === todayKey() ? '' : fmtDay(m.ms) + ', ') + fmt12(m.ms)}</td>
+                        <td className={'nw c-tile ' + timeClass(m.kind, fmtTime(m.ms), m)}>{(dateKey(m.ms) === todayKey() ? '' : fmtDay(m.ms) + ', ') + fmt12(m.ms)}</td>
                         <td className='c-tile wide'>{m.by_name || '-'}</td>
                         <td className='act r'>
                           <div className='entry-act'>

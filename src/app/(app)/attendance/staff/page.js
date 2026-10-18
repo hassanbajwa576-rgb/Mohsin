@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices } from '@/lib/att';
+import { ATT_ROLES, allOffices, shiftText } from '@/lib/att';
 import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
-import { addStaff, updateStaff, toggleStaff, importStaff, deleteStaff } from '@/lib/att-actions';
+import { addStaff, toggleStaff, importStaff, deleteStaff } from '@/lib/att-actions';
 import ConfirmButton from '@/components/ConfirmButton';
 import Flash from '@/components/Flash';
+import ShiftFields from '@/components/ShiftFields';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,21 +16,24 @@ export default async function AttendanceStaffPage({ searchParams }) {
   if (!can(user, 'att_staff')) redirect('/attendance');
   const sp = await searchParams;
   const rows = await q(
-    `SELECT s.id, s.code, s.name, s.dept, s.active, o.code AS office, (SELECT COUNT(*)::int FROM pc2_attendance a WHERE a.staff_id = s.id) AS entries FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
+    `SELECT s.id, s.code, s.name, s.dept, s.shift, s.shift_start, s.shift_end, s.active, o.code AS office, (SELECT COUNT(*)::int FROM pc2_attendance a WHERE a.staff_id = s.id) AS entries FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
   );
 
+  const depts = [...new Set(rows.map((r) => r.dept).filter(Boolean))].sort();
+  const fd = depts.includes(sp.dept) ? sp.dept : '';
   const fo = allOffices(user) && ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
   const fs = ['active', 'inactive'].includes(sp.status) ? sp.status : '';
-  const inOffice = rows.filter((r) => !fo || r.office === fo);
-  const shown = inOffice.filter((r) => !fs || (fs === 'active') === r.active);
-  const nActive = inOffice.filter((r) => r.active).length;
-  const href = (o, s) => {
-    const p = new URLSearchParams();
-    if (o) p.set('office', o);
-    if (s) p.set('status', s);
-    const q2 = p.toString();
-    return '/attendance/staff' + (q2 ? '?' + q2 : '');
-  };
+  const fh = ['morning', 'evening', 'night', 'none'].includes(sp.shift) ? sp.shift : '';
+  const fq = String(sp.q || '').trim().slice(0, 60);
+  const shown = rows.filter(
+    (r) =>
+      (!fd || r.dept === fd) &&
+      (!fo || r.office === fo) &&
+      (!fs || (fs === 'active') === r.active) &&
+      (!fh || (fh === 'none' ? !r.shift : r.shift === fh)) &&
+      (!fq || r.name.toLowerCase().includes(fq.toLowerCase()) || String(r.code).toLowerCase().includes(fq.toLowerCase()))
+  );
+  const nActive = shown.filter((r) => r.active).length;
 
   return (
     <>
@@ -45,10 +49,12 @@ export default async function AttendanceStaffPage({ searchParams }) {
         <summary>Add employee</summary>
         <form action={addStaff} className='form'>
           <label>Full name<input name='name' required /></label>
-          <label>Department<input name='dept' /></label>
+          <label>Department<input name='dept' list='dept-list' /></label>
+          <datalist id='dept-list'>{depts.map((d) => <option key={d} value={d} />)}</datalist>
           <label>Office
             <select name='office' defaultValue='LHR'><option>LHR</option><option>ISB</option></select>
           </label>
+          <ShiftFields />
           <button className='btn primary' type='submit'>Add employee</button>
         </form>
       </details>
@@ -66,57 +72,69 @@ export default async function AttendanceStaffPage({ searchParams }) {
         </form>
       </details>
 
-      <div className='chips' style={{ marginBottom: 8 }}>
-        <Link href={href(fo, '')} className={'chip' + (!fs ? ' on' : '')}>Total ({inOffice.length})</Link>
-        <Link href={href(fo, 'active')} className={'chip' + (fs === 'active' ? ' on' : '')}>Active ({nActive})</Link>
-        <Link href={href(fo, 'inactive')} className={'chip' + (fs === 'inactive' ? ' on' : '')}>Inactive ({inOffice.length - nActive})</Link>
-      </div>
-      {allOffices(user) ? (
-        <div className='chips' style={{ marginBottom: 12 }}>
-          {['', 'LHR', 'ISB'].map((o) => (
-            <Link key={o || 'all'} href={href(o, fs)} className={'chip' + (fo === o ? ' on' : '')}>{o || 'Both offices'}</Link>
-          ))}
-        </div>
-      ) : null}
+      <form method='get' className='card filters compact'>
+        <label>Department
+          <select name='dept' defaultValue={fd}>
+            <option value=''>All departments</option>
+            {depts.map((d) => <option key={d}>{d}</option>)}
+          </select>
+        </label>
+        {allOffices(user) ? (
+          <label>Office
+            <select name='office' defaultValue={fo}><option value=''>Both offices</option><option>LHR</option><option>ISB</option></select>
+          </label>
+        ) : null}
+        <label>Status
+          <select name='status' defaultValue={fs}>
+            <option value=''>All</option>
+            <option value='active'>Active</option>
+            <option value='inactive'>Inactive</option>
+          </select>
+        </label>
+        <label>Shift
+          <select name='shift' defaultValue={fh}>
+            <option value=''>All shifts</option>
+            <option value='morning'>Morning</option>
+            <option value='evening'>Evening</option>
+            <option value='night'>Night</option>
+            <option value='none'>No shift set</option>
+          </select>
+        </label>
+        <label>Search<input name='q' defaultValue={fq} placeholder='Name or code' /></label>
+        <button className='btn' type='submit'>Apply</button>
+        <Link href='/attendance/staff' className='btn ghost'>Reset</Link>
+      </form>
 
       <div className='card'>
         {shown.length ? (
           <div className='tablewrap'>
-            <table>
+            <table className='tx'>
               <thead>
-                <tr><th>Sr #</th><th>Name</th><th>Department</th><th>Office</th><th>Status</th><th></th></tr>
+                <tr><th className='hide-m'>Sr #</th><th>Name</th><th>Department</th><th>Office</th><th>Shift</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {shown.map((r, i) => (
                   <tr key={r.id}>
-                    <td>{i + 1}</td>
-                    <td><b>{r.name}</b></td>
-                    <td>{r.dept || '-'}</td>
-                    <td><span className='pill'>{r.office}</span></td>
-                    <td><span className={'badge ' + (r.active ? 'approved' : 'rejected')}>{r.active ? 'Active' : 'Inactive'}</span></td>
+                    <td className='hide-m'>{i + 1}</td>
+                    <td className='c-title'><b>{r.name}</b></td>
+                    <td className='c-meta'>{r.dept || '-'}</td>
+                    <td className='c-meta'><span className='pill'>{r.office}</span></td>
+                    <td className='c-meta'>{r.shift ? <span className='shiftpill'>{shiftText(r)}</span> : '-'}</td>
+                    <td className='c-stage'><span className={'badge ' + (r.active ? 'approved' : 'rejected')}>{r.active ? 'Active' : 'Inactive'}</span></td>
                     <td className='act'>
-                      <details>
-                        <summary className='btn'>Edit</summary>
-                        <form action={updateStaff} className='form'>
+                      <div className='staffact'>
+                        <a className='btn' href={'/attendance/staff/edit?id=' + r.id}>Edit</a>
+                        <form action={toggleStaff} className='inline'>
                           <input type='hidden' name='id' value={r.id} />
-                          <label>Name<input name='name' defaultValue={r.name} required /></label>
-                          <label>Department<input name='dept' defaultValue={r.dept} /></label>
-                          <label>Office
-                            <select name='office' defaultValue={r.office}><option>LHR</option><option>ISB</option></select>
-                          </label>
-                          <button className='btn primary' type='submit'>Save</button>
+                          <button className='btn ghost' type='submit'>{r.active ? 'Deactivate' : 'Activate'}</button>
                         </form>
-                      </details>
-                      <form action={toggleStaff} className='inline'>
-                        <input type='hidden' name='id' value={r.id} />
-                        <button className='btn ghost' type='submit'>{r.active ? 'Deactivate' : 'Activate'}</button>
-                      </form>
-                      {user.role === 'om' ? (
-                        <form action={deleteStaff} className='inline'>
-                          <input type='hidden' name='id' value={r.id} />
-                          <ConfirmButton className='btn ghost' message={'Delete ' + r.name + ' and all ' + r.entries + ' of their attendance entries? This cannot be undone.'}>Delete</ConfirmButton>
-                        </form>
-                      ) : null}
+                        {user.role === 'om' ? (
+                          <form action={deleteStaff} className='inline'>
+                            <input type='hidden' name='id' value={r.id} />
+                            <ConfirmButton className='btn ghost' message={'Delete ' + r.name + ' and all ' + r.entries + ' of their attendance entries? This cannot be undone.'}>Delete</ConfirmButton>
+                          </form>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -124,8 +142,9 @@ export default async function AttendanceStaffPage({ searchParams }) {
             </table>
           </div>
         ) : (
-          <p className='muted'>{rows.length === 0 ? 'No employees yet. Add the first one above.' : 'No employees match this filter.'}</p>
+          <p className='muted'>{rows.length === 0 ? 'No employees yet. Add the first one above.' : 'No employees match these filters.'}</p>
         )}
+        <p className='totals'>{shown.length} of {rows.length} employees shown ({nActive} active)</p>
       </div>
     </>
   );

@@ -472,3 +472,26 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
   table.shift td.act .inline{margin:0}
   table.shift td.c-name .over-t{display:block;font-size:12.5px;font-weight:500;margin-top:2px}
 }
+
+/* employees: filters, one-line actions, shifts; reports: department multi-select */
+.staffact{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;white-space:nowrap}
+.staffact form{margin:0}
+.staffact .btn{padding:6px 12px;font-size:13px;min-height:0}
+.shiftpill{display:inline-block;font-size:12px;padding:1px 9px;border-radius:6px;background:var(--infobg);color:var(--info);white-space:nowrap}
+.shiftfields{display:block}
+.checkrow{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13.5px}
+.checkrow input{width:auto;min-height:0}
+.multi{position:relative;min-width:200px}
+.multi-lbl{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}
+.multi details>summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:3px;padding:9px 12px;background:#fff;min-height:40px;font-size:14px}
+.multi details>summary::-webkit-details-marker{display:none}
+.multi details>summary::after{content:'\25BE';float:right;margin-left:8px;color:var(--mut)}
+.multi-list{position:absolute;left:0;top:100%;z-index:25;min-width:240px;max-height:300px;overflow-y:auto;margin-top:2px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.multi-list label{display:flex;align-items:center;gap:8px;padding:6px 2px;font-size:14px}
+.multi-list input{width:auto;min-height:0}
+@media (max-width:720px){.hide-m{display:none}.staffact{flex-wrap:wrap}.multi{flex:1 1 100%}}
+
+@media (max-width:720px){
+  table.tx td.hide-m,table.tx th.hide-m{display:none}
+  table.tx td.act{justify-content:flex-start}
+}
