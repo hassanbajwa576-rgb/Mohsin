@@ -113,11 +113,11 @@ export function sessionsOf(evs, now = Date.now()) {
     const miss = !!s.missed || (s.end == null && dateKey(s.start) < dateKey(now));
     if (s.open != null && !miss) br.push([s.open, now]);
     const breakMs = br.reduce((a, b) => a + (b[1] - b[0]), 0);
-    return { start: s.start, end: s.end, missed: miss, live: s.end == null && !miss, breakCount: br.length, breakMs, workedMs: miss ? 0 : Math.max(0, (s.end ?? now) - s.start - breakMs) };
+    return { start: s.start, end: s.end, missed: miss, live: s.end == null && !miss, breakCount: br.length, breaks: br.map((b) => b[1] - b[0]), breakMs, workedMs: miss ? 0 : Math.max(0, (s.end ?? now) - s.start - breakMs) };
   });
 }
 
-const EV_COLS = `a.id, a.staff_id, a.office_id, a.kind, a.entered_by, (extract(epoch from a.at) * 1000)::float8 AS ms, (extract(epoch from a.entered_at) * 1000)::float8 AS entered_ms`;
+export const EV_COLS = `a.id, a.staff_id, a.office_id, a.kind, a.entered_by, (extract(epoch from a.at) * 1000)::float8 AS ms, (extract(epoch from a.entered_at) * 1000)::float8 AS entered_ms`;
 
 export function groupByStaff(events) {
   const m = new Map();
