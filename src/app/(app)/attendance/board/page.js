@@ -2,9 +2,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
+import { q } from '@/lib/db';
 import {
   ATT_ROLES, allOffices, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff, loadPeriods, shiftOn,
-  stateOf, sessionsOf, fmtTime, fmt12, fmtDay, fmtDur, todayKey, dateKey, inClassFor, outClassFor,
+  stateOf, sessionsOf, officeCodes, fmtTime, fmt12, fmtDay, fmtDur, todayKey, dateKey, inClassFor, outClassFor,
 } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
@@ -14,12 +15,13 @@ export default async function TodaysBoardPage({ searchParams }) {
   const sp = await searchParams;
   const officeSel = allOffices(user) && ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
   if (!canSeeTimes(user)) redirect('/attendance');
-  const staff = (await activeStaff(user)).filter((x) => !officeSel || x.office === officeSel);
+  const staff = await activeStaff(user);
+  const codeOf = officeCodes(await q('SELECT id, code FROM pc2_offices'));
   const by = groupByStaff(await recentEvents(staff.map((x) => x.id), 3));
   const now = Date.now();
   const today = todayKey();
   const periods = await loadPeriods(today, today);
-  const board = staff.map((x0) => {
+  const board0 = staff.map((x0) => {
     const x = shiftOn(x0, today, periods);
     const list = by.get(x.id) || [];
     const st0 = stateOf(list);
@@ -34,10 +36,14 @@ export default async function TodaysBoardPage({ searchParams }) {
       worked: ss.reduce((a, s) => a + s.workedMs, 0),
       breakMs: ss.reduce((a, s) => a + s.breakMs, 0),
       breaks: ss.reduce((a, s) => a + s.breakCount, 0),
+      // Counted in the office they checked in at today (their own office when they have not checked in).
+      home: x0.office,
+      office: ss.length && codeOf[ss[0].office_id] ? codeOf[ss[0].office_id] : x0.office,
       inAt: ss.length ? ss[0].start : null,
       outAt: ss.length && ss[ss.length - 1].end ? ss[ss.length - 1].end : null,
     };
   });
+  const board = board0.filter((r) => !officeSel || r.office === officeSel);
   const on = board.filter((r) => r.state === 'on').length;
   const br = board.filter((r) => r.state === 'break').length;
   const over = board.filter((r) => r.over).length;

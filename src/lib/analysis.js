@@ -1,7 +1,7 @@
 import 'server-only';
 import { q } from './db';
 import {
-  TZ, EV_COLS, SHIFT_COLS, SHIFT_JOIN, BREAK_LIMIT_MIN, sessionsOf, groupByStaff, dateKey, fmtTime, inClassFor, outClassFor, loadPeriods, shiftOn,
+  TZ, EV_COLS, officeCodes, SHIFT_COLS, SHIFT_JOIN, BREAK_LIMIT_MIN, sessionsOf, groupByStaff, dateKey, fmtTime, inClassFor, outClassFor, loadPeriods, shiftOn,
 } from './att';
 
 // Attendance analysis for a date range: per employee, per department, per shift and per break.
@@ -68,9 +68,11 @@ function roll(rows, keyOf, labelOf) {
 export async function analyse({ from, to, office, depts }) {
   const cond = [];
   const params = [];
+  // A visiting employee counts in the office they checked in at, so they are included for that office too.
   if (office) {
-    params.push(office);
-    cond.push('o.code = $' + params.length);
+    params.push(office, from, to);
+    const n = params.length;
+    cond.push(`(o.code = $${n - 2} OR s.id IN (SELECT a.staff_id FROM pc2_attendance a JOIN pc2_offices ao ON ao.id = a.office_id WHERE ao.code = $${n - 2} AND a.at >= (($${n - 1}::date - 1)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($${n}::date + 2)::timestamp AT TIME ZONE '${TZ}')))`);
   }
   if (depts && depts.length) {
     params.push(depts);
@@ -93,13 +95,14 @@ export async function analyse({ from, to, office, depts }) {
 
   // Days each office actually had check ins: the base for attendance %.
   const workDays = {};
+  const codeOf = officeCodes(await q('SELECT id, code FROM pc2_offices'));
   const people = staff.map((s) => {
     const sess = sessionsOf(by.get(s.id) || [])
-      .map((x) => ({ ...x, date: dateKey(x.start), st: shiftOn(s, dateKey(x.start), periods) }))
-      .filter((x) => x.date >= from && x.date <= to);
+      .map((x) => ({ ...x, date: dateKey(x.start), st: shiftOn(s, dateKey(x.start), periods), where: codeOf[x.office_id] || s.office }))
+      .filter((x) => x.date >= from && x.date <= to && (!office || x.where === office));
     for (const x of sess) {
-      if (!workDays[s.office]) workDays[s.office] = new Set();
-      workDays[s.office].add(x.date);
+      if (!workDays[x.where]) workDays[x.where] = new Set();
+      workDays[x.where].add(x.date);
     }
     return { s, sess };
   });
@@ -127,7 +130,7 @@ export async function analyse({ from, to, office, depts }) {
         if (inClassFor(fmtTime(x.start), x.st) === 't-bad') w.late += 1;
         weeks.set(wk, w);
       }
-      const expected = workDays[s.office] ? workDays[s.office].size : 0;
+      const expected = workDays[office || s.office] ? workDays[office || s.office].size : 0;
       const workedSum = sum(closed.map((x) => x.workedMs));
       const breakSum = sum(closed.map((x) => x.breakMs));
       return {

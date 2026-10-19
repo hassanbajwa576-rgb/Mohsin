@@ -88,7 +88,7 @@ export function sessionsOf(evs, now = Date.now()) {
     const ms = Number(e.ms);
     if (e.kind === 'in') {
       if (cur) out.push(cur);
-      cur = { start: ms, end: null, breaks: [], open: null };
+      cur = { start: ms, end: null, breaks: [], open: null, office_id: e.office_id };
     } else if (!cur) continue;
     else if (e.kind === 'break_out') cur.open = ms;
     else if (e.kind === 'break_in') {
@@ -109,11 +109,12 @@ export function sessionsOf(evs, now = Date.now()) {
   if (cur) out.push(cur);
   return out.map((s) => {
     const br = s.breaks.slice();
+    // office_id = the office the person checked in at (a visiting employee counts there for that shift).
     // A check in from an earlier day with no check out is a missed check out, not a shift still running.
     const miss = !!s.missed || (s.end == null && dateKey(s.start) < dateKey(now));
     if (s.open != null && !miss) br.push([s.open, now]);
     const breakMs = br.reduce((a, b) => a + (b[1] - b[0]), 0);
-    return { start: s.start, end: s.end, missed: miss, live: s.end == null && !miss, breakCount: br.length, breaks: br.map((b) => b[1] - b[0]), breakMs, workedMs: miss ? 0 : Math.max(0, (s.end ?? now) - s.start - breakMs) };
+    return { start: s.start, end: s.end, office_id: s.office_id, missed: miss, live: s.end == null && !miss, breakCount: br.length, breaks: br.map((b) => b[1] - b[0]), breakMs, workedMs: miss ? 0 : Math.max(0, (s.end ?? now) - s.start - breakMs) };
   });
 }
 
@@ -137,6 +138,11 @@ export async function activeStaff(user) {
     `SELECT s.id, s.code, s.name, s.dept, ${SHIFT_COLS}, s.office_id, o.code AS office FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${all ? '' : 'AND s.office_id = $1'} ORDER BY o.code, s.name`,
     all ? [] : [user.office_id]
   );
+}
+
+/** All active staff (both offices): the entry form can record a visiting employee at the user's office. */
+export async function entryStaff() {
+  return q(`SELECT s.id, s.code, s.name, s.dept, ${SHIFT_COLS}, s.office_id, o.code AS office FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ORDER BY o.code, s.name`);
 }
 
 export async function recentEvents(staffIds, days = 3) {
@@ -165,14 +171,18 @@ export async function dutyContacts(user) {
   });
 }
 
+export const officeCodes = (rows) => Object.fromEntries(rows.map((r) => [r.id, r.code]));
+
 /** One row per shift (check in .. check out) between two dates (inclusive), Karachi time. */
 export async function reportRows({ from, to, office, dept }) {
   const deptList = Array.isArray(dept) ? dept.filter(Boolean) : dept ? [dept] : [];
   const cond = [];
   const params = [];
+  // An employee who checked in at the chosen office counts there for that shift, even when based in the other office.
   if (office) {
-    params.push(office);
-    cond.push('o.code = $' + params.length);
+    params.push(office, from, to);
+    const n = params.length;
+    cond.push(`(o.code = $${n - 2} OR s.id IN (SELECT a.staff_id FROM pc2_attendance a JOIN pc2_offices ao ON ao.id = a.office_id WHERE ao.code = $${n - 2} AND a.at >= (($${n - 1}::date - 1)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($${n}::date + 2)::timestamp AT TIME ZONE '${TZ}')))`);
   }
   if (deptList.length) {
     params.push(deptList);
@@ -183,6 +193,7 @@ export async function reportRows({ from, to, office, dept }) {
     params
   );
   if (!staff.length) return [];
+  const codeOf = officeCodes(await q('SELECT id, code FROM pc2_offices'));
   const evs = await q(
     `SELECT ${EV_COLS} FROM pc2_attendance a WHERE a.staff_id = ANY($1::int[]) AND a.at >= (($2::date - 1)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($3::date + 2)::timestamp AT TIME ZONE '${TZ}') ORDER BY a.at, a.id`,
     [staff.map((s) => s.id), from, to]
@@ -195,9 +206,11 @@ export async function reportRows({ from, to, office, dept }) {
     for (const x of sessionsOf(by.get(s.id) || [])) {
       const d = dateKey(x.start);
       if (d < from || d > to) continue;
+      const where = codeOf[x.office_id] || s.office;
+      if (office && where !== office) continue;
       const st = shiftOn(s, d, periods);
       rows.push({
-        date: d, office: s.office, dept: s.dept, shift: st.shift, shift_start: st.shift_start, shift_end: st.shift_end, shift_src: st.shift_src, name: s.name, code: s.code,
+        date: d, office: where, dept: s.dept, shift: st.shift, shift_start: st.shift_start, shift_end: st.shift_end, shift_src: st.shift_src, name: s.name, code: s.code,
         in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : x.missed ? '(missed check out)' : '(on duty)',
         breaks: x.breakCount, breakMs: x.breakMs, workedMs: x.workedMs, over: x.breakMs > limit,
       });
@@ -325,16 +338,23 @@ export async function eventsAround(staffIds, day) {
 
 /** Active staff and their entries for one day (Karachi time). */
 export async function dayBoard(day, office) {
-  const staff = await q(
-    `SELECT s.id, s.name, s.dept, ${SHIFT_COLS}, o.code AS office FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${office ? 'AND o.code = $1' : ''} ORDER BY o.code, s.name`,
-    office ? [office] : []
+  // Everyone active, then each person is placed in the office they checked in at that day (their own office otherwise).
+  const all = await q(
+    `SELECT s.id, s.name, s.dept, ${SHIFT_COLS}, o.code AS office FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ORDER BY o.code, s.name`
   );
-  if (!staff.length) return { staff, by: new Map() };
+  if (!all.length) return { staff: [], by: new Map() };
   const evs = await q(
     `SELECT ${EV_COLS} FROM pc2_attendance a WHERE a.staff_id = ANY($1::int[]) AND a.at >= (($2::date)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($2::date + 1)::timestamp AT TIME ZONE '${TZ}') ORDER BY a.at, a.id`,
-    [staff.map((x) => x.id), day]
+    [all.map((x) => x.id), day]
   );
-  return { staff, by: groupByStaff(evs) };
+  const codeOf = officeCodes(await q('SELECT id, code FROM pc2_offices'));
+  const first = new Map();
+  for (const e of evs) if (!first.has(e.staff_id)) first.set(e.staff_id, e.office_id);
+  const staff = all
+    .map((x) => ({ ...x, home: x.office, office: first.has(x.id) ? codeOf[first.get(x.id)] || x.office : x.office }))
+    .filter((x) => !office || x.office === office);
+  const keep = new Set(staff.map((x) => x.id));
+  return { staff, by: groupByStaff(evs.filter((e) => keep.has(e.staff_id))) };
 }
 
 /** People who checked in on each of the 7 days ending on the given day. */

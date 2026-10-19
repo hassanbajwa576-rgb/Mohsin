@@ -21,8 +21,9 @@ function nowPk() {
   return { date, time };
 }
 
-export default function AttendanceEntryForm({ options, action, defaultOffice }) {
-  const offices = [...new Set(options.map((o) => o.office))];
+export default function AttendanceEntryForm({ options, action, defaultOffice, workOffices }) {
+  const offices = workOffices && workOffices.length ? workOffices : [...new Set(options.map((o) => o.office))];
+  const [visiting, setVisiting] = useState(false);
   const [office, setOffice] = useState(offices.includes(defaultOffice) ? defaultOffice : offices[0] || '');
   const [text, setText] = useState('');
   const [picked, setPicked] = useState('');
@@ -54,7 +55,10 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
   }, []);
 
   // Employees of the chosen office, narrowed by what has been typed.
-  const inOffice = options.filter((o) => o.office === office);
+  // 'Visiting' also lists the employees of the other office; the entry is then recorded and counted at the office chosen above.
+  const inOffice = options
+    .filter((o) => o.office === office || visiting)
+    .map((o) => (o.office === office ? o : { ...o, label: o.label + ' (' + o.office + ')' }));
   // For Check In, people who are already checked in (on duty or on a break) are left out unless "show everyone" is tapped.
   const checkedIn = (o) => o.status === 'On duty' || o.status === 'On break';
   const hiddenCount = kind === 'in' ? inOffice.filter(checkedIn).length : 0;
@@ -202,6 +206,13 @@ export default function AttendanceEntryForm({ options, action, defaultOffice }) 
             </label>
           ))}
         </div>
+      </div>
+
+      <input type='hidden' name='at_office' value={office} />
+      <div className='att-field'>
+        <label className='att-visit'>
+          <input type='checkbox' checked={visiting} onChange={(e) => { setVisiting(e.target.checked); setPicked(''); setText(''); }} /> Include employees from the other office (visiting {office})
+        </label>
       </div>
 
       <div className='att-field'>

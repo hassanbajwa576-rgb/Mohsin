@@ -552,3 +552,4 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .splitline.total{border-top:1px solid var(--line);margin-top:4px;padding-top:6px}
 .okline{margin:0;padding:9px 12px;border-radius:4px;background:var(--okbg);color:var(--ok);font-size:14px}
 .badline{margin:0;padding:9px 12px;border-radius:4px;background:var(--badbg);color:var(--bad);font-size:14px}
+.att-visit{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--mut)}

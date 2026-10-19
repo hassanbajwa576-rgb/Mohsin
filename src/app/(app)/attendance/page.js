@@ -5,7 +5,7 @@ import { q } from '@/lib/db';
 import { can } from '@/lib/perms';
 import { addEntry, removeEntry } from '@/lib/att-actions';
 import {
-  ATT_ROLES, KIND_LABEL, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff,
+  ATT_ROLES, KIND_LABEL, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, entryStaff, allOffices, recentEvents, groupByStaff,
   stateOf, sessionsOf, dutyContacts, fmtTime, fmtDur, todayKey, dateKey, editableEntries, conflictIds, inClass, outClass, timeClass, fmt12, fmtDay,
 } from '@/lib/att';
 import ConfirmButton from '@/components/ConfirmButton';
@@ -22,7 +22,8 @@ export default async function AttendancePage({ searchParams }) {
   const sp = await searchParams;
   const see = canSeeTimes(user);
 
-  const staff = await activeStaff(user);
+  // Everyone can enter a visiting employee from the other office; entries are recorded at the user's own office.
+  const staff = await entryStaff();
   const evs = await recentEvents(staff.map((x) => x.id), 3);
   const by = groupByStaff(evs);
   const now = Date.now();
@@ -61,7 +62,7 @@ export default async function AttendancePage({ searchParams }) {
 
       <div className='card'>
         <h3>Add entry</h3>
-        <AttendanceEntryForm options={options} action={addEntry} defaultOffice={user.office_code} />
+        <AttendanceEntryForm options={options} action={addEntry} defaultOffice={user.office_code} workOffices={allOffices(user) ? ['LHR', 'ISB'] : [user.office_code]} />
       </div>
 
       <p className='muted'>Made a mistake? Open the <Link href='/attendance/entries'>Entries</Link> tab to change or delete an entry.</p>

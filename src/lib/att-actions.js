@@ -62,7 +62,11 @@ export async function addEntry(fd) {
     [Number.isInteger(staffId) ? staffId : 0]
   ))[0];
   if (!st) back('/attendance', 'Select an employee');
-  if (!canEnterFor(u, st.office_id)) back('/attendance', 'You can only record entries for your own office');
+  // The entry is recorded (and counted) at the office where the person is working. An employee from the other
+  // office who is visiting can be entered by someone at that office; they stay on their own office's staff list.
+  const at = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'at_office') || st.office]))[0];
+  if (!at) back('/attendance', 'Choose the office');
+  if (!canEnterFor(u, at.id)) back('/attendance', 'You can only record entries at your own office');
 
   const ms = Number((await q(
     `SELECT (extract(epoch from (($1::date + $2::time) AT TIME ZONE 'Asia/Karachi')) * 1000)::float8 AS ms`,
@@ -74,10 +78,11 @@ export async function addEntry(fd) {
   // in red on the Entries and Logs pages so they can be fixed.
   const ins = await q(
     `INSERT INTO pc2_attendance (staff_id, office_id, kind, at, entered_by) VALUES ($1, $2, $3, ($4::date + $5::time) AT TIME ZONE 'Asia/Karachi', $6) RETURNING id`,
-    [st.id, st.office_id, kind, date, time, u.id]
+    [st.id, at.id, kind, date, time, u.id]
   );
-  await logEvent(u, 'create', 'attendance', ins[0].id, KIND_LABEL[kind] + ' - ' + st.name + ' (' + st.office + ') on ' + date + ' at ' + time, null,
-    { staff: st.name, office: st.office, kind, date, time });
+  const visit = at.code !== st.office ? ', visiting ' + at.code : '';
+  await logEvent(u, 'create', 'attendance', ins[0].id, KIND_LABEL[kind] + ' - ' + st.name + ' (' + st.office + visit + ') on ' + date + ' at ' + time, null,
+    { staff: st.name, office: at.code, kind, date, time });
   back('/attendance', see ? st.name + ': ' + KIND_LABEL[kind] + ' recorded at ' + time : st.name + ': ' + KIND_LABEL[kind] + ' recorded', true);
 }
 
