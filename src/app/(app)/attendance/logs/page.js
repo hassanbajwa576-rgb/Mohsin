@@ -5,7 +5,7 @@ import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { removeEntry } from '@/lib/att-actions';
-import { ATT_ROLES, allOffices, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass, fmt12, SHIFT_COLS, SHIFT_JOIN } from '@/lib/att';
+import { ATT_ROLES, allOffices, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass, fmt12, SHIFT_COLS, SHIFT_JOIN, loadPeriods, shiftOn } from '@/lib/att';
 import EntryEdit from '@/components/EntryEdit';
 import Flash from '@/components/Flash';
 
@@ -20,7 +20,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
   const office = allOffices(user) ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
 
   const rows = await q(
-    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, s.code, ${SHIFT_COLS}, o.code AS office, u.name AS by_name,
+    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, s.code, s.dept, ${SHIFT_COLS}, o.code AS office, u.name AS by_name,
             (extract(epoch from a.at) * 1000)::float8 AS ms, (extract(epoch from a.entered_at) * 1000)::float8 AS entered_ms,
             (a.entered_at > now() - interval '30 minutes') AS fresh
      FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users u ON u.id = a.entered_by
@@ -29,6 +29,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
      ORDER BY a.at DESC, a.id DESC`,
     office ? [day, office] : [day]
   );
+  const periods = await loadPeriods(day, day);
   const bad = conflictIds(await eventsAround([...new Set(rows.map((r) => r.staff_id))], day));
   const allRows = sp.all === '1';
   const shownRows = allRows ? rows : rows.slice(0, 10);
@@ -63,7 +64,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
               <tbody>
                 {shownRows.map((r) => (
                   <tr key={r.id} className={bad.has(r.id) ? 'conflict' : ''}>
-                    <td className={'nw c-tile ' + timeClass(r.kind, fmtTime(r.ms), r)}><b>{fmt12(r.ms)}</b></td>
+                    <td className={'nw c-tile ' + timeClass(r.kind, fmtTime(r.ms), shiftOn(r, day, periods))}><b>{fmt12(r.ms)}</b></td>
                     <td className='c-meta'><OfficeTag o={r.office} /></td>
                     <td className='c-name'>{r.name}</td>
                     <td className='c-tile'>{KIND_LABEL[r.kind]}{bad.has(r.id) ? <div className='over-t'>Does not fit - please fix</div> : null}</td>

@@ -3,7 +3,7 @@ import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { removeEntry } from '@/lib/att-actions';
 import {
-  ATT_ROLES, KIND_LABEL, editableEntries, conflictIds, recentEvents, timeClass, fmtTime, fmt12, fmtDay, dateKey, todayKey,
+  ATT_ROLES, KIND_LABEL, editableEntries, conflictIds, recentEvents, timeClass, fmtTime, fmt12, fmtDay, dateKey, todayKey, loadPeriods, shiftOn,
 } from '@/lib/att';
 import ConfirmButton from '@/components/ConfirmButton';
 import EntryEdit from '@/components/EntryEdit';
@@ -17,6 +17,7 @@ export default async function EntriesPage({ searchParams }) {
   const user = await requireUser(ATT_ROLES);
   const sp = await searchParams;
   const list = await editableEntries(user);
+  const periods = await loadPeriods(dateKey(Date.now() - 3 * 86400000), todayKey());
   const bad = conflictIds(await recentEvents([...new Set(list.map((x) => x.staff_id))], 4));
   const all = sp.all === '1';
   const shown = all ? list : list.slice(0, 10);
@@ -50,7 +51,7 @@ export default async function EntriesPage({ searchParams }) {
                           {isBad ? <div className='over-t'>Does not fit with the entries around it - please fix</div> : null}
                         </td>
                         <td className='c-tile'>{KIND_LABEL[m.kind]}</td>
-                        <td className={'nw c-tile ' + timeClass(m.kind, fmtTime(m.ms), m)}>{(dateKey(m.ms) === todayKey() ? '' : fmtDay(m.ms) + ', ') + fmt12(m.ms)}</td>
+                        <td className={'nw c-tile ' + timeClass(m.kind, fmtTime(m.ms), shiftOn(m, dateKey(m.ms), periods))}>{(dateKey(m.ms) === todayKey() ? '' : fmtDay(m.ms) + ', ') + fmt12(m.ms)}</td>
                         <td className='c-tile wide'>{m.by_name || '-'}</td>
                         <td className='act r'>
                           <div className='entry-act'>

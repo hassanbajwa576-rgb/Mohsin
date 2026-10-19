@@ -188,14 +188,16 @@ export async function reportRows({ from, to, office, dept }) {
     [staff.map((s) => s.id), from, to]
   );
   const by = groupByStaff(evs);
+  const periods = await loadPeriods(from, to);
   const limit = BREAK_LIMIT_MIN * 60000;
   const rows = [];
   for (const s of staff) {
     for (const x of sessionsOf(by.get(s.id) || [])) {
       const d = dateKey(x.start);
       if (d < from || d > to) continue;
+      const st = shiftOn(s, d, periods);
       rows.push({
-        date: d, office: s.office, dept: s.dept, shift: s.shift, shift_start: s.shift_start, shift_end: s.shift_end, shift_src: s.shift_src, name: s.name, code: s.code,
+        date: d, office: s.office, dept: s.dept, shift: st.shift, shift_start: st.shift_start, shift_end: st.shift_end, shift_src: st.shift_src, name: s.name, code: s.code,
         in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : x.missed ? '(missed check out)' : '(on duty)',
         breaks: x.breakCount, breakMs: x.breakMs, workedMs: x.workedMs, over: x.breakMs > limit,
       });
@@ -226,9 +228,9 @@ const fromMin = (n) => {
 };
 const circ = (a, b) => (((a - b) % 1440) + 1440) % 1440;
 export const LATE_LIMIT = fromMin(toMin(LATE_AFTER) + SHIFT_GRACE_MIN);
-const night = (st) => st && (st.shift === 'evening' || st.shift === 'night') && st.shift_start;
+const timed = (st) => st && st.shift && st.shift !== 'morning' && st.shift_start;
 export const inClassFor = (hhmm, st) => {
-  if (night(st)) {
+  if (timed(st)) {
     const d = circ(toMin(hhmm), toMin(st.shift_start));
     return d <= SHIFT_GRACE_MIN || d > 720 ? 't-ok' : 't-bad';
   }
@@ -236,7 +238,7 @@ export const inClassFor = (hhmm, st) => {
   return hhmm <= lim ? 't-ok' : 't-bad';
 };
 export const outClassFor = (hhmm, st) => {
-  if (st && (st.shift === 'evening' || st.shift === 'night') && st.shift_end) {
+  if (st && st.shift && st.shift !== 'morning' && st.shift_end) {
     return circ(toMin(hhmm), toMin(st.shift_end) - 5) <= 720 ? 't-ok' : 't-bad';
   }
   const lim = st && st.shift === 'morning' && st.shift_end ? fromMin(toMin(st.shift_end) - 5) : EARLY_BEFORE;
@@ -245,10 +247,32 @@ export const outClassFor = (hhmm, st) => {
 export const inClass = (hhmm) => inClassFor(hhmm, null);
 export const outClass = (hhmm) => outClassFor(hhmm, null);
 export const timeClass = (kind, hhmm, st) => (kind === 'in' ? inClassFor(hhmm, st) : kind === 'out' ? outClassFor(hhmm, st) : '');
+
+/** Temporary hours that touch a date range (loaded once, then resolved per person and day with shiftOn). */
+export async function loadPeriods(from, to) {
+  return q(
+    `SELECT id, scope, dept, staff_id, shift_start, shift_end, to_char(from_date, 'YYYY-MM-DD') AS from_date, to_char(to_date, 'YYYY-MM-DD') AS to_date, note FROM pc2_shift_periods WHERE from_date <= $2::date AND to_date >= $1::date`,
+    [from, to]
+  );
+}
+
+/**
+ * The hours that applied to one person on one day. Temporary hours win over the normal shift: a period for the
+ * employee beats one for their department, which beats one for everyone; at the same level the latest saved wins.
+ */
+export function shiftOn(st, day, periods) {
+  const sid = st.staff_id ?? st.id;
+  const rank = (p) => (p.scope === 'employee' ? 3 : p.scope === 'department' ? 2 : 1);
+  const hit = (periods || [])
+    .filter((p) => p.from_date <= day && p.to_date >= day && (p.scope === 'everyone' || (p.scope === 'department' && p.dept === st.dept) || (p.scope === 'employee' && p.staff_id === sid)))
+    .sort((a, b) => rank(b) - rank(a) || b.id - a.id)[0];
+  if (!hit) return st;
+  return { ...st, shift: 'custom', shift_start: hit.shift_start, shift_end: hit.shift_end, shift_src: 'temporary', temp_to: hit.to_date, temp_note: hit.note };
+}
 /** Short text for an employee's shift, e.g. "Morning 9:30 AM - 6:00 PM". */
 export const shiftText = (st) => {
   if (!st || !st.shift) return '-';
-  const name = st.shift.charAt(0).toUpperCase() + st.shift.slice(1);
+  const name = st.shift === 'custom' ? 'Temporary' : st.shift.charAt(0).toUpperCase() + st.shift.slice(1);
   return st.shift_start && st.shift_end ? name + ' ' + to12(st.shift_start) + ' - ' + to12(st.shift_end) : name + ' (times not set)';
 };
 
@@ -285,7 +309,7 @@ export function conflictIds(evs) {
 export async function editableEntries(user) {
   const cond = user.role === 'om' ? '' : user.role === 'sso' ? "AND (a.entered_by = $1 OR ub.role IN ('so', 'guard'))" : 'AND a.entered_by = $1';
   return q(
-    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, ${SHIFT_COLS}, o.code AS office, ub.name AS by_name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.entered_at > now() - interval '36 hours' ${cond} ORDER BY a.at DESC, a.id DESC LIMIT 60`,
+    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, s.dept, ${SHIFT_COLS}, o.code AS office, ub.name AS by_name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.entered_at > now() - interval '36 hours' ${cond} ORDER BY a.at DESC, a.id DESC LIMIT 60`,
     user.role === 'om' ? [] : [user.id]
   );
 }

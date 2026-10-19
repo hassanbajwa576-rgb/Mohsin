@@ -117,8 +117,8 @@ export default async function AttendanceAnalysisPage({ searchParams }) {
                       {emp.sess.map((x, i) => (
                         <tr key={i}>
                           <td className='nw c-name'><b>{x.date}</b></td>
-                          <td className={'nw c-tile ' + inClassFor(fmtTime(x.start), emp)}>{to12(fmtTime(x.start))}</td>
-                          <td className={'nw c-tile ' + (x.end ? outClassFor(fmtTime(x.end), emp) : '')}>{x.end ? to12(fmtTime(x.end)) : x.missed ? 'Missed check out' : 'On duty'}</td>
+                          <td className={'nw c-tile ' + inClassFor(fmtTime(x.start), x.st)}>{to12(fmtTime(x.start))}</td>
+                          <td className={'nw c-tile ' + (x.end ? outClassFor(fmtTime(x.end), x.st) : '')}>{x.end ? to12(fmtTime(x.end)) : x.missed ? 'Missed check out' : 'On duty'}</td>
                           <td className='c-tile'>{x.breakCount}</td>
                           <td className={'nw c-tile ' + (x.breakMs > BREAK_LIMIT_MIN * 60000 ? 't-bad' : '')}>{fmtDur(x.breakMs)}</td>
                           <td className='nw c-tile g'>{x.missed ? '-' : fmtDur(x.workedMs)}</td>

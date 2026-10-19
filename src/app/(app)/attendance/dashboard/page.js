@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices, canSeeTimes, dayBoard, trend, stateOf, fmtTime, to12, todayKey, validDate, LATE_AFTER, EARLY_BEFORE, inClassFor, outClassFor } from '@/lib/att';
+import { ATT_ROLES, allOffices, canSeeTimes, dayBoard, trend, stateOf, fmtTime, to12, todayKey, validDate, LATE_AFTER, EARLY_BEFORE, inClassFor, outClassFor, loadPeriods, shiftOn } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +24,9 @@ export default async function AttendanceDashboard({ searchParams }) {
   const { staff, by } = await dayBoard(day, office);
   const tr = await trend(day, office);
 
-  const people = staff.map((s) => {
+  const periods = await loadPeriods(day, day);
+  const people = staff.map((s0) => {
+    const s = shiftOn(s0, day, periods);
     const list = by.get(s.id) || [];
     const ins = list.filter((e) => e.kind === 'in');
     const outs = list.filter((e) => e.kind === 'out');

@@ -1,7 +1,7 @@
 import 'server-only';
 import { q } from './db';
 import {
-  TZ, EV_COLS, SHIFT_COLS, SHIFT_JOIN, BREAK_LIMIT_MIN, sessionsOf, groupByStaff, dateKey, fmtTime, inClassFor, outClassFor,
+  TZ, EV_COLS, SHIFT_COLS, SHIFT_JOIN, BREAK_LIMIT_MIN, sessionsOf, groupByStaff, dateKey, fmtTime, inClassFor, outClassFor, loadPeriods, shiftOn,
 } from './att';
 
 // Attendance analysis for a date range: per employee, per department, per shift and per break.
@@ -88,13 +88,14 @@ export async function analyse({ from, to, office, depts }) {
     [staff.map((s) => s.id), from, to]
   );
   const by = groupByStaff(evs);
+  const periods = await loadPeriods(from, to);
   const limit = BREAK_LIMIT_MIN * 60000;
 
   // Days each office actually had check ins: the base for attendance %.
   const workDays = {};
   const people = staff.map((s) => {
     const sess = sessionsOf(by.get(s.id) || [])
-      .map((x) => ({ ...x, date: dateKey(x.start) }))
+      .map((x) => ({ ...x, date: dateKey(x.start), st: shiftOn(s, dateKey(x.start), periods) }))
       .filter((x) => x.date >= from && x.date <= to);
     for (const x of sess) {
       if (!workDays[s.office]) workDays[s.office] = new Set();
@@ -110,20 +111,20 @@ export async function analyse({ from, to, office, depts }) {
       const days = new Set(sess.map((x) => x.date));
       const base = mins(s.shift_start || '09:30');
       const offs = sess.map((x) => {
-        let d = (((mins(fmtTime(x.start)) - base) % 1440) + 1440) % 1440;
+        let d = (((mins(fmtTime(x.start)) - mins(x.st.shift_start || '09:30')) % 1440) + 1440) % 1440;
         if (d > 720) d -= 1440;
         return d;
       });
-      const late = sess.filter((x) => inClassFor(fmtTime(x.start), s) === 't-bad').length;
+      const late = sess.filter((x) => inClassFor(fmtTime(x.start), x.st) === 't-bad').length;
       const closed = sess.filter((x) => x.end != null && !x.missed);
-      const early = closed.filter((x) => outClassFor(fmtTime(x.end), s) === 't-bad').length;
+      const early = closed.filter((x) => outClassFor(fmtTime(x.end), x.st) === 't-bad').length;
       const brks = closed.flatMap((x) => x.breaks.map((ms) => ({ ms, date: x.date, name: s.name })));
       allBreaks.push(...brks);
       for (const x of sess) {
         const wk = weekStart(x.date);
         const w = weeks.get(wk) || { week: wk, shifts: 0, late: 0 };
         w.shifts += 1;
-        if (inClassFor(fmtTime(x.start), s) === 't-bad') w.late += 1;
+        if (inClassFor(fmtTime(x.start), x.st) === 't-bad') w.late += 1;
         weeks.set(wk, w);
       }
       const expected = workDays[s.office] ? workDays[s.office].size : 0;

@@ -5,7 +5,7 @@ import { q } from './db';
 import { getUser } from './auth';
 import { logEvent } from './audit';
 import { can } from './perms';
-import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime, closeStale } from './att';
+import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime, closeStale, todayKey } from './att';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const PATHS = ['/attendance', '/attendance/logs', '/attendance/entries'];
@@ -181,6 +181,68 @@ export async function saveDeptShift(fd) {
   await logEvent(u, 'update', 'staff', null, 'Set the ' + sh.shift + ' shift ' + sh.start + ' - ' + sh.end + ' for: ' + names, null, { depts, shift: sh.shift, shift_start: sh.start, shift_end: sh.end });
   back('/attendance/staff', 'Shift saved for ' + names, true);
 }
+// Temporary hours: different start and end times for a date range, for departments, employees or everyone.
+// They end by themselves after the last date, and everyone is back on their normal shift.
+export async function saveTempHours(fd) {
+  const u = await needPerm('att_staff');
+  const page = '/attendance/staff';
+  const scope = s(fd, 'scope');
+  const from = s(fd, 'from_date');
+  const to = s(fd, 'to_date');
+  const start = s(fd, 'shift_start');
+  const end = s(fd, 'shift_end');
+  const note = s(fd, 'note').slice(0, 80);
+  if (!['everyone', 'department', 'employee'].includes(scope)) back(page, 'Choose who the temporary hours apply to');
+  if (!validDate(from) || !validDate(to) || from > to) back(page, 'Enter a valid date range (the last date cannot be before the first)');
+  if (!validTime(start) || !validTime(end)) back(page, 'Enter the start and end times');
+  let targets = [];
+  if (scope === 'everyone') targets = [{ scope, dept: '', staff: null, label: 'Everyone' }];
+  if (scope === 'department') {
+    const depts = [...new Set(fd.getAll('dept').map((x) => String(x).trim()).filter(Boolean))];
+    if (!depts.length) back(page, 'Tick at least one department');
+    const known = (await q('SELECT DISTINCT dept FROM pc2_staff WHERE dept = ANY($1::text[])', [depts])).map((r) => r.dept);
+    if (known.length !== depts.length) back(page, 'Some of those departments have no employees');
+    targets = depts.map((d) => ({ scope, dept: d, staff: null, label: d }));
+  }
+  if (scope === 'employee') {
+    const ids = [...new Set(fd.getAll('staff').map((x) => Number(x)).filter((x) => Number.isInteger(x) && x > 0))];
+    if (!ids.length) back(page, 'Tick at least one employee');
+    const found = await q('SELECT id, name FROM pc2_staff WHERE id = ANY($1::int[])', [ids]);
+    if (found.length !== ids.length) back(page, 'Some of those employees were not found');
+    targets = found.map((r) => ({ scope, dept: '', staff: r.id, label: r.name }));
+  }
+  for (const t of targets) {
+    await q(
+      'INSERT INTO pc2_shift_periods (scope, dept, staff_id, shift_start, shift_end, from_date, to_date, note, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      [t.scope, t.dept, t.staff, start, end, from, to, note, u.id]
+    );
+  }
+  const names = targets.map((t) => t.label).join(', ');
+  await logEvent(u, 'create', 'staff', null, 'Temporary hours ' + start + ' - ' + end + ' from ' + from + ' to ' + to + ' for: ' + names + (note ? ' (' + note + ')' : ''), null, { scope, from, to, start, end, note, targets: names });
+  back(page, 'Temporary hours saved for ' + names + '. They end on ' + to + ' and everyone goes back to their normal shift.', true);
+}
+
+// End a temporary period today (or remove it when it has not started yet).
+export async function endTempHours(fd) {
+  const u = await needPerm('att_staff');
+  const id = Number(s(fd, 'id'));
+  const r = (await q("SELECT id, to_char(from_date, 'YYYY-MM-DD') AS from_date, to_char(to_date, 'YYYY-MM-DD') AS to_date FROM pc2_shift_periods WHERE id = $1", [Number.isInteger(id) ? id : 0]))[0];
+  if (!r) back('/attendance/staff', 'That period was not found');
+  const today = todayKey();
+  if (r.from_date > today) await q('DELETE FROM pc2_shift_periods WHERE id = $1', [id]);
+  else if (r.to_date > today) await q('UPDATE pc2_shift_periods SET to_date = $2 WHERE id = $1', [id, today]);
+  await logEvent(u, 'update', 'staff', id, 'Ended temporary hours #' + id + ' on ' + today);
+  back('/attendance/staff', 'Temporary hours ended. Normal shifts apply again from tomorrow.', true);
+}
+
+export async function deleteTempHours(fd) {
+  const u = await needPerm('att_staff');
+  const id = Number(s(fd, 'id'));
+  await q('DELETE FROM pc2_shift_periods WHERE id = $1', [Number.isInteger(id) ? id : 0]);
+  await logEvent(u, 'delete', 'staff', id, 'Removed temporary hours #' + id);
+  back('/attendance/staff', 'Temporary hours removed', true);
+}
+
 export async function toggleStaff(fd) {
   const u = await needPerm('att_staff');
   const id = Number(s(fd, 'id'));

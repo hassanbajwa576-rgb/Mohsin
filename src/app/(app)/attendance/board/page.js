@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import {
-  ATT_ROLES, allOffices, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff,
+  ATT_ROLES, allOffices, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff, loadPeriods, shiftOn,
   stateOf, sessionsOf, fmtTime, fmt12, fmtDay, fmtDur, todayKey, dateKey, inClassFor, outClassFor,
 } from '@/lib/att';
 
@@ -18,7 +18,9 @@ export default async function TodaysBoardPage({ searchParams }) {
   const by = groupByStaff(await recentEvents(staff.map((x) => x.id), 3));
   const now = Date.now();
   const today = todayKey();
-  const board = staff.map((x) => {
+  const periods = await loadPeriods(today, today);
+  const board = staff.map((x0) => {
+    const x = shiftOn(x0, today, periods);
     const list = by.get(x.id) || [];
     const st0 = stateOf(list);
     // A check in from an earlier day with no check out is a missed check out; the board starts clean at midnight.
