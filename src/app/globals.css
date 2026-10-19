@@ -515,3 +515,28 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .wkbar{width:26px;height:90px;background:var(--surface);border-radius:3px;display:flex;align-items:flex-end;overflow:hidden}
 .wkbar i{display:block;width:100%;background:var(--gold)}
 @media (max-width:720px){.hrow{grid-template-columns:90px 1fr 34px}}
+
+/* report filter bar */
+.fbar{padding:12px 14px}
+.fbar-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.fbar-field{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px}
+.fbar-field select{min-height:40px}
+.qseg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:#fff}
+.qseg button{border:0;border-right:1px solid var(--line);background:#fff;padding:8px 12px;font:inherit;font-size:13.5px;cursor:pointer;min-height:40px;white-space:nowrap}
+.qseg button:last-child{border-right:0}
+.qseg button.on{background:var(--gold);color:#000;font-weight:600}
+.dwrap{position:relative}
+.dbtn{border:1px solid var(--line);border-radius:4px;background:#fff;padding:8px 12px;font:inherit;font-size:13.5px;cursor:pointer;min-height:40px}
+.dpop{position:absolute;z-index:40;top:100%;left:0;margin-top:4px;width:min(92vw,420px);background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 10px 24px rgba(0,0,0,.14);padding:10px}
+.dsearch{width:100%;margin-bottom:8px}
+.dcols{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;max-height:260px;overflow-y:auto}
+.dcols label{display:flex;flex-direction:row;align-items:center;gap:8px;padding:5px 2px;font-size:14px;cursor:pointer;min-width:0;color:var(--text)}
+.dcols input{width:auto;min-height:0;margin:0}
+.dfoot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:13px}
+.dtags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.dtag{display:inline-flex;align-items:center;gap:6px;background:#fbf1cf;border-radius:99px;padding:3px 6px 3px 12px;font-size:13px}
+.dtag button{border:0;background:none;cursor:pointer;font-size:16px;line-height:1;padding:0 5px;color:var(--slate);min-height:0}
+.fbar-dates{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.fbar-dates label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px}
+@media (max-width:720px){.qseg{flex-wrap:wrap}.qseg button{flex:1 1 auto}.dwrap{flex:1 1 100%}.dbtn{width:100%;text-align:left}}
+.dpop.flip{left:auto;right:0}

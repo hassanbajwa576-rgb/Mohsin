@@ -1,4 +1,5 @@
 import OfficeTag from '@/components/OfficeTag';
+import ReportFilters from '@/components/ReportFilters';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { can } from '@/lib/perms';
@@ -13,7 +14,8 @@ export default async function AttendanceReportsPage({ searchParams }) {
   const sp = await searchParams;
   const today = todayKey();
   // Opens on the latest working day before today (yesterday on a normal weekday).
-  const day = validDate(sp.from || '') || validDate(sp.to || '') ? '' : await lastWorkDay(today);
+  const lastDay = await lastWorkDay(today);
+  const day = validDate(sp.from || '') || validDate(sp.to || '') ? '' : lastDay;
   const to = validDate(sp.to || '') ? sp.to : day || today;
   let from = validDate(sp.from || '') ? sp.from : day || today.slice(0, 8) + '01';
   if (from > to) from = to;
@@ -41,34 +43,15 @@ export default async function AttendanceReportsPage({ searchParams }) {
         </div>
       </div>
 
-      <form method='get' className='card filters'>
-        <label>From<input type='date' name='from' defaultValue={from} /></label>
-        <label>To<input type='date' name='to' defaultValue={to} /></label>
-        <label>Office
-          <select name='office' defaultValue={office}>{(allOffices(user) ? ['', 'LHR', 'ISB'] : [user.office_code]).map((o) => <option key={o} value={o}>{o || 'Both'}</option>)}</select>
-        </label>
-        <div className='multi'>
-          <span className='multi-lbl'>Departments</span>
-          <details>
-            <summary>{dsel.length ? dsel.join(', ') : 'All departments'}</summary>
-            <div className='multi-list'>
-              {depts.map((d) => (
-                <label key={d}><input type='checkbox' name='dept' value={d} defaultChecked={dsel.includes(d)} /> {d}</label>
-              ))}
-              <p className='muted'>Tick one or more. Tick none for all departments.</p>
-            </div>
-          </details>
-        </div>
-        <label>Breaks
+      <ReportFilters today={today} lastDay={lastDay} from={from} to={to} office={office} canOffice={allOffices(user)} depts={depts} selected={dsel} resetHref='/attendance/reports' quick={['day', '7', '30', 'month', 'last']}>
+        <label className='fbar-field'>Breaks
           <select name='brk' defaultValue={brk}>
             <option value=''>All breaks</option>
             <option value='normal'>Normal (up to {BREAK_LIMIT_MIN / 60} hour)</option>
             <option value='extended'>Extended (over {BREAK_LIMIT_MIN / 60} hour)</option>
           </select>
         </label>
-        <button className='btn' type='submit'>Apply</button>
-        <Link href='/attendance/reports' className='btn ghost'>Reset</Link>
-      </form>
+      </ReportFilters>
 
       <div className='card'>
         {rows.length ? (

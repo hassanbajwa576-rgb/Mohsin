@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import OfficeTag from '@/components/OfficeTag';
+import ReportFilters from '@/components/ReportFilters';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import {
@@ -65,30 +66,7 @@ export default async function AttendanceAnalysisPage({ searchParams }) {
         </div>
       </div>
 
-      <form method='get' className='card filters'>
-        <input type='hidden' name='view' value={view} />
-        <label>From<input type='date' name='from' defaultValue={from} /></label>
-        <label>To<input type='date' name='to' defaultValue={to} /></label>
-        {allOffices(user) ? (
-          <label>Office
-            <select name='office' defaultValue={office}><option value=''>Both</option><option>LHR</option><option>ISB</option></select>
-          </label>
-        ) : null}
-        <div className='multi'>
-          <span className='multi-lbl'>Departments</span>
-          <details>
-            <summary>{dsel.length ? dsel.join(', ') : 'All departments'}</summary>
-            <div className='multi-list'>
-              {depts.map((d) => (
-                <label key={d}><input type='checkbox' name='dept' value={d} defaultChecked={dsel.includes(d)} /> {d}</label>
-              ))}
-              <p className='muted'>Tick one or more. Tick none for all departments.</p>
-            </div>
-          </details>
-        </div>
-        <button className='btn' type='submit'>Apply</button>
-        <Link href={'/attendance/analysis?view=' + view} className='btn ghost'>Last 30 days</Link>
-      </form>
+      <ReportFilters today={today} from={from} to={to} office={office} canOffice={allOffices(user)} depts={depts} selected={dsel} hidden={{ view }} resetHref={'/attendance/analysis?view=' + view} />
 
       <div className='chips' style={{ marginBottom: 12 }}>
         {VIEWS.map(([k, label]) => (
