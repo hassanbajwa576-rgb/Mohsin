@@ -55,6 +55,10 @@ const DDL = [
   `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS shift_start TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS shift_end TEXT NOT NULL DEFAULT ''`,
   `UPDATE pc2_staff SET dept = 'Operations' WHERE lower(trim(dept)) = 'ops'`,
+  // An expense paid from more than one advance is saved as linked parts (part 1 of 2, part 2 of 2).
+  `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS split_group TEXT`,
+  `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS split_part INTEGER`,
+  `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS split_total INTEGER`,
   // A shift set for a whole department; employees without their own shift follow it.
   // Temporary hours for a date range (one row per department, employee or everyone); they end by themselves.
   `CREATE TABLE IF NOT EXISTS pc2_shift_periods (id SERIAL PRIMARY KEY, scope TEXT NOT NULL CHECK (scope IN ('everyone','department','employee')), dept TEXT NOT NULL DEFAULT '', staff_id INTEGER REFERENCES pc2_staff(id) ON DELETE CASCADE, shift_start TEXT NOT NULL, shift_end TEXT NOT NULL, from_date DATE NOT NULL, to_date DATE NOT NULL, note TEXT NOT NULL DEFAULT '', created_by INTEGER REFERENCES pc2_users(id), created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
@@ -66,7 +70,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-19-1';
+const SCHEMA_VERSION = '2026-10-19-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

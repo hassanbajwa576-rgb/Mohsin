@@ -26,7 +26,7 @@ export default function ExpenseTable({ rows, user, back = '/expenses', actions =
                 <td className='c-title'>
                   <OfficeTag o={r.office} /><b>{r.category}</b>
                   {r.description ? <div className='muted'>{r.description}</div> : null}
-                  {r.issue_id ? <div className='muted'>Advance #{r.issue_id}</div> : null}
+                  {r.issue_id ? <div className='muted'>Advance #{r.issue_id}{r.split_group ? ' - part ' + r.split_part + ' of ' + r.split_total + ' of one expense' : ''}</div> : null}
                   {r.decision_note ? <div className='muted'>Note: {r.decision_note}</div> : null}
                 </td>
                 <td className='c-meta'>{FUNDS[r.fund]}</td>

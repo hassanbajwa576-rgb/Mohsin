@@ -7,6 +7,7 @@ import ConfirmButton from '@/components/ConfirmButton';
 import { pkr, today, FUNDS, CATEGORIES, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import PasteExpenses from '@/components/PasteExpenses';
+import SoExpenseForm from '@/components/SoExpenseForm';
 import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
 import ExpenseInsights from '@/components/ExpenseInsights';
 import Flash from '@/components/Flash';
@@ -68,23 +69,24 @@ export default async function ExpensesPage({ searchParams }) {
         {isSO && open.length === 0 ? (
           <p className='muted'>You have no cash in hand. Ask the Sr. Support Officer to issue you an advance first.</p>
         ) : (
+          isSO ? (
+            <SoExpenseForm
+              action={addExpense}
+              advances={open.map((i) => ({ id: i.id, fund: i.fund, left: i.left, issued_on: i.issued_on }))}
+              funds={FUNDS}
+              categories={CATEGORIES}
+              today={today()}
+            />
+          ) : (
           <form action={addExpense} className='form'>
             <label>Date<input type='date' name='spent_on' defaultValue={today()} required /></label>
             <label>Amount (PKR)<input name='amount' type='number' min='1' step='1' inputMode='numeric' required /></label>
             <label>Category
               <select name='category' required>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
             </label>
-            {isSO ? (
-              <label>Paid from advance
-                <select name='issue_id' required>
-                  {open.map((i) => <option key={i.id} value={i.id}>{'#' + i.id + ' - ' + FUNDS[i.fund] + ' - in hand ' + pkr(i.left)}</option>)}
-                </select>
-              </label>
-            ) : (
-              <label>Paid from fund
-                <select name='fund' defaultValue='petty'>{Object.entries(FUNDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-              </label>
-            )}
+            <label>Paid from fund
+              <select name='fund' defaultValue='petty'>{Object.entries(FUNDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+            </label>
             {isOM ? (
               <label>Office
                 <select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select>
@@ -93,6 +95,7 @@ export default async function ExpensesPage({ searchParams }) {
             <label className='wide'>Description<input name='description' placeholder='What was it for?' /></label>
             <button className='btn primary' type='submit'>{isOM ? 'Record expense' : 'Add expense'}</button>
           </form>
+          )
         )}
       </details>
 
@@ -104,7 +107,10 @@ export default async function ExpensesPage({ searchParams }) {
             isSO={isSO}
             isOM={isOM}
             officeCode={user.office_code}
-            advances={open.map((i) => ({ id: i.id, label: '#' + i.id + ' - ' + FUNDS[i.fund] + ' - in hand ' + pkr(i.left) }))}
+            advances={[
+              ...Object.keys(FUNDS).filter((k) => open.some((i) => i.fund === k)).map((k) => ({ id: 'auto:' + k, label: 'Automatic - ' + FUNDS[k] + ' (oldest advance first) - in hand ' + pkr(open.filter((i) => i.fund === k).reduce((a, i) => a + i.left, 0)) })),
+              ...open.map((i) => ({ id: i.id, label: 'Only #' + i.id + ' - ' + FUNDS[i.fund] + ' - in hand ' + pkr(i.left) })),
+            ]}
             funds={Object.entries(FUNDS)}
             categories={CATEGORIES}
             today={today()}

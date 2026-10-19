@@ -542,3 +542,13 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .dpop.flip{left:auto;right:0}
 .tmppill{display:inline-block;font-size:12px;padding:1px 9px;border-radius:6px;background:var(--gold);color:#2c3138;white-space:nowrap;font-weight:600}
 .staffgrid{max-height:240px;overflow-y:auto}
+
+/* automatic advance split */
+.holdbar{background:var(--surface);border-radius:4px;padding:10px 12px;font-size:14px;line-height:1.6}
+.holdbar b{font-weight:600}
+.splitprev{border:1px solid var(--gold-d);background:#fdf8e7;border-radius:4px;padding:10px 12px;font-size:14px}
+.splitprev p{margin:0 0 6px;color:var(--mut)}
+.splitline{display:flex;justify-content:space-between;padding:3px 0}
+.splitline.total{border-top:1px solid var(--line);margin-top:4px;padding-top:6px}
+.okline{margin:0;padding:9px 12px;border-radius:4px;background:var(--okbg);color:var(--ok);font-size:14px}
+.badline{margin:0;padding:9px 12px;border-radius:4px;background:var(--badbg);color:var(--bad);font-size:14px}

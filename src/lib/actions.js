@@ -77,7 +77,36 @@ export async function setup(fd) {
   redirect('/');
 }
 
+// Advances a Support Officer holds for one fund, oldest first, with what is left on each.
+async function openAdvances(userId, fund) {
+  return q(
+    `SELECT i.id, i.fund, (i.amount - i.returned - COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0))::float8 AS remaining FROM pc2_issues i WHERE i.issued_to = $1 AND i.fund = $2 ORDER BY i.issued_on, i.id`,
+    [userId, fund]
+  );
+}
+
+// Shares an amount across advances, oldest first. Returns [{ issueId, amount }] or null when the advances hold less than the amount.
+function allocate(list, amount) {
+  const have = list.reduce((a, x) => a + Math.max(0, x.remaining), 0);
+  if (amount > have) return null;
+  const parts = [];
+  let left = amount;
+  for (const x of list) {
+    if (left <= 0) break;
+    const take = Math.min(left, Math.max(0, x.remaining));
+    if (take > 0) {
+      parts.push({ issueId: x.id, amount: take });
+      x.remaining -= take;
+      left -= take;
+    }
+  }
+  return parts;
+}
+
+const newGroup = () => 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
 // Anyone can add an expense; the Sr. Ops Manager is notified straight away.
+// A Support Officer can pay from one advance, or "Automatic": oldest advance first, split across advances when needed.
 export async function addExpense(fd) {
   const u = await need();
   const amount = amt(fd);
@@ -89,19 +118,29 @@ export async function addExpense(fd) {
   if (badDate(spentOn)) back('/expenses', 'Pick a valid date');
 
   let fund = s(fd, 'fund');
-  let issueId = null;
+  let parts = [{ issueId: null, amount }];
   let officeId = u.office_id;
   let officeCode = u.office_code;
   let status;
   if (u.role === 'so') {
-    const i = (await q(
-      `SELECT i.id, i.fund, i.amount - i.returned - COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0) AS remaining FROM pc2_issues i WHERE i.id = $1 AND i.issued_to = $2`,
-      [Number(s(fd, 'issue_id')), u.id]
-    ))[0];
-    if (!i) back('/expenses', 'Pick one of your advances');
-    if (amount > Number(i.remaining)) back('/expenses', 'Amount exceeds your cash in hand (' + pkr(i.remaining) + ')');
-    fund = i.fund;
-    issueId = i.id;
+    const pick = s(fd, 'issue_id');
+    if (pick.startsWith('auto:')) {
+      fund = pick.slice(5);
+      if (!FUNDS[fund]) back('/expenses', 'Pick where the money comes from');
+      const list = await openAdvances(u.id, fund);
+      const alloc = allocate(list, amount);
+      if (!alloc) back('/expenses', 'You only hold ' + pkr(list.reduce((a, x) => a + Math.max(0, x.remaining), 0)) + ' in total on ' + FUNDS[fund] + ', so this expense cannot be added');
+      parts = alloc;
+    } else {
+      const i = (await q(
+        `SELECT i.id, i.fund, i.amount - i.returned - COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0) AS remaining FROM pc2_issues i WHERE i.id = $1 AND i.issued_to = $2`,
+        [Number(pick), u.id]
+      ))[0];
+      if (!i) back('/expenses', 'Pick one of your advances');
+      if (amount > Number(i.remaining)) back('/expenses', 'Amount exceeds the cash left on that advance (' + pkr(i.remaining) + ')');
+      fund = i.fund;
+      parts = [{ issueId: i.id, amount }];
+    }
     status = 'draft';
   } else {
     if (!FUNDS[fund]) back('/expenses', 'Pick a fund');
@@ -113,20 +152,26 @@ export async function addExpense(fd) {
   }
 
   const decided = u.role === 'om';
-  const ins = await q(
-    `INSERT INTO pc2_expenses (office_id, fund, category, description, amount, spent_on, status, submitted_by, issue_id, decided_by, decided_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-    [officeId, fund, category, description, amount, spentOn, status, u.id, issueId, decided ? u.id : null, decided ? new Date().toISOString() : null]
-  );
-  const id = ins[0].id;
-  await logEvent(u, 'create', 'expense', id, 'Added expense #' + id + ': ' + pkr(amount) + ' - ' + category + ' (' + officeCode + ', ' + FUNDS[fund] + ')', null,
-    { office: officeCode, fund, category, description, amount, spent_on: spentOn, status });
+  const group = parts.length > 1 ? newGroup() : null;
+  const ids = [];
+  for (let k = 0; k < parts.length; k++) {
+    const p = parts[k];
+    const ins = await q(
+      `INSERT INTO pc2_expenses (office_id, fund, category, description, amount, spent_on, status, submitted_by, issue_id, decided_by, decided_at, split_group, split_part, split_total) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+      [officeId, fund, category, description, p.amount, spentOn, status, u.id, p.issueId, decided ? u.id : null, decided ? new Date().toISOString() : null, group, group ? k + 1 : null, group ? parts.length : null]
+    );
+    const id = ins[0].id;
+    ids.push(id);
+    await logEvent(u, 'create', 'expense', id, 'Added expense #' + id + ': ' + pkr(p.amount) + (group ? ' (part ' + (k + 1) + ' of ' + parts.length + ' of ' + pkr(amount) + ', advance #' + p.issueId + ')' : '') + ' - ' + category + ' (' + officeCode + ', ' + FUNDS[fund] + ')', null,
+      { office: officeCode, fund, category, description, amount: p.amount, spent_on: spentOn, status });
+  }
 
   const msg = u.name + ' added an expense: ' + pkr(amount) + ' - ' + category + (description ? ' (' + description + ')' : '');
   if (u.role === 'so') await notifyRoles(['om', 'sso'], msg + ' (kept with them until submitted)', '/expenses?status=draft', u.id);
   else if (u.role === 'sso') await notifyRoles(['om'], msg, '/expenses?status=submitted', u.id);
-  back('/expenses', u.role === 'so' ? 'Expense added. It stays with you until you submit your expenses to the Sr. SO or Sr. Ops Manager.' : 'Expense recorded', true);
+  const split = parts.length > 1 ? ' It was paid from ' + parts.length + ' advances (' + parts.map((p) => '#' + p.issueId + ': ' + pkr(p.amount)).join(', ') + ').' : '';
+  back('/expenses', u.role === 'so' ? 'Expense added.' + split + ' It stays with you until you submit your expenses to the Sr. SO or Sr. Ops Manager.' : 'Expense recorded', true);
 }
-
 // Sr. Ops Manager edits any expense that has not yet been sent to Accounts.
 export async function editExpense(fd) {
   const u = await need(['om']);
@@ -180,19 +225,26 @@ export async function decideExpense(fd) {
   const approve = s(fd, 'decision') === 'approve';
   const note = s(fd, 'note');
   const to = dest(s(fd, 'back'), '/expenses');
-  const row = (await q('SELECT id, status, amount, category, submitted_by FROM pc2_expenses WHERE id = $1', [id]))[0];
+  const row = (await q('SELECT id, status, amount, category, submitted_by, split_group FROM pc2_expenses WHERE id = $1', [id]))[0];
   if (!row) redirect(to);
   let next = null;
   if (row.status === 'submitted' || row.status === 'verified') next = approve ? 'approved' : 'rejected';
   if (!next) redirect(to);
 
-  await q(
-    `UPDATE pc2_expenses SET status = $1, decided_by = $2, decided_at = now(), decision_note = $3, verified_by = CASE WHEN $1 = 'verified' THEN $2 ELSE verified_by END, verified_at = CASE WHEN $1 = 'verified' THEN now() ELSE verified_at END WHERE id = $4 AND status = $5`,
-    [next, u.id, note, id, row.status]
-  );
-  await logEvent(u, 'decision', 'expense', id, 'Expense #' + id + ' ' + row.status + ' -> ' + next + (note ? ' (' + note + ')' : ''), { status: row.status }, { status: next });
+  // An expense split across advances is decided as one: every part gets the same decision.
+  const parts = row.split_group
+    ? await q('SELECT id, amount FROM pc2_expenses WHERE split_group = $1 AND status = $2', [row.split_group, row.status])
+    : [{ id: row.id, amount: row.amount }];
+  const ids = parts.map((x) => x.id);
+  const wholeAmount = parts.reduce((a, x) => a + Number(x.amount), 0);
 
-  const what = pkr(row.amount) + ' (' + row.category + ')';
+  await q(
+    `UPDATE pc2_expenses SET status = $1, decided_by = $2, decided_at = now(), decision_note = $3, verified_by = CASE WHEN $1 = 'verified' THEN $2 ELSE verified_by END, verified_at = CASE WHEN $1 = 'verified' THEN now() ELSE verified_at END WHERE id = ANY($4::int[]) AND status = $5`,
+    [next, u.id, note, ids, row.status]
+  );
+  await logEvent(u, 'decision', 'expense', id, 'Expense #' + ids.join(' + #') + ' ' + row.status + ' -> ' + next + (note ? ' (' + note + ')' : ''), { status: row.status }, { status: next });
+
+  const what = pkr(wholeAmount) + ' (' + row.category + ')';
   if (next === 'verified') await notifyRoles(['om'], u.name + ' verified ' + what + ' - ready for your review', '/expenses?status=verified', u.id);
   if (next === 'rejected' && row.submitted_by !== u.id) await notifyUser(row.submitted_by, 'Your expense of ' + what + ' was rejected' + (note ? ': ' + note : ''), '/expenses');
   if (next === 'approved' && row.submitted_by !== u.id) await notifyUser(row.submitted_by, 'Your expense of ' + what + ' was approved', '/expenses');
@@ -208,22 +260,27 @@ export async function deleteExpense(fd) {
   if (before) {
     // Delete is a manager action: only the Sr. Ops Manager, or a Support Officer retracting their
     // own expense that has not been verified yet. The Sr. Support Officer cannot delete entries.
-    const allowed = u.role === 'om' || (u.role === 'so' && ['draft', 'submitted'].includes(before.status) && before.submitted_by === u.id);
-    if (allowed) {
-      const b = (await q('SELECT batch_id FROM pc2_expenses WHERE id = $1', [id]))[0];
-      await q('DELETE FROM pc2_expenses WHERE id = $1', [id]);
-      if (b && b.batch_id) {
-        await q('UPDATE pc2_batches SET total = GREATEST(total - $1, 0), item_count = GREATEST(item_count - 1, 0) WHERE id = $2', [before.amount, b.batch_id]);
+    // An expense split across advances is removed as one: all its parts go together.
+    const g = (await q('SELECT split_group FROM pc2_expenses WHERE id = $1', [id]))[0];
+    const group = g && g.split_group
+      ? await q('SELECT e.id, e.amount, e.category, e.status, e.submitted_by, e.batch_id FROM pc2_expenses e WHERE e.split_group = $1 ORDER BY e.id', [g.split_group])
+      : [];
+    const mine = (r) => u.role === 'om' || (u.role === 'so' && ['draft', 'submitted'].includes(r.status) && r.submitted_by === u.id);
+    const targets = group.length ? group.filter(mine) : (mine(before) ? [{ id, amount: before.amount, category: before.category, status: before.status, submitted_by: before.submitted_by, batch_id: (await q('SELECT batch_id FROM pc2_expenses WHERE id = $1', [id]))[0]?.batch_id }] : []);
+    for (const r of targets) {
+      await q('DELETE FROM pc2_expenses WHERE id = $1', [r.id]);
+      if (r.batch_id) {
+        await q('UPDATE pc2_batches SET total = GREATEST(total - $1, 0), item_count = GREATEST(item_count - 1, 0) WHERE id = $2', [r.amount, r.batch_id]);
       }
-      await logEvent(u, 'delete', 'expense', id, 'Deleted expense #' + id + ': ' + pkr(before.amount) + ' - ' + before.category + (b && b.batch_id ? ' (was in batch #' + b.batch_id + ')' : ''), expView(before), null);
-      if (before.submitted_by !== u.id) {
-        await notifyUser(before.submitted_by, u.name + ' deleted your expense #' + id + ' (' + pkr(before.amount) + ' - ' + before.category + ')', '/expenses');
-      }
+      await logEvent(u, 'delete', 'expense', r.id, 'Deleted expense #' + r.id + ': ' + pkr(r.amount) + ' - ' + r.category + (r.batch_id ? ' (was in batch #' + r.batch_id + ')' : '') + (group.length > 1 ? ' (one part of a split expense)' : ''), expView(r.id === id ? before : { ...before, amount: r.amount }), null);
+    }
+    if (targets.length && before.submitted_by !== u.id) {
+      const sumAmt = targets.reduce((a, r) => a + Number(r.amount), 0);
+      await notifyUser(before.submitted_by, u.name + ' deleted your expense #' + targets.map((r) => r.id).join(' + #') + ' (' + pkr(sumAmt) + ' - ' + before.category + ')', '/expenses');
     }
   }
   redirect(dest(s(fd, 'back'), '/expenses'));
 }
-
 // Sr. Ops Manager removes an advance issued to a team member (only if nothing was spent on it).
 export async function deleteIssue(fd) {
   const u = await need(['om']);
@@ -712,19 +769,29 @@ export async function addExpensesBulk(fd) {
   const total = clean.reduce((a, r) => a + r.amount, 0);
 
   let fund = s(fd, 'fund');
-  let issueId = null;
   let officeId = u.office_id;
   let officeCode = u.office_code;
   let status;
+  let plan = clean.map((r) => ({ ...r, parts: [{ issueId: null, amount: r.amount }] }));
   if (u.role === 'so') {
-    const i = (await q(
-      `SELECT i.id, i.fund, i.amount - i.returned - COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0) AS remaining FROM pc2_issues i WHERE i.id = $1 AND i.issued_to = $2`,
-      [Number(s(fd, 'issue_id')), u.id]
-    ))[0];
-    if (!i) back('/expenses', 'Pick one of your advances');
-    if (total > Number(i.remaining)) back('/expenses', 'These rows total ' + pkr(total) + ', more than your cash in hand (' + pkr(i.remaining) + ')');
-    fund = i.fund;
-    issueId = i.id;
+    const pick = s(fd, 'issue_id');
+    if (pick.startsWith('auto:')) {
+      fund = pick.slice(5);
+      if (!FUNDS[fund]) back('/expenses', 'Pick where the money comes from');
+      const list = await openAdvances(u.id, fund);
+      const have = list.reduce((a, x) => a + Math.max(0, x.remaining), 0);
+      if (total > have) back('/expenses', 'These rows total ' + pkr(total) + ', more than your cash in hand (' + pkr(have) + ')');
+      plan = clean.map((r) => ({ ...r, parts: allocate(list, r.amount) }));
+    } else {
+      const i = (await q(
+        `SELECT i.id, i.fund, i.amount - i.returned - COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0) AS remaining FROM pc2_issues i WHERE i.id = $1 AND i.issued_to = $2`,
+        [Number(pick), u.id]
+      ))[0];
+      if (!i) back('/expenses', 'Pick one of your advances');
+      if (total > Number(i.remaining)) back('/expenses', 'These rows total ' + pkr(total) + ', more than the cash left on that advance (' + pkr(i.remaining) + ')');
+      fund = i.fund;
+      plan = clean.map((r) => ({ ...r, parts: [{ issueId: i.id, amount: r.amount }] }));
+    }
     status = 'draft';
   } else {
     if (!FUNDS[fund]) back('/expenses', 'Pick a fund');
@@ -742,13 +809,18 @@ export async function addExpensesBulk(fd) {
   const when = decided ? new Date().toISOString() : null;
   const vals = [];
   const params = [];
-  for (const r of clean) {
-    const b = params.length;
-    params.push(officeId, fund, r.category, r.description, r.amount, r.on, status, u.id, issueId, decided ? u.id : null, when);
-    vals.push('(' + Array.from({ length: 11 }, (_, k) => '$' + (b + k + 1)).join(',') + ')');
+  let count = 0;
+  for (const r of plan) {
+    const group = r.parts.length > 1 ? newGroup() : null;
+    r.parts.forEach((p, k) => {
+      const b = params.length;
+      params.push(officeId, fund, r.category, r.description, p.amount, r.on, status, u.id, p.issueId, decided ? u.id : null, when, group, group ? k + 1 : null, group ? r.parts.length : null);
+      vals.push('(' + Array.from({ length: 14 }, (_, n) => '$' + (b + n + 1)).join(',') + ')');
+      count += 1;
+    });
   }
-  await q(`INSERT INTO pc2_expenses (office_id, fund, category, description, amount, spent_on, status, submitted_by, issue_id, decided_by, decided_at) VALUES ${vals.join(',')}`, params);
-  await logEvent(u, 'create', 'expense', null, 'Added ' + clean.length + ' expenses from Excel totalling ' + pkr(total) + ' (' + officeCode + ', ' + FUNDS[fund] + ')', null,
+  await q(`INSERT INTO pc2_expenses (office_id, fund, category, description, amount, spent_on, status, submitted_by, issue_id, decided_by, decided_at, split_group, split_part, split_total) VALUES ${vals.join(',')}`, params);
+  await logEvent(u, 'create', 'expense', null, 'Added ' + clean.length + ' expenses from Excel totalling ' + pkr(total) + ' (' + officeCode + ', ' + FUNDS[fund] + ')' + (count > clean.length ? ', some split across advances' : ''), null,
     { count: clean.length, total, office: officeCode, fund, status });
 
   const msg = u.name + ' added ' + clean.length + ' expenses from Excel totalling ' + pkr(total);
@@ -756,7 +828,6 @@ export async function addExpensesBulk(fd) {
   else if (u.role === 'sso') await notifyRoles(['om'], msg, '/expenses?status=submitted', u.id);
   back('/expenses', clean.length + ' expenses added (' + pkr(total) + ')' + (u.role === 'so' ? '. They stay with you until you submit your expenses.' : ''), true);
 }
-
 // Sr. Ops Manager approves every expense in the list currently shown (only those awaiting review).
 export async function approveAll(fd) {
   const u = await need(['om']);
