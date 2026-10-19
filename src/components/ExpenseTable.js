@@ -1,9 +1,10 @@
 import { decideExpense, deleteExpense } from '@/lib/actions';
-import { pkr, FUNDS, STATUS_LABEL } from '@/lib/fmt';
+import { pkr, FUNDS, STATUS_LABEL, mergeSplits } from '@/lib/fmt';
 import ConfirmButton from './ConfirmButton';
 import OfficeTag from './OfficeTag';
 
-export default function ExpenseTable({ rows, user, back = '/expenses', actions = true }) {
+export default function ExpenseTable({ rows: raw, user, back = '/expenses', actions = true }) {
+  const rows = mergeSplits(raw);
   if (!rows.length) return <p className='muted'>Nothing to show yet.</p>;
   const isOM = user.role === 'om';
   const isSSO = user.role === 'sso';
@@ -18,7 +19,7 @@ export default function ExpenseTable({ rows, user, back = '/expenses', actions =
         <tbody>
           {rows.map((r) => {
             const canDecide = actions && isOM && ['submitted', 'verified'].includes(r.status);
-            const canEdit = actions && isOM && r.status !== 'sent';
+            const canEdit = actions && isOM && r.status !== 'sent' && !r.split_group;
             const canDelete = actions && (isOM || (user.role === 'so' && ['draft', 'submitted'].includes(r.status) && r.submitted_by === user.id));
             return (
               <tr key={r.id}>
@@ -26,7 +27,7 @@ export default function ExpenseTable({ rows, user, back = '/expenses', actions =
                 <td className='c-title'>
                   <OfficeTag o={r.office} /><b>{r.category}</b>
                   {r.description ? <div className='muted'>{r.description}</div> : null}
-                  {r.issue_id ? <div className='muted'>Advance #{r.issue_id}{r.split_group ? ' - part ' + r.split_part + ' of ' + r.split_total + ' of one expense' : ''}</div> : null}
+                  {r.issue_id && !r.split_group ? <div className='muted'>Advance #{r.issue_id}</div> : null}
                   {r.decision_note ? <div className='muted'>Note: {r.decision_note}</div> : null}
                 </td>
                 <td className='c-meta'>{FUNDS[r.fund]}</td>

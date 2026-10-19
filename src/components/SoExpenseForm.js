@@ -50,7 +50,7 @@ export default function SoExpenseForm({ action, advances, funds, categories, tod
       <div className='holdbar wide'>
         {fundKeys.map((k) => (
           <div key={k}>
-            <b>You hold {pkr(byFund(k).reduce((s, a) => s + a.left, 0))}</b> on {funds[k]}: {byFund(k).map((a) => '#' + a.id + ' ' + pkr(a.left)).join(' · ')}
+            <b>You hold {pkr(byFund(k).reduce((s, a) => s + a.left, 0))}</b> on {funds[k]}
           </div>
         ))}
       </div>
@@ -62,24 +62,14 @@ export default function SoExpenseForm({ action, advances, funds, categories, tod
       <label>Paid from
         <select name='issue_id' required value={pick} onChange={(e) => setPick(e.target.value)}>
           {fundKeys.map((k) => (
-            <option key={k} value={'auto:' + k}>Automatic - {funds[k]} (oldest advance first) - in hand {pkr(byFund(k).reduce((s, a) => s + a.left, 0))}</option>
+            <option key={k} value={'auto:' + k}>{funds[k]} - in hand {pkr(byFund(k).reduce((s, a) => s + a.left, 0))}</option>
           ))}
-          {advances.map((a) => <option key={a.id} value={a.id}>{'Only #' + a.id + ' - ' + funds[a.fund] + ' - in hand ' + pkr(a.left)}</option>)}
         </select>
       </label>
       <label className='wide'>Description<input name='description' placeholder='What was it for?' /></label>
 
-      {n > 0 && plan.length > 1 ? (
-        <div className='splitprev wide'>
-          <p>This uses more than one advance, so it is recorded in {plan.length} parts:</p>
-          {plan.map(([id, v], i) => (
-            <div key={id} className='splitline'><span>#{id}{i === 0 ? ' (oldest)' : ''}</span><b>{pkr(v)}</b></div>
-          ))}
-          <div className='splitline total'><span>Total</span><b>{pkr(n)}</b></div>
-        </div>
-      ) : null}
-      {n > 0 && plan.length === 1 && short === 0 ? (
-        <p className='okline wide'>Paid from #{plan[0][0]} ({pkr(held)} available). One expense line.</p>
+      {n > 0 && short === 0 ? (
+        <p className='okline wide'>{pkr(n)} will be taken from your {funds[fundOfPick] || ''} cash in hand ({pkr(held)} available).</p>
       ) : null}
       {n > 0 && short > 0 ? (
         <p className='badline wide'>

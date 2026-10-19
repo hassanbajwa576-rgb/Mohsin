@@ -8,6 +8,7 @@ import { pkr, today, FUNDS, CATEGORIES, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import PasteExpenses from '@/components/PasteExpenses';
 import SoExpenseForm from '@/components/SoExpenseForm';
+import { mergeSplits } from '@/lib/fmt';
 import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
 import ExpenseInsights from '@/components/ExpenseInsights';
 import Flash from '@/components/Flash';
@@ -24,7 +25,7 @@ export default async function ExpensesPage({ searchParams }) {
     month: sp.month || '',
   };
   const w = expWhere(user, f);
-  const rows = await q(`SELECT ${EXP_COLS} ${EXP_FROM} ${w.where} ORDER BY e.spent_on DESC, e.id DESC LIMIT 300`, w.params);
+  const rows = mergeSplits(await q(`SELECT ${EXP_COLS} ${EXP_FROM} ${w.where} ORDER BY e.spent_on DESC, e.id DESC LIMIT 300`, w.params));
   const sum = (st) => rows.filter((r) => r.status === st).reduce((a, r) => a + Number(r.amount), 0);
   const open = isSO
     ? (await issueRows(user)).map((i) => ({ ...i, left: i.amount - i.returned - Number(i.spent) })).filter((i) => i.left > 0)
@@ -108,8 +109,7 @@ export default async function ExpensesPage({ searchParams }) {
             isOM={isOM}
             officeCode={user.office_code}
             advances={[
-              ...Object.keys(FUNDS).filter((k) => open.some((i) => i.fund === k)).map((k) => ({ id: 'auto:' + k, label: 'Automatic - ' + FUNDS[k] + ' (oldest advance first) - in hand ' + pkr(open.filter((i) => i.fund === k).reduce((a, i) => a + i.left, 0)) })),
-              ...open.map((i) => ({ id: i.id, label: 'Only #' + i.id + ' - ' + FUNDS[i.fund] + ' - in hand ' + pkr(i.left) })),
+              ...Object.keys(FUNDS).filter((k) => open.some((i) => i.fund === k)).map((k) => ({ id: 'auto:' + k, label: FUNDS[k] + ' - in hand ' + pkr(open.filter((i) => i.fund === k).reduce((a, i) => a + i.left, 0)) })),
             ]}
             funds={Object.entries(FUNDS)}
             categories={CATEGORIES}
@@ -153,7 +153,7 @@ export default async function ExpensesPage({ searchParams }) {
       <div className='card'>
         {waiting.length > 0 ? (
           <form action={approveAll} className='submitbar'>
-            <input type='hidden' name='ids' value={waiting.map((r) => r.id).join(',')} />
+            <input type='hidden' name='ids' value={waiting.flatMap((r) => r.ids || [r.id]).join(',')} />
             <div>
               <b>{waiting.length} expense(s) - {pkr(waitingTotal)}</b> waiting for your approval in this list
               <div className='muted'>Approve all moves them to Accounts, ready to submit. Use Reject on a row first for any you do not accept.</div>
