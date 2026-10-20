@@ -135,13 +135,13 @@ export async function appEvents(staffIds, from, to) {
   const m = new Map();
   if (!staffIds.length) return m;
   const rows = await q(
-    `SELECT a.staff_id, a.kind, to_char(a.at AT TIME ZONE '${TZ}', 'YYYY-MM-DD') AS d, to_char(a.at AT TIME ZONE '${TZ}', 'HH24:MI') AS t
+    `SELECT a.id, a.staff_id, a.kind, to_char(a.at AT TIME ZONE '${TZ}', 'YYYY-MM-DD') AS d, to_char(a.at AT TIME ZONE '${TZ}', 'HH24:MI') AS t
      FROM pc2_attendance a WHERE a.staff_id = ANY($1::int[]) AND a.at >= (($2::date)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($3::date + 2)::timestamp AT TIME ZONE '${TZ}') ORDER BY a.at, a.id`,
     [staffIds, from, to]
   );
   for (const r of rows) {
     if (!m.has(r.staff_id)) m.set(r.staff_id, []);
-    m.get(r.staff_id).push({ kind: r.kind, d: r.d, t: r.t, s: r.d + ' ' + r.t });
+    m.get(r.staff_id).push({ id: r.id, kind: r.kind, d: r.d, t: r.t, s: r.d + ' ' + r.t });
   }
   return m;
 }
@@ -199,6 +199,9 @@ export function classify(it, evs) {
   });
   return { adds, reasons, win, lo, hi, hasIn, appIn };
 }
+
+/** The app's entries of a day as { id, kind, d, t }, for the popup that lets the times be corrected. */
+export const entriesOf = (win) => win.map((e) => ({ id: e.id, kind: e.kind, d: e.d, t: e.t }));
 
 /** Plain text for the app's and Excel's times of a day that needs review (r = the result of classify). */
 export function explain(it, r) {
@@ -278,6 +281,15 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
   }
   for (const it of items.values()) it.breaks.sort((a, b) => a[0].localeCompare(b[0]));
 
+  // A shift longer than 16 hours on the sheet is most likely a mistyped AM / PM: point it out before importing.
+  const mins = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  const long = [];
+  for (const it of items.values()) {
+    if (!it.in || !it.out) continue;
+    const d = (mins(it.out) - mins(it.in) + 1440) % 1440;
+    if (d > 16 * 60) long.push({ name: it.name, date: it.date, text: 'In ' + it.in + ', Out ' + it.out + ' = ' + Math.floor(d / 60) + 'h ' + String(d % 60).padStart(2, '0') + 'm' });
+  }
+
   const list = [...items.values()].sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
   const evs = await appEvents([...new Set(list.map((i) => i.staff))], from, to);
   const conflicts = [];
@@ -299,7 +311,7 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
       const appIn = r.win.find((e) => e.kind === 'in');
       const appOut = r.win.filter((e) => e.kind === 'out' && (!appIn || e.s > appIn.s))[0];
       conflicts.push({
-        key: it.key, name: it.name, date: it.date, breaksOnly: it.breaksOnly, reasons: r.reasons,
+        key: it.key, name: it.name, date: it.date, breaksOnly: it.breaksOnly, reasons: r.reasons, entries: entriesOf(r.win),
         app: text(appIn ? appIn.t : '', appOut ? appOut.t : '', ab),
         excel: text(it.in, it.out, it.breaks),
       });
@@ -314,7 +326,7 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
   return {
     from, to,
     items: keep,
-    fresh, freshEntries, same, noOut,
+    fresh, freshEntries, same, noOut, long: long.slice(0, 60),
     days: [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])),
     conflicts,
     unmatched: [...unmatched.values()],

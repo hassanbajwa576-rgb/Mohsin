@@ -5,7 +5,7 @@ import { q } from './db';
 import { getUser } from './auth';
 import { logEvent } from './audit';
 import { can } from './perms';
-import { buildPlan, appEvents, classify, allEntries, explain } from './att-import';
+import { buildPlan, appEvents, classify, allEntries, explain, entriesOf } from './att-import';
 import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime, closeStale, todayKey } from './att';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
@@ -594,4 +594,47 @@ export async function dismissNotes() {
   const u = await need(['om']);
   await q(`UPDATE pc2_import_review SET resolved_at = now(), resolved_by = $1, resolution = 'dismissed' WHERE resolved_at IS NULL AND kind IN ('unmatched', 'skipped')`, [u.id]);
   back('/attendance/import', 'Names and skipped rows cleared', true);
+}
+
+// Correct the app's times of one day from the import preview, without leaving the page. Only the time of an existing
+// entry changes (never its date), and only entries of that employee and day can be touched.
+export async function saveAppTimes(payload) {
+  const u = await need(['om']);
+  const raw = (payload && payload.item) || {};
+  const staffId = Number(raw.staff);
+  const date = String(raw.date || '');
+  if (!Number.isInteger(staffId) || !validDate(date)) return { error: 'That day could not be found' };
+  const okT = (t) => typeof t === 'string' && validTime(t);
+  const hasIn = okT(raw.in);
+  const hasOut = hasIn && okT(raw.out) && validDate(String(raw.outDate || ''));
+  const item = {
+    date,
+    in: hasIn ? raw.in : '',
+    out: hasOut ? raw.out : '',
+    outDate: hasOut ? raw.outDate : date,
+    breaks: (Array.isArray(raw.breaks) ? raw.breaks : []).filter((b) => Array.isArray(b) && okT(b[0]) && okT(b[1]) && b[1] > b[0]),
+  };
+  const st = (await q('SELECT id, name FROM pc2_staff WHERE id = $1', [staffId]))[0];
+  if (!st) return { error: 'That employee could not be found' };
+
+  const before = await appEvents([staffId], date, date);
+  const c0 = classify(item, before.get(staffId));
+  const allowed = new Map(c0.win.map((e) => [e.id, e]));
+  const changes = (Array.isArray(payload.changes) ? payload.changes : [])
+    .map((x) => ({ id: Number(x.id), t: String(x.t || '') }))
+    .filter((x) => allowed.has(x.id) && okT(x.t) && allowed.get(x.id).t !== x.t);
+  if (!changes.length) return { error: 'Change a time first' };
+
+  const was = [];
+  for (const ch of changes) {
+    const e = allowed.get(ch.id);
+    await q(`UPDATE pc2_attendance SET at = ($1::date + $2::time) AT TIME ZONE 'Asia/Karachi' WHERE id = $3 AND staff_id = $4`, [e.d, ch.t, ch.id, staffId]);
+    was.push(KIND_LABEL[e.kind] + ' ' + e.d + ' ' + e.t + ' to ' + ch.t);
+  }
+  await logEvent(u, 'edit', 'attendance', null, 'Changed ' + st.name + ' (import review): ' + was.join('; '), { entries: was }, { changed: changes.length });
+
+  const after = await appEvents([staffId], date, date);
+  const c = classify(item, after.get(staffId));
+  const ex = explain(item, c);
+  return { ok: true, app: ex.app, reasons: c.reasons, matches: c.reasons.length === 0, entries: entriesOf(c.win) };
 }

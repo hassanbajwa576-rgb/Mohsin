@@ -572,3 +572,15 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 @media (max-width:1320px){.tier-menu a{padding-left:8px;padding-right:8px;font-size:13px}}
 
 .navbadge{background:var(--bad);color:#fff;border-radius:9px;font-size:11px;font-weight:600;padding:1px 6px;margin-left:6px}
+
+/* import review: edit the app's times in place */
+.impedit{text-align:left;border-bottom:1px dashed var(--ink);padding:0;font-weight:500}
+.impdone td{background:#eaf5ea}
+.impok{color:var(--ok);font-weight:600}
+.impeditrow td{background:#fffaf0;padding:0 !important}
+.imppop{padding:12px 14px;max-width:420px}
+.imppoprow{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0;font-weight:400}
+.imppoprow input{width:130px}
+.imppopbtn{display:flex;gap:8px;margin-top:8px}
+
+.implong{background:#fdf3d7;border-radius:4px;padding:10px 14px;font-size:14px}.implong ul{margin:6px 0 0;padding-left:18px}

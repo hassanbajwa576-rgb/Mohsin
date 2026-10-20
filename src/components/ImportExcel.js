@@ -1,25 +1,56 @@
 'use client';
 
-import { useActionState, useState } from 'react';
-import { previewImport, confirmImport } from '@/lib/att-actions';
+import { useActionState, useState, useTransition } from 'react';
+import { previewImport, confirmImport, saveAppTimes } from '@/lib/att-actions';
 
 const CHOICES = [
   ['keep', 'Keep what is in the app'],
   ['replace', 'Use the Excel times'],
 ];
+const KIND = { in: 'Check in', out: 'Check out', break_out: 'Break out', break_in: 'Break in' };
 
 // Step 1: choose the file(s) and dates. Step 2: review what will happen, decide every conflict, then import.
+// A day whose times differ can be fixed right here: click the app times, change them and save.
 export default function ImportExcel({ from, to }) {
   const [state, run, busy] = useActionState(previewImport, null);
   const plan = state && state.plan;
   const [choice, setChoice] = useState({});
+  const [fix, setFix] = useState({});
+  const [edit, setEdit] = useState(null);
+  const [saving, startSave] = useTransition();
   const [seen, setSeen] = useState(null);
   if (plan && seen !== plan) {
     setSeen(plan);
     setChoice({});
+    setFix({});
+    setEdit(null);
   }
-  const open = plan ? plan.conflicts.filter((c) => !choice[c.key]).length : 0;
+  const rows = plan ? plan.conflicts.map((c) => ({ ...c, ...(fix[c.key] || {}) })) : [];
+  const open = rows.filter((c) => !c.done && !choice[c.key]).length;
+  const differing = rows.filter((c) => !c.done).length;
   const nothing = plan && !plan.fresh && !plan.conflicts.length && !plan.same;
+
+  function openEdit(c) {
+    setEdit({ key: c.key, vals: Object.fromEntries(c.entries.map((e) => [e.id, e.t])), err: '' });
+  }
+
+  function save(c) {
+    const changes = c.entries.filter((e) => edit.vals[e.id] && edit.vals[e.id] !== e.t).map((e) => ({ id: e.id, t: edit.vals[e.id] }));
+    if (!changes.length) {
+      setEdit({ ...edit, err: 'Change a time first' });
+      return;
+    }
+    const item = plan.items.find((i) => i.key === c.key);
+    startSave(async () => {
+      const r = await saveAppTimes({ item, changes });
+      if (r && r.ok) {
+        setFix((f) => ({ ...f, [c.key]: { app: r.app, reasons: r.reasons, entries: r.entries, done: r.matches } }));
+        setEdit(null);
+      } else {
+        setEdit((e) => ({ ...e, err: (r && r.error) || 'Could not save' }));
+      }
+    });
+  }
 
   return (
     <>
@@ -43,48 +74,84 @@ export default function ImportExcel({ from, to }) {
           <input type='hidden' name='notes' value={JSON.stringify({ unmatched: plan.unmatched, problems: plan.problems })} />
           <input type='hidden' name='from' value={plan.from} />
           <input type='hidden' name='to' value={plan.to} />
-          {plan.conflicts.map((c) => (
+          {rows.map((c) => (
             <input key={c.key} type='hidden' name={'c:' + c.key} value={choice[c.key] || ''} />
           ))}
 
           <h3 className='wide' style={{ margin: 0 }}>Preview: {plan.from} to {plan.to}</h3>
           <div className='wide impsum'>
             <div><b>{plan.fresh}</b><span>employee-days get missing entries added ({plan.freshEntries} entries)</span></div>
-            <div><b>{plan.same}</b><span>already match the app: nothing to do</span></div>
-            <div><b>{plan.conflicts.length}</b><span>have different times: your review needed</span></div>
+            <div><b>{plan.same + rows.filter((c) => c.done).length}</b><span>already match the app: nothing to do</span></div>
+            <div><b>{differing}</b><span>have different times: your review needed</span></div>
             <div><b>{plan.unmatched.length}</b><span>names not matched</span></div>
             <div><b>{plan.problems.length}</b><span>rows skipped</span></div>
           </div>
+          {plan.long && plan.long.length ? (
+            <div className='wide implong'>
+              <b>Check these times in the Excel file ({plan.long.length}): the shift is over 16 hours, which usually means AM and PM were mixed up.</b>
+              <ul>{plan.long.map((l) => <li key={l.name + l.date}>{l.name} {l.date}: {l.text}</li>)}</ul>
+            </div>
+          ) : null}
           {plan.noOut ? <p className='muted wide'><b>{plan.noOut}</b> of the new days have a check in but no check out on the sheet. They are added as present and show 'no check out' in reports, with no worked hours.</p> : null}
           {plan.days.length ? <p className='muted wide'>New days: {plan.days.map(([d, n]) => d.slice(5) + ' (' + n + ')').join(' | ')}</p> : null}
 
-          {plan.conflicts.length ? (
+          {rows.length ? (
             <div className='wide'>
               <h4 style={{ margin: '4px 0' }}>Times that differ from the app: choose for each</h4>
-              <p className='muted'>Times that match are left alone and missing times (for example a check out) are added automatically. Days you do not settle now stay on the Needs review list on this page.
+              <p className='muted'>Times that match are left alone and missing times (for example a check out) are added automatically. To correct the app's times here, click them. Days you do not settle now stay on the Needs review list on this page.
                 {' '}
-                <button type='button' className='linkbtn' onClick={() => setChoice(Object.fromEntries(plan.conflicts.map((c) => [c.key, 'keep'])))}>Keep the app entries for all</button>
+                <button type='button' className='linkbtn' onClick={() => setChoice(Object.fromEntries(rows.map((c) => [c.key, 'keep'])))}>Keep the app entries for all</button>
               </p>
               <div className='tablewrap'>
                 <table className='tx tiles'>
                   <thead><tr><th>Employee</th><th>Date</th><th>In the app</th><th>In the Excel file</th><th>What differs</th><th>What to do</th></tr></thead>
                   <tbody>
-                    {plan.conflicts.map((c) => (
-                      <tr key={c.key} className={choice[c.key] ? '' : 'impwait'}>
-                        <td className='c-title'><b>{c.name}</b></td>
-                        <td className='nw c-meta'>{c.date}</td>
-                        <td className='c-meta'>{c.app}</td>
-                        <td className='c-meta'><span className='xl'>{c.excel}</span></td>
-                        <td className='c-meta'><ul className='impwhy'>{c.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul></td>
-                        <td className='impchoice'>
-                          {CHOICES.map(([v, label]) => (
-                            <label key={v} className='checkrow'>
-                              <input type='radio' name={'pick-' + c.key} checked={choice[c.key] === v} onChange={() => setChoice({ ...choice, [c.key]: v })} /> {c.breaksOnly && v === 'replace' ? 'Use the Excel breaks' : label}
-                            </label>
-                          ))}
-                        </td>
-                      </tr>
-                    ))}
+                    {rows.flatMap((c) => {
+                      const line = (
+                        <tr key={c.key} className={c.done ? 'impdone' : choice[c.key] ? '' : 'impwait'}>
+                          <td className='c-title'><b>{c.name}</b></td>
+                          <td className='nw c-meta'>{c.date}</td>
+                          <td className='c-meta'>
+                            {c.entries && c.entries.length
+                              ? <button type='button' className='linkbtn impedit' title='Change the app times' onClick={() => openEdit(c)}>{c.app}</button>
+                              : c.app}
+                          </td>
+                          <td className='c-meta'><span className='xl'>{c.excel}</span></td>
+                          <td className='c-meta'>
+                            {c.done ? <span className='impok'>Updated - now matches</span> : <ul className='impwhy'>{c.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>}
+                          </td>
+                          <td className='impchoice'>
+                            {c.done ? <span className='muted'>Nothing more to do</span> : CHOICES.map(([v, label]) => (
+                              <label key={v} className='checkrow'>
+                                <input type='radio' name={'pick-' + c.key} checked={choice[c.key] === v} onChange={() => setChoice({ ...choice, [c.key]: v })} /> {c.breaksOnly && v === 'replace' ? 'Use the Excel breaks' : label}
+                              </label>
+                            ))}
+                          </td>
+                        </tr>
+                      );
+                      if (!edit || edit.key !== c.key) return [line];
+                      return [line, (
+                        <tr key={c.key + '-edit'} className='impeditrow'>
+                          <td colSpan={6}>
+                            <div className='imppop'>
+                              <b>{c.name}, {c.date}: the app's entries</b>
+                              {c.entries.map((e) => (
+                                <label key={e.id} className='imppoprow'>
+                                  <span>{KIND[e.kind]}{e.d !== c.date ? ' (next day)' : ''}</span>
+                                  <input type='time' value={edit.vals[e.id] || ''} onChange={(ev) => setEdit({ ...edit, err: '', vals: { ...edit.vals, [e.id]: ev.target.value } })} />
+                                </label>
+                              ))}
+                              <p className='muted' style={{ margin: '6px 0' }}>Excel says: {c.excel}</p>
+                              {edit.err ? <p className='badline'>{edit.err}</p> : null}
+                              <div className='imppopbtn'>
+                                <button type='button' className='btn primary' disabled={saving} onClick={() => save(c)}>{saving ? 'Saving...' : 'Save'}</button>
+                                <button type='button' className='btn' onClick={() => setEdit(null)}>Cancel</button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )];
+                    })}
                   </tbody>
                 </table>
               </div>

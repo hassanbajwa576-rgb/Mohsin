@@ -19,6 +19,13 @@ export default async function AttendanceLogsPage({ searchParams }) {
   // Only the Sr. OM and Sr. SO see both offices; everyone else sees their own office only.
   const office = allOffices(user) ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
 
+  // Employee: type part of a name (or pick one from the list) to see only that person's entries.
+  const emp = String(sp.emp || '').trim().slice(0, 60);
+  const params = [day];
+  if (office) params.push(office);
+  if (emp) params.push('%' + emp.replace(/[\\%_]/g, '') + '%');
+  const names = await q(`SELECT s.name FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${office ? 'AND o.code = $1' : ''} ORDER BY s.name`, office ? [office] : []);
+
   const rows = await q(
     `SELECT a.id, a.staff_id, a.kind, a.entered_by, a.source, s.name, s.code, s.dept, ${SHIFT_COLS}, o.code AS office, u.name AS by_name,
             (extract(epoch from a.at) * 1000)::float8 AS ms, (extract(epoch from a.entered_at) * 1000)::float8 AS entered_ms,
@@ -26,14 +33,15 @@ export default async function AttendanceLogsPage({ searchParams }) {
      FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users u ON u.id = a.entered_by
      WHERE a.at >= ($1::date)::timestamp AT TIME ZONE 'Asia/Karachi' AND a.at < ($1::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi'
      ${office ? 'AND o.code = $2' : ''}
+     ${emp ? 'AND s.name ILIKE $' + params.length : ''}
      ORDER BY a.at DESC, a.id DESC`,
-    office ? [day, office] : [day]
+    params
   );
   const periods = await loadPeriods(day, day);
   const bad = conflictIds(await eventsAround([...new Set(rows.map((r) => r.staff_id))], day));
   const allRows = sp.all === '1';
-  const shownRows = allRows ? rows : rows.slice(0, 10);
-  const moreHref = '/attendance/logs?date=' + day + (office ? '&office=' + office : '') + (allRows ? '' : '&all=1');
+  const shownRows = allRows || emp ? rows : rows.slice(0, 10);
+  const moreHref = '/attendance/logs?date=' + day + (office ? '&office=' + office : '') + (emp ? '&emp=' + encodeURIComponent(emp) : '') + (allRows ? '' : '&all=1');
 
   return (
     <>
@@ -49,6 +57,10 @@ export default async function AttendanceLogsPage({ searchParams }) {
         <label>Date<input type='date' name='date' defaultValue={day} /></label>
         <label>Office
           <select name='office' defaultValue={office}>{(allOffices(user) ? ['', 'LHR', 'ISB'] : [user.office_code]).map((o) => <option key={o} value={o}>{o || 'Both'}</option>)}</select>
+        </label>
+        <label>Employee
+          <input name='emp' defaultValue={emp} list='emp-names' placeholder='Type a name' autoComplete='off' />
+          <datalist id='emp-names'>{names.map((n) => <option key={n.name} value={n.name} />)}</datalist>
         </label>
         <button className='btn' type='submit'>Apply</button>
         <Link href='/attendance/logs' className='btn ghost'>Today</Link>
