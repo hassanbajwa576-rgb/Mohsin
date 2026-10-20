@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 
 // Second header row: PettyTrack / AttendTrack switch, the menu of the active module, and the
 // admin links (Team, Logs, Guide) on the right.
-export default function ModuleTier({ role, access = [] }) {
+export default function ModuleTier({ role, access = [], reviews = 0 }) {
   const path = usePathname() || '/';
   const attend = path === '/attendance' || path.indexOf('/attendance/') === 0;
   const guard = role === 'guard';
@@ -43,7 +43,7 @@ export default function ModuleTier({ role, access = [] }) {
         <div className='tier-scroll'>
         <nav className='tier-menu'>
           {menu.map(([href, label]) => (
-            <Link key={href} href={href} className={on(href) ? 'on' : ''}>{label}</Link>
+            <Link key={href} href={href} className={on(href) ? 'on' : ''}>{label}{href === '/attendance/staff' && reviews ? <span className='navbadge' title='Excel import days to review'>{reviews}</span> : null}</Link>
           ))}
         </nav>
         <span className='tier-sp' />

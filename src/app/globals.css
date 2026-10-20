@@ -570,3 +570,5 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .impchoice input[type=radio],.att-visit input{width:auto;min-height:0;margin:0}
 .impwhy{margin:0;padding-left:16px;font-size:13px}
 @media (max-width:1320px){.tier-menu a{padding-left:8px;padding-right:8px;font-size:13px}}
+
+.navbadge{background:var(--bad);color:#fff;border-radius:9px;font-size:11px;font-weight:600;padding:1px 6px;margin-left:6px}

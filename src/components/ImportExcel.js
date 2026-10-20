@@ -40,6 +40,7 @@ export default function ImportExcel({ from, to }) {
       {plan ? (
         <form action={confirmImport} className='card form'>
           <input type='hidden' name='payload' value={JSON.stringify(plan.items)} />
+          <input type='hidden' name='notes' value={JSON.stringify({ unmatched: plan.unmatched, problems: plan.problems })} />
           <input type='hidden' name='from' value={plan.from} />
           <input type='hidden' name='to' value={plan.to} />
           {plan.conflicts.map((c) => (
@@ -59,7 +60,7 @@ export default function ImportExcel({ from, to }) {
           {plan.conflicts.length ? (
             <div className='wide'>
               <h4 style={{ margin: '4px 0' }}>Times that differ from the app: choose for each</h4>
-              <p className='muted'>Times that match are left alone and missing times (for example a check out) are added automatically. Nothing is changed on these days until you choose.
+              <p className='muted'>Times that match are left alone and missing times (for example a check out) are added automatically. Days you do not settle now stay on the Needs review list on this page.
                 {' '}
                 <button type='button' className='linkbtn' onClick={() => setChoice(Object.fromEntries(plan.conflicts.map((c) => [c.key, 'keep'])))}>Keep the app entries for all</button>
               </p>

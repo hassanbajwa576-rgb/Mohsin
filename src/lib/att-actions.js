@@ -5,7 +5,7 @@ import { q } from './db';
 import { getUser } from './auth';
 import { logEvent } from './audit';
 import { can } from './perms';
-import { buildPlan, appEvents, classify, allEntries } from './att-import';
+import { buildPlan, appEvents, classify, allEntries, explain } from './att-import';
 import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime, closeStale, todayKey } from './att';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
@@ -431,6 +431,19 @@ export async function previewImport(prev, fd) {
   }
 }
 
+async function insertEntries(uid, rows) {
+  for (let i = 0; i < rows.length; i += 400) {
+    const chunk = rows.slice(i, i + 400);
+    const params = [uid];
+    const vals = chunk.map((r) => {
+      params.push(r[0], r[1], r[2], r[3], r[4]);
+      const n = params.length;
+      return `($${n - 4}, $${n - 3}, $${n - 2}, ($${n - 1}::date + $${n}::time) AT TIME ZONE 'Asia/Karachi', $1, 'excel')`;
+    });
+    await q(`INSERT INTO pc2_attendance (staff_id, office_id, kind, at, entered_by, source) VALUES ${vals.join(',')}`, params);
+  }
+}
+
 // Step 2: add the entries. Times the app already has and that match are left alone, missing ones are added, and a day
 // where the times differ is only changed when a choice was made for it.
 export async function confirmImport(fd) {
@@ -452,6 +465,7 @@ export async function confirmImport(fd) {
   const today = todayKey();
   const okT = (t) => typeof t === 'string' && validTime(t);
 
+  const review = []; // days left as they were because the times differ
   const rows = []; // [staff, office, kind, date, time]
   const clear = []; // [staff, from, to (exclusive), only breaks]
   let days = 0;
@@ -473,7 +487,12 @@ export async function confirmImport(fd) {
     if (!hasIn && !r.appIn) { skipped += 1; continue; }
     let add = r.adds;
     if (r.reasons.length) {
-      if (s(fd, 'c:' + st.id + '|' + date) !== 'replace') { skipped += 1; continue; }
+      if (s(fd, 'c:' + st.id + '|' + date) !== 'replace') {
+        skipped += 1;
+        const ex = explain(it, r);
+        review.push([st.id, st.name, date, JSON.stringify({ staff: st.id, date, in: it.in, out: it.out, outDate: it.outDate, breaks: it.breaks }), ex.app, ex.excel, r.reasons.join('; ')]);
+        continue;
+      }
       clear.push([st.id, r.lo, r.hi, !hasIn]);
       replaced += 1;
       add = allEntries(it);
@@ -482,6 +501,7 @@ export async function confirmImport(fd) {
     days += 1;
     for (const a of add) rows.push([st.id, st.office_id, a[0], a[1], a[2]]);
   }
+  await saveReview(u, review, s(fd, 'notes'), from, to);
   if (!rows.length) back(page, 'Nothing needed adding' + (skipped ? ' (' + skipped + ' employee-days skipped)' : ''), true);
 
   const gone = [];
@@ -492,18 +512,84 @@ export async function confirmImport(fd) {
     );
     gone.push(sm.get(id).name + ': ' + del.map((d) => d.kind + ' ' + d.t).join(', '));
   }
-  for (let i = 0; i < rows.length; i += 400) {
-    const chunk = rows.slice(i, i + 400);
-    const params = [u.id];
-    const vals = chunk.map((r) => {
-      params.push(r[0], r[1], r[2], r[3], r[4]);
-      const n = params.length;
-      return `($${n - 4}, $${n - 3}, $${n - 2}, ($${n - 1}::date + $${n}::time) AT TIME ZONE 'Asia/Karachi', $1, 'excel')`;
-    });
-    await q(`INSERT INTO pc2_attendance (staff_id, office_id, kind, at, entered_by, source) VALUES ${vals.join(',')}`, params);
-  }
+  await insertEntries(u.id, rows);
   await logEvent(u, 'create', 'attendance', null,
     'Imported ' + rows.length + ' entries from Excel for ' + days + ' employee-days (' + from + ' to ' + to + ')' + (replaced ? '; replaced the app entries of ' + replaced + ' days with the Excel times' : '') + (skipped ? '; ' + skipped + ' left as they were' : ''),
     gone.length ? { replaced: gone } : null, { entries: rows.length, days, from, to });
-  back(page, rows.length + ' entries added for ' + days + ' employee-days' + (skipped ? ' (' + skipped + ' left as they were)' : '') + '. They show underlined on Entries, Logs and Reports.', true);
+  const left = review.length ? ' ' + review.length + ' day' + (review.length > 1 ? 's' : '') + ' with different times stay on the review list.' : '';
+  back(page, rows.length + ' entries added for ' + days + ' employee-days' + (skipped ? ' (' + skipped + ' left as they were)' : '') + '. They show underlined on Entries, Logs and Reports.' + left, true);
+}
+
+// What was left undone stays on a list until it is settled: days with different times, names that were not matched and skipped rows.
+async function saveReview(u, review, notesJson, from, to) {
+  for (const r of review) {
+    await q(`UPDATE pc2_import_review SET resolved_at = now(), resolved_by = $3, resolution = 'replaced by a newer import' WHERE kind = 'conflict' AND resolved_at IS NULL AND staff_id = $1 AND day = $2`, [r[0], r[2], u.id]);
+    await q(
+      `INSERT INTO pc2_import_review (kind, staff_id, name, day, item, app_text, excel_text, reason, created_by) VALUES ('conflict', $1, $2, $3, $4::jsonb, $5, $6, $7, $8)`,
+      [...r, u.id]
+    );
+  }
+  let notes = {};
+  try {
+    notes = JSON.parse(notesJson || '{}');
+  } catch {
+    notes = {};
+  }
+  const names = (Array.isArray(notes.unmatched) ? notes.unmatched : []).slice(0, 100);
+  for (const n of names) {
+    const name = String(n.name || '').slice(0, 80);
+    if (!name) continue;
+    await q(`UPDATE pc2_import_review SET resolved_at = now(), resolved_by = $2, resolution = 'listed again' WHERE kind = 'unmatched' AND resolved_at IS NULL AND name = $1`, [name, u.id]);
+    await q(`INSERT INTO pc2_import_review (kind, name, day, reason, created_by) VALUES ('unmatched', $1, $2, $3, $4)`, [name, from + ' to ' + to, String(n.why || 'not in the Employees list').slice(0, 120), u.id]);
+  }
+  for (const p of (Array.isArray(notes.problems) ? notes.problems : []).slice(0, 200)) {
+    await q(`INSERT INTO pc2_import_review (kind, day, reason, created_by) VALUES ('skipped', $1, $2, $3)`, [from + ' to ' + to, String(p).slice(0, 200), u.id]);
+  }
+}
+
+// Settle one item of the review list. 'excel' = use the Excel times, 'keep' = keep the app times, 'dismiss' = just remove it.
+export async function resolveReview(fd) {
+  const u = await need(['om']);
+  const page = '/attendance/import';
+  const id = Number(s(fd, 'id'));
+  const decision = s(fd, 'decision');
+  const r = (await q('SELECT * FROM pc2_import_review WHERE id = $1 AND resolved_at IS NULL', [Number.isInteger(id) ? id : 0]))[0];
+  if (!r) back(page, 'That item was already settled');
+  let resolution = decision === 'keep' ? 'kept the app times' : 'dismissed';
+  let msg = 'Done';
+  if (r.kind === 'conflict' && decision === 'excel') {
+    const it = r.item || {};
+    const st = (await q('SELECT s.id, s.name, s.office_id FROM pc2_staff s WHERE s.id = $1 AND s.active', [Number(it.staff)]))[0];
+    if (!st) back(page, 'That employee is no longer active');
+    const okT = (t) => typeof t === 'string' && validTime(t);
+    const hasIn = okT(it.in) && okT(it.out);
+    const item = { date: it.date, in: hasIn ? it.in : '', out: hasIn ? it.out : '', outDate: hasIn ? it.outDate : it.date, breaks: Array.isArray(it.breaks) ? it.breaks : [] };
+    const evs = await appEvents([st.id], item.date, item.date);
+    const c = classify(item, evs.get(st.id));
+    const del = await q(
+      `DELETE FROM pc2_attendance WHERE staff_id = $1 AND at >= ($2::timestamp AT TIME ZONE 'Asia/Karachi') AND at < ($3::timestamp AT TIME ZONE 'Asia/Karachi') ${hasIn ? '' : "AND kind IN ('break_out', 'break_in')"} RETURNING kind, to_char(at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI') AS t`,
+      [st.id, c.lo, c.hi]
+    );
+    const rows = allEntries(item).map((a) => [st.id, st.office_id, a[0], a[1], a[2]]);
+    if (rows.length) await insertEntries(u.id, rows);
+    await logEvent(u, 'edit', 'attendance', null, 'Replaced the app entries of ' + st.name + ' on ' + item.date + ' with the Excel times (from the import review list)',
+      { removed: del.map((d) => d.kind + ' ' + d.t) }, { entries: rows.length });
+    resolution = 'used the Excel times';
+    msg = st.name + ' ' + item.date + ': the Excel times are now in the app';
+  } else if (r.kind === 'conflict' && decision !== 'keep') {
+    back(page, 'Choose to use the Excel times or keep the app times');
+  } else if (decision === 'keep') {
+    msg = 'Kept the app times';
+  } else {
+    msg = 'Removed from the list';
+  }
+  await q('UPDATE pc2_import_review SET resolved_at = now(), resolved_by = $2, resolution = $3 WHERE id = $1', [r.id, u.id, resolution]);
+  back(page, msg, true);
+}
+
+// Clear the names and skipped rows (the days with different times need an answer each).
+export async function dismissNotes() {
+  const u = await need(['om']);
+  await q(`UPDATE pc2_import_review SET resolved_at = now(), resolved_by = $1, resolution = 'dismissed' WHERE resolved_at IS NULL AND kind IN ('unmatched', 'skipped')`, [u.id]);
+  back('/attendance/import', 'Names and skipped rows cleared', true);
 }

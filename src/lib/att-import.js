@@ -197,6 +197,14 @@ export function classify(it, evs) {
   return { adds, reasons, win, lo, hi, hasIn, appIn };
 }
 
+/** Plain text for the app's and Excel's times of a day that needs review (r = the result of classify). */
+export function explain(it, r) {
+  const ab = appBreaks(r.win).map((a) => [a.o.t, a.i ? a.i.t : null]);
+  const appIn = r.win.find((e) => e.kind === 'in');
+  const appOut = r.win.filter((e) => e.kind === 'out' && (!appIn || e.s > appIn.s))[0];
+  return { app: text(appIn ? appIn.t : '', appOut ? appOut.t : '', ab), excel: text(it.in, it.out, it.breaks) };
+}
+
 /** Every entry the Excel row stands for (used when the Excel times replace what the app has). */
 export function allEntries(it) {
   const hasIn = !!(it.in && it.out);

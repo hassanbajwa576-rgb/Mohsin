@@ -2,6 +2,7 @@ import Nav from '@/components/Nav';
 import TableLabels from '@/components/TableLabels';
 import { requireUser } from '@/lib/auth';
 import { unreadCount } from '@/lib/queries';
+import { q } from '@/lib/db';
 import { getLang } from '@/lib/lang';
 import { stopViewAs } from '@/lib/actions';
 
@@ -11,6 +12,15 @@ export default async function AppLayout({ children }) {
   const user = await requireUser(['om', 'sso', 'so', 'guard']);
   const unread = 0; // the bell loads the real count in the background
   const lang = await getLang();
+  // Days from an Excel import that still need a decision (Sr. Ops Manager only).
+  let reviews = 0;
+  if (user.role === 'om') {
+    try {
+      reviews = (await q('SELECT COUNT(*)::int AS n FROM pc2_import_review WHERE resolved_at IS NULL AND kind = \'conflict\''))[0].n;
+    } catch {
+      reviews = 0;
+    }
+  }
   return (
     <>
       {user.impersonatedBy ? (
@@ -19,7 +29,7 @@ export default async function AppLayout({ children }) {
           <form action={stopViewAs}><button className='btn' type='submit'>Return to my account</button></form>
         </div>
       ) : null}
-      <Nav user={user} unread={unread} lang={lang} />
+      <Nav user={user} unread={unread} lang={lang} reviews={reviews} />
       <TableLabels />
       <main className='wrap'>{children}</main>
       <footer className='foot'><b>OpsTrack</b> by AlphaBOLD | Powered by <b>Ops</b></footer>
