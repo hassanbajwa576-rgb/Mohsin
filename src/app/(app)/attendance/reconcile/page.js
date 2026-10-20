@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
@@ -8,7 +7,7 @@ import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey, validDate } from '@/lib/att';
 import { addDay } from '@/lib/att-import';
 import { scan } from '@/lib/att-reconcile';
-import { markReviewedForm } from '@/lib/att-actions';
+import ReconcileView from '@/components/ReconcileView';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,46 +59,7 @@ export default async function ReconcilePage({ searchParams }) {
             {from} to {to}: {found.long.length + found.noout.length + found.misfit.length} to review
             {found.hidden ? ', ' + found.hidden + ' already marked as reviewed' : ''}.
           </p>
-          {SECTIONS.map(([k, title, note]) => {
-            const list = found[k];
-            return (
-              <div className='card' key={k}>
-                <h3 style={{ marginTop: 0 }}>{title} ({list.length})</h3>
-                <p className='muted'>{note}</p>
-                {list.length ? (
-                  <>
-                    <div className='tablewrap'>
-                      <table className='tx'>
-                        <thead><tr><th>Employee</th><th>Date</th><th>What</th><th></th></tr></thead>
-                        <tbody>
-                          {list.slice(0, 300).map((it) => (
-                            <tr key={it.staff + it.day + it.sig}>
-                              <td className='c-title'><OfficeTag o={it.office} /><b>{it.name}</b></td>
-                              <td className='nw c-meta'>{it.day}</td>
-                              <td className='c-meta'>{it.text}</td>
-                              <td className='act'>
-                                <Link className='btn' href={'/attendance/logs?date=' + it.day + '&emp=' + encodeURIComponent(it.name)}>Open in Day log</Link>
-                                <form action={markReviewedForm} className='inline'>
-                                  <input type='hidden' name='items' value={JSON.stringify([{ staff: it.staff, day: it.day, kind: it.kind, sig: it.sig }])} />
-                                  <input type='hidden' name='back' value={back} />
-                                  <button className='btn primary' type='submit'>Mark reviewed</button>
-                                </form>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <form action={markReviewedForm} style={{ marginTop: 10 }}>
-                      <input type='hidden' name='items' value={JSON.stringify(list.slice(0, 300).map((it) => ({ staff: it.staff, day: it.day, kind: it.kind, sig: it.sig })))} />
-                      <input type='hidden' name='back' value={back} />
-                      <button className='btn' type='submit'>Mark all {Math.min(list.length, 300)} shown as reviewed</button>
-                    </form>
-                  </>
-                ) : <p className='muted'>Nothing to review here.</p>}
-              </div>
-            );
-          })}
+          <ReconcileView initial={{ long: found.long, noout: found.noout, misfit: found.misfit }} />
         </>
       ) : null}
     </>

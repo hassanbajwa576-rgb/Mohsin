@@ -83,8 +83,8 @@ export default async function AttendanceLogsPage({ searchParams }) {
                     <td className='c-tile'>{r.by_name || '-'}</td>
                     <td className='nw c-tile'>{(dateKey(r.entered_ms) === day ? '' : dateKey(r.entered_ms) + ' ') + fmtTime(r.entered_ms)}</td>
                     <td className='act'>
-                      {user.role === 'om' ? <EntryEdit m={r} back='/attendance/logs' /> : null}
-                      {user.role === 'om' ? (
+                      {user.role === 'om' || can(user, 'att_reconcile') ? <EntryEdit m={r} back='/attendance/logs' /> : null}
+                      {user.role === 'om' || can(user, 'att_reconcile') ? (
                         <form action={removeEntry} className='inline'>
                           <input type='hidden' name='id' value={r.id} />
                           <input type='hidden' name='back' value='/attendance/logs' />
@@ -100,7 +100,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
         ) : (
           <p className='muted'>No entries on this day.</p>
         )}
-        <p className='totals'>{allRows || rows.length <= 10 ? rows.length + ' entries' : 'Showing the latest 10 of ' + rows.length + ' entries'}{rows.length > 10 ? <> - <Link href={moreHref}>{allRows ? 'Show fewer' : 'See more'}</Link></> : null}. Only the Sr. Ops Manager can delete entries from here.</p>
+        <p className='totals'>{allRows || rows.length <= 10 ? rows.length + ' entries' : 'Showing the latest 10 of ' + rows.length + ' entries'}{rows.length > 10 ? <> - <Link href={moreHref}>{allRows ? 'Show fewer' : 'See more'}</Link></> : null}. Only the Sr. Ops Manager (and anyone given Reconciliation access) can edit or delete entries from here.</p>
       </div>
     </>
   );

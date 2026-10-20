@@ -4,6 +4,11 @@ import { TZ, EV_COLS, KIND_LABEL, groupByStaff, sessionsOf, conflictIds, dateKey
 
 export const LONG_MS = 16 * 3600000;
 const dur = (ms) => Math.floor(ms / 3600000) + 'h ' + String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0') + 'm';
+const nextDay = (key) => {
+  const d = new Date(key + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
 export const markKey = (staff, day, kind, sig) => staff + '|' + day + '|' + kind + '|' + sig;
 
 /** Items already marked as reviewed in the range, as a Set of markKey(...). */
@@ -16,17 +21,25 @@ export async function reviewedSet(from, to) {
  * Everything in the app between two dates that still needs a look and has not been marked as reviewed:
  * shifts over 16 hours, check ins with no check out, and entries that do not fit together.
  */
-export async function scan(from, to) {
-  const staff = await q('SELECT s.id, s.name, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ORDER BY o.code, s.name');
+export async function scan(from, to, only = 0) {
+  const staff = (await q('SELECT s.id, s.name, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ORDER BY o.code, s.name')).filter((s) => !only || s.id === only);
   const evs = await q(
-    `SELECT ${EV_COLS} FROM pc2_attendance a WHERE a.at >= (($1::date - 1)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($2::date + 2)::timestamp AT TIME ZONE '${TZ}') ORDER BY a.at, a.id`,
-    [from, to]
+    `SELECT ${EV_COLS} FROM pc2_attendance a WHERE a.at >= (($1::date - 1)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($2::date + 2)::timestamp AT TIME ZONE '${TZ}') ${only ? 'AND a.staff_id = $3' : ''} ORDER BY a.at, a.id`,
+    only ? [from, to, only] : [from, to]
   );
   const by = groupByStaff(evs);
   const bad = conflictIds(evs);
   const done = await reviewedSet(from, to);
   const out = { long: [], noout: [], misfit: [], hidden: 0 };
+  // The entries of that employee on the day and the day after, so they can be corrected or deleted from the list.
+  const mine = new Map();
+  for (const e of evs) {
+    if (!mine.has(e.staff_id)) mine.set(e.staff_id, []);
+    mine.get(e.staff_id).push(e);
+  }
+  const entriesOf = (staff, day) => (mine.get(staff) || []).filter((e) => [day, nextDay(day)].includes(dateKey(e.ms))).map((e) => ({ id: e.id, kind: e.kind, ms: Number(e.ms) }));
   const add = (list, it) => {
+    it.entries = entriesOf(it.staff, it.day);
     if (done.has(markKey(it.staff, it.day, it.kind, it.sig))) out.hidden += 1;
     else list.push(it);
   };
@@ -63,4 +76,13 @@ export async function scan(from, to) {
   }
   for (const k of ['long', 'noout', 'misfit']) out[k].sort((a, b) => a.day.localeCompare(b.day) || a.name.localeCompare(b.name));
   return out;
+}
+
+/** One employee's entries on a day and the day after, for the list's edit and delete buttons. */
+export async function dayEntries(staffId, day) {
+  const rows = await q(
+    `SELECT a.id, a.kind, (extract(epoch from a.at) * 1000)::float8 AS ms FROM pc2_attendance a WHERE a.staff_id = $1 AND a.at >= (($2::date)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($2::date + 2)::timestamp AT TIME ZONE '${TZ}') ORDER BY a.at, a.id`,
+    [staffId, day]
+  );
+  return rows.map((e) => ({ id: e.id, kind: e.kind, ms: Number(e.ms) }));
 }

@@ -584,3 +584,7 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .imppopbtn{display:flex;gap:8px;margin-top:8px}
 
 .implong{background:#fdf3d7;border-radius:4px;padding:10px 14px;font-size:14px}.implong ul{margin:6px 0 0;padding-left:18px}
+
+.recent{background:var(--surface);padding:6px 12px !important}.recentry{display:inline-flex;align-items:center;gap:6px;margin:3px 14px 3px 0;font-size:13px}
+
+.recentlink{margin-left:8px;font-size:13px}

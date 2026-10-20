@@ -6,10 +6,12 @@ import { getUser } from './auth';
 import { logEvent } from './audit';
 import { can } from './perms';
 import { buildPlan, appEvents, classify, allEntries, explain, entriesOf } from './att-import';
+import { scan, dayEntries } from './att-reconcile';
 import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime, closeStale, todayKey } from './att';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const PATHS = ['/attendance', '/attendance/logs', '/attendance/entries'];
+const okBack = (b) => (PATHS.includes(b) || b.startsWith('/attendance/reconcile?') ? b : '/attendance');
 
 // Ops is called Operations everywhere.
 const normDept = (d) => (/^ops$/i.test(String(d).trim()) ? 'Operations' : String(d).trim());
@@ -92,7 +94,7 @@ export async function addEntry(fd) {
 export async function removeEntry(fd) {
   const u = await need(ATT_ROLES);
   const id = Number(s(fd, 'id'));
-  const to = PATHS.includes(s(fd, 'back')) ? s(fd, 'back') : '/attendance';
+  const to = okBack(s(fd, 'back'));
   const r = (await q(
     `SELECT a.id, a.entered_by, a.kind, ub.role AS by_role, s.name, o.code AS office, to_char(a.at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI') AS at_txt, (a.entered_at > now() - interval '36 hours') AS fresh
      FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.id = $1`,
@@ -101,7 +103,7 @@ export async function removeEntry(fd) {
   if (!r) back(to, 'Entry not found');
   // Sr. OM: any entry. Sr. SO: own and the Support Officer's and guards'. Support Officer and guards: their own. 36 hours.
   const mineEntry = r.entered_by === u.id;
-  const allowed = u.role === 'om' || (r.fresh && (u.role === 'sso' ? mineEntry || ['so', 'guard'].includes(r.by_role) : mineEntry));
+  const allowed = u.role === 'om' || can(u, 'att_reconcile') || (r.fresh && (u.role === 'sso' ? mineEntry || ['so', 'guard'].includes(r.by_role) : mineEntry));
   if (!allowed) back(to, 'You can delete entries you made yourself within 36 hours (the Sr. Support Officer also those of the Support Officer and guards)');
   await q('DELETE FROM pc2_attendance WHERE id = $1', [r.id]);
   await logEvent(u, 'delete', 'attendance', r.id, 'Removed ' + KIND_LABEL[r.kind] + ' - ' + r.name + ' (' + r.office + ') ' + r.at_txt, { staff: r.name, kind: r.kind, at: r.at_txt }, null);
@@ -361,7 +363,7 @@ export async function importStaff(fd) {
 export async function editEntry(fd) {
   const u = await need(ATT_ROLES);
   const id = Number(s(fd, 'id'));
-  const to = PATHS.includes(s(fd, 'back')) ? s(fd, 'back') : '/attendance';
+  const to = okBack(s(fd, 'back'));
   const kind = s(fd, 'kind');
   const date = s(fd, 'date');
   const time = s(fd, 'time');
@@ -374,7 +376,7 @@ export async function editEntry(fd) {
   ))[0];
   if (!r) back(to, 'Entry not found');
   const mine = r.entered_by === u.id;
-  const allowed = u.role === 'om' || (r.open36 && (u.role === 'sso' ? mine || ['so', 'guard'].includes(r.by_role) : mine));
+  const allowed = u.role === 'om' || can(u, 'att_reconcile') || (r.open36 && (u.role === 'sso' ? mine || ['so', 'guard'].includes(r.by_role) : mine));
   if (!allowed) back(to, r.open36 ? 'You can only change entries you made yourself' : 'This entry is older than 36 hours. Only the Sr. Ops Manager can change it.');
   const ms = Number((await q(
     `SELECT (extract(epoch from (($1::date + $2::time) AT TIME ZONE 'Asia/Karachi')) * 1000)::float8 AS ms`,
@@ -677,4 +679,47 @@ export async function markReviewedForm(fd) {
   if (n) await logEvent(u, 'edit', 'attendance', null, 'Marked ' + n + ' attendance item' + (n > 1 ? 's' : '') + ' as reviewed (reconciliation)', null, { items: n });
   const back_ = s(fd, 'back');
   back(back_.startsWith('/attendance/reconcile') ? back_ : '/attendance/reconcile', n ? n + ' marked as reviewed' : 'Nothing to mark', !!n);
+}
+
+// Change or delete one entry from the reconciliation list without leaving the page. Returns that day's fresh entries and
+// whether the day is still flagged, so the list can update itself.
+export async function fixEntry(payload) {
+  const u = await needPerm('att_reconcile');
+  const id = Number((payload && payload.id) || 0);
+  const day = String((payload && payload.day) || '');
+  const e = (await q(
+    `SELECT a.id, a.staff_id, a.kind, s.name, to_char(a.at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI') AS at_txt FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id WHERE a.id = $1`,
+    [Number.isInteger(id) ? id : 0]
+  ))[0];
+  if (!e || !validDate(day)) return { error: 'That entry no longer exists' };
+
+  if (payload.remove) {
+    await q('DELETE FROM pc2_attendance WHERE id = $1', [e.id]);
+    await logEvent(u, 'delete', 'attendance', e.id, 'Removed ' + KIND_LABEL[e.kind] + ' - ' + e.name + ' ' + e.at_txt + ' (reconciliation)', { kind: e.kind, at: e.at_txt }, null);
+  } else {
+    const kind = String(payload.kind || '');
+    const date = String(payload.date || '');
+    const time = String(payload.time || '');
+    if (!KIND_LABEL[kind]) return { error: 'Choose the type of entry' };
+    if (!validDate(date) || !validTime(time)) return { error: 'Choose a valid date and time' };
+    const ms = Number((await q(`SELECT (extract(epoch from (($1::date + $2::time) AT TIME ZONE 'Asia/Karachi')) * 1000)::float8 AS ms`, [date, time]))[0].ms);
+    if (ms > Date.now() + 60000) return { error: 'That time is in the future' };
+    await q(`UPDATE pc2_attendance SET kind = $1, at = ($2::date + $3::time) AT TIME ZONE 'Asia/Karachi' WHERE id = $4`, [kind, date, time, e.id]);
+    await logEvent(u, 'edit', 'attendance', e.id, 'Changed ' + e.name + ' (reconciliation): ' + KIND_LABEL[e.kind] + ' ' + e.at_txt + ' to ' + KIND_LABEL[kind] + ' ' + date + ' ' + time,
+      { kind: e.kind, at: e.at_txt }, { kind, at: date + ' ' + time });
+  }
+  const left = await scan(day, day, e.staff_id);
+  return {
+    ok: true,
+    entries: await dayEntries(e.staff_id, day),
+    flagged: { long: left.long.length > 0, noout: left.noout.length > 0, misfit: left.misfit.length > 0 },
+  };
+}
+
+// Mark several items reviewed from the list without leaving the page.
+export async function markReviewedMany(items) {
+  const u = await needPerm('att_reconcile');
+  const n = await saveMarks(u, Array.isArray(items) ? items : []);
+  if (n) await logEvent(u, 'edit', 'attendance', null, 'Marked ' + n + ' attendance item' + (n > 1 ? 's' : '') + ' as reviewed (reconciliation)', null, { items: n });
+  return n ? { ok: true, n } : { error: 'Nothing to mark' };
 }
