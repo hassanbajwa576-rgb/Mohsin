@@ -723,3 +723,55 @@ export async function markReviewedMany(items) {
   if (n) await logEvent(u, 'edit', 'attendance', null, 'Marked ' + n + ' attendance item' + (n > 1 ? 's' : '') + ' as reviewed (reconciliation)', null, { items: n });
   return n ? { ok: true, n } : { error: 'Nothing to mark' };
 }
+
+// Fix one employee-day from the reconciliation popup in one go: change entries, add missing ones, delete wrong ones.
+export async function saveDay(payload) {
+  const u = await needPerm('att_reconcile');
+  const staffId = Number(payload && payload.staff);
+  const day = String((payload && payload.day) || '');
+  if (!Number.isInteger(staffId) || !validDate(day)) return { error: 'That day could not be found' };
+  const st = (await q('SELECT id, name, office_id FROM pc2_staff WHERE id = $1', [staffId]))[0];
+  if (!st) return { error: 'That employee could not be found' };
+  const next = new Date(day + 'T00:00:00Z');
+  next.setUTCDate(next.getUTCDate() + 1);
+  const dayNext = next.toISOString().slice(0, 10);
+  const inRange = (d) => d === day || d === dayNext;
+
+  const mine = await q(
+    `SELECT a.id, a.kind, a.office_id, to_char(a.at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI') AS at_txt FROM pc2_attendance a WHERE a.staff_id = $1 AND a.at >= (($2::date)::timestamp AT TIME ZONE 'Asia/Karachi') AND a.at < (($2::date + 2)::timestamp AT TIME ZONE 'Asia/Karachi')`,
+    [staffId, day]
+  );
+  const have = new Map(mine.map((e) => [e.id, e]));
+  const office = (mine[0] && mine[0].office_id) || st.office_id;
+  const when = (d, t) => d + ' ' + t;
+  const future = async (d, t) => Number((await q(`SELECT (extract(epoch from (($1::date + $2::time) AT TIME ZONE 'Asia/Karachi')) * 1000)::float8 AS ms`, [d, t]))[0].ms) > Date.now() + 60000;
+
+  const changes = Array.isArray(payload.changes) ? payload.changes : [];
+  const adds = Array.isArray(payload.adds) ? payload.adds : [];
+  const removes = (Array.isArray(payload.removes) ? payload.removes : []).map(Number);
+  for (const c of [...changes, ...adds]) {
+    if (!KIND_LABEL[c.kind] || !validDate(String(c.date || '')) || !validTime(String(c.time || '')) || !inRange(c.date)) return { error: 'Check the type, date and time of each line' };
+    if (await future(c.date, c.time)) return { error: 'A time is in the future' };
+  }
+  for (const c of changes) if (!have.has(Number(c.id))) return { error: 'An entry no longer exists. Close this and open it again.' };
+  for (const id of removes) if (!have.has(id)) return { error: 'An entry no longer exists. Close this and open it again.' };
+
+  const notes = [];
+  for (const c of changes) {
+    const e = have.get(Number(c.id));
+    await q(`UPDATE pc2_attendance SET kind = $1, at = ($2::date + $3::time) AT TIME ZONE 'Asia/Karachi' WHERE id = $4`, [c.kind, c.date, c.time, e.id]);
+    notes.push('changed ' + KIND_LABEL[e.kind] + ' ' + e.at_txt + ' to ' + KIND_LABEL[c.kind] + ' ' + when(c.date, c.time));
+  }
+  for (const id of removes) {
+    const e = have.get(id);
+    await q('DELETE FROM pc2_attendance WHERE id = $1', [id]);
+    notes.push('deleted ' + KIND_LABEL[e.kind] + ' ' + e.at_txt);
+  }
+  for (const c of adds) {
+    await q(`INSERT INTO pc2_attendance (staff_id, office_id, kind, at, entered_by) VALUES ($1, $2, $3, ($4::date + $5::time) AT TIME ZONE 'Asia/Karachi', $6)`, [staffId, office, c.kind, c.date, c.time, u.id]);
+    notes.push('added ' + KIND_LABEL[c.kind] + ' ' + when(c.date, c.time));
+  }
+  if (!notes.length) return { error: 'Nothing was changed' };
+  await logEvent(u, 'edit', 'attendance', null, st.name + ' ' + day + ' (reconciliation): ' + notes.join('; '), null, { changes: changes.length, added: adds.length, deleted: removes.length });
+  return { ok: true, entries: await dayEntries(staffId, day) };
+}

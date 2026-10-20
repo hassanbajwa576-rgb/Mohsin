@@ -2,62 +2,70 @@
 
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
-import { fixEntry, markReviewed, markReviewedMany } from '@/lib/att-actions';
+import { saveDay, markReviewed, markReviewedMany } from '@/lib/att-actions';
 
 const KIND = { in: 'Check In', out: 'Check Out', break_out: 'Break Out', break_in: 'Break In' };
 const PK = 'Asia/Karachi';
 const dateOf = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: PK, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
 const timeOf = (ms) => {
   const p = new Intl.DateTimeFormat('en-GB', { timeZone: PK, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms));
-  return (p.find((x) => x.type === 'hour').value === '24' ? '00' : p.find((x) => x.type === 'hour').value) + ':' + p.find((x) => x.type === 'minute').value;
+  const h = p.find((x) => x.type === 'hour').value;
+  return (h === '24' ? '00' : h) + ':' + p.find((x) => x.type === 'minute').value;
 };
 
 const SECTIONS = [
-  ['long', 'Shifts over 16 hours', 'Usually a mixed up AM and PM. Fix the time here, or mark it reviewed if it is right.'],
-  ['noout', 'Check in with no check out', 'Fine for staff who do not need a check out (for example on Saturdays). Mark those as reviewed.'],
-  ['misfit', 'Entries that do not fit together', 'For example two check ins in a row, or a break that never ended. Fix or delete them here.'],
+  ['long', 'Shifts over 16 hours', 'Usually a mixed up AM and PM. Press Review to correct the times, or Mark reviewed if they are right.'],
+  ['noout', 'Check in with no check out', 'Fine for staff who do not need a check out (for example on Saturdays): press Mark reviewed. Otherwise press Review to add the check out.'],
+  ['misfit', 'Entries that do not fit together', 'For example two check ins in a row, or a break that never ended. Press Review to fix them.'],
 ];
 
-// The reconciliation lists. Everything happens on this page: change an entry in the popup, delete it, or mark the item
-// reviewed, and the list updates in place.
+// One line per entry, in time order, plus empty slots for a missing check in or check out.
+function linesFor(it) {
+  const lines = it.entries.map((e) => ({ id: e.id, kind: e.kind, date: dateOf(e.ms), time: timeOf(e.ms), was: { kind: e.kind, date: dateOf(e.ms), time: timeOf(e.ms) }, del: false }));
+  if (!lines.some((l) => l.kind === 'in')) lines.unshift({ id: null, kind: 'in', date: it.day, time: '', del: false });
+  if (!lines.some((l) => l.kind === 'out')) lines.push({ id: null, kind: 'out', date: it.day, time: '', del: false });
+  return lines;
+}
+
 export default function ReconcileView({ initial }) {
   const [lists, setLists] = useState(initial);
-  const [edit, setEdit] = useState(null);
+  const [open, setOpen] = useState(null); // { item, lines }
+  const [saved, setSaved] = useState([]);
   const [note, setNote] = useState('');
   const [err, setErr] = useState('');
+  const [popErr, setPopErr] = useState('');
   const [busy, start] = useTransition();
   const key = (it) => it.staff + '|' + it.day + '|' + it.kind + '|' + it.sig;
 
-  const drop = (k, kinds) => setLists((l) => Object.fromEntries(Object.entries(l).map(([s, arr]) => [s, arr.filter((it) => !k.includes(key(it)) || (kinds && !kinds.includes(it.kind)))])));
+  const drop = (keys) => setLists((l) => Object.fromEntries(Object.entries(l).map(([s, arr]) => [s, arr.filter((it) => !keys.includes(key(it)))])));
 
-  function openEdit(it, e) {
-    setErr('');
-    setEdit({ item: key(it), id: e.id, kind: e.kind, date: dateOf(e.ms), time: timeOf(e.ms) });
+  function openReview(it) {
+    setPopErr('');
+    setOpen({ item: it, lines: linesFor(it) });
   }
+  const setLine = (i, patch) => setOpen((o) => ({ ...o, lines: o.lines.map((l, j) => (j === i ? { ...l, ...patch } : l)) }));
 
-  function afterFix(it, r, what) {
-    if (!r || !r.ok) {
-      setErr((r && r.error) || 'Could not save');
+  function save() {
+    const it = open.item;
+    const changes = open.lines
+      .filter((l) => l.id && !l.del && l.time && (l.kind !== l.was.kind || l.date !== l.was.date || l.time !== l.was.time))
+      .map((l) => ({ id: l.id, kind: l.kind, date: l.date, time: l.time }));
+    const removes = open.lines.filter((l) => l.id && (l.del || !l.time)).map((l) => l.id);
+    const adds = open.lines.filter((l) => !l.id && l.time && !l.del).map((l) => ({ kind: l.kind, date: l.date, time: l.time }));
+    if (!changes.length && !removes.length && !adds.length) {
+      setPopErr('Nothing was changed');
       return;
     }
-    setEdit(null);
-    setErr('');
-    if (!r.flagged[it.kind]) {
-      setLists((l) => ({ ...l, [it.kind]: l[it.kind].filter((x) => key(x) !== key(it)) }));
-      setNote(what + '. ' + it.name + ' ' + it.day + ' is fixed and removed from the list.');
-    } else {
-      setLists((l) => ({ ...l, [it.kind]: l[it.kind].map((x) => (key(x) === key(it) ? { ...x, entries: r.entries } : x)) }));
-      setNote(what + '. ' + it.name + ' ' + it.day + ' still needs a look.');
-    }
-  }
-
-  function save(it) {
-    start(async () => afterFix(it, await fixEntry({ id: edit.id, day: it.day, kind: edit.kind, date: edit.date, time: edit.time }), 'Saved'));
-  }
-
-  function remove(it, e) {
-    if (!window.confirm('Delete this ' + KIND[e.kind] + ' entry? This cannot be undone.')) return;
-    start(async () => afterFix(it, await fixEntry({ id: e.id, day: it.day, remove: true }), 'Deleted'));
+    start(async () => {
+      const r = await saveDay({ staff: it.staff, day: it.day, changes, removes, adds });
+      if (r && r.ok) {
+        setLists((l) => ({ ...l, [it.kind]: l[it.kind].map((x) => (key(x) === key(it) ? { ...x, entries: r.entries } : x)) }));
+        setSaved((s) => [...s, key(it)]);
+        setOpen(null);
+        setPopErr('');
+        setNote('Saved for ' + it.name + ' ' + it.day + '. Check it, then press Mark reviewed.');
+      } else setPopErr((r && r.error) || 'Could not save');
+    });
   }
 
   function review(it) {
@@ -66,6 +74,7 @@ export default function ReconcileView({ initial }) {
       if (r && r.ok) {
         drop([key(it)]);
         setNote(it.name + ' ' + it.day + ' marked as reviewed.');
+        setErr('');
       } else setErr('Could not mark that as reviewed');
     });
   }
@@ -77,6 +86,7 @@ export default function ReconcileView({ initial }) {
       if (r && r.ok) {
         drop(list.slice(0, 300).map(key));
         setNote(r.n + ' marked as reviewed.');
+        setErr('');
       } else setErr('Nothing to mark');
     });
   }
@@ -97,44 +107,17 @@ export default function ReconcileView({ initial }) {
                   <table className='tx'>
                     <thead><tr><th>Employee</th><th>Date</th><th>What</th><th></th></tr></thead>
                     <tbody>
-                      {list.slice(0, 300).flatMap((it) => [
+                      {list.slice(0, 300).map((it) => (
                         <tr key={key(it)}>
                           <td className='c-title'><span className='pill'>{it.office}</span> <b>{it.name}</b></td>
                           <td className='nw c-meta'>{it.day}</td>
-                          <td className='c-meta'>{it.text}</td>
+                          <td className='c-meta'>{it.text}{saved.includes(key(it)) ? <div className='impok'>Saved - check it, then mark reviewed</div> : null}</td>
                           <td className='act'>
+                            <button type='button' className='btn' disabled={busy} onClick={() => openReview(it)}>Review</button>
                             <button type='button' className='btn primary' disabled={busy} onClick={() => review(it)}>Mark reviewed</button>
                           </td>
-                        </tr>,
-                        <tr key={key(it) + 'e'}>
-                          <td colSpan={4} className='recent'>
-                            {it.entries.map((e) => (
-                              <span className='recentry' key={e.id}>
-                                <b>{KIND[e.kind]} {timeOf(e.ms)}{dateOf(e.ms) !== it.day ? ' (next day)' : ''}</b>
-                                <button type='button' className='btn' onClick={() => openEdit(it, e)}>Edit</button>
-                                <button type='button' className='btn ghost' disabled={busy} onClick={() => remove(it, e)}>Delete</button>
-                              </span>
-                            ))}
-                            {edit && edit.item === key(it) ? (
-                              <div className='imppop'>
-                                <b>Change this entry</b>
-                                <label className='imppoprow'><span>Type</span>
-                                  <select value={edit.kind} onChange={(ev) => setEdit({ ...edit, kind: ev.target.value })}>
-                                    {Object.entries(KIND).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                                  </select>
-                                </label>
-                                <label className='imppoprow'><span>Date</span><input type='date' value={edit.date} onChange={(ev) => setEdit({ ...edit, date: ev.target.value })} /></label>
-                                <label className='imppoprow'><span>Time</span><input type='time' value={edit.time} onChange={(ev) => setEdit({ ...edit, time: ev.target.value })} /></label>
-                                <div className='imppopbtn'>
-                                  <button type='button' className='btn primary' disabled={busy} onClick={() => save(it)}>{busy ? 'Saving...' : 'Save'}</button>
-                                  <button type='button' className='btn' onClick={() => setEdit(null)}>Cancel</button>
-                                </div>
-                              </div>
-                            ) : null}
-                            <Link className='muted recentlink' href={'/attendance/logs?date=' + it.day + '&emp=' + encodeURIComponent(it.name)}>Open in Day log</Link>
-                          </td>
-                        </tr>,
-                      ])}
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -146,6 +129,35 @@ export default function ReconcileView({ initial }) {
           </div>
         );
       })}
+
+      {open ? (
+        <div className='modalbg' onClick={() => setOpen(null)}>
+          <div className='modalbox' role='dialog' aria-label='Review entries' onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: 0 }}>{open.item.name}, {open.item.day}</h3>
+            <p className='muted' style={{ margin: '4px 0 8px' }}>Change a time, fill in a missing one, or delete a wrong entry. Then press Save changes.</p>
+            {open.lines.map((l, i) => (
+              <div className={'modalline' + (l.del ? ' gone' : '')} key={(l.id || 'n') + '-' + i}>
+                <select value={l.kind} disabled={l.del} onChange={(e) => setLine(i, { kind: e.target.value })}>
+                  {Object.entries(KIND).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}
+                </select>
+                <input type='date' value={l.date} disabled={l.del} onChange={(e) => setLine(i, { date: e.target.value })} />
+                <input type='time' value={l.time} disabled={l.del} onChange={(e) => setLine(i, { time: e.target.value })} placeholder='Time' />
+                <button type='button' className='btn ghost' onClick={() => setLine(i, { del: !l.del })}>{l.del ? 'Undo' : 'Delete'}</button>
+              </div>
+            ))}
+            <p style={{ margin: '6px 0' }}>
+              <button type='button' className='linkbtn' onClick={() => setOpen((o) => ({ ...o, lines: [...o.lines, { id: null, kind: 'break_out', date: o.item.day, time: '', del: false }] }))}>+ Add entry</button>
+              <span className='muted'> An empty time line is ignored; clearing the time of an existing entry deletes it.</span>
+            </p>
+            {popErr ? <p className='badline'>{popErr}</p> : null}
+            <div className='imppopbtn'>
+              <button type='button' className='btn primary' disabled={busy} onClick={save}>{busy ? 'Saving...' : 'Save changes'}</button>
+              <button type='button' className='btn' onClick={() => setOpen(null)}>Cancel</button>
+              <Link className='muted recentlink' href={'/attendance/logs?date=' + open.item.day + '&emp=' + encodeURIComponent(open.item.name)}>Open in Day log</Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
