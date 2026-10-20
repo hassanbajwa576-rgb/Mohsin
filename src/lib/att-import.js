@@ -1,6 +1,7 @@
 import 'server-only';
 import { q } from './db';
 import { TZ, validDate, validTime } from './att';
+import { reviewedSet, markKey } from './att-reconcile';
 
 // Reads the weekly Excel sheets (one sheet per month, one row per employee, three columns per day) and works out
 // what would be added. Nothing is saved here.
@@ -287,8 +288,10 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
   for (const it of items.values()) {
     if (!it.in || !it.out) continue;
     const d = (mins(it.out) - mins(it.in) + 1440) % 1440;
-    if (d > 16 * 60) long.push({ name: it.name, date: it.date, text: 'In ' + it.in + ', Out ' + it.out + ' = ' + Math.floor(d / 60) + 'h ' + String(d % 60).padStart(2, '0') + 'm' });
+    if (d > 16 * 60) long.push({ staff: it.staff, name: it.name, date: it.date, sig: it.in + '|' + it.out, text: 'In ' + it.in + ', Out ' + it.out + ' = ' + Math.floor(d / 60) + 'h ' + String(d % 60).padStart(2, '0') + 'm' });
   }
+
+  const done = await reviewedSet(from, to);
 
   const list = [...items.values()].sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
   const evs = await appEvents([...new Set(list.map((i) => i.staff))], from, to);
@@ -326,7 +329,7 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
   return {
     from, to,
     items: keep,
-    fresh, freshEntries, same, noOut, long: long.slice(0, 60),
+    fresh, freshEntries, same, noOut, long: long.filter((l) => !done.has(markKey(l.staff, l.date, 'long', l.sig))).slice(0, 60),
     days: [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])),
     conflicts,
     unmatched: [...unmatched.values()],

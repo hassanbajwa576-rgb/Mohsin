@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useState, useTransition } from 'react';
-import { previewImport, confirmImport, saveAppTimes } from '@/lib/att-actions';
+import { previewImport, confirmImport, saveAppTimes, markReviewed } from '@/lib/att-actions';
 
 const CHOICES = [
   ['keep', 'Keep what is in the app'],
@@ -18,17 +18,26 @@ export default function ImportExcel({ from, to }) {
   const [fix, setFix] = useState({});
   const [edit, setEdit] = useState(null);
   const [saving, startSave] = useTransition();
+  const [reviewed, setReviewed] = useState([]);
   const [seen, setSeen] = useState(null);
   if (plan && seen !== plan) {
     setSeen(plan);
     setChoice({});
     setFix({});
     setEdit(null);
+    setReviewed([]);
   }
   const rows = plan ? plan.conflicts.map((c) => ({ ...c, ...(fix[c.key] || {}) })) : [];
   const open = rows.filter((c) => !c.done && !choice[c.key]).length;
   const differing = rows.filter((c) => !c.done).length;
   const nothing = plan && !plan.fresh && !plan.conflicts.length && !plan.same;
+
+  function markLong(l) {
+    startSave(async () => {
+      const r = await markReviewed({ staff: l.staff, day: l.date, kind: 'long', sig: l.sig });
+      if (r && r.ok) setReviewed((x) => [...x, l.staff + l.date]);
+    });
+  }
 
   function openEdit(c) {
     setEdit({ key: c.key, vals: Object.fromEntries(c.entries.map((e) => [e.id, e.t])), err: '' });
@@ -86,10 +95,14 @@ export default function ImportExcel({ from, to }) {
             <div><b>{plan.unmatched.length}</b><span>names not matched</span></div>
             <div><b>{plan.problems.length}</b><span>rows skipped</span></div>
           </div>
-          {plan.long && plan.long.length ? (
+          {plan.long && plan.long.filter((l) => !reviewed.includes(l.staff + l.date)).length ? (
             <div className='wide implong'>
-              <b>Check these times in the Excel file ({plan.long.length}): the shift is over 16 hours, which usually means AM and PM were mixed up.</b>
-              <ul>{plan.long.map((l) => <li key={l.name + l.date}>{l.name} {l.date}: {l.text}</li>)}</ul>
+              <b>Check these times in the Excel file ({plan.long.filter((l) => !reviewed.includes(l.staff + l.date)).length}): the shift is over 16 hours, which usually means AM and PM were mixed up. If a time is right, mark it reviewed and it will not be flagged again.</b>
+              <ul>{plan.long.filter((l) => !reviewed.includes(l.staff + l.date)).map((l) => (
+                <li key={l.name + l.date}>{l.name} {l.date}: {l.text}{' '}
+                  <button type='button' className='linkbtn' disabled={saving} onClick={() => markLong(l)}>Mark reviewed</button>
+                </li>
+              ))}</ul>
             </div>
           ) : null}
           {plan.noOut ? <p className='muted wide'><b>{plan.noOut}</b> of the new days have a check in but no check out on the sheet. They are added as present and show 'no check out' in reports, with no worked hours.</p> : null}

@@ -638,3 +638,43 @@ export async function saveAppTimes(payload) {
   const ex = explain(item, c);
   return { ok: true, app: ex.app, reasons: c.reasons, matches: c.reasons.length === 0, entries: entriesOf(c.win) };
 }
+
+/* ---------- reconciliation: items marked as reviewed do not come up again ---------- */
+
+const MARK_KINDS = ['long', 'noout', 'misfit'];
+
+async function saveMarks(u, list) {
+  let n = 0;
+  for (const m of list.slice(0, 400)) {
+    const staff = Number(m && m.staff);
+    const day = String((m && m.day) || '');
+    const kind = String((m && m.kind) || '');
+    const sig = String((m && m.sig) || '').slice(0, 300);
+    if (!Number.isInteger(staff) || !validDate(day) || !MARK_KINDS.includes(kind) || !sig) continue;
+    await q('INSERT INTO pc2_review_marks (staff_id, day, kind, sig, marked_by) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING', [staff, day, kind, sig, u.id]);
+    n += 1;
+  }
+  return n;
+}
+
+// From the import preview (no page change).
+export async function markReviewed(payload) {
+  const u = await need(['om']);
+  const n = await saveMarks(u, [payload || {}]);
+  return n ? { ok: true } : { error: 'Could not mark that as reviewed' };
+}
+
+// From the reconciliation page: one item, or every item shown in a list.
+export async function markReviewedForm(fd) {
+  const u = await need(['om']);
+  let list = [];
+  try {
+    list = JSON.parse(s(fd, 'items'));
+  } catch {
+    list = [];
+  }
+  const n = await saveMarks(u, Array.isArray(list) ? list : []);
+  if (n) await logEvent(u, 'edit', 'attendance', null, 'Marked ' + n + ' attendance item' + (n > 1 ? 's' : '') + ' as reviewed (reconciliation)', null, { items: n });
+  const back_ = s(fd, 'back');
+  back(back_.startsWith('/attendance/reconcile') ? back_ : '/attendance/reconcile', n ? n + ' marked as reviewed' : 'Nothing to mark', !!n);
+}
