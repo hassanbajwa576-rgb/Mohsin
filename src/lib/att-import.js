@@ -55,8 +55,18 @@ function sheetFor(wb, year, month) {
 // Breaks: one record per employee, day and break number with out / in (an employee has one row per break).
 function readSheet(ws, year, month, from, to, mode, problems) {
   const cols = {};
+  // The date number sometimes sits only above the first of a day's columns; a blank header under the same weekday belongs to that day.
+  let lastDay = NaN;
+  let lastWeekday = '';
   for (let c = 5; c <= ws.columnCount; c++) {
-    const day = Number(val(ws.getRow(1).getCell(c)));
+    const head = val(ws.getRow(1).getCell(c));
+    const weekday = String(val(ws.getRow(2).getCell(c)) || '').trim().toLowerCase();
+    let day = Number(head);
+    if ((head == null || head === '') && weekday && weekday === lastWeekday) day = lastDay;
+    else if (head != null && head !== '') {
+      lastDay = day;
+      lastWeekday = weekday;
+    }
     const lab = String(val(ws.getRow(3).getCell(c)) || '').trim().toLowerCase();
     if (!(day >= 1 && day <= 31) || (lab !== 'check in' && lab !== 'check out')) continue;
     const date = year + '-' + pad(month) + '-' + pad(day);
