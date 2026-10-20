@@ -5,6 +5,7 @@ import { q } from './db';
 import { getUser } from './auth';
 import { logEvent } from './audit';
 import { can } from './perms';
+import { buildPlan, existingDays } from './att-import';
 import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime, closeStale, todayKey } from './att';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
@@ -400,4 +401,104 @@ export async function deleteStaff(fd) {
   await q('DELETE FROM pc2_staff WHERE id = $1', [id]);
   await logEvent(u, 'delete', 'staff', id, 'Deleted employee ' + r.name + ' (' + r.office + ') and ' + r.n + ' attendance entries', { name: r.name, office: r.office, entries: r.n }, null);
   back('/attendance/staff', r.name + ' deleted', true);
+}
+
+/* ---------- import from the weekly Excel sheets (Sr. Ops Manager only) ---------- */
+
+const MAX_FILE = 3000000;
+const fileOf = (fd, k) => {
+  const f = fd.get(k);
+  return f && typeof f !== 'string' && f.size ? f : null;
+};
+
+// Step 1: read the file(s) and show what would happen. Nothing is saved.
+export async function previewImport(prev, fd) {
+  await need(['om']);
+  const from = s(fd, 'from');
+  const to = s(fd, 'to');
+  const attFile = fileOf(fd, 'att');
+  const brkFile = fileOf(fd, 'brk');
+  if (!attFile && !brkFile) return { error: 'Choose the attendance file, the break file, or both' };
+  if (!validDate(from) || !validDate(to) || from > to) return { error: 'Choose a valid From and To date' };
+  if (to > todayKey()) return { error: 'The To date cannot be in the future' };
+  if ((new Date(to) - new Date(from)) / 864e5 > 62) return { error: 'Import at most two months at a time' };
+  for (const f of [attFile, brkFile]) if (f && f.size > MAX_FILE) return { error: 'A file is larger than 3 MB. Save a copy with only the months you need.' };
+  try {
+    const plan = await buildPlan({ attFile, brkFile, from, to });
+    return { plan };
+  } catch (e) {
+    return { error: 'That file could not be read. Save it as an Excel Workbook (.xlsx) and try again.' };
+  }
+}
+
+// Step 2: add the entries. Days that already have entries in the app are only touched when a choice was made.
+export async function confirmImport(fd) {
+  const u = await need(['om']);
+  const page = '/attendance/import';
+  let items = [];
+  try {
+    items = JSON.parse(s(fd, 'payload'));
+  } catch {
+    back(page, 'The preview expired. Upload the file again.');
+  }
+  const from = s(fd, 'from');
+  const to = s(fd, 'to');
+  if (!Array.isArray(items) || !items.length || !validDate(from) || !validDate(to)) back(page, 'Nothing to import');
+
+  const staff = await q('SELECT s.id, s.name, s.office_id FROM pc2_staff s WHERE s.active');
+  const sm = new Map(staff.map((x) => [x.id, x]));
+  const exist = await existingDays([...new Set(items.map((i) => Number(i.staff)))], from, to);
+  const today = todayKey();
+
+  const rows = []; // [staff, office, kind, date, time]
+  const clear = []; // [staff, date]
+  let added = 0;
+  let skipped = 0;
+  let replaced = 0;
+  for (const it of items) {
+    const st = sm.get(Number(it.staff));
+    const date = String(it.date || '');
+    if (!st || !validDate(date) || date < from || date > to || date > today) { skipped += 1; continue; }
+    const hasIn = validTime(it.in) && validTime(it.out) && validDate(it.outDate);
+    const brk = (Array.isArray(it.breaks) ? it.breaks : []).filter((b) => Array.isArray(b) && validTime(b[0]) && validTime(b[1]) && b[1] > b[0]);
+    if (!hasIn && !brk.length) { skipped += 1; continue; }
+    const key = st.id + '|' + date;
+    if (exist.has(key)) {
+      const c = s(fd, 'c:' + key);
+      if (c === 'replace' && hasIn) { clear.push([st.id, date]); replaced += 1; }
+      else if (c !== 'add' && !(c === 'replace' && !hasIn)) { skipped += 1; continue; }
+    }
+    if (hasIn) rows.push([st.id, st.office_id, 'in', date, it.in]);
+    // On a night shift, a break before the check in time happens after midnight, on the next date.
+    for (const b of brk) {
+      const bd = hasIn && it.outDate > date && b[0] < it.in ? it.outDate : date;
+      rows.push([st.id, st.office_id, 'break_out', bd, b[0]], [st.id, st.office_id, 'break_in', bd, b[1]]);
+    }
+    if (hasIn) rows.push([st.id, st.office_id, 'out', it.outDate, it.out]);
+    added += 1;
+  }
+  if (!rows.length) back(page, 'Nothing was added (' + skipped + ' employee-days skipped)');
+
+  const gone = [];
+  for (const [id, date] of clear) {
+    const del = await q(
+      `DELETE FROM pc2_attendance WHERE staff_id = $1 AND at >= (($2::date)::timestamp AT TIME ZONE 'Asia/Karachi') AND at < (($2::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi') RETURNING kind, to_char(at AT TIME ZONE 'Asia/Karachi', 'HH24:MI') AS t`,
+      [id, date]
+    );
+    gone.push(sm.get(id).name + ' ' + date + ': ' + del.map((d) => d.kind + ' ' + d.t).join(', '));
+  }
+  for (let i = 0; i < rows.length; i += 400) {
+    const chunk = rows.slice(i, i + 400);
+    const params = [u.id];
+    const vals = chunk.map((r) => {
+      params.push(r[0], r[1], r[2], r[3], r[4]);
+      const n = params.length;
+      return `($${n - 4}, $${n - 3}, $${n - 2}, ($${n - 1}::date + $${n}::time) AT TIME ZONE 'Asia/Karachi', $1, 'excel')`;
+    });
+    await q(`INSERT INTO pc2_attendance (staff_id, office_id, kind, at, entered_by, source) VALUES ${vals.join(',')}`, params);
+  }
+  await logEvent(u, 'create', 'attendance', null,
+    'Imported ' + rows.length + ' entries from Excel for ' + added + ' employee-days (' + from + ' to ' + to + ')' + (replaced ? '; replaced the existing entries of ' + replaced + ' days' : '') + (skipped ? '; ' + skipped + ' skipped' : ''),
+    gone.length ? { replaced: gone } : null, { entries: rows.length, days: added, from, to });
+  back(page, rows.length + ' entries added for ' + added + ' employee-days' + (skipped ? ' (' + skipped + ' skipped)' : '') + '. They show underlined on Entries, Logs and Reports.', true);
 }

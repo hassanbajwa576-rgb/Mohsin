@@ -19,6 +19,7 @@ export default function ModuleTier({ role, access = [] }) {
   if (access.includes('att_logs')) att.push(['/attendance/logs', 'Logs']);
   if (access.includes('att_reports')) att.push(['/attendance/reports', 'Reports'], ['/attendance/analysis', 'Analysis']);
   if (access.includes('att_staff')) att.push(['/attendance/staff', 'Employees']);
+  if (om) att.push(['/attendance/import', 'Import']);
 
   const menu = guard || attend ? att : petty;
   const admin = [];

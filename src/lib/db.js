@@ -56,6 +56,7 @@ const DDL = [
   `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS shift_end TEXT NOT NULL DEFAULT ''`,
   `UPDATE pc2_staff SET dept = 'Operations' WHERE lower(trim(dept)) = 'ops'`,
   // An expense paid from more than one advance is saved as linked parts (part 1 of 2, part 2 of 2).
+  `ALTER TABLE pc2_attendance ADD COLUMN IF NOT EXISTS source TEXT`,
   `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS split_group TEXT`,
   `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS split_part INTEGER`,
   `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS split_total INTEGER`,
@@ -70,7 +71,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-19-2';
+const SCHEMA_VERSION = '2026-10-20-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

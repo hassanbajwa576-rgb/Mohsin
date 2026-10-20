@@ -88,7 +88,7 @@ export function sessionsOf(evs, now = Date.now()) {
     const ms = Number(e.ms);
     if (e.kind === 'in') {
       if (cur) out.push(cur);
-      cur = { start: ms, end: null, breaks: [], open: null, office_id: e.office_id };
+      cur = { start: ms, end: null, breaks: [], open: null, office_id: e.office_id, xin: e.source === 'excel', xout: false };
     } else if (!cur) continue;
     else if (e.kind === 'break_out') cur.open = ms;
     else if (e.kind === 'break_in') {
@@ -102,6 +102,7 @@ export function sessionsOf(evs, now = Date.now()) {
     } else if (e.kind === 'out') {
       if (cur.open != null) { cur.breaks.push([cur.open, ms]); cur.open = null; }
       cur.end = ms;
+      cur.xout = e.source === 'excel';
       out.push(cur);
       cur = null;
     }
@@ -114,11 +115,11 @@ export function sessionsOf(evs, now = Date.now()) {
     const miss = !!s.missed || (s.end == null && dateKey(s.start) < dateKey(now));
     if (s.open != null && !miss) br.push([s.open, now]);
     const breakMs = br.reduce((a, b) => a + (b[1] - b[0]), 0);
-    return { start: s.start, end: s.end, office_id: s.office_id, missed: miss, live: s.end == null && !miss, breakCount: br.length, breaks: br.map((b) => b[1] - b[0]), breakMs, workedMs: miss ? 0 : Math.max(0, (s.end ?? now) - s.start - breakMs) };
+    return { start: s.start, end: s.end, office_id: s.office_id, xin: s.xin, xout: s.xout, missed: miss, live: s.end == null && !miss, breakCount: br.length, breaks: br.map((b) => b[1] - b[0]), breakMs, workedMs: miss ? 0 : Math.max(0, (s.end ?? now) - s.start - breakMs) };
   });
 }
 
-export const EV_COLS = `a.id, a.staff_id, a.office_id, a.kind, a.entered_by, (extract(epoch from a.at) * 1000)::float8 AS ms, (extract(epoch from a.entered_at) * 1000)::float8 AS entered_ms`;
+export const EV_COLS = `a.id, a.staff_id, a.office_id, a.kind, a.entered_by, a.source, (extract(epoch from a.at) * 1000)::float8 AS ms, (extract(epoch from a.entered_at) * 1000)::float8 AS entered_ms`;
 
 export function groupByStaff(events) {
   const m = new Map();
@@ -211,7 +212,7 @@ export async function reportRows({ from, to, office, dept }) {
       const st = shiftOn(s, d, periods);
       rows.push({
         date: d, office: where, dept: s.dept, shift: st.shift, shift_start: st.shift_start, shift_end: st.shift_end, shift_src: st.shift_src, name: s.name, code: s.code,
-        in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : x.missed ? '(missed check out)' : '(on duty)',
+        inX: x.xin, outX: x.xout, in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : x.missed ? '(missed check out)' : '(on duty)',
         breaks: x.breakCount, breakMs: x.breakMs, workedMs: x.workedMs, over: x.breakMs > limit,
       });
     }
@@ -322,7 +323,7 @@ export function conflictIds(evs) {
 export async function editableEntries(user) {
   const cond = user.role === 'om' ? '' : user.role === 'sso' ? "AND (a.entered_by = $1 OR ub.role IN ('so', 'guard'))" : 'AND a.entered_by = $1';
   return q(
-    `SELECT a.id, a.staff_id, a.kind, a.entered_by, s.name, s.dept, ${SHIFT_COLS}, o.code AS office, ub.name AS by_name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.entered_at > now() - interval '36 hours' ${cond} ORDER BY a.at DESC, a.id DESC LIMIT 60`,
+    `SELECT a.id, a.staff_id, a.kind, a.entered_by, a.source, s.name, s.dept, ${SHIFT_COLS}, o.code AS office, ub.name AS by_name, (extract(epoch from a.at) * 1000)::float8 AS ms, (a.entered_at > now() - interval '30 minutes') AS fresh FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users ub ON ub.id = a.entered_by WHERE a.entered_at > now() - interval '36 hours' ${cond} ORDER BY a.at DESC, a.id DESC LIMIT 60`,
     user.role === 'om' ? [] : [user.id]
   );
 }

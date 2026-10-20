@@ -67,8 +67,8 @@ export default async function AttendanceReportsPage({ searchParams }) {
                     <td className='c-meta'><OfficeTag o={r.office} /></td>
                     <td className='c-meta'>{r.dept || '-'}</td>
                     <td className='c-name'><b>{r.name}</b></td>
-                    <td className={'nw c-tile ' + inClassFor(r.in, r)}>{to12(r.in)}</td>
-                    <td className={'nw c-tile ' + (/^[0-9]/.test(r.out) ? outClassFor(r.out, r) : '')}>{/^[0-9]/.test(r.out) ? to12(r.out) : r.out}</td>
+                    <td className={'nw c-tile ' + inClassFor(r.in, r)}><span className={r.inX ? 'xl' : ''} title={r.inX ? 'Imported from Excel' : undefined}>{to12(r.in)}</span></td>
+                    <td className={'nw c-tile ' + (/^[0-9]/.test(r.out) ? outClassFor(r.out, r) : '')}><span className={r.outX ? 'xl' : ''} title={r.outX ? 'Imported from Excel' : undefined}>{/^[0-9]/.test(r.out) ? to12(r.out) : r.out}</span></td>
                     <td className='c-tile'>{r.breaks}</td>
                     <td className={'nw c-tile ' + (r.breakMs === 0 ? '' : r.over ? 't-bad' : 't-ok')}>{fmtDur(r.breakMs)}</td>
                     <td className={'nw c-tile g ' + (/^[0-9]/.test(r.out) ? (r.workedMs >= 28800000 ? 't-ok' : 't-bad') : '')}>{fmtDur(r.workedMs)}</td>

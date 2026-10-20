@@ -553,3 +553,14 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .okline{margin:0;padding:9px 12px;border-radius:4px;background:var(--okbg);color:var(--ok);font-size:14px}
 .badline{margin:0;padding:9px 12px;border-radius:4px;background:var(--badbg);color:var(--bad);font-size:14px}
 .att-visit{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--mut)}
+
+/* times that came from an Excel import */
+.xl{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px;text-decoration-color:var(--gold-d)}
+.xlnote{font-size:13px;color:var(--mut)}
+
+/* Excel import */
+.impsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.impsum div{background:var(--surface);border-radius:4px;padding:10px 12px}
+.impsum b{display:block;font-size:22px}
+.impsum span{font-size:13px;color:var(--mut)}
+.impwait td{background:#fdf8e7}
