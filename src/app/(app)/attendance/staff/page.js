@@ -52,10 +52,10 @@ export default async function AttendanceStaffPage({ searchParams }) {
           <h1>Employees</h1>
           <p className='muted'>The people whose check in, check out and breaks are recorded. Guards and Support Officers are managed on the Team page.</p>
         </div>
-        {user.role === 'om' ? (
+        {can(user, 'att_import') || can(user, 'att_reconcile') ? (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link href='/attendance/reconcile' className='btn'>Reconciliation</Link>
-            <Link href='/attendance/import' className='btn primary'>Import attendance from Excel</Link>
+            {can(user, 'att_reconcile') ? <Link href='/attendance/reconcile' className='btn'>Reconciliation</Link> : null}
+            {can(user, 'att_import') ? <Link href='/attendance/import' className='btn primary'>Import attendance from Excel</Link> : null}
           </div>
         ) : null}
       </div>

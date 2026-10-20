@@ -172,10 +172,19 @@ export async function dutyContacts(user) {
   });
 }
 
+/** Part of a name as an ILIKE pattern (wildcards typed by the user are ignored). */
+export const nameLike = (w) => '%' + String(w).replace(/[\\%_]/g, '').trim().slice(0, 60) + '%';
+
+/** Names of the active employees (one office, or both), for the employee search box. */
+export async function staffNames(office) {
+  const r = await q(`SELECT s.name FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${office ? 'AND o.code = $1' : ''} ORDER BY s.name`, office ? [office] : []);
+  return r.map((x) => x.name);
+}
+
 export const officeCodes = (rows) => Object.fromEntries(rows.map((r) => [r.id, r.code]));
 
 /** One row per shift (check in .. check out) between two dates (inclusive), Karachi time. */
-export async function reportRows({ from, to, office, dept }) {
+export async function reportRows({ from, to, office, dept, who }) {
   const deptList = Array.isArray(dept) ? dept.filter(Boolean) : dept ? [dept] : [];
   const cond = [];
   const params = [];
@@ -188,6 +197,10 @@ export async function reportRows({ from, to, office, dept }) {
   if (deptList.length) {
     params.push(deptList);
     cond.push('s.dept = ANY($' + params.length + '::text[])');
+  }
+  if (who) {
+    params.push(nameLike(who));
+    cond.push('s.name ILIKE $' + params.length);
   }
   const staff = await q(
     `SELECT s.id, s.code, s.name, s.dept, ${SHIFT_COLS}, o.code AS office FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''} ORDER BY o.code, s.dept, s.name`,

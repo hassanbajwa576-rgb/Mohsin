@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices, reportRows, departments, fmtDur, todayKey, validDate, lastWorkDay, breakFilter, BREAK_LIMIT_MIN, inClassFor, outClassFor, to12 } from '@/lib/att';
+import { ATT_ROLES, allOffices, staffNames, reportRows, departments, fmtDur, todayKey, validDate, lastWorkDay, breakFilter, BREAK_LIMIT_MIN, inClassFor, outClassFor, to12 } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,8 +25,10 @@ export default async function AttendanceReportsPage({ searchParams }) {
   const depts = await departments();
   // One or more departments (none ticked means all of them).
   const dsel = [].concat(sp.dept || []).filter((d) => depts.includes(d));
-  const rows = breakFilter(await reportRows({ from, to, office, dept: dsel }), brk);
-  const qp = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(brk ? { brk } : {}) });
+  const who = String(sp.who || '').trim().slice(0, 60);
+  const names = await staffNames(office);
+  const rows = breakFilter(await reportRows({ from, to, office, dept: dsel, who }), brk);
+  const qp = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(brk ? { brk } : {}), ...(who ? { who } : {}) });
   dsel.forEach((d) => qp.append('dept', d));
   const qs = qp.toString();
 
@@ -43,7 +45,7 @@ export default async function AttendanceReportsPage({ searchParams }) {
         </div>
       </div>
 
-      <ReportFilters today={today} lastDay={lastDay} from={from} to={to} office={office} canOffice={allOffices(user)} depts={depts} selected={dsel} resetHref='/attendance/reports' quick={['day', '7', '30', 'month', 'last']}>
+      <ReportFilters today={today} lastDay={lastDay} from={from} to={to} office={office} canOffice={allOffices(user)} depts={depts} selected={dsel} names={names} who={who} resetHref='/attendance/reports' quick={['day', '7', '30', 'month', 'last']}>
         <label className='fbar-field'>Breaks
           <select name='brk' defaultValue={brk}>
             <option value=''>All breaks</option>

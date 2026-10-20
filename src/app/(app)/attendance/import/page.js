@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
-import { todayKey } from '@/lib/att';
+import { can } from '@/lib/perms';
+import { ATT_ROLES, todayKey } from '@/lib/att';
 import { addDay } from '@/lib/att-import';
 import ImportExcel from '@/components/ImportExcel';
 import Flash from '@/components/Flash';
@@ -17,8 +18,8 @@ function lastWeek(today) {
 }
 
 export default async function ImportPage({ searchParams }) {
-  const user = await requireUser(['om']);
-  if (user.role !== 'om') redirect('/attendance');
+  const user = await requireUser(ATT_ROLES);
+  if (!can(user, 'att_import')) redirect('/attendance');
   const sp = await searchParams;
   const [from, to] = lastWeek(todayKey());
   const open = await q('SELECT id, kind, name, day, app_text, excel_text, reason, to_char(created_at AT TIME ZONE \'Asia/Karachi\', \'YYYY-MM-DD\') AS added FROM pc2_import_review WHERE resolved_at IS NULL ORDER BY day, name, id');

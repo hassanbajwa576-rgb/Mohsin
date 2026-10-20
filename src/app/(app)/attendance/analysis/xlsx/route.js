@@ -25,7 +25,7 @@ export async function GET(req) {
   if (from > to) from = to;
   const office = allOffices(u) ? (['LHR', 'ISB'].includes(sp.get('office')) ? sp.get('office') : '') : u.office_code;
   const depts = sp.getAll('dept').map((d) => d.slice(0, 80)).filter(Boolean);
-  const data = await analyse({ from, to, office, depts });
+  const data = await analyse({ from, to, office, depts, who: (sp.get('who') || '').slice(0, 60) });
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'OpsTrack';

@@ -5,7 +5,7 @@ import ReportFilters from '@/components/ReportFilters';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import {
-  ATT_ROLES, allOffices, departments, todayKey, validDate, fmtDur, to12, fmtTime, shiftText, BREAK_LIMIT_MIN, inClassFor, outClassFor,
+  ATT_ROLES, allOffices, departments, todayKey, validDate, fmtDur, to12, fmtTime, shiftText, BREAK_LIMIT_MIN, inClassFor, outClassFor, staffNames,
 } from '@/lib/att';
 import { analyse, addDaysKey, BUCKETS } from '@/lib/analysis';
 
@@ -38,10 +38,12 @@ export default async function AttendanceAnalysisPage({ searchParams }) {
   const view = VIEWS.some((v) => v[0] === sp.view) ? sp.view : 'employees';
   const empId = Number(sp.emp) || 0;
 
-  const data = await analyse({ from, to, office, depts: dsel });
+  const who = String(sp.who || '').trim().slice(0, 60);
+  const names = await staffNames(office);
+  const data = await analyse({ from, to, office, depts: dsel, who });
   const t = data.totals;
 
-  const base = new URLSearchParams({ from, to, ...(office ? { office } : {}) });
+  const base = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(who ? { who } : {}) });
   dsel.forEach((d) => base.append('dept', d));
   const link = (extra) => {
     const p = new URLSearchParams(base);
@@ -66,7 +68,7 @@ export default async function AttendanceAnalysisPage({ searchParams }) {
         </div>
       </div>
 
-      <ReportFilters today={today} from={from} to={to} office={office} canOffice={allOffices(user)} depts={depts} selected={dsel} hidden={{ view }} resetHref={'/attendance/analysis?view=' + view} />
+      <ReportFilters today={today} from={from} to={to} office={office} canOffice={allOffices(user)} depts={depts} selected={dsel} names={names} who={who} hidden={{ view }} resetHref={'/attendance/analysis?view=' + view} />
 
       <div className='chips' style={{ marginBottom: 12 }}>
         {VIEWS.map(([k, label]) => (

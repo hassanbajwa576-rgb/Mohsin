@@ -6,6 +6,8 @@ export const PERMS = [
   ['att_reports', 'Attendance reports and Excel download', 'Reports page and the Excel / CSV downloads.'],
   ['att_logs', 'Attendance logs', 'Every entry of a day, with who added it.'],
   ['att_staff', 'Manage employees and Excel upload', 'Add, edit and upload the employee list.'],
+  ['att_import', 'Import attendance from Excel', 'Fill in missing days from the weekly sheets, review the differences and correct times.'],
+  ['att_reconcile', 'Reconciliation', 'Run the check for long shifts, missing check outs and entries that do not fit, and mark them reviewed.'],
 ];
 
 export const PERM_SHORT = {
@@ -14,11 +16,13 @@ export const PERM_SHORT = {
   att_reports: 'reports',
   att_logs: 'logs',
   att_staff: 'employees',
+  att_import: 'import',
+  att_reconcile: 'reconciliation',
 };
 
 // What each role has without any extra grant.
 export const ROLE_PERMS = {
-  om: ['att_own', 'att_view', 'att_reports', 'att_logs', 'att_staff'],
+  om: ['att_own', 'att_view', 'att_reports', 'att_logs', 'att_staff', 'att_import', 'att_reconcile'],
   sso: ['att_own', 'att_view', 'att_reports'],
   so: [],
   guard: [],

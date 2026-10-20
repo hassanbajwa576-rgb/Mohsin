@@ -4,7 +4,8 @@ import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { todayKey, validDate } from '@/lib/att';
+import { can } from '@/lib/perms';
+import { ATT_ROLES, todayKey, validDate } from '@/lib/att';
 import { addDay } from '@/lib/att-import';
 import { scan } from '@/lib/att-reconcile';
 import { markReviewedForm } from '@/lib/att-actions';
@@ -18,8 +19,8 @@ const SECTIONS = [
 ];
 
 export default async function ReconcilePage({ searchParams }) {
-  const user = await requireUser(['om']);
-  if (user.role !== 'om') redirect('/attendance');
+  const user = await requireUser(ATT_ROLES);
+  if (!can(user, 'att_reconcile')) redirect('/attendance');
   const sp = await searchParams;
   const today = todayKey();
   const to = validDate(sp.to || '') ? sp.to : today;

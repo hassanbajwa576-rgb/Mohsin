@@ -19,7 +19,7 @@ const lastMonth = (key) => {
 // One compact filter bar for Reports and Analysis: quick period buttons, office, a searchable department list
 // with removable tags, and custom dates when needed. Plain GET form, so every filter stays in the address.
 export default function ReportFilters({
-  today, lastDay, from: from0, to: to0, office: office0, canOffice, depts, selected, hidden = {}, resetHref,
+  today, lastDay, from: from0, to: to0, office: office0, canOffice, depts, selected, hidden = {}, resetHref, names = [], who: who0 = '',
   quick = ['7', '30', 'month', 'last'], children,
 }) {
   const [from, setFrom] = useState(from0);
@@ -29,6 +29,7 @@ export default function ReportFilters({
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [custom, setCustom] = useState(false);
+  const [who, setWho] = useState(who0);
   const [flip, setFlip] = useState(false);
   const form = useRef(null);
   const wrap = useRef(null);
@@ -124,6 +125,22 @@ export default function ReportFilters({
             </div>
           ) : null}
         </div>
+
+        <label className='fbar-field'>Employee
+          <input
+            name='who'
+            type='search'
+            value={who}
+            list='fbar-names'
+            placeholder='One employee (type a name)'
+            autoComplete='off'
+            onChange={(e) => {
+              setWho(e.target.value);
+              if (names.includes(e.target.value)) submitSoon();
+            }}
+          />
+          <datalist id='fbar-names'>{names.map((n) => <option key={n} value={n} />)}</datalist>
+        </label>
 
         {children}
         <button className='btn primary' type='submit'>Apply</button>

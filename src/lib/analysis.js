@@ -1,7 +1,7 @@
 import 'server-only';
 import { q } from './db';
 import {
-  TZ, EV_COLS, officeCodes, SHIFT_COLS, SHIFT_JOIN, BREAK_LIMIT_MIN, sessionsOf, groupByStaff, dateKey, fmtTime, inClassFor, outClassFor, loadPeriods, shiftOn,
+  TZ, EV_COLS, officeCodes, nameLike, SHIFT_COLS, SHIFT_JOIN, BREAK_LIMIT_MIN, sessionsOf, groupByStaff, dateKey, fmtTime, inClassFor, outClassFor, loadPeriods, shiftOn,
 } from './att';
 
 // Attendance analysis for a date range: per employee, per department, per shift and per break.
@@ -65,7 +65,7 @@ function roll(rows, keyOf, labelOf) {
   }));
 }
 
-export async function analyse({ from, to, office, depts }) {
+export async function analyse({ from, to, office, depts, who }) {
   const cond = [];
   const params = [];
   // A visiting employee counts in the office they checked in at, so they are included for that office too.
@@ -77,6 +77,10 @@ export async function analyse({ from, to, office, depts }) {
   if (depts && depts.length) {
     params.push(depts);
     cond.push('s.dept = ANY($' + params.length + '::text[])');
+  }
+  if (who) {
+    params.push(nameLike(who));
+    cond.push('s.name ILIKE $' + params.length);
   }
   const staff = await q(
     `SELECT s.id, s.code, s.name, s.dept, s.active, ${SHIFT_COLS}, o.code AS office FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''} ORDER BY o.code, s.dept, s.name`,

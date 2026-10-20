@@ -23,7 +23,7 @@ export async function GET(req) {
   // Own office only unless the person works across both offices.
   const office = allOffices(u) ? (['LHR', 'ISB'].includes(sp.get('office')) ? sp.get('office') : '') : u.office_code;
   const dept = sp.getAll('dept').map((d) => d.slice(0, 80)).filter(Boolean);
-  const rows = breakFilter(await reportRows({ from, to, office, dept }), sp.get('brk'));
+  const rows = breakFilter(await reportRows({ from, to, office, dept, who: (sp.get('who') || '').slice(0, 60) }), sp.get('brk'));
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'OpsTrack';

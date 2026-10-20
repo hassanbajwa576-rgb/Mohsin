@@ -3,6 +3,7 @@ import TableLabels from '@/components/TableLabels';
 import { requireUser } from '@/lib/auth';
 import { unreadCount } from '@/lib/queries';
 import { q } from '@/lib/db';
+import { can } from '@/lib/perms';
 import { getLang } from '@/lib/lang';
 import { stopViewAs } from '@/lib/actions';
 
@@ -14,7 +15,7 @@ export default async function AppLayout({ children }) {
   const lang = await getLang();
   // Days from an Excel import that still need a decision (Sr. Ops Manager only).
   let reviews = 0;
-  if (user.role === 'om') {
+  if (can(user, 'att_import')) {
     try {
       reviews = (await q('SELECT COUNT(*)::int AS n FROM pc2_import_review WHERE resolved_at IS NULL AND kind = \'conflict\''))[0].n;
     } catch {

@@ -19,6 +19,10 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
   if (access.includes('att_logs')) att.push(['/attendance/logs', 'Day log']);
   if (access.includes('att_reports')) att.push(['/attendance/reports', 'Reports'], ['/attendance/analysis', 'Analysis']);
   if (access.includes('att_staff')) att.push(['/attendance/staff', 'Employees']);
+  else {
+    if (access.includes('att_import')) att.push(['/attendance/import', 'Import']);
+    if (access.includes('att_reconcile')) att.push(['/attendance/reconcile', 'Reconciliation']);
+  }
 
   const menu = guard || attend ? att : petty;
   const admin = [];
@@ -43,7 +47,7 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
         <div className='tier-scroll'>
         <nav className='tier-menu'>
           {menu.map(([href, label]) => (
-            <Link key={href} href={href} className={on(href) ? 'on' : ''}>{label}{href === '/attendance/staff' && reviews ? <span className='navbadge' title='Excel import days to review'>{reviews}</span> : null}</Link>
+            <Link key={href} href={href} className={on(href) ? 'on' : ''}>{label}{(href === '/attendance/staff' || href === '/attendance/import') && reviews ? <span className='navbadge' title='Excel import days to review'>{reviews}</span> : null}</Link>
           ))}
         </nav>
         <span className='tier-sp' />

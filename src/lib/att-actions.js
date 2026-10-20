@@ -413,7 +413,7 @@ const fileOf = (fd, k) => {
 
 // Step 1: read the file(s) and show what would happen. Nothing is saved.
 export async function previewImport(prev, fd) {
-  await need(['om']);
+  await needPerm('att_import');
   const from = s(fd, 'from');
   const to = s(fd, 'to');
   const attFile = fileOf(fd, 'att');
@@ -447,7 +447,7 @@ async function insertEntries(uid, rows) {
 // Step 2: add the entries. Times the app already has and that match are left alone, missing ones are added, and a day
 // where the times differ is only changed when a choice was made for it.
 export async function confirmImport(fd) {
-  const u = await need(['om']);
+  const u = await needPerm('att_import');
   const page = '/attendance/import';
   let items = [];
   try {
@@ -550,7 +550,7 @@ async function saveReview(u, review, notesJson, from, to) {
 
 // Settle one item of the review list. 'excel' = use the Excel times, 'keep' = keep the app times, 'dismiss' = just remove it.
 export async function resolveReview(fd) {
-  const u = await need(['om']);
+  const u = await needPerm('att_import');
   const page = '/attendance/import';
   const id = Number(s(fd, 'id'));
   const decision = s(fd, 'decision');
@@ -591,7 +591,7 @@ export async function resolveReview(fd) {
 
 // Clear the names and skipped rows (the days with different times need an answer each).
 export async function dismissNotes() {
-  const u = await need(['om']);
+  const u = await needPerm('att_import');
   await q(`UPDATE pc2_import_review SET resolved_at = now(), resolved_by = $1, resolution = 'dismissed' WHERE resolved_at IS NULL AND kind IN ('unmatched', 'skipped')`, [u.id]);
   back('/attendance/import', 'Names and skipped rows cleared', true);
 }
@@ -599,7 +599,7 @@ export async function dismissNotes() {
 // Correct the app's times of one day from the import preview, without leaving the page. Only the time of an existing
 // entry changes (never its date), and only entries of that employee and day can be touched.
 export async function saveAppTimes(payload) {
-  const u = await need(['om']);
+  const u = await needPerm('att_import');
   const raw = (payload && payload.item) || {};
   const staffId = Number(raw.staff);
   const date = String(raw.date || '');
@@ -659,14 +659,14 @@ async function saveMarks(u, list) {
 
 // From the import preview (no page change).
 export async function markReviewed(payload) {
-  const u = await need(['om']);
+  const u = await needPerm('att_reconcile');
   const n = await saveMarks(u, [payload || {}]);
   return n ? { ok: true } : { error: 'Could not mark that as reviewed' };
 }
 
 // From the reconciliation page: one item, or every item shown in a list.
 export async function markReviewedForm(fd) {
-  const u = await need(['om']);
+  const u = await needPerm('att_reconcile');
   let list = [];
   try {
     list = JSON.parse(s(fd, 'items'));
