@@ -116,34 +116,88 @@ async function readFile(file, from, to, mode, problems) {
   return out;
 }
 
-const kindText = (k) => ({ in: 'In', out: 'Out' }[k] || k);
-export const describe = (it) =>
-  [
-    it.in ? 'In ' + it.in : '',
-    it.out ? 'Out ' + it.out : '',
-    it.breaks && it.breaks.length ? it.breaks.length + ' break' + (it.breaks.length > 1 ? 's' : '') : '',
-  ].filter(Boolean).join(' - ') || 'nothing';
+const showBreaks = (br) => br.map((b) => b[0] + '-' + (b[1] || '?')).join(', ');
+const text = (inT, outT, br) =>
+  [inT ? 'In ' + inT : '', outT ? 'Out ' + outT : '', br.length ? 'Breaks ' + showBreaks(br) : ''].filter(Boolean).join(' - ') || 'nothing';
 
-/** Existing entries of the given people in the range, grouped by employee and day: { 'id|date': 'In 10:03 - Out 18:40 - 1 break' }. */
-export async function existingDays(staffIds, from, to) {
-  if (!staffIds.length) return new Map();
+/** The app's entries of the given people from the first day to the day after the last, in time order. */
+export async function appEvents(staffIds, from, to) {
+  const m = new Map();
+  if (!staffIds.length) return m;
   const rows = await q(
     `SELECT a.staff_id, a.kind, to_char(a.at AT TIME ZONE '${TZ}', 'YYYY-MM-DD') AS d, to_char(a.at AT TIME ZONE '${TZ}', 'HH24:MI') AS t
-     FROM pc2_attendance a WHERE a.staff_id = ANY($1::int[]) AND a.at >= (($2::date)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($3::date + 1)::timestamp AT TIME ZONE '${TZ}') ORDER BY a.at, a.id`,
+     FROM pc2_attendance a WHERE a.staff_id = ANY($1::int[]) AND a.at >= (($2::date)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($3::date + 2)::timestamp AT TIME ZONE '${TZ}') ORDER BY a.at, a.id`,
     [staffIds, from, to]
   );
-  const m = new Map();
   for (const r of rows) {
-    const k = r.staff_id + '|' + r.d;
-    if (!m.has(k)) m.set(k, { in: '', out: '', breaks: 0 });
-    const x = m.get(k);
-    if (r.kind === 'in' && !x.in) x.in = r.t;
-    if (r.kind === 'out') x.out = r.t;
-    if (r.kind === 'break_out') x.breaks += 1;
+    if (!m.has(r.staff_id)) m.set(r.staff_id, []);
+    m.get(r.staff_id).push({ kind: r.kind, d: r.d, t: r.t, s: r.d + ' ' + r.t });
   }
-  const text = new Map();
-  for (const [k, x] of m) text.set(k, describe({ in: x.in, out: x.out, breaks: new Array(x.breaks) }));
-  return text;
+  return m;
+}
+
+// App breaks in order: [{ o: break out event, i: break in event or null }].
+function appBreaks(win) {
+  const out = [];
+  let open = null;
+  for (const e of win) {
+    if (e.kind === 'break_out') {
+      if (open) out.push({ o: open, i: null });
+      open = e;
+    } else if (e.kind === 'break_in' && open) {
+      out.push({ o: open, i: e });
+      open = null;
+    }
+  }
+  if (open) out.push({ o: open, i: null });
+  return out;
+}
+
+/**
+ * Compare one employee-day from Excel with what the app already has.
+ * Same time = fine. Missing in the app = added automatically. Different time = needs review.
+ */
+export function classify(it, evs) {
+  const hasIn = !!(it.in && it.out);
+  const lo = it.date + ' 00:00';
+  const hi = hasIn && it.outDate > it.date ? it.outDate + ' 12:00' : addDay(it.date, 1) + ' 00:00';
+  const win = (evs || []).filter((e) => e.s >= lo && e.s < hi);
+  const adds = [];
+  const reasons = [];
+  const appIn = win.find((e) => e.kind === 'in');
+  if (hasIn) {
+    if (!appIn) adds.push(['in', it.date, it.in]);
+    else if (appIn.s !== it.date + ' ' + it.in) reasons.push('Check in: app ' + appIn.t + ', Excel ' + it.in);
+    const outs = win.filter((e) => e.kind === 'out' && (!appIn || e.s > appIn.s));
+    const appOut = outs[0];
+    if (!appOut) adds.push(['out', it.outDate, it.out]);
+    else if (appOut.s !== it.outDate + ' ' + it.out) reasons.push('Check out: app ' + appOut.t + ', Excel ' + it.out);
+  }
+  const ab = appBreaks(win);
+  it.breaks.forEach((b, i) => {
+    // On a night shift a break before the check in time happens after midnight.
+    const bd = hasIn && it.outDate > it.date && b[0] < it.in ? it.outDate : it.date;
+    const a = ab[i];
+    const x = 'Break ' + (i + 1) + ': app ' + (a ? a.o.t + '-' + (a.i ? a.i.t : '?') : '-') + ', Excel ' + b[0] + '-' + b[1];
+    if (!a) adds.push(['break_out', bd, b[0]], ['break_in', bd, b[1]]);
+    else if (a.o.s !== bd + ' ' + b[0]) reasons.push(x);
+    else if (!a.i) adds.push(['break_in', bd, b[1]]);
+    else if (a.i.s !== bd + ' ' + b[1]) reasons.push(x);
+  });
+  return { adds, reasons, win, lo, hi, hasIn, appIn };
+}
+
+/** Every entry the Excel row stands for (used when the Excel times replace what the app has). */
+export function allEntries(it) {
+  const hasIn = !!(it.in && it.out);
+  const rows = [];
+  if (hasIn) rows.push(['in', it.date, it.in]);
+  for (const b of it.breaks) {
+    const bd = hasIn && it.outDate > it.date && b[0] < it.in ? it.outDate : it.date;
+    rows.push(['break_out', bd, b[0]], ['break_in', bd, b[1]]);
+  }
+  if (hasIn) rows.push(['out', it.outDate, it.out]);
+  return rows;
 }
 
 /** Read the uploaded file(s) and return everything the preview needs. */
@@ -205,32 +259,47 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
   for (const it of items.values()) it.breaks.sort((a, b) => a[0].localeCompare(b[0]));
 
   const list = [...items.values()].sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
-  const exist = await existingDays([...new Set(list.map((i) => i.staff))], from, to);
+  const evs = await appEvents([...new Set(list.map((i) => i.staff))], from, to);
   const conflicts = [];
-  const fresh = [];
-  for (const it of list) {
-    const app = exist.get(it.key);
-    if (app) conflicts.push({ key: it.key, name: it.name, date: it.date, excel: describe(it), app, breaksOnly: it.breaksOnly });
-    else if (it.breaksOnly) problems.push(it.name + ' ' + it.date + ': breaks on the sheet but no check in anywhere, skipped');
-    else fresh.push(it);
-  }
+  const keep = [];
+  let fresh = 0;
+  let freshEntries = 0;
+  let same = 0;
   const days = new Map();
-  for (const it of fresh) days.set(it.date, (days.get(it.date) || 0) + 1);
+  for (const it of list) {
+    const r = classify(it, evs.get(it.staff));
+    if (it.breaksOnly && !r.appIn) {
+      problems.push(it.name + ' ' + it.date + ': breaks on the sheet but no check in anywhere, skipped');
+      continue;
+    }
+    keep.push(it);
+    if (r.reasons.length) {
+      const ab = appBreaks(r.win).map((a) => [a.o.t, a.i ? a.i.t : null]);
+      const appIn = r.win.find((e) => e.kind === 'in');
+      const appOut = r.win.filter((e) => e.kind === 'out' && (!appIn || e.s > appIn.s))[0];
+      conflicts.push({
+        key: it.key, name: it.name, date: it.date, breaksOnly: it.breaksOnly, reasons: r.reasons,
+        app: text(appIn ? appIn.t : '', appOut ? appOut.t : '', ab),
+        excel: text(it.in, it.out, it.breaks),
+      });
+    } else if (r.adds.length) {
+      fresh += 1;
+      freshEntries += r.adds.length;
+      days.set(it.date, (days.get(it.date) || 0) + 1);
+    } else same += 1;
+  }
 
   return {
     from, to,
-    items: list.filter((i) => !(i.breaksOnly && !exist.get(i.key))),
-    fresh: fresh.length,
-    freshEntries: fresh.reduce((a, i) => a + 2 + i.breaks.length * 2, 0),
+    items: keep,
+    fresh, freshEntries, same,
     days: [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])),
     conflicts,
     unmatched: [...unmatched.values()],
     problems,
     readAtt: att.length,
     readBrk: brk.length,
-    hadAtt: !!attFile,
-    hadBrk: !!brkFile,
   };
 }
 
-export { validTime, kindText };
+export { validTime };

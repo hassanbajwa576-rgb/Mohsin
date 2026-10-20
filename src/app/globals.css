@@ -564,3 +564,9 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .impsum b{display:block;font-size:22px}
 .impsum span{font-size:13px;color:var(--mut)}
 .impwait td{background:#fdf8e7}
+
+/* import: choices and the visiting tickbox read as plain left aligned options; menu fits narrower screens */
+.impchoice label.checkrow,.att-field label.att-visit{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;text-align:left;font-weight:400}
+.impchoice input[type=radio],.att-visit input{width:auto;min-height:0;margin:0}
+.impwhy{margin:0;padding-left:16px;font-size:13px}
+@media (max-width:1320px){.tier-menu a{padding-left:8px;padding-right:8px;font-size:13px}}

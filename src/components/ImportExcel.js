@@ -5,8 +5,7 @@ import { previewImport, confirmImport } from '@/lib/att-actions';
 
 const CHOICES = [
   ['keep', 'Keep what is in the app'],
-  ['add', 'Add the Excel entries as well'],
-  ['replace', 'Replace the app entries with Excel'],
+  ['replace', 'Use the Excel times'],
 ];
 
 // Step 1: choose the file(s) and dates. Step 2: review what will happen, decide every conflict, then import.
@@ -20,7 +19,7 @@ export default function ImportExcel({ from, to }) {
     setChoice({});
   }
   const open = plan ? plan.conflicts.filter((c) => !choice[c.key]).length : 0;
-  const nothing = plan && !plan.fresh && !plan.conflicts.length;
+  const nothing = plan && !plan.fresh && !plan.conflicts.length && !plan.same;
 
   return (
     <>
@@ -49,8 +48,9 @@ export default function ImportExcel({ from, to }) {
 
           <h3 className='wide' style={{ margin: 0 }}>Preview: {plan.from} to {plan.to}</h3>
           <div className='wide impsum'>
-            <div><b>{plan.fresh}</b><span>employee-days will be added ({plan.freshEntries} entries)</span></div>
-            <div><b>{plan.conflicts.length}</b><span>already have entries in the app: your review needed</span></div>
+            <div><b>{plan.fresh}</b><span>employee-days get missing entries added ({plan.freshEntries} entries)</span></div>
+            <div><b>{plan.same}</b><span>already match the app: nothing to do</span></div>
+            <div><b>{plan.conflicts.length}</b><span>have different times: your review needed</span></div>
             <div><b>{plan.unmatched.length}</b><span>names not matched</span></div>
             <div><b>{plan.problems.length}</b><span>rows skipped</span></div>
           </div>
@@ -58,14 +58,14 @@ export default function ImportExcel({ from, to }) {
 
           {plan.conflicts.length ? (
             <div className='wide'>
-              <h4 style={{ margin: '4px 0' }}>Days that already have entries: choose for each</h4>
-              <p className='muted'>Nothing is changed on these days until you choose.
+              <h4 style={{ margin: '4px 0' }}>Times that differ from the app: choose for each</h4>
+              <p className='muted'>Times that match are left alone and missing times (for example a check out) are added automatically. Nothing is changed on these days until you choose.
                 {' '}
                 <button type='button' className='linkbtn' onClick={() => setChoice(Object.fromEntries(plan.conflicts.map((c) => [c.key, 'keep'])))}>Keep the app entries for all</button>
               </p>
               <div className='tablewrap'>
                 <table className='tx tiles'>
-                  <thead><tr><th>Employee</th><th>Date</th><th>In the app</th><th>In the Excel file</th><th>What to do</th></tr></thead>
+                  <thead><tr><th>Employee</th><th>Date</th><th>In the app</th><th>In the Excel file</th><th>What differs</th><th>What to do</th></tr></thead>
                   <tbody>
                     {plan.conflicts.map((c) => (
                       <tr key={c.key} className={choice[c.key] ? '' : 'impwait'}>
@@ -73,10 +73,11 @@ export default function ImportExcel({ from, to }) {
                         <td className='nw c-meta'>{c.date}</td>
                         <td className='c-meta'>{c.app}</td>
                         <td className='c-meta'><span className='xl'>{c.excel}</span></td>
-                        <td>
-                          {CHOICES.filter(([v]) => !(c.breaksOnly && v === 'replace')).map(([v, label]) => (
+                        <td className='c-meta'><ul className='impwhy'>{c.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul></td>
+                        <td className='impchoice'>
+                          {CHOICES.map(([v, label]) => (
                             <label key={v} className='checkrow'>
-                              <input type='radio' name={'pick-' + c.key} checked={choice[c.key] === v} onChange={() => setChoice({ ...choice, [c.key]: v })} /> {c.breaksOnly && v === 'add' ? 'Add the breaks from Excel' : label}
+                              <input type='radio' name={'pick-' + c.key} checked={choice[c.key] === v} onChange={() => setChoice({ ...choice, [c.key]: v })} /> {c.breaksOnly && v === 'replace' ? 'Use the Excel breaks' : label}
                             </label>
                           ))}
                         </td>

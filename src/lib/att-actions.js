@@ -5,7 +5,7 @@ import { q } from './db';
 import { getUser } from './auth';
 import { logEvent } from './audit';
 import { can } from './perms';
-import { buildPlan, existingDays } from './att-import';
+import { buildPlan, appEvents, classify, allEntries } from './att-import';
 import { ATT_ROLES, KIND_LABEL, canSeeTimes, canEnterFor, firstBad, allEventsOf, validDate, validTime, closeStale, todayKey } from './att';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
@@ -431,7 +431,8 @@ export async function previewImport(prev, fd) {
   }
 }
 
-// Step 2: add the entries. Days that already have entries in the app are only touched when a choice was made.
+// Step 2: add the entries. Times the app already has and that match are left alone, missing ones are added, and a day
+// where the times differ is only changed when a choice was made for it.
 export async function confirmImport(fd) {
   const u = await need(['om']);
   const page = '/attendance/import';
@@ -447,45 +448,49 @@ export async function confirmImport(fd) {
 
   const staff = await q('SELECT s.id, s.name, s.office_id FROM pc2_staff s WHERE s.active');
   const sm = new Map(staff.map((x) => [x.id, x]));
-  const exist = await existingDays([...new Set(items.map((i) => Number(i.staff)))], from, to);
+  const evs = await appEvents([...new Set(items.map((i) => Number(i.staff)))], from, to);
   const today = todayKey();
+  const okT = (t) => typeof t === 'string' && validTime(t);
 
   const rows = []; // [staff, office, kind, date, time]
-  const clear = []; // [staff, date]
-  let added = 0;
+  const clear = []; // [staff, from, to (exclusive), only breaks]
+  let days = 0;
   let skipped = 0;
   let replaced = 0;
-  for (const it of items) {
-    const st = sm.get(Number(it.staff));
-    const date = String(it.date || '');
-    if (!st || !validDate(date) || date < from || date > to || date > today) { skipped += 1; continue; }
-    const hasIn = validTime(it.in) && validTime(it.out) && validDate(it.outDate);
-    const brk = (Array.isArray(it.breaks) ? it.breaks : []).filter((b) => Array.isArray(b) && validTime(b[0]) && validTime(b[1]) && b[1] > b[0]);
-    if (!hasIn && !brk.length) { skipped += 1; continue; }
-    const key = st.id + '|' + date;
-    if (exist.has(key)) {
-      const c = s(fd, 'c:' + key);
-      if (c === 'replace' && hasIn) { clear.push([st.id, date]); replaced += 1; }
-      else if (c !== 'add' && !(c === 'replace' && !hasIn)) { skipped += 1; continue; }
+  for (const raw of items) {
+    const st = sm.get(Number(raw.staff));
+    const date = String(raw.date || '');
+    const hasIn = okT(raw.in) && okT(raw.out) && validDate(String(raw.outDate || ''));
+    const it = {
+      date,
+      in: hasIn ? raw.in : '',
+      out: hasIn ? raw.out : '',
+      outDate: hasIn ? raw.outDate : date,
+      breaks: (Array.isArray(raw.breaks) ? raw.breaks : []).filter((b) => Array.isArray(b) && okT(b[0]) && okT(b[1]) && b[1] > b[0]),
+    };
+    if (!st || !validDate(date) || date < from || date > to || date > today || (!hasIn && !it.breaks.length)) { skipped += 1; continue; }
+    const r = classify(it, evs.get(st.id));
+    if (!hasIn && !r.appIn) { skipped += 1; continue; }
+    let add = r.adds;
+    if (r.reasons.length) {
+      if (s(fd, 'c:' + st.id + '|' + date) !== 'replace') { skipped += 1; continue; }
+      clear.push([st.id, r.lo, r.hi, !hasIn]);
+      replaced += 1;
+      add = allEntries(it);
     }
-    if (hasIn) rows.push([st.id, st.office_id, 'in', date, it.in]);
-    // On a night shift, a break before the check in time happens after midnight, on the next date.
-    for (const b of brk) {
-      const bd = hasIn && it.outDate > date && b[0] < it.in ? it.outDate : date;
-      rows.push([st.id, st.office_id, 'break_out', bd, b[0]], [st.id, st.office_id, 'break_in', bd, b[1]]);
-    }
-    if (hasIn) rows.push([st.id, st.office_id, 'out', it.outDate, it.out]);
-    added += 1;
+    if (!add.length) continue;
+    days += 1;
+    for (const a of add) rows.push([st.id, st.office_id, a[0], a[1], a[2]]);
   }
-  if (!rows.length) back(page, 'Nothing was added (' + skipped + ' employee-days skipped)');
+  if (!rows.length) back(page, 'Nothing needed adding' + (skipped ? ' (' + skipped + ' employee-days skipped)' : ''), true);
 
   const gone = [];
-  for (const [id, date] of clear) {
+  for (const [id, lo, hi, breaksOnly] of clear) {
     const del = await q(
-      `DELETE FROM pc2_attendance WHERE staff_id = $1 AND at >= (($2::date)::timestamp AT TIME ZONE 'Asia/Karachi') AND at < (($2::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi') RETURNING kind, to_char(at AT TIME ZONE 'Asia/Karachi', 'HH24:MI') AS t`,
-      [id, date]
+      `DELETE FROM pc2_attendance WHERE staff_id = $1 AND at >= ($2::timestamp AT TIME ZONE 'Asia/Karachi') AND at < ($3::timestamp AT TIME ZONE 'Asia/Karachi') ${breaksOnly ? "AND kind IN ('break_out', 'break_in')" : ''} RETURNING kind, to_char(at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI') AS t`,
+      [id, lo, hi]
     );
-    gone.push(sm.get(id).name + ' ' + date + ': ' + del.map((d) => d.kind + ' ' + d.t).join(', '));
+    gone.push(sm.get(id).name + ': ' + del.map((d) => d.kind + ' ' + d.t).join(', '));
   }
   for (let i = 0; i < rows.length; i += 400) {
     const chunk = rows.slice(i, i + 400);
@@ -498,7 +503,7 @@ export async function confirmImport(fd) {
     await q(`INSERT INTO pc2_attendance (staff_id, office_id, kind, at, entered_by, source) VALUES ${vals.join(',')}`, params);
   }
   await logEvent(u, 'create', 'attendance', null,
-    'Imported ' + rows.length + ' entries from Excel for ' + added + ' employee-days (' + from + ' to ' + to + ')' + (replaced ? '; replaced the existing entries of ' + replaced + ' days' : '') + (skipped ? '; ' + skipped + ' skipped' : ''),
-    gone.length ? { replaced: gone } : null, { entries: rows.length, days: added, from, to });
-  back(page, rows.length + ' entries added for ' + added + ' employee-days' + (skipped ? ' (' + skipped + ' skipped)' : '') + '. They show underlined on Entries, Logs and Reports.', true);
+    'Imported ' + rows.length + ' entries from Excel for ' + days + ' employee-days (' + from + ' to ' + to + ')' + (replaced ? '; replaced the app entries of ' + replaced + ' days with the Excel times' : '') + (skipped ? '; ' + skipped + ' left as they were' : ''),
+    gone.length ? { replaced: gone } : null, { entries: rows.length, days, from, to });
+  back(page, rows.length + ' entries added for ' + days + ' employee-days' + (skipped ? ' (' + skipped + ' left as they were)' : '') + '. They show underlined on Entries, Logs and Reports.', true);
 }
