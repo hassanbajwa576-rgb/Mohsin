@@ -61,7 +61,7 @@ export default async function AttendancePage({ searchParams }) {
       <Flash sp={sp} />
 
       <div className='card'>
-        <h3>Add entry</h3>
+        <h3>Add Entry</h3>
         <AttendanceEntryForm options={options} action={addEntry} defaultOffice={user.office_code} workOffices={allOffices(user) ? ['LHR', 'ISB'] : [user.office_code]} />
       </div>
 

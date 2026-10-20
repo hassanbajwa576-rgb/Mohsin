@@ -38,7 +38,7 @@ export default async function LogsPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Logs</h1>
+          <h1>Audit log</h1>
           <p className='muted'>Every change made in OpsTrack - who did it, when, and what changed (times in Pakistan time)</p>
         </div>
       </div>

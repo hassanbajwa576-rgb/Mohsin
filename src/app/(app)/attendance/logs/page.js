@@ -39,7 +39,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Attendance logs</h1>
+          <h1>Day log</h1>
           <p className='muted'>Every check in, check out and break entry for the chosen day (Pakistan time).</p>
         </div>
       </div>
