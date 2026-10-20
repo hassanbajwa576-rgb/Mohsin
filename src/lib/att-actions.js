@@ -474,12 +474,13 @@ export async function confirmImport(fd) {
   for (const raw of items) {
     const st = sm.get(Number(raw.staff));
     const date = String(raw.date || '');
-    const hasIn = okT(raw.in) && okT(raw.out) && validDate(String(raw.outDate || ''));
+    const hasIn = okT(raw.in);
+    const hasOut = hasIn && okT(raw.out) && validDate(String(raw.outDate || ''));
     const it = {
       date,
       in: hasIn ? raw.in : '',
-      out: hasIn ? raw.out : '',
-      outDate: hasIn ? raw.outDate : date,
+      out: hasOut ? raw.out : '',
+      outDate: hasOut ? raw.outDate : date,
       breaks: (Array.isArray(raw.breaks) ? raw.breaks : []).filter((b) => Array.isArray(b) && okT(b[0]) && okT(b[1]) && b[1] > b[0]),
     };
     if (!st || !validDate(date) || date < from || date > to || date > today || (!hasIn && !it.breaks.length)) { skipped += 1; continue; }
@@ -562,8 +563,9 @@ export async function resolveReview(fd) {
     const st = (await q('SELECT s.id, s.name, s.office_id FROM pc2_staff s WHERE s.id = $1 AND s.active', [Number(it.staff)]))[0];
     if (!st) back(page, 'That employee is no longer active');
     const okT = (t) => typeof t === 'string' && validTime(t);
-    const hasIn = okT(it.in) && okT(it.out);
-    const item = { date: it.date, in: hasIn ? it.in : '', out: hasIn ? it.out : '', outDate: hasIn ? it.outDate : it.date, breaks: Array.isArray(it.breaks) ? it.breaks : [] };
+    const hasIn = okT(it.in);
+    const hasOut = hasIn && okT(it.out);
+    const item = { date: it.date, in: hasIn ? it.in : '', out: hasOut ? it.out : '', outDate: hasOut ? it.outDate : it.date, breaks: Array.isArray(it.breaks) ? it.breaks : [] };
     const evs = await appEvents([st.id], item.date, item.date);
     const c = classify(item, evs.get(st.id));
     const del = await q(

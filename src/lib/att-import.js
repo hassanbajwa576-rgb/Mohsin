@@ -168,9 +168,9 @@ function appBreaks(win) {
  * Same time = fine. Missing in the app = added automatically. Different time = needs review.
  */
 export function classify(it, evs) {
-  const hasIn = !!(it.in && it.out);
+  const hasIn = !!it.in;
   const lo = it.date + ' 00:00';
-  const hi = hasIn && it.outDate > it.date ? it.outDate + ' 12:00' : addDay(it.date, 1) + ' 00:00';
+  const hi = hasIn && it.out && it.outDate > it.date ? it.outDate + ' 12:00' : addDay(it.date, 1) + ' 00:00';
   const win = (evs || []).filter((e) => e.s >= lo && e.s < hi);
   const adds = [];
   const reasons = [];
@@ -178,15 +178,18 @@ export function classify(it, evs) {
   if (hasIn) {
     if (!appIn) adds.push(['in', it.date, it.in]);
     else if (appIn.s !== it.date + ' ' + it.in) reasons.push('Check in: app ' + appIn.t + ', Excel ' + it.in);
-    const outs = win.filter((e) => e.kind === 'out' && (!appIn || e.s > appIn.s));
-    const appOut = outs[0];
-    if (!appOut) adds.push(['out', it.outDate, it.out]);
-    else if (appOut.s !== it.outDate + ' ' + it.out) reasons.push('Check out: app ' + appOut.t + ', Excel ' + it.out);
+    // A day with no check out on the sheet (check out not required) leaves the app's check out alone.
+    if (it.out) {
+      const outs = win.filter((e) => e.kind === 'out' && (!appIn || e.s > appIn.s));
+      const appOut = outs[0];
+      if (!appOut) adds.push(['out', it.outDate, it.out]);
+      else if (appOut.s !== it.outDate + ' ' + it.out) reasons.push('Check out: app ' + appOut.t + ', Excel ' + it.out);
+    }
   }
   const ab = appBreaks(win);
   it.breaks.forEach((b, i) => {
     // On a night shift a break before the check in time happens after midnight.
-    const bd = hasIn && it.outDate > it.date && b[0] < it.in ? it.outDate : it.date;
+    const bd = hasIn && it.out && it.outDate > it.date && b[0] < it.in ? it.outDate : it.date;
     const a = ab[i];
     const x = 'Break ' + (i + 1) + ': app ' + (a ? a.o.t + '-' + (a.i ? a.i.t : '?') : '-') + ', Excel ' + b[0] + '-' + b[1];
     if (!a) adds.push(['break_out', bd, b[0]], ['break_in', bd, b[1]]);
@@ -207,14 +210,13 @@ export function explain(it, r) {
 
 /** Every entry the Excel row stands for (used when the Excel times replace what the app has). */
 export function allEntries(it) {
-  const hasIn = !!(it.in && it.out);
   const rows = [];
-  if (hasIn) rows.push(['in', it.date, it.in]);
+  if (it.in) rows.push(['in', it.date, it.in]);
   for (const b of it.breaks) {
-    const bd = hasIn && it.outDate > it.date && b[0] < it.in ? it.outDate : it.date;
+    const bd = it.in && it.out && it.outDate > it.date && b[0] < it.in ? it.outDate : it.date;
     rows.push(['break_out', bd, b[0]], ['break_in', bd, b[1]]);
   }
-  if (hasIn) rows.push(['out', it.outDate, it.out]);
+  if (it.in && it.out) rows.push(['out', it.outDate, it.out]);
   return rows;
 }
 
@@ -251,18 +253,18 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
   for (const r of att) {
     const s = find(r.name);
     if (!s) continue;
-    if (r.in == null || r.out == null) {
-      problems.push(s.name + ' ' + r.date + ': only ' + (r.in ? 'a check in (' + r.in + ')' : 'a check out (' + r.out + ')') + ' on the sheet, skipped');
+    if (r.in == null) {
+      problems.push(s.name + ' ' + r.date + ': a check out (' + r.out + ') but no check in on the sheet, skipped');
       continue;
     }
-    if (r.in === r.out) {
+    if (r.out && r.in === r.out) {
       problems.push(s.name + ' ' + r.date + ': check in and check out are the same time, skipped');
       continue;
     }
     const it = get(s, r.date);
     it.in = r.in;
-    it.out = r.out;
-    it.outDate = r.out < r.in ? addDay(r.date, 1) : r.date;
+    it.out = r.out || '';
+    it.outDate = r.out && r.out < r.in ? addDay(r.date, 1) : r.date;
     it.breaksOnly = false;
   }
   for (const r of brk) {
@@ -283,6 +285,7 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
   let fresh = 0;
   let freshEntries = 0;
   let same = 0;
+  let noOut = 0;
   const days = new Map();
   for (const it of list) {
     const r = classify(it, evs.get(it.staff));
@@ -302,6 +305,7 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
       });
     } else if (r.adds.length) {
       fresh += 1;
+      if (!it.out && !it.breaksOnly) noOut += 1;
       freshEntries += r.adds.length;
       days.set(it.date, (days.get(it.date) || 0) + 1);
     } else same += 1;
@@ -310,7 +314,7 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
   return {
     from, to,
     items: keep,
-    fresh, freshEntries, same,
+    fresh, freshEntries, same, noOut,
     days: [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])),
     conflicts,
     unmatched: [...unmatched.values()],

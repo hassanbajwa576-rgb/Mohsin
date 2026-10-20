@@ -55,6 +55,7 @@ export default function ImportExcel({ from, to }) {
             <div><b>{plan.unmatched.length}</b><span>names not matched</span></div>
             <div><b>{plan.problems.length}</b><span>rows skipped</span></div>
           </div>
+          {plan.noOut ? <p className='muted wide'><b>{plan.noOut}</b> of the new days have a check in but no check out on the sheet. They are added as present and show 'no check out' in reports, with no worked hours.</p> : null}
           {plan.days.length ? <p className='muted wide'>New days: {plan.days.map(([d, n]) => d.slice(5) + ' (' + n + ')').join(' | ')}</p> : null}
 
           {plan.conflicts.length ? (

@@ -212,7 +212,7 @@ export async function reportRows({ from, to, office, dept }) {
       const st = shiftOn(s, d, periods);
       rows.push({
         date: d, office: where, dept: s.dept, shift: st.shift, shift_start: st.shift_start, shift_end: st.shift_end, shift_src: st.shift_src, name: s.name, code: s.code,
-        inX: x.xin, outX: x.xout, in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : x.missed ? '(missed check out)' : '(on duty)',
+        inX: x.xin, outX: x.xout, in: fmtTime(x.start), out: x.end ? fmtTime(x.end) : x.missed ? (x.xin ? '(no check out)' : '(missed check out)') : '(on duty)',
         breaks: x.breakCount, breakMs: x.breakMs, workedMs: x.workedMs, over: x.breakMs > limit,
       });
     }

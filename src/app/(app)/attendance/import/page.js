@@ -66,12 +66,21 @@ export default async function ImportPage({ searchParams }) {
       {notes.length ? (
         <details className='card'>
           <summary>Not imported ({notes.length}): names not matched and skipped rows</summary>
-          <p className='muted'>Add a missing employee on the Employees page, then read the file again. These stay here until you clear them.</p>
+          <p className='muted'>Add a missing employee on the Employees page, then read the file again. These stay here until you clear them, one by one or all at once.</p>
           <ul className='muted'>
-            {notes.slice(0, 120).map((r) => <li key={r.id}>{r.kind === 'unmatched' ? r.name + ' (' + r.reason + ', ' + r.day + ')' : r.reason}</li>)}
+            {notes.slice(0, 120).map((r) => (
+              <li key={r.id}>
+                {r.kind === 'unmatched' ? r.name + ' (' + r.reason + ', ' + r.day + ')' : r.reason}
+                {' '}
+                <form action={resolveReview} className='inline' style={{ display: 'inline' }}>
+                  <input type='hidden' name='id' value={r.id} />
+                  <button name='decision' value='dismiss' className='btn ghost' type='submit'>Clear</button>
+                </form>
+              </li>
+            ))}
             {notes.length > 120 ? <li>...and {notes.length - 120} more</li> : null}
           </ul>
-          <form action={dismissNotes}><button className='btn' type='submit'>Clear this list</button></form>
+          <form action={dismissNotes}><button className='btn' type='submit'>Clear all</button></form>
         </details>
       ) : null}
 
