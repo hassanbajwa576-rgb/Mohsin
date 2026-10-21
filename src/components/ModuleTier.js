@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation';
 export default function ModuleTier({ role, access = [], reviews = 0 }) {
   const path = usePathname() || '/';
   const attend = path === '/attendance' || path.indexOf('/attendance/') === 0;
+  const visit = path === '/visitors' || path.indexOf('/visitors/') === 0;
   const guard = role === 'guard';
   const om = role === 'om';
 
@@ -24,7 +25,14 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
     if (access.includes('att_reconcile')) att.push(['/attendance/reconcile', 'Reconciliation']);
   }
 
-  const menu = guard || attend ? att : petty;
+  // Guards have no module switch: Visitors is a link in their menu, and Attendance a link back.
+  const vis = [['/visitors', 'Check In']];
+  if (access.includes('vis_log')) vis.push(['/visitors/log', 'Visitor log']);
+  if (guard) {
+    vis.push(['/attendance', 'Attendance']);
+    att.push(['/visitors', 'Visitors']);
+  }
+  const menu = visit ? vis : guard || attend ? att : petty;
   const admin = [];
   if (!guard) {
     if (om) admin.push(['/team', 'Team'], ['/logs', 'Audit log']);
@@ -39,8 +47,9 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
       <div className='tier-in'>
         {guard ? null : (
           <span className='modseg' translate='no'>
-            <Link href='/' className={attend ? '' : 'on'}>PettyTrack</Link>
+            <Link href='/' className={attend || visit ? '' : 'on'}>PettyTrack</Link>
             <Link href='/attendance' className={attend ? 'on' : ''}>AttendTrack</Link>
+            <Link href='/visitors' className={visit ? 'on' : ''}>VisitTrack</Link>
           </span>
         )}
         {guard ? null : <span className='tier-sep' />}
