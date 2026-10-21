@@ -19,7 +19,7 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
   if (access.includes('att_view')) att.push(['/attendance/board', "Today's board"], ['/attendance/dashboard', 'Dashboard']);
   if (access.includes('att_logs')) att.push(['/attendance/logs', 'Day log']);
   if (access.includes('att_reports')) att.push(['/attendance/reports', 'Reports'], ['/attendance/analysis', 'Analysis']);
-  if (role === 'om' || role === 'sso') att.push(['/attendance/hk-roster', 'HK Roster']);
+  if (role === 'om' || role === 'sso') att.push(['/attendance/hk-roster', 'Housekeeping']);
   if (access.includes('att_staff')) att.push(['/attendance/staff', 'Employees']);
   else {
     if (access.includes('att_import')) att.push(['/attendance/import', 'Import']);

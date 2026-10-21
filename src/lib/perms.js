@@ -20,7 +20,7 @@ export const PERM_SHORT = {
   att_import: 'import',
   att_reconcile: 'reconciliation',
   vis_log: 'visitor log',
-  roster_edit: 'HK roster',
+  roster_edit: 'Housekeeping roster',
 };
 
 // What each role has without any extra grant.

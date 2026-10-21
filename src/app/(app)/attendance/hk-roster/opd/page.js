@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 const pkr = (n) => 'PKR ' + Math.round(Number(n) || 0).toLocaleString('en-US');
 
-// OPD for the HK team: the yearly limit is the same for everyone (1 January to 31 December, no carry forward).
+// OPD for the Housekeeping team: the yearly limit is the same for everyone (1 January to 31 December, no carry forward).
 export default async function HkOpdPage({ searchParams }) {
   const user = await requireUser(ATT_ROLES);
   if (user.role !== 'om' && user.role !== 'sso') redirect('/attendance');
@@ -35,7 +35,7 @@ export default async function HkOpdPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>HK OPD</h1>
+          <h1>Housekeeping OPD</h1>
           <p className='muted'>Every team member has {pkr(OPD_LIMIT)} of OPD a year, from 1 January to 31 December. Unused amounts do not carry forward.</p>
         </div>
         <div className='inline'>
@@ -103,7 +103,7 @@ export default async function HkOpdPage({ searchParams }) {
               </tbody>
             </table>
           </div>
-        ) : <p className='muted'>No HK team members yet. Add them on the HK Roster page.</p>}
+        ) : <p className='muted'>No Housekeeping team members yet. Add them on the Housekeeping Roster page.</p>}
       </div>
 
       {claims.length ? (
