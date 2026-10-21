@@ -1,10 +1,10 @@
 import 'server-only';
 import { q } from './db';
 
-// Company policy: the same OPD limit for every Housekeeping team member, 1 January to 31 December, no carry forward.
+// Company policy: the same OPD limit for every Support team member, 1 January to 31 December, no carry forward.
 export const OPD_LIMIT = 120000;
 
-/** One row per Housekeeping team member with what they have availed in the year (limit and available follow the policy). */
+/** One row per Support team member with what they have availed in the year (limit and available follow the policy). */
 export async function opdSummary(year, office) {
   const rows = await q(
     `SELECT s.id, s.name, s.role, o.code AS office, COALESCE(SUM(c.amount) FILTER (WHERE c.claim_date >= $1::date AND c.claim_date <= $2::date), 0)::float8 AS availed, COUNT(c.id) FILTER (WHERE c.claim_date >= $1::date AND c.claim_date <= $2::date)::int AS n

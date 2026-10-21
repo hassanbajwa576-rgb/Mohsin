@@ -21,7 +21,7 @@ export async function GET(req) {
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'OpsTrack';
-  const ws = wb.addWorksheet('Housekeeping roster ' + month);
+  const ws = wb.addWorksheet('Support roster ' + month);
   ws.columns = [
     { header: 'Team member', key: 'name', width: 28 }, { header: 'Office', key: 'office', width: 8 }, { header: 'Role', key: 'dept', width: 20 },
     ...Array.from({ length: n }, (_, i) => ({ header: String(i + 1), key: 'd' + (i + 1), width: 4.5 })),

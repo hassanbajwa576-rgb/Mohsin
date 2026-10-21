@@ -58,8 +58,8 @@ export default async function RosterPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Housekeeping Roster</h1>
-          <p className='muted'>Who in the housekeeping team will be off, and when (full days or a number of hours). Only the Sr. Ops Manager and the Sr. Support Officer can see and change it.</p>
+          <h1>Support Roster</h1>
+          <p className='muted'>Who in the support team will be off, and when (full days or a number of hours). Only the Sr. Ops Manager and the Sr. Support Officer can see and change it.</p>
         </div>
         <div className='inline'>
           <a href={'/attendance/hk-roster/xlsx?' + qp()} className='btn primary'>Download Excel (.xlsx)</a>
@@ -93,12 +93,12 @@ export default async function RosterPage({ searchParams }) {
 
       {edit ? (
         <div className='card'>
-          <h3 style={{ marginTop: 0 }}>Housekeeping team ({team.length})</h3>
+          <h3 style={{ marginTop: 0 }}>Support team ({team.length})</h3>
           <form action={addHkPerson} className='form'>
             <label>Name<input name='name' required maxLength={80} placeholder='Team member name' autoComplete='off' /></label>
             <label>Role (optional)<input name='role' maxLength={60} placeholder='For example: cleaner, office boy' /></label>
             {both ? <label>Office<select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select></label> : null}
-            <button className='btn primary' type='submit'>Add to the Housekeeping team</button>
+            <button className='btn primary' type='submit'>Add to the Support team</button>
           </form>
           {team.length ? (
             <div className='tablewrap' style={{ marginTop: 10 }}>
@@ -112,7 +112,7 @@ export default async function RosterPage({ searchParams }) {
                       <td className='act'>
                         <form action={removeHkPerson} className='inline'>
                           <input type='hidden' name='id' value={p.id} />
-                          <ConfirmButton className='btn ghost' message='Remove this person from the Housekeeping team?'>Remove</ConfirmButton>
+                          <ConfirmButton className='btn ghost' message='Remove this person from the Support team?'>Remove</ConfirmButton>
                         </form>
                       </td>
                     </tr>
@@ -169,7 +169,7 @@ export default async function RosterPage({ searchParams }) {
               </tbody>
             </table>
           </div>
-        ) : <p className='muted'>No Housekeeping time off recorded for {MONTHS[mo - 1]} {y}.</p>}
+        ) : <p className='muted'>No Support time off recorded for {MONTHS[mo - 1]} {y}.</p>}
       </div>
 
       {entries.length ? (

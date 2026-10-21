@@ -37,8 +37,8 @@ export async function addTimeOff(fd) {
   if (!validDate(from) || !validDate(to) || to < from) back(here, 'Choose valid dates (the last day cannot be before the first)');
   if ((new Date(to) - new Date(from)) / 864e5 > 120) back(here, 'Time off can be at most 120 days at once');
   const found = await q('SELECT s.id, s.name, s.office_id FROM pc2_hk_people s WHERE s.active AND lower(s.name) = lower($1)', [name]);
-  if (!found.length) back(here, 'Nobody in the Housekeeping team is called "' + name + '". Add them to the team first, or pick a name from the list.');
-  if (found.length > 1) back(here, 'More than one Housekeeping team member is called "' + name + '". Ask Mohsin to make the names different.');
+  if (!found.length) back(here, 'Nobody in the Support team is called "' + name + '". Add them to the team first, or pick a name from the list.');
+  if (found.length > 1) back(here, 'More than one Support team member is called "' + name + '". Ask Mohsin to make the names different.');
   const st = found[0];
   if (!allOffices(u) && st.office_id !== u.office_id) back(here, 'You can only record time off for your own office');
   // Hours for part of a day may share a day with other hours; a full day cannot overlap anything.
@@ -62,7 +62,7 @@ export async function deleteTimeOff(fd) {
   back(here, 'Time off removed', true);
 }
 
-// Add someone to the housekeeping team (they are not on the Employees list and have no attendance entries).
+// Add someone to the support team (they are not on the Employees list and have no attendance entries).
 export async function addHkPerson(fd) {
   const u = await need();
   const here = '/attendance/hk-roster';
@@ -72,10 +72,10 @@ export async function addHkPerson(fd) {
   const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [code]))[0];
   if (!off) back(here, 'Choose the office');
   const dup = await q('SELECT id FROM pc2_hk_people WHERE active AND lower(name) = lower($1)', [name]);
-  if (dup.length) back(here, name + ' is already in the Housekeeping team');
+  if (dup.length) back(here, name + ' is already in the Support team');
   const r = await q('INSERT INTO pc2_hk_people (name, office_id, role, created_by) VALUES ($1, $2, $3, $4) RETURNING id', [name, off.id, s(fd, 'role').slice(0, 60), u.id]);
-  await logEvent(u, 'create', 'hk_person', r[0].id, 'Added to the Housekeeping team: ' + name + ' (' + off.code + ')', null, null);
-  back(here, name + ' added to the Housekeeping team', true);
+  await logEvent(u, 'create', 'hk_person', r[0].id, 'Added to the Support team: ' + name + ' (' + off.code + ')', null, null);
+  back(here, name + ' added to the Support team', true);
 }
 
 // Remove someone from the team (their past time off is kept out of view; the record stays in the database).
@@ -86,11 +86,11 @@ export async function removeHkPerson(fd) {
   if (!p) back('/attendance/hk-roster', 'That person is no longer in the team');
   if (!allOffices(u) && p.office_id !== u.office_id) back('/attendance/hk-roster', 'You can only change your own office');
   await q('UPDATE pc2_hk_people SET active = FALSE WHERE id = $1', [id]);
-  await logEvent(u, 'delete', 'hk_person', id, 'Removed from the Housekeeping team: ' + p.name, null, null);
-  back('/attendance/hk-roster', p.name + ' removed from the Housekeeping team', true);
+  await logEvent(u, 'delete', 'hk_person', id, 'Removed from the Support team: ' + p.name, null, null);
+  back('/attendance/hk-roster', p.name + ' removed from the Support team', true);
 }
 
-/* ---------- OPD claims for the Housekeeping team ---------- */
+/* ---------- OPD claims for the Support team ---------- */
 
 // Record an OPD claim. The yearly limit (same for everyone) cannot be exceeded.
 export async function addOpdClaim(fd) {
