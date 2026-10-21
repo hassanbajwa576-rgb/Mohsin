@@ -64,8 +64,9 @@ const DDL = [
   `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS del_req_by INTEGER`,
   `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS del_req_at TIMESTAMPTZ`,
   `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS del_reason TEXT`,
-  `CREATE TABLE IF NOT EXISTS pc2_timeoff (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL REFERENCES pc2_staff(id) ON DELETE CASCADE, from_date DATE NOT NULL, to_date DATE NOT NULL, kind TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
-  `CREATE INDEX IF NOT EXISTS pc2_timeoff_dates ON pc2_timeoff (from_date, to_date)`,
+  `CREATE TABLE IF NOT EXISTS pc2_hk_people (id SERIAL PRIMARY KEY, name TEXT NOT NULL, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), role TEXT NOT NULL DEFAULT '', active BOOLEAN NOT NULL DEFAULT TRUE, created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE TABLE IF NOT EXISTS pc2_hk_off (id SERIAL PRIMARY KEY, hk_id INTEGER NOT NULL REFERENCES pc2_hk_people(id) ON DELETE CASCADE, from_date DATE NOT NULL, to_date DATE NOT NULL, kind TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS pc2_hk_off_dates ON pc2_hk_off (from_date, to_date)`,
   `CREATE TABLE IF NOT EXISTS pc2_review_marks (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL, day TEXT NOT NULL, kind TEXT NOT NULL, sig TEXT NOT NULL, marked_by INTEGER, marked_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE UNIQUE INDEX IF NOT EXISTS pc2_review_marks_key ON pc2_review_marks (staff_id, day, kind, sig)`,
   `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS split_group TEXT`,
@@ -82,7 +83,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-21-3';
+const SCHEMA_VERSION = '2026-10-21-4';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

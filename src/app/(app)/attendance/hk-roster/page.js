@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
-import { ATT_ROLES, allOffices, todayKey, departments, staffNames } from '@/lib/att';
-import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, rosterStaff } from '@/lib/roster';
-import { addTimeOff, deleteTimeOff } from '@/lib/roster-actions';
+import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
+import { TYPES, TINFO, daysIn, validMonth, shiftMonth, monthOff, offToday, hkPeople } from '@/lib/roster';
+import { addTimeOff, deleteTimeOff, addHkPerson, removeHkPerson } from '@/lib/roster-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
@@ -23,15 +23,14 @@ export default async function RosterPage({ searchParams }) {
   const edit = can(user, 'roster_edit');
   const both = allOffices(user);
   const office = both ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
-  const depts = await departments();
-  const dept = depts.includes(sp.dept) ? sp.dept : '';
   const who = String(sp.who || '').trim().slice(0, 60);
   const everyone = sp.all === '1';
   const n = daysIn(month);
   const [y, mo] = month.split('-').map(Number);
 
-  const entries = await monthOff({ month, office, dept, who });
-  const people = everyone ? await rosterStaff({ office, dept, who }) : [];
+  const entries = await monthOff({ month, office, who });
+  const team = await hkPeople({ office });
+  const people = everyone ? await hkPeople({ office, who }) : [];
   const rows = everyone ? people : [...new Map(entries.map((e) => [e.staff_id, { id: e.staff_id, name: e.name, dept: e.dept, office: e.office }])).values()];
   const grid = new Map();
   for (const e of entries) {
@@ -41,9 +40,9 @@ export default async function RosterPage({ searchParams }) {
       if (key >= e.from_date && key <= e.to_date) grid.get(e.staff_id)[d] = e;
     }
   }
-  const names = await staffNames(office);
+  const names = team.map((p) => p.name);
   const off = await offToday(today, office);
-  const qp = (extra = {}) => new URLSearchParams({ m: month, ...(office && both ? { office } : {}), ...(dept ? { dept } : {}), ...(who ? { who } : {}), ...(everyone ? { all: '1' } : {}), ...extra }).toString();
+  const qp = (extra = {}) => new URLSearchParams({ m: month, ...(office && both ? { office } : {}), ...(who ? { who } : {}), ...(everyone ? { all: '1' } : {}), ...extra }).toString();
   const days = Array.from({ length: n }, (_, i) => i + 1);
   const wd = (d) => new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
   const count = (e) => Math.round((new Date(e.to_date) - new Date(e.from_date)) / 864e5) + 1;
@@ -52,11 +51,11 @@ export default async function RosterPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Roster</h1>
-          <p className='muted'>Who will be off, and when. Everyone can see it; people with Roster access add the time off.</p>
+          <h1>HK Roster</h1>
+          <p className='muted'>Who in the housekeeping team will be off, and when. Everyone can see it; people with HK Roster access add the team and their time off.</p>
         </div>
         <div className='inline'>
-          <a href={'/attendance/roster/xlsx?' + qp()} className='btn primary'>Download Excel (.xlsx)</a>
+          <a href={'/attendance/hk-roster/xlsx?' + qp()} className='btn primary'>Download Excel (.xlsx)</a>
         </div>
       </div>
       <Flash sp={sp} />
@@ -72,7 +71,7 @@ export default async function RosterPage({ searchParams }) {
           <h3 style={{ marginTop: 0 }}>Add time off</h3>
           <form action={addTimeOff} className='form'>
             <input type='hidden' name='month' value={month} />
-            <label>Employee<input name='name' list='ros-names' placeholder='Type a name' required autoComplete='off' /></label>
+            <label>Team member<input name='name' list='ros-names' placeholder='Type a name' required autoComplete='off' /></label>
             <datalist id='ros-names'>{names.map((nm) => <option key={nm} value={nm} />)}</datalist>
             <label>Type<select name='kind' defaultValue='annual'>{TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
             <label>First day<input type='date' name='from' defaultValue={today} required /></label>
@@ -83,31 +82,63 @@ export default async function RosterPage({ searchParams }) {
         </div>
       ) : null}
 
+      {edit ? (
+        <div className='card'>
+          <h3 style={{ marginTop: 0 }}>HK team ({team.length})</h3>
+          <form action={addHkPerson} className='form'>
+            <label>Name<input name='name' required maxLength={80} placeholder='Team member name' autoComplete='off' /></label>
+            <label>Role (optional)<input name='role' maxLength={60} placeholder='For example: cleaner, office boy' /></label>
+            {both ? <label>Office<select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select></label> : null}
+            <button className='btn primary' type='submit'>Add to the HK team</button>
+          </form>
+          {team.length ? (
+            <div className='tablewrap' style={{ marginTop: 10 }}>
+              <table className='tx'>
+                <thead><tr><th>Name</th><th>Role</th><th></th></tr></thead>
+                <tbody>
+                  {team.map((p) => (
+                    <tr key={p.id}>
+                      <td className='c-title'><OfficeTag o={p.office} /><b>{p.name}</b></td>
+                      <td className='c-meta'>{p.dept || '-'}</td>
+                      <td className='act'>
+                        <form action={removeHkPerson} className='inline'>
+                          <input type='hidden' name='id' value={p.id} />
+                          <ConfirmButton className='btn ghost' message='Remove this person from the HK team?'>Remove</ConfirmButton>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className='card rosnav'>
-        <Link className='btn' href={'/attendance/roster?' + new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(qp())), m: shiftMonth(month, -1) }).toString()}>&lt; {MONTHS[(mo + 10) % 12]}</Link>
+        <Link className='btn' href={'/attendance/hk-roster?' + new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(qp())), m: shiftMonth(month, -1) }).toString()}>&lt; {MONTHS[(mo + 10) % 12]}</Link>
         <b>{MONTHS[mo - 1]} {y}</b>
-        <Link className='btn' href={'/attendance/roster?' + new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(qp())), m: shiftMonth(month, 1) }).toString()}>{MONTHS[mo % 12]} &gt;</Link>
-        <Link className='btn ghost' href={'/attendance/roster?' + new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(qp())), m: today.slice(0, 7) }).toString()}>This month</Link>
+        <Link className='btn' href={'/attendance/hk-roster?' + new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(qp())), m: shiftMonth(month, 1) }).toString()}>{MONTHS[mo % 12]} &gt;</Link>
+        <Link className='btn ghost' href={'/attendance/hk-roster?' + new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(qp())), m: today.slice(0, 7) }).toString()}>This month</Link>
       </div>
-      <AutoFilters
-        hidden={{ m: month, who, all: everyone ? '1' : '' }}
-        fields={[
-          ...(both ? [{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }] : []),
-          { name: 'dept', label: 'Department', value: dept, options: [['', 'All departments'], ...depts.map((d) => [d, d])] },
-        ]}
-      />
+      {both ? (
+        <AutoFilters
+          hidden={{ m: month, who, all: everyone ? '1' : '' }}
+          fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]}
+        />
+      ) : null}
 
       <div className='card'>
         <div className='roslegend'>
           {TYPES.map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{letter}</i>{l}</span>)}
-          <Link href={'/attendance/roster?' + qp({ all: everyone ? '' : '1' })} className='rosall'>{everyone ? 'Show only people with time off' : 'Show everyone'}</Link>
+          <Link href={'/attendance/hk-roster?' + qp({ all: everyone ? '' : '1' })} className='rosall'>{everyone ? 'Show only people with time off' : 'Show the whole team'}</Link>
         </div>
         {rows.length ? (
           <div className='rostable'>
             <table className='rost'>
               <thead>
                 <tr>
-                  <th className='rn'>Employee</th>
+                  <th className='rn'>Team member</th>
                   {days.map((d) => <th key={d} className={(wd(d) === 0 || wd(d) === 6 ? 'we ' : '') + (month + '-' + String(d).padStart(2, '0') === today ? 'tod' : '')}>{d}<small>{DOW[wd(d)]}</small></th>)}
                 </tr>
               </thead>
@@ -129,7 +160,7 @@ export default async function RosterPage({ searchParams }) {
               </tbody>
             </table>
           </div>
-        ) : <p className='muted'>No time off recorded for {MONTHS[mo - 1]} {y}.</p>}
+        ) : <p className='muted'>No HK time off recorded for {MONTHS[mo - 1]} {y}.</p>}
       </div>
 
       {entries.length ? (
@@ -137,7 +168,7 @@ export default async function RosterPage({ searchParams }) {
           <h3 style={{ marginTop: 0 }}>Time off in {MONTHS[mo - 1]} ({entries.length})</h3>
           <div className='tablewrap'>
             <table className='tx'>
-              <thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Note</th><th>Added by</th>{edit ? <th></th> : null}</tr></thead>
+              <thead><tr><th>Team member</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Note</th><th>Added by</th>{edit ? <th></th> : null}</tr></thead>
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id}>
