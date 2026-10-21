@@ -3,11 +3,12 @@ import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { removeEntry } from '@/lib/att-actions';
 import {
-  ATT_ROLES, KIND_LABEL, editableEntries, conflictIds, recentEvents, timeClass, fmtTime, fmt12, fmtDay, dateKey, todayKey, loadPeriods, shiftOn,
+  ATT_ROLES, allOffices, departments, KIND_LABEL, editableEntries, conflictIds, recentEvents, timeClass, fmtTime, fmt12, fmtDay, dateKey, todayKey, loadPeriods, shiftOn,
 } from '@/lib/att';
 import ConfirmButton from '@/components/ConfirmButton';
 import EntryEdit from '@/components/EntryEdit';
 import Flash from '@/components/Flash';
+import AutoFilters from '@/components/AutoFilters';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,10 @@ export const dynamic = 'force-dynamic';
 export default async function EntriesPage({ searchParams }) {
   const user = await requireUser(ATT_ROLES);
   const sp = await searchParams;
-  const list = await editableEntries(user);
+  const depts = await departments();
+  const dept = depts.includes(sp.dept) ? sp.dept : '';
+  const office = allOffices(user) && ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
+  const list = (await editableEntries(user)).filter((m) => (!dept || m.dept === dept) && (!office || m.office === office));
   const periods = await loadPeriods(dateKey(Date.now() - 3 * 86400000), todayKey());
   const bad = conflictIds(await recentEvents([...new Set(list.map((x) => x.staff_id))], 4));
   const all = sp.all === '1';
@@ -31,6 +35,12 @@ export default async function EntriesPage({ searchParams }) {
         </div>
       </div>
       <Flash sp={sp} />
+      <AutoFilters
+        fields={[
+          ...(allOffices(user) ? [{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }] : []),
+          { name: 'dept', label: 'Department', value: dept, options: [['', 'All departments'], ...depts.map((d) => [d, d])] },
+        ]}
+      />
       <div className='card'>
         {list.length === 0 ? (
           <p className='muted'>No entries to change in the last 36 hours.</p>
@@ -70,7 +80,7 @@ export default async function EntriesPage({ searchParams }) {
               </table>
             </div>
             {list.length > 10 ? (
-              <p className='totals'>{all ? 'Showing all ' + list.length : 'Showing the latest 10 of ' + list.length} - <Link href={all ? '/attendance/entries' : '/attendance/entries?all=1'}>{all ? 'Show fewer' : 'See more'}</Link></p>
+              <p className='totals'>{all ? 'Showing all ' + list.length : 'Showing the latest 10 of ' + list.length} - <Link href={'/attendance/entries?' + new URLSearchParams({ ...(office ? { office } : {}), ...(dept ? { dept } : {}), ...(all ? {} : { all: '1' }) }).toString()}>{all ? 'Show fewer' : 'See more'}</Link></p>
             ) : null}
             <p className='totals'>Green is on time: check in within 30 minutes of the shift start (9:30 AM unless the employee has another shift) and check out from 5 minutes before the shift end (5:55 PM for 6:00 PM). Red is late or early.</p>
           </>

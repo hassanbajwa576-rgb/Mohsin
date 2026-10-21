@@ -5,7 +5,7 @@ import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { removeEntry } from '@/lib/att-actions';
-import { ATT_ROLES, allOffices, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass, fmt12, SHIFT_COLS, SHIFT_JOIN, loadPeriods, shiftOn } from '@/lib/att';
+import { ATT_ROLES, allOffices, departments, KIND_LABEL, fmtTime, dateKey, todayKey, validDate, conflictIds, eventsAround, timeClass, fmt12, SHIFT_COLS, SHIFT_JOIN, loadPeriods, shiftOn } from '@/lib/att';
 import EntryEdit from '@/components/EntryEdit';
 import Flash from '@/components/Flash';
 
@@ -21,9 +21,12 @@ export default async function AttendanceLogsPage({ searchParams }) {
 
   // Employee: type part of a name (or pick one from the list) to see only that person's entries.
   const emp = String(sp.emp || '').trim().slice(0, 60);
+  const depts = await departments();
+  const dept = depts.includes(sp.dept) ? sp.dept : '';
   const params = [day];
   if (office) params.push(office);
   if (emp) params.push('%' + emp.replace(/[\\%_]/g, '') + '%');
+  if (dept) params.push(dept);
   const names = await q(`SELECT s.name FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${office ? 'AND o.code = $1' : ''} ORDER BY s.name`, office ? [office] : []);
 
   const rows = await q(
@@ -33,7 +36,8 @@ export default async function AttendanceLogsPage({ searchParams }) {
      FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users u ON u.id = a.entered_by
      WHERE a.at >= ($1::date)::timestamp AT TIME ZONE 'Asia/Karachi' AND a.at < ($1::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi'
      ${office ? 'AND o.code = $2' : ''}
-     ${emp ? 'AND s.name ILIKE $' + params.length : ''}
+     ${emp ? 'AND s.name ILIKE $' + (params.length - (dept ? 1 : 0)) : ''}
+     ${dept ? 'AND s.dept = $' + params.length : ''}
      ORDER BY a.at DESC, a.id DESC`,
     params
   );
@@ -41,7 +45,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
   const bad = conflictIds(await eventsAround([...new Set(rows.map((r) => r.staff_id))], day));
   const allRows = sp.all === '1';
   const shownRows = allRows || emp ? rows : rows.slice(0, 10);
-  const moreHref = '/attendance/logs?date=' + day + (office ? '&office=' + office : '') + (emp ? '&emp=' + encodeURIComponent(emp) : '') + (allRows ? '' : '&all=1');
+  const moreHref = '/attendance/logs?date=' + day + (office ? '&office=' + office : '') + (emp ? '&emp=' + encodeURIComponent(emp) : '') + (dept ? '&dept=' + encodeURIComponent(dept) : '') + (allRows ? '' : '&all=1');
 
   return (
     <>
@@ -57,6 +61,12 @@ export default async function AttendanceLogsPage({ searchParams }) {
         <label>Date<input type='date' name='date' defaultValue={day} /></label>
         <label>Office
           <select name='office' defaultValue={office}>{(allOffices(user) ? ['', 'LHR', 'ISB'] : [user.office_code]).map((o) => <option key={o} value={o}>{o || 'Both'}</option>)}</select>
+        </label>
+        <label>Department
+          <select name='dept' defaultValue={dept}>
+            <option value=''>All departments</option>
+            {depts.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
         </label>
         <label>Employee
           <input name='emp' defaultValue={emp} list='emp-names' placeholder='Type a name' autoComplete='off' />
