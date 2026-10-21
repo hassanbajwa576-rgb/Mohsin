@@ -1,17 +1,22 @@
 import 'server-only';
 import { q } from './db';
 
-// Kinds of time off: [key, label, one letter for the grid, colour].
+// Kinds of time off a person can be given: [key, label, letter in the grid, colour].
 export const TYPES = [
-  ['annual', 'Annual leave', 'A', '#cfe3fb'],
-  ['sick', 'Sick leave', 'S', '#f9d3d3'],
-  ['casual', 'Casual leave', 'C', '#fbeab5'],
+  ['pto', 'PTO', 'P', '#cfe3fb'],
+  ['ptom', 'PTO-M', 'PM', '#f9d3d3'],
+  ['bereavement', 'Bereavement PTO', 'B', '#ddd6ee'],
   ['weekly', 'Weekly off', 'O', '#d3efdb'],
-  ['unpaid', 'Unpaid leave', 'U', '#e0d9f3'],
+  ['unpaid', 'Unpaid leave', 'U', '#fbeab5'],
   ['other', 'Other time off', 'X', '#e4e4e4'],
-];export const TLABEL = Object.fromEntries(TYPES.map((t) => [t[0], t[1]]));
-export const TINFO = Object.fromEntries(TYPES.map((t) => [t[0], { label: t[1], letter: t[2], color: t[3] }]));
-
+];
+export const TLABEL = Object.fromEntries(TYPES.map((t) => [t[0], t[1]]));
+// Entries made before the types changed still display; they just cannot be chosen for new entries.
+const OLD = { annual: ['Annual leave', 'A', '#cfe3fb'], sick: ['Sick leave', 'S', '#f9d3d3'], casual: ['Casual leave', 'C', '#fbeab5'], wfh: ['Work from home', 'W', '#d3efdb'] };
+export const TINFO = {
+  ...Object.fromEntries(Object.entries(OLD).map(([k, v]) => [k, { label: v[0], letter: v[1], color: v[2] }])),
+  ...Object.fromEntries(TYPES.map((t) => [t[0], { label: t[1], letter: t[2], color: t[3] }])),
+};
 export const addDays = (key, n) => {
   const d = new Date(key + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + n);

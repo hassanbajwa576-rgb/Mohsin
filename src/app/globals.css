@@ -619,3 +619,5 @@ table.rost .we{background:#f1efe8}
 table.rost th.we{background:#e8c25a}
 table.rost th.tod{outline:2px solid #000;outline-offset:-2px}
 .rostag{padding:2px 8px;border-radius:3px;font-size:12.5px}
+
+table.rost td{font-size:11px;font-weight:600}
