@@ -87,7 +87,7 @@ export default async function VisitorLogPage({ searchParams }) {
                     <td className='nw c-meta'>{v.out_ms ? fmtDur(Number(v.out_ms) - Number(v.in_ms)) : '-'}</td>
                     <td className='c-meta'>{v.purpose || ''}{v.badge ? <div className='muted'>Badge {v.badge}</div> : null}</td>
                     <td className='act'>
-                      {user.role === 'om' ? (
+                      {true ? (
                         <>
                           <Link className='btn' href={'/visitors/edit?id=' + v.id}>Edit</Link>
                           <form action={deleteVisitor} className='inline'>

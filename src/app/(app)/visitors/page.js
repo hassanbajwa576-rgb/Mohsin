@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, todayKey, fmtTime, fmt12, fmtDay, fmtDur, dateKey } from '@/lib/att';
-import { VTYPES, VLABEL, insideNow, visitorRows, hostNames } from '@/lib/visitors';
+import { VTYPES, VLABEL, insideNow, visitorRows, hostNames, canEditVisitor } from '@/lib/visitors';
 import { addVisitor, checkOutVisitor } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
@@ -74,6 +74,7 @@ export default async function VisitorsPage({ searchParams }) {
                     <td className='nw c-meta'>{(dateKey(v.in_ms) === today ? '' : fmtDay(v.in_ms) + ', ') + fmt12(v.in_ms)}</td>
                     <td className='nw c-meta'>{fmtDur(now - Number(v.in_ms))}</td>
                     <td className='act'>
+                      {canEditVisitor(user, v) ? <Link className='btn ghost' href={'/visitors/edit?id=' + v.id}>Edit</Link> : null}
                       <form action={checkOutVisitor} className='inline'>
                         <input type='hidden' name='id' value={v.id} />
                         <input type='hidden' name='date' value={today} />
@@ -94,7 +95,7 @@ export default async function VisitorsPage({ searchParams }) {
         {seen.length ? (
           <div className='tablewrap'>
             <table className='tx'>
-              <thead><tr><th>Visitor</th><th>Type</th><th>Meeting with</th><th>In</th><th>Out</th><th>Time spent</th></tr></thead>
+              <thead><tr><th>Visitor</th><th>Type</th><th>Meeting with</th><th>In</th><th>Out</th><th>Time spent</th><th></th></tr></thead>
               <tbody>
                 {seen.slice(0, 30).map((v) => (
                   <tr key={v.id}>
@@ -104,6 +105,7 @@ export default async function VisitorsPage({ searchParams }) {
                     <td className='nw c-meta'>{fmt12(v.in_ms)}</td>
                     <td className='nw c-meta'>{fmt12(v.out_ms)}</td>
                     <td className='nw c-meta'>{fmtDur(Number(v.out_ms) - Number(v.in_ms))}</td>
+                    <td className='act'>{canEditVisitor(user, v) ? <Link className='btn ghost' href={'/visitors/edit?id=' + v.id}>Edit</Link> : null}</td>
                   </tr>
                 ))}
               </tbody>

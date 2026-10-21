@@ -5,7 +5,8 @@ import { q } from './db';
 import { getUser } from './auth';
 import { logEvent } from './audit';
 import { ATT_ROLES, allOffices, validDate, validTime } from './att';
-import { VLABEL } from './visitors';
+import { can } from './perms';
+import { VLABEL, canEditVisitor, V_COLS, V_FROM } from './visitors';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 
@@ -18,7 +19,7 @@ async function need() {
 }
 async function needOm() {
   const u = await need();
-  if (u.role !== 'om') redirect('/visitors');
+  if (u.role !== 'om' && !can(u, 'vis_log')) redirect('/visitors');
   return u;
 }
 function back(path, msg, ok) {
@@ -70,9 +71,14 @@ export async function checkOutVisitor(fd) {
 
 // Sr. Ops Manager: correct a visitor record.
 export async function editVisitor(fd) {
-  const u = await needOm();
+  const u = await need();
   const id = Number(s(fd, 'id'));
   const here = '/visitors/edit?id=' + id;
+  const cur = (await q(`SELECT ${V_COLS} ${V_FROM} WHERE v.id = $1`, [Number.isInteger(id) ? id : 0]))[0];
+  if (!cur) back('/visitors', 'Visitor not found');
+  if (!can(u, 'vis_log') && u.role !== 'om' && !canEditVisitor(u, cur)) back('/visitors', 'You can change a visitor you checked in yourself within 36 hours');
+  if (!allOffices(u) && u.office_id !== cur.office_id) back('/visitors', 'That visitor is in the other office');
+  const done = can(u, 'vis_log') ? '/visitors/log' : '/visitors';
   const name = s(fd, 'name').slice(0, 80);
   const vtype = s(fd, 'vtype');
   if (!name || !VLABEL[vtype]) back(here, 'Enter the name and choose the type');
@@ -83,7 +89,7 @@ export async function editVisitor(fd) {
   if (!validDate(inD) || !validTime(inT)) back(here, 'Choose a valid check in date and time');
   const hasOut = !!(outD || outT);
   if (hasOut && (!validDate(outD) || !validTime(outT))) back(here, 'Choose a valid check out date and time, or clear both');
-  const off = (await q('SELECT id FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
+  const off = (await q('SELECT id FROM pc2_offices WHERE code = $1', [allOffices(u) ? s(fd, 'office') : u.office_code]))[0];
   if (!off) back(here, 'Choose the office');
   if (hasOut && inD + inT > outD + outT) back(here, 'The check out is before the check in');
   await q(
@@ -92,7 +98,7 @@ export async function editVisitor(fd) {
     [off.id, name, s(fd, 'phone').slice(0, 30), s(fd, 'company').slice(0, 80), vtype, s(fd, 'host').slice(0, 80), s(fd, 'purpose').slice(0, 200), s(fd, 'badge').slice(0, 20), inD, inT, outD || null, outT || null, id]
   );
   await logEvent(u, 'edit', 'visitor', id, 'Edited visitor record: ' + name, null, { vtype });
-  back('/visitors/log', 'Visitor record updated', true);
+  back(done, 'Visitor record updated', true);
 }
 
 export async function deleteVisitor(fd) {
