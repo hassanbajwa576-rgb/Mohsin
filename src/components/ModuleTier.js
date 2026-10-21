@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 
 // One module in the switch. Resting the mouse on it (or tabbing to it) drops its pages down;
 // tapping it still opens the module, so phones behave as before.
@@ -16,12 +17,15 @@ function Mod({ href, label, active, items, on }) {
   );
 }
 
-// A group of related pages in the menu row: clicking opens the first page, resting on it shows them all.
-function Group({ label, href, items, on, badge }) {
+// A group of related pages in the menu row. With a mouse it opens when you rest on it;
+// on a phone you tap it and the pages appear on the strip below.
+function Group({ label, items, on, badge, open, toggle }) {
   const active = items.some((it) => on(it.href));
   return (
-    <span className='grpwrap'>
-      <Link href={href} className={'grptab' + (active ? ' on' : '')} aria-haspopup='true'>{label}{badge}</Link>
+    <span className={'grpwrap' + (open ? ' open' : '')}>
+      <button type='button' className={'grptab' + (active ? ' on' : '')} aria-expanded={open} aria-haspopup='true' onClick={() => toggle(label)}>
+        {label}{badge}
+      </button>
       <span className='modpop grppop' role='menu' aria-label={label}>
         {items.map((it) => <Link key={it.href} href={it.href} role='menuitem' className={on(it.href) ? 'on' : ''}>{it.label}{it.badge}</Link>)}
       </span>
@@ -32,13 +36,27 @@ function Group({ label, href, items, on, badge }) {
 // Second header row: the PettyTrack / AttendTrack / VisitTrack switch and the pages of the module you are in.
 export default function ModuleTier({ role, access = [], reviews = 0, approvals = 0 }) {
   const path = usePathname() || '/';
+  const [open, setOpen] = useState('');
+  const bar = useRef(null);
+  // The open group closes when the page changes or when you tap anywhere else.
+  useEffect(() => setOpen(''), [path]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => {
+      if (bar.current && !bar.current.contains(e.target)) setOpen('');
+    };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [open]);
+  const toggle = (label) => setOpen((v) => (v === label ? '' : label));
+
   const attend = path === '/attendance' || path.indexOf('/attendance/') === 0;
   const visit = path === '/visitors' || path.indexOf('/visitors/') === 0;
   const guard = role === 'guard';
   const om = role === 'om';
   const page = (href, label, badge) => ({ href, label, badge });
   // Several pages under one name. One page on its own stays a plain tab; none at all disappears.
-  const group = (label, items, badge) => (items.length > 1 ? { label, items, href: items[0].href, badge } : items[0] || null);
+  const group = (label, items, badge) => (items.length > 1 ? { label, items, badge } : items[0] || null);
   const mark = reviews ? <span className='navbadge' title='Excel import days to review'>{reviews}</span> : null;
 
   const petty = [page('/', 'Dashboard'), page('/expenses', 'Expenses'), page('/advances', 'Advances')];
@@ -75,12 +93,13 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
     if (om) admin.push(page('/approvals', 'Approvals'), page('/team', 'Team'), page('/logs', 'Audit log'));
     admin.push(page('/guide', 'Guide'));
   }
+  const opened = menu.find((m) => m.items && m.label === open);
 
   // Exact match for the section home pages, prefix match for everything else.
   const on = (href) => (href === '/' || href === '/attendance' || href === '/visitors' ? path === href : path === href || path.indexOf(href + '/') === 0);
 
   return (
-    <div className='tier'>
+    <div className='tier' ref={bar}>
       <div className='tier-in'>
         <span className='modseg' translate='no'>
           {guard ? null : <Mod href='/' label='PettyTrack' active={!attend && !visit} items={petty} on={on} />}
@@ -91,7 +110,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
         <div className='tier-scroll'>
         <nav className='tier-menu'>
           {menu.map((m) => (m.items
-            ? <Group key={m.label} label={m.label} href={m.href} items={m.items} on={on} badge={m.badge} />
+            ? <Group key={m.label} label={m.label} items={m.items} on={on} badge={m.badge} open={open === m.label} toggle={toggle} />
             : <Link key={m.href} href={m.href} className={on(m.href) ? 'on' : ''}>{m.label}{m.badge}</Link>))}
         </nav>
         <span className='tier-sp' />
@@ -102,6 +121,11 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
         </nav>
         </div>
       </div>
+      {opened ? (
+        <nav className='subrow' aria-label={opened.label}>
+          {opened.items.map((it) => <Link key={it.href} href={it.href} className={on(it.href) ? 'on' : ''}>{it.label}{it.badge}</Link>)}
+        </nav>
+      ) : null}
     </div>
   );
 }

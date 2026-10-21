@@ -687,18 +687,23 @@ td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.
   .modseg > .modwrap > a{flex:1;text-align:center;padding:8px 10px;font-size:13px}
 }
 
-/* Grouped tabs: on a touch screen every page shows as its own tab, as before. */
-.grpwrap{display:contents}
-.grptab{display:none}
-.grppop{display:contents}
+/* Grouped tabs: one name opens several pages. Mouse: a dropdown on hover. Touch: a strip under the row. */
+.grpwrap{position:relative;display:inline-flex}
+.tier-menu .grptab{display:inline-flex;align-items:center;background:none;border:0;border-bottom:2px solid transparent;cursor:pointer;font:inherit;font-size:13.5px;font-weight:500;color:var(--slate);padding:13px 12px;margin-bottom:-1px;min-height:0;width:auto}
+.tier-menu .grptab::after{content:'\25BE';font-size:9px;margin-left:5px;opacity:.55}
+.grpwrap.open .grptab::after{content:'\25B4'}
+.tier-menu .grptab:hover{color:var(--ink);border-bottom-color:var(--gold)}
+.tier-menu .grptab.on{color:#000;font-weight:600;border-bottom-color:var(--gold)}
+.grppop{display:none}
+.subrow{display:flex;gap:6px;overflow-x:auto;white-space:nowrap;padding:7px 12px;background:#fff;border-top:1px solid var(--line);scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.subrow::-webkit-scrollbar{display:none}
+.subrow a{padding:7px 12px;font-size:13.5px;font-weight:500;color:var(--slate);border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+.subrow a.on{background:#fbf1cf;color:#000;font-weight:600;border-color:var(--gold)}
 @media (hover:hover) and (pointer:fine){
-  /* With a mouse the group becomes one tab that opens its pages when you rest on it. */
   .tier-scroll{overflow:visible}
-  .grpwrap{display:inline-flex;position:relative}
-  .tier-menu .grptab{display:inline-flex;align-items:center}
-  .tier-menu .grptab::after{content:'\25BE';font-size:9px;margin-left:5px;opacity:.55}
-  .grppop{display:none;border-radius:0 0 5px 5px;min-width:185px}
-  .grpwrap:hover > .grppop,.grpwrap:focus-within > .grppop{display:flex}
+  .subrow{display:none}
+  .grppop{border-radius:0 0 5px 5px;min-width:185px}
+  .grpwrap:hover > .grppop,.grpwrap:focus-within > .grppop,.grpwrap.open > .grppop{display:flex}
   .tier-menu .grppop a{display:block;padding:8px 12px;font-size:13.5px;font-weight:500;color:var(--ink);white-space:nowrap;border-bottom:0;margin:0;border-radius:3px}
   .tier-menu .grppop a:hover{background:var(--surface);color:#000;border-bottom-color:transparent}
   .tier-menu .grppop a.on{background:#fbf1cf;color:#000;font-weight:600;border-bottom-color:transparent}
