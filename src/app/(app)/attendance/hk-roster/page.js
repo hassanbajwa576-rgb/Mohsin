@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
@@ -17,6 +18,7 @@ const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 // Who is off and when: a monthly grid of time off. Everyone sees their office; people with Roster access add and remove time off.
 export default async function RosterPage({ searchParams }) {
   const user = await requireUser(ATT_ROLES);
+  if (user.role !== 'om' && user.role !== 'sso') redirect('/attendance');
   const sp = await searchParams;
   const today = todayKey();
   const month = validMonth(sp.m) ? sp.m : today.slice(0, 7);
@@ -59,6 +61,7 @@ export default async function RosterPage({ searchParams }) {
           <p className='muted'>Who in the housekeeping team will be off, and when (full days or a number of hours). Everyone can see it; people with HK Roster access add the team and their time off.</p>
         </div>
         <div className='inline'>
+          <Link href='/attendance/hk-roster/opd' className='btn'>OPD</Link>
           <a href={'/attendance/hk-roster/xlsx?' + qp()} className='btn primary'>Download Excel (.xlsx)</a>
         </div>
       </div>

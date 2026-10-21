@@ -7,6 +7,7 @@ import { logEvent } from './audit';
 import { can } from './perms';
 import { ATT_ROLES, allOffices, validDate } from './att';
 import { TLABEL } from './roster';
+import { OPD_LIMIT } from './hk-opd';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 
@@ -14,7 +15,7 @@ async function need() {
   const u = await getUser();
   if (!u) redirect('/login');
   if (u.totp_required && !u.totp_enabled) redirect('/security');
-  if (!ATT_ROLES.includes(u.role) || !can(u, 'roster_edit')) redirect('/attendance/hk-roster');
+  if ((u.role !== 'om' && u.role !== 'sso') || !can(u, 'roster_edit')) redirect('/attendance');
   return u;
 }
 function back(path, msg, ok) {
@@ -87,4 +88,39 @@ export async function removeHkPerson(fd) {
   await q('UPDATE pc2_hk_people SET active = FALSE WHERE id = $1', [id]);
   await logEvent(u, 'delete', 'hk_person', id, 'Removed from the HK team: ' + p.name, null, null);
   back('/attendance/hk-roster', p.name + ' removed from the HK team', true);
+}
+
+/* ---------- OPD claims for the HK team ---------- */
+
+// Record an OPD claim. The yearly limit (same for everyone) cannot be exceeded.
+export async function addOpdClaim(fd) {
+  const u = await need();
+  const year = s(fd, 'year');
+  const here = '/attendance/hk-roster/opd' + (/^\d{4}$/.test(year) ? '?y=' + year : '');
+  const id = Number(s(fd, 'hk_id'));
+  const date = s(fd, 'date');
+  const amount = Math.round(Number(s(fd, 'amount')) * 100) / 100;
+  if (!validDate(date)) back(here, 'Choose a valid date');
+  if (!(amount > 0)) back(here, 'Enter the amount of the claim');
+  const p = (await q('SELECT id, name, office_id FROM pc2_hk_people WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
+  if (!p) back(here, 'Choose a team member');
+  if (!allOffices(u) && p.office_id !== u.office_id) back(here, 'You can only record claims for your own office');
+  const y = date.slice(0, 4);
+  const used = Number((await q('SELECT COALESCE(SUM(amount), 0)::float8 AS v FROM pc2_hk_opd WHERE hk_id = $1 AND claim_date >= $2::date AND claim_date <= $3::date', [p.id, y + '-01-01', y + '-12-31']))[0].v);
+  if (used + amount > OPD_LIMIT) back(here, p.name + ' has only PKR ' + Math.max(0, OPD_LIMIT - used).toLocaleString('en-US') + ' of the ' + y + ' OPD limit left, so this claim cannot be added');
+  const r = await q('INSERT INTO pc2_hk_opd (hk_id, claim_date, amount, note, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING id', [p.id, date, amount, s(fd, 'note').slice(0, 120), u.id]);
+  await logEvent(u, 'create', 'hk_opd', r[0].id, 'OPD claim: ' + p.name + ' PKR ' + amount.toLocaleString('en-US') + ' on ' + date, null, { amount, date });
+  back('/attendance/hk-roster/opd?y=' + y, p.name + ': PKR ' + amount.toLocaleString('en-US') + ' recorded', true);
+}
+
+export async function deleteOpdClaim(fd) {
+  const u = await need();
+  const id = Number(s(fd, 'id'));
+  const here = '/attendance/hk-roster/opd' + (/^\d{4}$/.test(s(fd, 'year')) ? '?y=' + s(fd, 'year') : '');
+  const c = (await q(`SELECT c.id, c.amount::float8 AS amount, to_char(c.claim_date, 'YYYY-MM-DD') AS d, s.name, s.office_id FROM pc2_hk_opd c JOIN pc2_hk_people s ON s.id = c.hk_id WHERE c.id = $1`, [Number.isInteger(id) ? id : 0]))[0];
+  if (!c) back(here, 'That claim no longer exists');
+  if (!allOffices(u) && c.office_id !== u.office_id) back(here, 'You can only change your own office');
+  await q('DELETE FROM pc2_hk_opd WHERE id = $1', [id]);
+  await logEvent(u, 'delete', 'hk_opd', id, 'Removed OPD claim: ' + c.name + ' PKR ' + c.amount.toLocaleString('en-US') + ' on ' + c.d, null, null);
+  back(here, 'Claim removed', true);
 }

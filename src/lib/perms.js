@@ -7,7 +7,6 @@ export const PERMS = [
   ['att_logs', 'Attendance logs', 'Every entry of a day, with who added it.'],
   ['att_staff', 'Manage employees and Excel upload', 'Add, edit and upload the employee list.'],
   ['att_import', 'Import attendance from Excel', 'Fill in missing days from the weekly sheets, review the differences and correct times.'],
-  ['roster_edit', 'HK Roster: manage the team and their time off', 'Add housekeeping team members and record when they will be off; everyone can view the roster.'],
   ['vis_log', 'Visitor log and Excel download', 'See all visitors, filter them and download the visitor log (everyone can check visitors in and out).'],
   ['att_reconcile', 'Reconciliation', 'Run the check for long shifts, missing check outs and entries that do not fit, and mark them reviewed.'],
 ];

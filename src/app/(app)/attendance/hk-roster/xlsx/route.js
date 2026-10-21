@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 // The month's roster as a grid: one row per employee, one column per day.
 export async function GET(req) {
   const u = await requireUser(ATT_ROLES);
+  if (u.role !== 'om' && u.role !== 'sso') return new Response('Not allowed', { status: 403 });
   const sp = new URL(req.url).searchParams;
   const month = validMonth(sp.get('m')) ? sp.get('m') : todayKey().slice(0, 7);
   const office = allOffices(u) ? (['LHR', 'ISB'].includes(sp.get('office')) ? sp.get('office') : '') : u.office_code;
