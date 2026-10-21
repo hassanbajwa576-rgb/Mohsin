@@ -625,3 +625,8 @@ table.rost td{font-size:11px;font-weight:600}
 table.rost td small{display:block;font-size:9px;font-weight:400;line-height:1}
 
 .opdbar{height:8px;background:#ece9df;border-radius:4px;overflow:hidden;margin-bottom:3px}.opdbar span{display:block;height:100%;background:#E3AD21}
+
+table.rost td.hol,table.rost th.hol{background:#dfe9f2}
+table.rost th.lowcov{background:#f4b9b9;color:#7a1010}
+.hollegend{background:#dfe9f2}
+.comingup{margin:0;padding-left:18px;line-height:1.9}

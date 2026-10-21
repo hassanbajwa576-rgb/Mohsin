@@ -1,11 +1,11 @@
 import Link from 'next/link';
 
-// Roster | OPD: both are always shown, and the one you are on is highlighted.
+// Roster | Balances | OPD | Setup: all are always shown, and the one you are on is highlighted.
+const TABS = [['roster', 'Roster', '/attendance/hk-roster'], ['balances', 'Leave balances', '/attendance/hk-roster/balances'], ['opd', 'OPD', '/attendance/hk-roster/opd'], ['setup', 'Setup', '/attendance/hk-roster/setup']];
 export default function HkTabs({ active }) {
   return (
     <div className='chips' style={{ marginBottom: 12 }}>
-      <Link href='/attendance/hk-roster' className={'chip' + (active === 'roster' ? ' on' : '')}>Roster</Link>
-      <Link href='/attendance/hk-roster/opd' className={'chip' + (active === 'opd' ? ' on' : '')}>OPD</Link>
+      {TABS.map(([k, label, href]) => <Link key={k} href={href} className={'chip' + (active === k ? ' on' : '')}>{label}</Link>)}
     </div>
   );
 }

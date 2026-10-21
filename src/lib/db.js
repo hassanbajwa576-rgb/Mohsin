@@ -68,6 +68,15 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS pc2_hk_off (id SERIAL PRIMARY KEY, hk_id INTEGER NOT NULL REFERENCES pc2_hk_people(id) ON DELETE CASCADE, from_date DATE NOT NULL, to_date DATE NOT NULL, kind TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS pc2_hk_off_dates ON pc2_hk_off (from_date, to_date)`,
   `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS hours NUMERIC(5,2)`,
+  `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS joined_on DATE`,
+  `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS birthday DATE`,
+  `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved'`,
+  `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS requested_by INTEGER`,
+  `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS decided_by INTEGER`,
+  `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS decided_at TIMESTAMPTZ`,
+  `CREATE TABLE IF NOT EXISTS pc2_hk_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS pc2_holidays (day DATE PRIMARY KEY, name TEXT NOT NULL, created_by INTEGER)`,
   `CREATE TABLE IF NOT EXISTS pc2_hk_opd (id SERIAL PRIMARY KEY, hk_id INTEGER NOT NULL REFERENCES pc2_hk_people(id) ON DELETE CASCADE, claim_date DATE NOT NULL, amount NUMERIC(12,2) NOT NULL, note TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS pc2_hk_opd_date ON pc2_hk_opd (claim_date)`,
   `CREATE TABLE IF NOT EXISTS pc2_review_marks (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL, day TEXT NOT NULL, kind TEXT NOT NULL, sig TEXT NOT NULL, marked_by INTEGER, marked_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
@@ -86,7 +95,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-21-6';
+const SCHEMA_VERSION = '2026-10-21-7';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

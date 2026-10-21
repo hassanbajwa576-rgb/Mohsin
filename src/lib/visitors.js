@@ -9,6 +9,7 @@ export const VTYPES = [
   ['client', 'Client'],
   ['vendor', 'Vendor / supplier'],
   ['delivery', 'Delivery / courier'],
+  ['exemployee', 'Ex-Employee'],
   ['guest', 'Guest'],
   ['other', 'Other'],
 ];
