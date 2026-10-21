@@ -7,14 +7,14 @@ export const TYPES = [
   ['ptom', 'PTO-M', 'PM', '#f9d3d3'],
   ['bereavement', 'Bereavement PTO', 'B', '#ddd6ee'],
   ['cpto', 'C-PTO', 'CP', '#d3efdb'],
-  ['unpaid', 'Unpaid leave', 'U', '#fbeab5'],
+  ['unpaid', 'Unpaid time off', 'U', '#fbeab5'],
   ['other', 'Other time off', 'X', '#e4e4e4'],
 ];
 export const TLABEL = Object.fromEntries(TYPES.map((t) => [t[0], t[1]]));
 // Kinds that have a yearly allowance.
 export const ALLOWED = ['pto', 'ptom', 'bereavement', 'cpto'];
 // Entries made before the types changed still display; they just cannot be chosen for new entries.
-const OLD = { weekly: ['Weekly off', 'O', '#d3efdb'], annual: ['Annual leave', 'A', '#cfe3fb'], sick: ['Sick leave', 'S', '#f9d3d3'], casual: ['Casual leave', 'C', '#fbeab5'], wfh: ['Work from home', 'W', '#d3efdb'] };
+const OLD = { weekly: ['Weekly off', 'O', '#d3efdb'], annual: ['Annual time off', 'A', '#cfe3fb'], sick: ['Sick time off', 'S', '#f9d3d3'], casual: ['Casual time off', 'C', '#fbeab5'], wfh: ['Work from home', 'W', '#d3efdb'] };
 export const TINFO = {
   ...Object.fromEntries(Object.entries(OLD).map(([k, v]) => [k, { label: v[0], letter: v[1], color: v[2] }])),
   ...Object.fromEntries(TYPES.map((t) => [t[0], { label: t[1], letter: t[2], color: t[3] }])),

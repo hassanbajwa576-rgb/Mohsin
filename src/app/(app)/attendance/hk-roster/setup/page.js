@@ -27,7 +27,7 @@ export default async function SetupPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Support roster setup</h1>
-          <p className='muted'>Yearly leave allowances, the minimum number of people who must be in, and the holidays.</p>
+          <p className='muted'>Yearly time-off allowances, the minimum number of people who must be in, and the holidays.</p>
         </div>
       </div>
       <HkTabs active='setup' />

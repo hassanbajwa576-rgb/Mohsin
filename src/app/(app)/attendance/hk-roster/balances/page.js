@@ -32,7 +32,7 @@ export default async function BalancesPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Support leave balances</h1>
+          <h1>Support Time-off Balance</h1>
           <p className='muted'>Days off used in {year} against the yearly allowance. Hours count as part of a day ({set.hpd} hours = 1 day) and holidays are not counted. Allowances do not carry forward.</p>
         </div>
       </div>
