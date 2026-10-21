@@ -630,3 +630,6 @@ table.rost td.hol,table.rost th.hol{background:#dfe9f2}
 table.rost th.lowcov{background:#f4b9b9;color:#7a1010}
 .hollegend{background:#dfe9f2}
 .comingup{margin:0;padding-left:18px;line-height:1.9}
+
+/* Headings read in Title Case across the whole app */
+h1,h2,h3{text-transform:capitalize}
