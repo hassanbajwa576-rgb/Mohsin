@@ -708,3 +708,11 @@ td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.
   .tier-menu .grppop a:hover{background:var(--surface);color:#000;border-bottom-color:transparent}
   .tier-menu .grppop a.on{background:#fbf1cf;color:#000;font-weight:600;border-bottom-color:transparent}
 }
+/* Forms never spill off the side of a phone screen */
+.form .span3{grid-column:span 3}
+.form label,.form input,.form select{min-width:0;max-width:100%}
+@media (max-width:720px){
+  .form{grid-template-columns:minmax(0,1fr)}
+  .form .span3,.form .wide{grid-column:1/-1}
+  .form input[type=date],.form input[type=time]{width:100%;box-sizing:border-box}
+}

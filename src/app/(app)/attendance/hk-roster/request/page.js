@@ -31,7 +31,7 @@ export default async function RequestPage({ searchParams }) {
         <label>Type<select name='kind' defaultValue='pto'>{TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
         <label>First day<input type='date' name='from' defaultValue={today} required /></label>
         <label>Last day<input type='date' name='to' defaultValue={today} required /></label>
-        <label style={{ gridColumn: 'span 3' }}>Note (optional)<input name='note' maxLength={120} placeholder='Reason' /></label>
+        <label className='span3'>Note (optional)<input name='note' maxLength={120} placeholder='Reason' /></label>
         <label>Hours (only for part of a day)<input type='number' name='hours' min='0.25' max='24' step='0.25' placeholder='Leave empty for full days' /></label>
         <button className='btn primary' type='submit'>Send request</button>
       </form>
