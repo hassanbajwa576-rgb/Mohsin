@@ -39,14 +39,19 @@ const ROLE_NAMES = ['Sr. OM', 'Sr. SO', 'SO'];
 const LOW = 'var(--bad, #b3261e)';
 // Red figure with a very light red wash behind it, so a low balance stands out.
 const LOWBOX = { color: LOW, background: '#fbd3d3', padding: '1px 7px', borderRadius: 3, display: 'inline-block' };
+const GOODBOX = { color: GOOD, background: GOODWASH, padding: '1px 7px', borderRadius: 3, display: 'inline-block' };
 const low = (v, cap, i) => !!cap && Number(cap[i]) > 0 && Number(v[i]) < 0.2 * Number(cap[i]);
+// 20% or more of what was issued: green.
+const GOOD = '#1b6e34';
+const GOODWASH = '#d9f1df';
+const okc = (v, cap, i) => !!cap && Number(cap[i]) > 0 && Number(v[i]) >= 0.2 * Number(cap[i]);
 function Lines({ values, roles, gold, cap }) {
   if (!roles.length) return null;
   return (
     <div style={{ fontSize: 11.5, fontWeight: 400, lineHeight: 1.6 }}>
       {roles.map((i) => (
-        <div key={i} style={gold ? { color: 'var(--gold-d)', fontWeight: 600 } : low(values, cap, i) ? { color: LOW, fontWeight: 600 } : { color: 'var(--gold-d)', fontWeight: 500 }}>
-          {!gold && low(values, cap, i) ? <span style={{ background: '#fbd3d3', padding: '0 6px', borderRadius: 3 }}>{n0(values[i])}</span> : gold ? ROLE_NAMES[i] : n0(values[i])}
+        <div key={i} style={gold ? { color: 'var(--gold-d)', fontWeight: 600 } : low(values, cap, i) ? { color: LOW, fontWeight: 600 } : !gold && okc(values, cap, i) ? { color: GOOD, fontWeight: 600 } : { color: 'var(--gold-d)', fontWeight: 500 }}>
+          {!gold && low(values, cap, i) ? <span style={{ background: '#fbd3d3', padding: '0 6px', borderRadius: 3 }}>{n0(values[i])}</span> : !gold && okc(values, cap, i) ? <span style={{ background: GOODWASH, padding: '0 6px', borderRadius: 3 }}>{n0(values[i])}</span> : gold ? ROLE_NAMES[i] : n0(values[i])}
         </div>
       ))}
     </div>
@@ -108,7 +113,7 @@ function AdjustedPosition({ rows, waiting }) {
     <div className={'adjtile' + (gold ? ' gold' : '')}>
       <small>{label}</small>
       <b>{pkr(amt)}</b>
-      {roles.map((i) => <i key={i} style={cap && low(who, cap, i) ? { color: LOW } : undefined}>{ROLE_NAMES[i]} {cap && low(who, cap, i) ? <span style={{ background: '#fbd3d3', padding: '0 6px', borderRadius: 3 }}>{n0(who[i])}</span> : n0(who[i])}</i>)}
+      {roles.map((i) => <i key={i} style={cap && low(who, cap, i) ? { color: LOW } : cap && okc(who, cap, i) ? { color: GOOD } : undefined}>{ROLE_NAMES[i]} {cap && low(who, cap, i) ? <span style={{ background: '#fbd3d3', padding: '0 6px', borderRadius: 3 }}>{n0(who[i])}</span> : cap && okc(who, cap, i) ? <span style={{ background: GOODWASH, padding: '0 6px', borderRadius: 3 }}>{n0(who[i])}</span> : n0(who[i])}</i>)}
     </div>
   );
   const FundCard = ({ r, title, tot }) => {
@@ -173,7 +178,7 @@ async function SoDashboard({ user, sp }) {
         <div className='card kpi'><span>Advances</span><b>{pkr(acct.advances)}</b></div>
         <div className='card kpi alt'><span>Expenses</span><b>{pkr(acct.spent)}</b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
         <div className='card kpi'><span>Advances Outstanding</span><b>{pkr(acct.outstanding)}</b><small>Reduces only when you submit your expenses</small></div>
-        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b style={acct.advances > 0 && acct.cash < 0.2 * acct.advances ? LOWBOX : undefined}>{pkr(acct.cash)}</b></div>
+        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b style={acct.advances > 0 ? (acct.cash < 0.2 * acct.advances ? LOWBOX : GOODBOX) : undefined}>{pkr(acct.cash)}</b></div>
       </div>
       {acct.draft > 0 ? (
         <form action={submitDrafts} className='card submitbar'>
@@ -197,7 +202,7 @@ async function SoDashboard({ user, sp }) {
                   <tr key={i.id}>
                     <td>{i.id}</td><td className='nw'>{i.issued_on}</td><td>{FUNDS[i.fund]}</td>
                     <td className='r nw'>{pkr(i.amount)}</td><td className='r nw'>{pkr(i.spent)}</td><td className='r nw'>{pkr(i.returned)}</td>
-                    <td className='r nw'><b style={acct.advances > 0 && acct.cash < 0.2 * acct.advances ? LOWBOX : undefined}>{pkr(i.amount - i.returned - Number(i.spent))}</b></td>
+                    <td className='r nw'><b style={acct.advances > 0 ? (acct.cash < 0.2 * acct.advances ? LOWBOX : GOODBOX) : undefined}>{pkr(i.amount - i.returned - Number(i.spent))}</b></td>
                   </tr>
                 ))}
               </tbody>

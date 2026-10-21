@@ -94,6 +94,7 @@ export default async function AdvancesPage({ searchParams }) {
     kept[i.issued_to] = (kept[i.issued_to] || 0) + (i.amount - i.returned - Number(i.spent));
   });
   const lowCash = (who) => given[who] > 0 && kept[who] < 0.2 * given[who];
+  const goodCash = (who) => given[who] > 0 && kept[who] >= 0.2 * given[who];
   const tIssued = shown.reduce((a, i) => a + i.amount, 0);
   const tSpent = shown.reduce((a, i) => a + Number(i.spent), 0);
   const tReturned = shown.reduce((a, i) => a + i.returned, 0);
@@ -339,7 +340,7 @@ export default async function AdvancesPage({ searchParams }) {
                       <td className='r nw'>{pkr(i.amount)}</td>
                       <td className='r nw'>{pkr(i.spent)}</td>
                       <td className='r nw'>{pkr(i.returned)}</td>
-                      <td className='r nw'><b style={lowCash(i.issued_to) ? { color: 'var(--bad, #b3261e)', background: '#fbd3d3', padding: '1px 7px', borderRadius: 3, display: 'inline-block' } : undefined}>{pkr(left)}</b></td>
+                      <td className='r nw'><b style={lowCash(i.issued_to) ? { color: 'var(--bad, #b3261e)', background: '#fbd3d3', padding: '1px 7px', borderRadius: 3, display: 'inline-block' } : goodCash(i.issued_to) ? { color: '#1b6e34', background: '#d9f1df', padding: '1px 7px', borderRadius: 3, display: 'inline-block' } : undefined}>{pkr(left)}</b></td>
                       {manage ? (
                         <td className='act'>
                           {isOM ? (
