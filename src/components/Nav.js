@@ -42,6 +42,14 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approv
           <form action={logout}><button className='btn ghost' type='submit'>Sign out</button></form>
         </div>
       </div>
+      {guard ? null : (
+        <nav className='toplinks-m' aria-label='Manager links'>
+            {user.role === 'om' ? <Link href='/approvals'>Approvals{approvals ? <span className='navbadge'>{approvals}</span> : null}</Link> : null}
+            {user.role === 'om' ? <Link href='/team'>Team</Link> : null}
+            {user.role === 'om' ? <Link href='/logs'>Audit Log</Link> : null}
+            <Link href='/guide'>Guide</Link>
+        </nav>
+      )}
       <ModuleTier role={user.role} access={access} reviews={reviews} approvals={approvals} />
     </header>
   );
