@@ -6,13 +6,13 @@ export const TYPES = [
   ['pto', 'PTO', 'P', '#cfe3fb'],
   ['ptom', 'PTO-M', 'PM', '#f9d3d3'],
   ['bereavement', 'Bereavement PTO', 'B', '#ddd6ee'],
-  ['weekly', 'Weekly off', 'O', '#d3efdb'],
+  ['cpto', 'C-PTO', 'CP', '#d3efdb'],
   ['unpaid', 'Unpaid leave', 'U', '#fbeab5'],
   ['other', 'Other time off', 'X', '#e4e4e4'],
 ];
 export const TLABEL = Object.fromEntries(TYPES.map((t) => [t[0], t[1]]));
 // Entries made before the types changed still display; they just cannot be chosen for new entries.
-const OLD = { annual: ['Annual leave', 'A', '#cfe3fb'], sick: ['Sick leave', 'S', '#f9d3d3'], casual: ['Casual leave', 'C', '#fbeab5'], wfh: ['Work from home', 'W', '#d3efdb'] };
+const OLD = { weekly: ['Weekly off', 'O', '#d3efdb'], annual: ['Annual leave', 'A', '#cfe3fb'], sick: ['Sick leave', 'S', '#f9d3d3'], casual: ['Casual leave', 'C', '#fbeab5'], wfh: ['Work from home', 'W', '#d3efdb'] };
 export const TINFO = {
   ...Object.fromEntries(Object.entries(OLD).map(([k, v]) => [k, { label: v[0], letter: v[1], color: v[2] }])),
   ...Object.fromEntries(TYPES.map((t) => [t[0], { label: t[1], letter: t[2], color: t[3] }])),
@@ -33,7 +33,7 @@ export const shiftMonth = (month, n) => {
   return d.toISOString().slice(0, 7);
 };
 
-const COLS = `t.id, t.hk_id AS staff_id, t.kind, t.note, t.created_by, to_char(t.from_date, 'YYYY-MM-DD') AS from_date, to_char(t.to_date, 'YYYY-MM-DD') AS to_date,
+const COLS = `t.id, t.hk_id AS staff_id, t.hours::float8 AS hours, t.kind, t.note, t.created_by, to_char(t.from_date, 'YYYY-MM-DD') AS from_date, to_char(t.to_date, 'YYYY-MM-DD') AS to_date,
   s.name, s.role AS dept, o.code AS office, u.name AS by_name`;
 const FROM = `FROM pc2_hk_off t JOIN pc2_hk_people s ON s.id = t.hk_id JOIN pc2_offices o ON o.id = s.office_id LEFT JOIN pc2_users u ON u.id = t.created_by`;
 

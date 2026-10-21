@@ -29,7 +29,9 @@ export async function addTimeOff(fd) {
   const name = s(fd, 'name');
   const kind = s(fd, 'kind');
   const from = s(fd, 'from');
-  const to = s(fd, 'to') || from;
+  const hrs = s(fd, 'hours') ? Number(s(fd, 'hours')) : null;
+  if (hrs !== null && !(hrs > 0 && hrs <= 24)) back(here, 'Hours must be more than 0 and at most 24');
+  const to = hrs !== null ? from : s(fd, 'to') || from;
   if (!TLABEL[kind]) back(here, 'Choose the type of time off');
   if (!validDate(from) || !validDate(to) || to < from) back(here, 'Choose valid dates (the last day cannot be before the first)');
   if ((new Date(to) - new Date(from)) / 864e5 > 120) back(here, 'Time off can be at most 120 days at once');
@@ -38,11 +40,12 @@ export async function addTimeOff(fd) {
   if (found.length > 1) back(here, 'More than one HK team member is called "' + name + '". Ask Mohsin to make the names different.');
   const st = found[0];
   if (!allOffices(u) && st.office_id !== u.office_id) back(here, 'You can only record time off for your own office');
-  const clash = await q(`SELECT to_char(from_date, 'YYYY-MM-DD') AS f, to_char(to_date, 'YYYY-MM-DD') AS t FROM pc2_hk_off WHERE hk_id = $1 AND from_date <= $3::date AND to_date >= $2::date LIMIT 1`, [st.id, from, to]);
+  // Hours for part of a day may share a day with other hours; a full day cannot overlap anything.
+  const clash = await q(`SELECT to_char(from_date, 'YYYY-MM-DD') AS f, to_char(to_date, 'YYYY-MM-DD') AS t FROM pc2_hk_off WHERE hk_id = $1 AND from_date <= $3::date AND to_date >= $2::date ${hrs !== null ? 'AND hours IS NULL' : ''} LIMIT 1`, [st.id, from, to]);
   if (clash.length) back(here, st.name + ' already has time off from ' + clash[0].f + ' to ' + clash[0].t + '. Remove it first to change it.');
-  const r = await q('INSERT INTO pc2_hk_off (hk_id, from_date, to_date, kind, note, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [st.id, from, to, kind, s(fd, 'note').slice(0, 120), u.id]);
-  await logEvent(u, 'create', 'timeoff', r[0].id, 'Time off: ' + st.name + ' ' + TLABEL[kind] + ' ' + from + (to !== from ? ' to ' + to : ''), null, { kind, from, to });
-  back(here, st.name + ': ' + TLABEL[kind] + ' recorded', true);
+  const r = await q('INSERT INTO pc2_hk_off (hk_id, from_date, to_date, kind, note, created_by, hours) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id', [st.id, from, to, kind, s(fd, 'note').slice(0, 120), u.id, hrs]);
+  await logEvent(u, 'create', 'timeoff', r[0].id, 'Time off: ' + st.name + ' ' + TLABEL[kind] + ' ' + from + (to !== from ? ' to ' + to : '') + (hrs !== null ? ' (' + hrs + ' h)' : ''), null, { kind, from, to, hours: hrs });
+  back(here, st.name + ': ' + TLABEL[kind] + (hrs !== null ? ' ' + hrs + ' h' : '') + ' recorded', true);
 }
 
 export async function deleteTimeOff(fd) {

@@ -37,7 +37,11 @@ export default async function RosterPage({ searchParams }) {
     if (!grid.has(e.staff_id)) grid.set(e.staff_id, {});
     for (let d = 1; d <= n; d++) {
       const key = month + '-' + String(d).padStart(2, '0');
-      if (key >= e.from_date && key <= e.to_date) grid.get(e.staff_id)[d] = e;
+      if (key >= e.from_date && key <= e.to_date) {
+        const cur = grid.get(e.staff_id)[d];
+        if (!cur) grid.get(e.staff_id)[d] = { ...e };
+        else if (e.hours != null && cur.hours != null && cur.kind === e.kind) cur.hours += e.hours;
+      }
     }
   }
   const names = team.map((p) => p.name);
@@ -45,14 +49,14 @@ export default async function RosterPage({ searchParams }) {
   const qp = (extra = {}) => new URLSearchParams({ m: month, ...(office && both ? { office } : {}), ...(who ? { who } : {}), ...(everyone ? { all: '1' } : {}), ...extra }).toString();
   const days = Array.from({ length: n }, (_, i) => i + 1);
   const wd = (d) => new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
-  const count = (e) => Math.round((new Date(e.to_date) - new Date(e.from_date)) / 864e5) + 1;
+  const count = (e) => (e.hours != null ? String(Math.round(e.hours * 100) / 100) + ' h' : String(Math.round((new Date(e.to_date) - new Date(e.from_date)) / 864e5) + 1) + ' day(s)');
 
   return (
     <>
       <div className='head'>
         <div>
           <h1>HK Roster</h1>
-          <p className='muted'>Who in the housekeeping team will be off, and when. Everyone can see it; people with HK Roster access add the team and their time off.</p>
+          <p className='muted'>Who in the housekeeping team will be off, and when (full days or a number of hours). Everyone can see it; people with HK Roster access add the team and their time off.</p>
         </div>
         <div className='inline'>
           <a href={'/attendance/hk-roster/xlsx?' + qp()} className='btn primary'>Download Excel (.xlsx)</a>
@@ -76,6 +80,7 @@ export default async function RosterPage({ searchParams }) {
             <label>Type<select name='kind' defaultValue='annual'>{TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
             <label>First day<input type='date' name='from' defaultValue={today} required /></label>
             <label>Last day<input type='date' name='to' defaultValue={today} required /></label>
+            <label>Hours (only for part of a day)<input type='number' name='hours' min='0.25' max='24' step='0.25' placeholder='Leave empty for full days' /></label>
             <label className='wide'>Note (optional)<input name='note' maxLength={120} placeholder='For example: family wedding' /></label>
             <button className='btn primary' type='submit'>Add time off</button>
           </form>
@@ -151,7 +156,7 @@ export default async function RosterPage({ searchParams }) {
                       const t = e ? TINFO[e.kind] : null;
                       return (
                         <td key={d} className={wd(d) === 0 || wd(d) === 6 ? 'we' : ''} style={t ? { background: t.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : undefined}>
-                          {t ? t.letter : ''}
+                          {t ? t.letter : ''}{t && e.hours != null ? <small>{String(Math.round(e.hours * 100) / 100)}h</small> : null}
                         </td>
                       );
                     })}
@@ -168,7 +173,7 @@ export default async function RosterPage({ searchParams }) {
           <h3 style={{ marginTop: 0 }}>Time off in {MONTHS[mo - 1]} ({entries.length})</h3>
           <div className='tablewrap'>
             <table className='tx'>
-              <thead><tr><th>Team member</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Note</th><th>Added by</th>{edit ? <th></th> : null}</tr></thead>
+              <thead><tr><th>Team member</th><th>Type</th><th>From</th><th>To</th><th>Time off</th><th>Note</th><th>Added by</th>{edit ? <th></th> : null}</tr></thead>
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id}>
