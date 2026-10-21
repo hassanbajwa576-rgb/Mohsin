@@ -8,7 +8,7 @@ import ModuleTier from './ModuleTier';
 import { PERMS, can } from '@/lib/perms';
 
 // Two-tier header. Row 1: AlphaBOLD logo, OpsTrack, account. Row 2: module switch and menu.
-export default function Nav({ user, unread = 0, lang = 'en', reviews = 0 }) {
+export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approvals = 0 }) {
   const guard = user.role === 'guard';
   const access = PERMS.map(([k]) => k).filter((k) => can(user, k));
   const who = (
@@ -34,7 +34,7 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0 }) {
           <form action={logout}><button className='btn ghost' type='submit'>Sign out</button></form>
         </div>
       </div>
-      <ModuleTier role={user.role} access={access} reviews={reviews} />
+      <ModuleTier role={user.role} access={access} reviews={reviews} approvals={approvals} />
     </header>
   );
 }

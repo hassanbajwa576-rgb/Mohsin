@@ -15,11 +15,19 @@ export default async function AppLayout({ children }) {
   const lang = await getLang();
   // Days from an Excel import that still need a decision (Sr. Ops Manager only).
   let reviews = 0;
+  let approvals = 0;
   if (can(user, 'att_import')) {
     try {
       reviews = (await q('SELECT COUNT(*)::int AS n FROM pc2_import_review WHERE resolved_at IS NULL AND kind = \'conflict\''))[0].n;
     } catch {
       reviews = 0;
+    }
+  }
+  if (user.role === 'om') {
+    try {
+      approvals = (await q("SELECT (SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int FROM pc2_expenses WHERE status IN ('submitted', 'verified')) + (SELECT COUNT(*)::int FROM pc2_visitors WHERE del_req_by IS NOT NULL) + (SELECT COUNT(*)::int FROM pc2_hk_off WHERE status = 'pending') AS n"))[0].n;
+    } catch {
+      approvals = 0;
     }
   }
   return (
@@ -30,7 +38,7 @@ export default async function AppLayout({ children }) {
           <form action={stopViewAs}><button className='btn' type='submit'>Return to my account</button></form>
         </div>
       ) : null}
-      <Nav user={user} unread={unread} lang={lang} reviews={reviews} />
+      <Nav user={user} unread={unread} lang={lang} reviews={reviews} approvals={approvals} />
       <TableLabels />
       <main className='wrap'>{children}</main>
       <footer className='foot'><b>OpsTrack</b> by AlphaBOLD | Powered by <b>Ops</b></footer>

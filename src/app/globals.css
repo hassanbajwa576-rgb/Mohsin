@@ -636,3 +636,13 @@ h1,h2,h3{text-transform:capitalize}
 
 /* Edit and Remove side by side in tables */
 td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.act .entry-act .btn{white-space:nowrap}
+
+/* Action buttons sit side by side and only wrap when the cell runs out of room (all tables) */
+@media (min-width:721px){
+  td.act .inline:not(:has(.sm)){display:inline-flex;flex-wrap:nowrap;margin:0 6px 6px 0;vertical-align:top}
+  td.act details.entry-edit{display:inline-block;vertical-align:top;margin:0 6px 6px 0}
+  td.act > .btn,td.act > a.btn{display:inline-flex;margin:0 6px 6px 0;vertical-align:top}
+  td.act .btn,td.act summary.btn{padding:6px 14px;font-size:13px;min-height:34px;line-height:1.2;white-space:nowrap;align-items:center}
+  td.act .entry-act{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+  td.act .entry-act .inline{margin:0}
+}

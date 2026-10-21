@@ -15,7 +15,7 @@ import { PERMS, ROLE_PERMS } from './perms';
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const amt = (fd) => Math.round(Number(s(fd, 'amount').replace(/,/g, '')));
 const badDate = (d) => d.length !== 10 || Number.isNaN(Date.parse(d));
-const dest = (v, d) => (['/', '/expenses', '/advances', '/accounts'].includes(v) ? v : d);
+const dest = (v, d) => (['/', '/expenses', '/advances', '/accounts', '/approvals'].includes(v) ? v : d);
 
 async function need(roles) {
   const u = await getUser();

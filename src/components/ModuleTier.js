@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 
 // Second header row: PettyTrack / AttendTrack switch, the menu of the active module, and the
 // admin links (Team, Logs, Guide) on the right.
-export default function ModuleTier({ role, access = [], reviews = 0 }) {
+export default function ModuleTier({ role, access = [], reviews = 0, approvals = 0 }) {
   const path = usePathname() || '/';
   const attend = path === '/attendance' || path.indexOf('/attendance/') === 0;
   const visit = path === '/visitors' || path.indexOf('/visitors/') === 0;
@@ -32,7 +32,7 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
   const menu = visit ? vis : guard || attend ? att : petty;
   const admin = [];
   if (!guard) {
-    if (om) admin.push(['/team', 'Team'], ['/logs', 'Audit log']);
+    if (om) admin.push(['/approvals', 'Approvals'], ['/team', 'Team'], ['/logs', 'Audit log']);
     admin.push(['/guide', 'Guide']);
   }
 
@@ -57,7 +57,7 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
         <span className='tier-sp' />
         <nav className='tier-menu admin'>
           {admin.map(([href, label]) => (
-            <Link key={href} href={href} className={on(href) ? 'on' : ''}>{label}</Link>
+            <Link key={href} href={href} className={on(href) ? 'on' : ''}>{label}{href === '/approvals' && approvals ? <span className='navbadge' title='Waiting for your decision'>{approvals}</span> : null}</Link>
           ))}
         </nav>
         </div>

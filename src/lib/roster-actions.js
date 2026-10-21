@@ -92,12 +92,13 @@ export async function decideTimeOff(fd) {
   const u = await need();
   const id = Number(s(fd, 'id'));
   const approve = s(fd, 'decision') === 'approve';
+  const to = s(fd, 'back') === '/approvals' ? '/approvals' : ROOT;
   const r = (await q(`SELECT t.id, t.kind, t.requested_by, to_char(t.from_date, 'YYYY-MM-DD') AS f, to_char(t.to_date, 'YYYY-MM-DD') AS t2, s.name FROM pc2_hk_off t JOIN pc2_hk_people s ON s.id = t.hk_id WHERE t.id = $1 AND t.status = 'pending'`, [Number.isInteger(id) ? id : 0]))[0];
-  if (!r) back(ROOT, 'That request was already handled');
+  if (!r) back(to, 'That request was already handled');
   await q(`UPDATE pc2_hk_off SET status = $1, decided_by = $2, decided_at = now() WHERE id = $3`, [approve ? 'approved' : 'declined', u.id, id]);
   await logEvent(u, 'edit', 'timeoff', id, (approve ? 'Approved' : 'Declined') + ' time off: ' + r.name + ' ' + TLABEL[r.kind] + ' ' + r.f + (r.t2 !== r.f ? ' to ' + r.t2 : ''), null, null);
   if (r.requested_by && r.requested_by !== u.id) await notifyUser(r.requested_by, 'Your time off request for ' + r.name + ' (' + r.f + (r.t2 !== r.f ? ' to ' + r.t2 : '') + ') was ' + (approve ? 'approved' : 'declined'), ROOT + '/request');
-  back(ROOT, r.name + ': request ' + (approve ? 'approved' : 'declined'), true);
+  back(to, r.name + ': request ' + (approve ? 'approved' : 'declined'), true);
 }
 
 export async function deleteTimeOff(fd) {

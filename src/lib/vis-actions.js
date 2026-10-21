@@ -143,8 +143,9 @@ export async function decideVisitorDelete(fd) {
   const u = await needOm();
   const id = Number(s(fd, 'id'));
   const approve = s(fd, 'decision') === 'approve';
+  const to = s(fd, 'back') === '/approvals' ? '/approvals' : '/visitors/log';
   const v = (await q('SELECT name, del_req_by FROM pc2_visitors WHERE id = $1 AND del_req_by IS NOT NULL', [Number.isInteger(id) ? id : 0]))[0];
-  if (!v) back('/visitors/log', 'That request was already handled');
+  if (!v) back(to, 'That request was already handled');
   if (approve) {
     await q('DELETE FROM pc2_visitors WHERE id = $1', [id]);
     await logEvent(u, 'delete', 'visitor', id, 'Approved the delete request and removed visitor record: ' + v.name, null, null);
@@ -153,5 +154,5 @@ export async function decideVisitorDelete(fd) {
     await logEvent(u, 'edit', 'visitor', id, 'Kept visitor record ' + v.name + ' (delete request declined)', null, null);
   }
   if (v.del_req_by && v.del_req_by !== u.id) await notifyUser(v.del_req_by, 'Your request to delete the visitor record of ' + v.name + ' was ' + (approve ? 'approved' : 'declined'), '/visitors');
-  back('/visitors/log', approve ? 'Record deleted' : 'Record kept', true);
+  back(to, approve ? 'Record deleted' : 'Record kept', true);
 }
