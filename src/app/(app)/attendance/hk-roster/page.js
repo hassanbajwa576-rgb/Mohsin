@@ -6,6 +6,7 @@ import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
 import { TYPES, TINFO, daysIn, validMonth, shiftMonth, monthOff, offToday, hkPeople } from '@/lib/roster';
 import { addTimeOff, deleteTimeOff, addHkPerson, removeHkPerson } from '@/lib/roster-actions';
 import Flash from '@/components/Flash';
+import HkTabs from '@/components/HkTabs';
 import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
 import ConfirmButton from '@/components/ConfirmButton';
@@ -58,13 +59,13 @@ export default async function RosterPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>HK Roster</h1>
-          <p className='muted'>Who in the housekeeping team will be off, and when (full days or a number of hours). Everyone can see it; people with HK Roster access add the team and their time off.</p>
+          <p className='muted'>Who in the housekeeping team will be off, and when (full days or a number of hours). Only the Sr. Ops Manager and the Sr. Support Officer can see and change it.</p>
         </div>
         <div className='inline'>
-          <Link href='/attendance/hk-roster/opd' className='btn'>OPD</Link>
           <a href={'/attendance/hk-roster/xlsx?' + qp()} className='btn primary'>Download Excel (.xlsx)</a>
         </div>
       </div>
+      <HkTabs active='roster' />
       <Flash sp={sp} />
 
       <div className='kpis'>

@@ -6,6 +6,7 @@ import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
 import { OPD_LIMIT, opdSummary, opdClaims } from '@/lib/hk-opd';
 import { addOpdClaim, deleteOpdClaim } from '@/lib/roster-actions';
 import Flash from '@/components/Flash';
+import HkTabs from '@/components/HkTabs';
 import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
 import ConfirmButton from '@/components/ConfirmButton';
@@ -38,10 +39,10 @@ export default async function HkOpdPage({ searchParams }) {
           <p className='muted'>Every team member has {pkr(OPD_LIMIT)} of OPD a year, from 1 January to 31 December. Unused amounts do not carry forward.</p>
         </div>
         <div className='inline'>
-          <Link href='/attendance/hk-roster' className='btn'>Roster</Link>
           <a href={'/attendance/hk-roster/opd/xlsx?' + new URLSearchParams({ y: String(year), ...(office && both ? { office } : {}) }).toString()} className='btn primary'>Download Excel (.xlsx)</a>
         </div>
       </div>
+      <HkTabs active='opd' />
       <Flash sp={sp} />
 
       <div className='card rosnav'>
