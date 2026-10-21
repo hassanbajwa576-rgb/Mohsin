@@ -25,13 +25,8 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
     if (access.includes('att_reconcile')) att.push(['/attendance/reconcile', 'Reconciliation']);
   }
 
-  // Guards have no module switch: Visitors is a link in their menu, and Attendance a link back.
   const vis = [['/visitors', 'Check In']];
   if (access.includes('vis_log')) vis.push(['/visitors/log', 'Visitor log']);
-  if (guard) {
-    vis.push(['/attendance', 'Attendance']);
-    att.push(['/visitors', 'Visitors']);
-  }
   const menu = visit ? vis : guard || attend ? att : petty;
   const admin = [];
   if (!guard) {
@@ -45,14 +40,12 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
   return (
     <div className='tier'>
       <div className='tier-in'>
-        {guard ? null : (
-          <span className='modseg' translate='no'>
-            <Link href='/' className={attend || visit ? '' : 'on'}>PettyTrack</Link>
-            <Link href='/attendance' className={attend ? 'on' : ''}>AttendTrack</Link>
-            <Link href='/visitors' className={visit ? 'on' : ''}>VisitTrack</Link>
-          </span>
-        )}
-        {guard ? null : <span className='tier-sep' />}
+        <span className='modseg' translate='no'>
+          {guard ? null : <Link href='/' className={attend || visit ? '' : 'on'}>PettyTrack</Link>}
+          <Link href='/attendance' className={attend ? 'on' : ''}>AttendTrack</Link>
+          <Link href='/visitors' className={visit ? 'on' : ''}>VisitTrack</Link>
+        </span>
+        <span className='tier-sep' />
         <div className='tier-scroll'>
         <nav className='tier-menu'>
           {menu.map(([href, label]) => (
