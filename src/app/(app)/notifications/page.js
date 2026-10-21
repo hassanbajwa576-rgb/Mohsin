@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
+import PushToggle from '@/components/PushToggle';
 
 export default async function NotificationsPage() {
   const user = await requireUser();
@@ -18,6 +19,7 @@ export default async function NotificationsPage() {
           <p className='muted'>New expenses, advances and approvals show up here as soon as they happen</p>
         </div>
       </div>
+      <PushToggle />
       <div className='card'>
         {rows.length === 0 ? <p className='muted'>You are all caught up.</p> : (
           <ul className='notes'>
