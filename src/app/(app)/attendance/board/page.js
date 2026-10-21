@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import OfficeTag from '@/components/OfficeTag';
+import DeptSelect from '@/components/DeptSelect';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import {
   ATT_ROLES, allOffices, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, activeStaff, recentEvents, groupByStaff, loadPeriods, shiftOn,
-  stateOf, sessionsOf, officeCodes, fmtTime, fmt12, fmtDay, fmtDur, todayKey, dateKey, inClassFor, outClassFor,
+  stateOf, sessionsOf, officeCodes, departments, fmtTime, fmt12, fmtDay, fmtDur, todayKey, dateKey, inClassFor, outClassFor,
 } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,8 @@ export default async function TodaysBoardPage({ searchParams }) {
   const sp = await searchParams;
   const officeSel = allOffices(user) && ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
   if (!canSeeTimes(user)) redirect('/attendance');
+  const depts = await departments();
+  const dept = depts.includes(sp.dept) ? sp.dept : '';
   const staff = await activeStaff(user);
   const codeOf = officeCodes(await q('SELECT id, code FROM pc2_offices'));
   const by = groupByStaff(await recentEvents(staff.map((x) => x.id), 3));
@@ -43,7 +46,7 @@ export default async function TodaysBoardPage({ searchParams }) {
       outAt: ss.length && ss[ss.length - 1].end ? ss[ss.length - 1].end : null,
     };
   });
-  const board = board0.filter((r) => !officeSel || r.office === officeSel);
+  const board = board0.filter((r) => (!officeSel || r.office === officeSel) && (!dept || r.dept === dept));
   const on = board.filter((r) => r.state === 'on').length;
   const br = board.filter((r) => r.state === 'break').length;
   const over = board.filter((r) => r.over).length;
@@ -60,10 +63,12 @@ export default async function TodaysBoardPage({ searchParams }) {
       {allOffices(user) ? (
         <div className='chips' style={{ marginBottom: 12 }}>
           {['', 'LHR', 'ISB'].map((o) => (
-            <Link key={o || 'all'} href={o ? '/attendance/board?office=' + o : '/attendance/board'} className={'chip' + (officeSel === o ? ' on' : '')}>{o || 'Both offices'}</Link>
+            <Link key={o || 'all'} href={'/attendance/board?' + new URLSearchParams({ ...(o ? { office: o } : {}), ...(dept ? { dept } : {}) }).toString()} className={'chip' + (officeSel === o ? ' on' : '')}>{o || 'Both offices'}</Link>
           ))}
         </div>
       ) : null}
+
+      <DeptSelect depts={depts} value={dept} hidden={{ office: officeSel }} />
 
       <div className='kpis'>
         <div className='card kpi'><span>On duty</span><b>{on}</b></div>

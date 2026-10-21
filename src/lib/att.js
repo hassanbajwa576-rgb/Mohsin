@@ -372,10 +372,10 @@ export async function dayBoard(day, office) {
 }
 
 /** People who checked in on each of the 7 days ending on the given day. */
-export async function trend(day, office) {
+export async function trend(day, office, dept = '') {
   return q(
-    `SELECT to_char(a.at AT TIME ZONE '${TZ}', 'YYYY-MM-DD') AS d, COUNT(DISTINCT a.staff_id)::int AS n FROM pc2_attendance a JOIN pc2_offices o ON o.id = a.office_id WHERE a.kind = 'in' AND a.at >= (($1::date - 6)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($1::date + 1)::timestamp AT TIME ZONE '${TZ}') ${office ? 'AND o.code = $2' : ''} GROUP BY 1 ORDER BY 1`,
-    office ? [day, office] : [day]
+    `SELECT to_char(a.at AT TIME ZONE '${TZ}', 'YYYY-MM-DD') AS d, COUNT(DISTINCT a.staff_id)::int AS n FROM pc2_attendance a JOIN pc2_offices o ON o.id = a.office_id JOIN pc2_staff s ON s.id = a.staff_id WHERE a.kind = 'in' AND a.at >= (($1::date - 6)::timestamp AT TIME ZONE '${TZ}') AND a.at < (($1::date + 1)::timestamp AT TIME ZONE '${TZ}') ${office ? 'AND o.code = $2' : ''} ${dept ? 'AND s.dept = $' + (office ? 3 : 2) : ''} GROUP BY 1 ORDER BY 1`,
+    [day, ...(office ? [office] : []), ...(dept ? [dept] : [])]
   );
 }
 

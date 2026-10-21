@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import OfficeTag from '@/components/OfficeTag';
+import DeptSelect from '@/components/DeptSelect';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices, canSeeTimes, dayBoard, trend, stateOf, fmtTime, to12, todayKey, validDate, LATE_AFTER, EARLY_BEFORE, inClassFor, outClassFor, loadPeriods, shiftOn } from '@/lib/att';
+import { ATT_ROLES, allOffices, canSeeTimes, dayBoard, trend, departments, stateOf, fmtTime, to12, todayKey, validDate, LATE_AFTER, EARLY_BEFORE, inClassFor, outClassFor, loadPeriods, shiftOn } from '@/lib/att';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +22,13 @@ export default async function AttendanceDashboard({ searchParams }) {
   const day = validDate(sp.date || '') ? sp.date : todayKey();
   // Only the Sr. OM and Sr. SO see both offices; everyone else sees their own office only.
   const office = allOffices(user) ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
-  const { staff, by } = await dayBoard(day, office);
-  const tr = await trend(day, office);
+  const depts = await departments();
+  const dept = depts.includes(sp.dept) ? sp.dept : '';
+  const all = await dayBoard(day, office);
+  const staff = all.staff.filter((s) => !dept || s.dept === dept);
+  const keep = new Set(staff.map((s) => s.id));
+  const by = new Map([...all.by].filter(([id]) => keep.has(id)));
+  const tr = await trend(day, office, dept);
 
   const periods = await loadPeriods(day, day);
   const people = staff.map((s0) => {
@@ -59,7 +65,7 @@ export default async function AttendanceDashboard({ searchParams }) {
   const tmap = Object.fromEntries(tr.map((r) => [r.d, r.n]));
   const tmax = Math.max(1, staff.length, ...days.map((d) => tmap[d] || 0));
   const offices = office ? [office] : ['LHR', 'ISB'];
-  const qs = (o) => '/attendance/dashboard?date=' + day + (o ? '&office=' + o : '');
+  const qs = (o) => '/attendance/dashboard?date=' + day + (o ? '&office=' + o : '') + (dept ? '&dept=' + encodeURIComponent(dept) : '');
 
   return (
     <>
@@ -75,8 +81,11 @@ export default async function AttendanceDashboard({ searchParams }) {
         ))}
       </div>
 
+      <DeptSelect depts={depts} value={dept} hidden={{ office, date: day }} />
+
       <form method='get' className='card filters compact'>
         {office ? <input type='hidden' name='office' value={office} /> : null}
+        {dept ? <input type='hidden' name='dept' value={dept} /> : null}
         <label>Date<input type='date' name='date' defaultValue={day} /></label>
         <button className='btn' type='submit'>Apply</button>
         <Link href={office ? '/attendance/dashboard?office=' + office : '/attendance/dashboard'} className='btn ghost'>Today</Link>
