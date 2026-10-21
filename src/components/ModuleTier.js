@@ -19,6 +19,7 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
   if (access.includes('att_view')) att.push(['/attendance/board', "Today's board"], ['/attendance/dashboard', 'Dashboard']);
   if (access.includes('att_logs')) att.push(['/attendance/logs', 'Day log']);
   if (access.includes('att_reports')) att.push(['/attendance/reports', 'Reports'], ['/attendance/analysis', 'Analysis']);
+  att.push(['/attendance/roster', 'Roster']);
   if (access.includes('att_staff')) att.push(['/attendance/staff', 'Employees']);
   else {
     if (access.includes('att_import')) att.push(['/attendance/import', 'Import']);
@@ -35,7 +36,7 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
   }
 
   // Exact match for the section home pages, prefix match for everything else.
-  const on = (href) => (href === '/' || href === '/attendance' ? path === href : path === href || path.indexOf(href + '/') === 0);
+  const on = (href) => (href === '/' || href === '/attendance' || href === '/visitors' ? path === href : path === href || path.indexOf(href + '/') === 0);
 
   return (
     <div className='tier'>
