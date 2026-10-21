@@ -339,7 +339,7 @@ export default async function AdvancesPage({ searchParams }) {
                       <td className='r nw'>{pkr(i.amount)}</td>
                       <td className='r nw'>{pkr(i.spent)}</td>
                       <td className='r nw'>{pkr(i.returned)}</td>
-                      <td className='r nw'><b style={lowCash(i.issued_to) ? { color: 'var(--bad, #b3261e)' } : undefined}>{pkr(left)}</b></td>
+                      <td className='r nw'><b style={lowCash(i.issued_to) ? { color: 'var(--bad, #b3261e)', background: '#fdeaea', padding: '1px 7px', borderRadius: 3, display: 'inline-block' } : undefined}>{pkr(left)}</b></td>
                       {manage ? (
                         <td className='act'>
                           {isOM ? (
