@@ -38,7 +38,7 @@ const ROLE_NAMES = ['Sr. OM', 'Sr. SO', 'SO'];
 // Cash in hand turns red once a holder is below 20% of the cash issued to them (cap = what each holder was given).
 const LOW = 'var(--bad, #b3261e)';
 // Red figure with a very light red wash behind it, so a low balance stands out.
-const LOWBOX = { color: LOW, background: '#fdeaea', padding: '1px 7px', borderRadius: 3, display: 'inline-block' };
+const LOWBOX = { color: LOW, background: '#fbd3d3', padding: '1px 7px', borderRadius: 3, display: 'inline-block' };
 const low = (v, cap, i) => !!cap && Number(cap[i]) > 0 && Number(v[i]) < 0.2 * Number(cap[i]);
 function Lines({ values, roles, gold, cap }) {
   if (!roles.length) return null;
