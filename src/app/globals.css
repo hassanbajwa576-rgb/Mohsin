@@ -686,3 +686,20 @@ td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.
   .modseg > .modwrap{flex:1}
   .modseg > .modwrap > a{flex:1;text-align:center;padding:8px 10px;font-size:13px}
 }
+
+/* Grouped tabs: on a touch screen every page shows as its own tab, as before. */
+.grpwrap{display:contents}
+.grptab{display:none}
+.grppop{display:contents}
+@media (hover:hover) and (pointer:fine){
+  /* With a mouse the group becomes one tab that opens its pages when you rest on it. */
+  .tier-scroll{overflow:visible}
+  .grpwrap{display:inline-flex;position:relative}
+  .tier-menu .grptab{display:inline-flex;align-items:center}
+  .tier-menu .grptab::after{content:'\25BE';font-size:9px;margin-left:5px;opacity:.55}
+  .grppop{display:none;border-radius:0 0 5px 5px;min-width:185px}
+  .grpwrap:hover > .grppop,.grpwrap:focus-within > .grppop{display:flex}
+  .tier-menu .grppop a{display:block;padding:8px 12px;font-size:13.5px;font-weight:500;color:var(--ink);white-space:nowrap;border-bottom:0;margin:0;border-radius:3px}
+  .tier-menu .grppop a:hover{background:var(--surface);color:#000;border-bottom-color:transparent}
+  .tier-menu .grppop a.on{background:#fbf1cf;color:#000;font-weight:600;border-bottom-color:transparent}
+}
