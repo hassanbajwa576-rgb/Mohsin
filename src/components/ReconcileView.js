@@ -35,6 +35,13 @@ export default function ReconcileView({ initial }) {
   const [err, setErr] = useState('');
   const [popErr, setPopErr] = useState('');
   const [busy, start] = useTransition();
+  const [lastKey, setLastKey] = useState('');
+  // Run an action and put the page back exactly where it was, so the list never jumps.
+  const keepScroll = (fn) => start(async () => {
+    const y = window.scrollY;
+    await fn();
+    requestAnimationFrame(() => window.scrollTo(0, y));
+  });
   const key = (it) => it.staff + '|' + it.day + '|' + it.kind + '|' + it.sig;
 
   const drop = (keys) => setLists((l) => Object.fromEntries(Object.entries(l).map(([s, arr]) => [s, arr.filter((it) => !keys.includes(key(it)))])));
@@ -56,11 +63,12 @@ export default function ReconcileView({ initial }) {
       setPopErr('Nothing was changed');
       return;
     }
-    start(async () => {
+    keepScroll(async () => {
       const r = await saveDay({ staff: it.staff, day: it.day, changes, removes, adds });
       if (r && r.ok) {
         setLists((l) => ({ ...l, [it.kind]: l[it.kind].map((x) => (key(x) === key(it) ? { ...x, entries: r.entries } : x)) }));
         setSaved((s) => [...s, key(it)]);
+        setLastKey(key(it));
         setOpen(null);
         setPopErr('');
         setNote('Saved for ' + it.name + ' ' + it.day + '. Check it, then press Mark reviewed.');
@@ -69,7 +77,7 @@ export default function ReconcileView({ initial }) {
   }
 
   function review(it) {
-    start(async () => {
+    keepScroll(async () => {
       const r = await markReviewed({ staff: it.staff, day: it.day, kind: it.kind, sig: it.sig });
       if (r && r.ok) {
         drop([key(it)]);
@@ -80,7 +88,7 @@ export default function ReconcileView({ initial }) {
   }
 
   function reviewAll(list) {
-    start(async () => {
+    keepScroll(async () => {
       const items = list.slice(0, 300).map((it) => ({ staff: it.staff, day: it.day, kind: it.kind, sig: it.sig }));
       const r = await markReviewedMany(items);
       if (r && r.ok) {
@@ -108,7 +116,7 @@ export default function ReconcileView({ initial }) {
                     <thead><tr><th>Employee</th><th>Date</th><th>What</th><th></th></tr></thead>
                     <tbody>
                       {list.slice(0, 300).map((it) => (
-                        <tr key={key(it)}>
+                        <tr key={key(it)} className={lastKey === key(it) ? 'justdone' : ''}>
                           <td className='c-title'><span className='pill'>{it.office}</span> <b>{it.name}</b></td>
                           <td className='nw c-meta'>{it.day}</td>
                           <td className='c-meta'>{it.text}{saved.includes(key(it)) ? <div className='impok'>Saved - check it, then mark reviewed</div> : null}</td>

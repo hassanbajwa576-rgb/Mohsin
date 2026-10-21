@@ -596,3 +596,5 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .modalline input,.modalline select{width:100%;min-width:0}
 .modalline.gone{opacity:.45;text-decoration:line-through}
 @media (max-width:560px){.modalline{grid-template-columns:1fr 1fr}}
+
+.justdone td{background:#eaf5ea;transition:background .6s}
