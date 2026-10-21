@@ -25,14 +25,14 @@ export default async function VisitorsPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Visitors</h1>
+          <h1>Visitor Entry</h1>
           <p className='muted'>Record who comes to the office, who they meet, and when they leave.</p>
         </div>
       </div>
       <Flash sp={sp} />
 
       <div className='card'>
-        <h3 style={{ marginTop: 0 }}>Check in a visitor</h3>
+        <h3 style={{ marginTop: 0 }}>New visitor</h3>
         <form action={addVisitor} className='form'>
           <label>Name<input name='name' required maxLength={80} placeholder='Visitor name' autoComplete='off' /></label>
           <label>Phone<input name='phone' type='tel' maxLength={30} placeholder='03xx xxxxxxx' autoComplete='off' /></label>
@@ -55,7 +55,7 @@ export default async function VisitorsPage({ searchParams }) {
           <label>Date in<input type='date' name='date' defaultValue={today} required /></label>
           <label>Time in<input type='time' name='time' defaultValue={nowTime} required /></label>
           <label className='wide'>Purpose / notes<input name='purpose' maxLength={200} placeholder='For example: interview for the Marketing role' autoComplete='off' /></label>
-          <button className='btn primary' type='submit'>Check in</button>
+          <button className='btn primary' type='submit'>Record visitor in</button>
         </form>
       </div>
 

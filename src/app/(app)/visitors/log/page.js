@@ -34,7 +34,7 @@ export default async function VisitorLogPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Visitor log</h1>
+          <h1>Visitor Log</h1>
           <p className='muted'>Everyone who visited, who they met, and how long they stayed.</p>
         </div>
         <div className='inline'>

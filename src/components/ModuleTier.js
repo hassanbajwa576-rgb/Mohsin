@@ -25,8 +25,8 @@ export default function ModuleTier({ role, access = [], reviews = 0 }) {
     if (access.includes('att_reconcile')) att.push(['/attendance/reconcile', 'Reconciliation']);
   }
 
-  const vis = [['/visitors', 'Check In']];
-  if (access.includes('vis_log')) vis.push(['/visitors/log', 'Visitor log']);
+  const vis = [['/visitors', 'Visitor Entry']];
+  if (access.includes('vis_log')) vis.push(['/visitors/log', 'Visitor Log']);
   const menu = visit ? vis : guard || attend ? att : petty;
   const admin = [];
   if (!guard) {
