@@ -21,6 +21,14 @@ export default function Bell({ initial }) {
         seen.current = true;
         prev.current = j.unread;
         setCount(j.unread);
+        try {
+          if ('setAppBadge' in navigator) {
+            if (j.unread > 0) navigator.setAppBadge(j.unread);
+            else if ('clearAppBadge' in navigator) navigator.clearAppBadge();
+          }
+        } catch {
+          // the badge is a nicety
+        }
       } catch {
         // network hiccup - try again on the next tick
       }

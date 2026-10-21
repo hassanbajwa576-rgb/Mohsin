@@ -6,6 +6,7 @@ import { q } from '@/lib/db';
 import { can } from '@/lib/perms';
 import { getLang } from '@/lib/lang';
 import { stopViewAs } from '@/lib/actions';
+import PushPrompt from '@/components/PushPrompt';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,7 @@ export default async function AppLayout({ children }) {
       ) : null}
       <Nav user={user} unread={unread} lang={lang} reviews={reviews} approvals={approvals} />
       <TableLabels />
+      <PushPrompt />
       <main className='wrap'>{children}</main>
       <footer className='foot'><b>OpsTrack</b> by AlphaBOLD | Powered by <b>Ops</b></footer>
     </>

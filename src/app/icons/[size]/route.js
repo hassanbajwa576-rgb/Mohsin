@@ -20,7 +20,7 @@ export async function GET(_req, { params }) {
           letterSpacing: -2,
         }}
       >
-        PT
+        OT
       </div>
     ),
     { width: px, height: px }

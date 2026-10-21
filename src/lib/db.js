@@ -79,6 +79,8 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS pc2_holidays (day DATE PRIMARY KEY, name TEXT NOT NULL, created_by INTEGER)`,
   `CREATE TABLE IF NOT EXISTS pc2_hk_opd (id SERIAL PRIMARY KEY, hk_id INTEGER NOT NULL REFERENCES pc2_hk_people(id) ON DELETE CASCADE, claim_date DATE NOT NULL, amount NUMERIC(12,2) NOT NULL, note TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS pc2_hk_opd_date ON pc2_hk_opd (claim_date)`,
+  `CREATE TABLE IF NOT EXISTS pc2_push_subs (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, endpoint TEXT NOT NULL UNIQUE, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE TABLE IF NOT EXISTS pc2_push_keys (id INTEGER PRIMARY KEY, pub TEXT NOT NULL, priv TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS pc2_review_marks (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL, day TEXT NOT NULL, kind TEXT NOT NULL, sig TEXT NOT NULL, marked_by INTEGER, marked_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE UNIQUE INDEX IF NOT EXISTS pc2_review_marks_key ON pc2_review_marks (staff_id, day, kind, sig)`,
   `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS split_group TEXT`,
@@ -95,7 +97,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-21-7';
+const SCHEMA_VERSION = '2026-10-22-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
