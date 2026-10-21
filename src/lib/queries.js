@@ -68,6 +68,8 @@ export async function fundSummary(opts = {}) {
       key, label: FUNDS[key], received, issued: toSso + soByOm, spent, sent,
       unsent: spentCum - sentCum, outstanding: receivedCum - sentCum - retCum, returned,
       pool, ssoCash, soCash, held: ssoCash + soCash, remaining: receivedCum - spentCum - retCum,
+      // Total cash each holder was given (Sr. OM pool, Sr. SO, Support Officers), to tell when cash in hand runs low.
+      capWho: [recvOm, recvSso + toSso, soByOm + soBySso],
     };
   });
   const zero = { returned: 0, received: 0, issued: 0, spent: 0, sent: 0, unsent: 0, outstanding: 0, pool: 0, ssoCash: 0, soCash: 0, held: 0, remaining: 0 };

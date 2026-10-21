@@ -35,12 +35,15 @@ const n0 = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
 
 // Role names go under the fund (gold); the amounts go under each figure (black) on the same lines.
 const ROLE_NAMES = ['Sr. OM', 'Sr. SO', 'SO'];
-function Lines({ values, roles, gold }) {
+// Cash in hand turns red once a holder is below 20% of the cash issued to them (cap = what each holder was given).
+const LOW = 'var(--bad, #b3261e)';
+const low = (v, cap, i) => !!cap && Number(cap[i]) > 0 && Number(v[i]) < 0.2 * Number(cap[i]);
+function Lines({ values, roles, gold, cap }) {
   if (!roles.length) return null;
   return (
     <div style={{ fontSize: 11.5, fontWeight: 400, lineHeight: 1.6 }}>
       {roles.map((i) => (
-        <div key={i} style={gold ? { color: 'var(--gold-d)', fontWeight: 600 } : { color: 'var(--gold-d)', fontWeight: 500 }}>
+        <div key={i} style={gold ? { color: 'var(--gold-d)', fontWeight: 600 } : { color: low(values, cap, i) ? LOW : 'var(--gold-d)', fontWeight: 500 }}>
           {gold ? ROLE_NAMES[i] : n0(values[i])}
         </div>
       ))}
@@ -58,6 +61,7 @@ function AdjustedPosition({ rows, waiting }) {
       cash: f.remaining,
       net: f.outstanding,
       cashWho: [f.pool, f.ssoCash, f.soCash],
+      capWho: f.capWho,
       drafts: 0, draftsWho: who(f.key, 'draft'),
       review: 0, reviewWho: who(f.key, 'review'),
       ready: 0, readyWho: who(f.key, 'ready'),
@@ -79,7 +83,7 @@ function AdjustedPosition({ rows, waiting }) {
     review: data.reduce((a, r) => a + r.review, 0),
     ready: data.reduce((a, r) => a + r.ready, 0),
     net: data.reduce((a, r) => a + r.net, 0),
-    cashWho: sumArr('cashWho'), draftsWho: sumArr('draftsWho'), reviewWho: sumArr('reviewWho'), readyWho: sumArr('readyWho'), totWho: sumArr('totWho'),
+    cashWho: sumArr('cashWho'), capWho: sumArr('capWho'), draftsWho: sumArr('draftsWho'), reviewWho: sumArr('reviewWho'), readyWho: sumArr('readyWho'), totWho: sumArr('totWho'),
   };
   const Row = ({ r, bold, label }) => {
     const roles = rolesOf(r);
@@ -89,7 +93,7 @@ function AdjustedPosition({ rows, waiting }) {
         <td>{bold ? <b>{label}</b> : <b>{r.label}</b>}<Lines roles={roles} gold values={[]} /></td>
         <td className='r nw' style={st}>{pkr(r.ready)}<Lines roles={roles} values={r.readyWho} /></td>
         <td className='r nw' style={st}>{pkr(r.drafts)}<Lines roles={roles} values={r.draftsWho} /></td>
-        <td className='r nw' style={st}>{pkr(r.cash)}<Lines roles={roles} values={r.cashWho} /></td>
+        <td className='r nw' style={st}>{pkr(r.cash)}<Lines roles={roles} values={r.cashWho} cap={r.capWho} /></td>
         <td className='r nw'><b>{pkr(r.net)}</b><Lines roles={roles} values={r.totWho} /></td>
       </tr>
     );
@@ -98,11 +102,11 @@ function AdjustedPosition({ rows, waiting }) {
   const isZero = (r) => !Number(r.ready) && !Number(r.drafts) && !Number(r.cash) && !Number(r.net);
   const openFunds = data.filter((r) => !isZero(r));
   const emptyFunds = data.filter(isZero);
-  const Tile = ({ label, amt, who, roles, gold }) => (
+  const Tile = ({ label, amt, who, roles, gold, cap }) => (
     <div className={'adjtile' + (gold ? ' gold' : '')}>
       <small>{label}</small>
       <b>{pkr(amt)}</b>
-      {roles.map((i) => <i key={i}>{ROLE_NAMES[i]} {n0(who[i])}</i>)}
+      {roles.map((i) => <i key={i} style={cap && low(who, cap, i) ? { color: LOW } : undefined}>{ROLE_NAMES[i]} {n0(who[i])}</i>)}
     </div>
   );
   const FundCard = ({ r, title, tot }) => {
@@ -113,7 +117,7 @@ function AdjustedPosition({ rows, waiting }) {
         <div className='adjgrid'>
           <Tile label='Ready for Accounts' amt={r.ready} who={r.readyWho} roles={roles} />
           <Tile label='Not yet approved' amt={r.drafts} who={r.draftsWho} roles={roles} />
-          <Tile label='Cash in hand' amt={r.cash} who={r.cashWho} roles={roles} />
+          <Tile label='Cash in hand' amt={r.cash} who={r.cashWho} roles={roles} cap={r.capWho} />
           <Tile label='Advances Outstanding' amt={r.net} who={r.totWho} roles={roles} gold />
         </div>
       </div>
@@ -167,7 +171,7 @@ async function SoDashboard({ user, sp }) {
         <div className='card kpi'><span>Advances</span><b>{pkr(acct.advances)}</b></div>
         <div className='card kpi alt'><span>Expenses</span><b>{pkr(acct.spent)}</b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
         <div className='card kpi'><span>Advances Outstanding</span><b>{pkr(acct.outstanding)}</b><small>Reduces only when you submit your expenses</small></div>
-        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b>{pkr(acct.cash)}</b></div>
+        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b style={acct.advances > 0 && acct.cash < 0.2 * acct.advances ? { color: LOW } : undefined}>{pkr(acct.cash)}</b></div>
       </div>
       {acct.draft > 0 ? (
         <form action={submitDrafts} className='card submitbar'>
@@ -191,7 +195,7 @@ async function SoDashboard({ user, sp }) {
                   <tr key={i.id}>
                     <td>{i.id}</td><td className='nw'>{i.issued_on}</td><td>{FUNDS[i.fund]}</td>
                     <td className='r nw'>{pkr(i.amount)}</td><td className='r nw'>{pkr(i.spent)}</td><td className='r nw'>{pkr(i.returned)}</td>
-                    <td className='r nw'><b>{pkr(i.amount - i.returned - Number(i.spent))}</b></td>
+                    <td className='r nw'><b style={acct.advances > 0 && acct.cash < 0.2 * acct.advances ? { color: LOW } : undefined}>{pkr(i.amount - i.returned - Number(i.spent))}</b></td>
                   </tr>
                 ))}
               </tbody>

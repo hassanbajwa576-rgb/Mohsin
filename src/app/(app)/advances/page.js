@@ -86,6 +86,14 @@ export default async function AdvancesPage({ searchParams }) {
     if (fStatus === 'returned' && !(i.returned > 0)) return false;
     return true;
   });
+  // A person's In hand figures turn red once their cash in hand is below 20% of everything issued to them.
+  const given = {};
+  const kept = {};
+  issues.forEach((i) => {
+    given[i.issued_to] = (given[i.issued_to] || 0) + i.amount;
+    kept[i.issued_to] = (kept[i.issued_to] || 0) + (i.amount - i.returned - Number(i.spent));
+  });
+  const lowCash = (who) => given[who] > 0 && kept[who] < 0.2 * given[who];
   const tIssued = shown.reduce((a, i) => a + i.amount, 0);
   const tSpent = shown.reduce((a, i) => a + Number(i.spent), 0);
   const tReturned = shown.reduce((a, i) => a + i.returned, 0);
@@ -331,7 +339,7 @@ export default async function AdvancesPage({ searchParams }) {
                       <td className='r nw'>{pkr(i.amount)}</td>
                       <td className='r nw'>{pkr(i.spent)}</td>
                       <td className='r nw'>{pkr(i.returned)}</td>
-                      <td className='r nw'><b>{pkr(left)}</b></td>
+                      <td className='r nw'><b style={lowCash(i.issued_to) ? { color: 'var(--bad, #b3261e)' } : undefined}>{pkr(left)}</b></td>
                       {manage ? (
                         <td className='act'>
                           {isOM ? (
