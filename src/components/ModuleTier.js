@@ -3,7 +3,20 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-// Second header row: PettyTrack / AttendTrack switch, the menu of the active module, and the
+// One module in the switch. Resting the mouse on it (or tabbing to it) drops its pages down;
+// tapping it still opens the module, so phones behave as before.
+function Mod({ href, label, active, items, on }) {
+  return (
+    <span className='modwrap'>
+      <Link href={href} className={active ? 'on' : ''} aria-haspopup='true'>{label}</Link>
+      <span className='modpop' role='menu' aria-label={label + ' pages'}>
+        {items.map(([h, l]) => <Link key={h} href={h} role='menuitem' className={on(h) ? 'on' : ''}>{l}</Link>)}
+      </span>
+    </span>
+  );
+}
+
+// Second header row: PettyTrack / AttendTrack / VisitTrack switch, the menu of the active module, and the
 // admin links (Team, Logs, Guide) on the right.
 export default function ModuleTier({ role, access = [], reviews = 0, approvals = 0 }) {
   const path = usePathname() || '/';
@@ -43,9 +56,9 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
     <div className='tier'>
       <div className='tier-in'>
         <span className='modseg' translate='no'>
-          {guard ? null : <Link href='/' className={attend || visit ? '' : 'on'}>PettyTrack</Link>}
-          <Link href='/attendance' className={attend ? 'on' : ''}>AttendTrack</Link>
-          <Link href='/visitors' className={visit ? 'on' : ''}>VisitTrack</Link>
+          {guard ? null : <Mod href='/' label='PettyTrack' active={!attend && !visit} items={petty} on={on} />}
+          <Mod href='/attendance' label='AttendTrack' active={attend} items={att} on={on} />
+          <Mod href='/visitors' label='VisitTrack' active={visit} items={vis} on={on} />
         </span>
         <span className='tier-sep' />
         <div className='tier-scroll'>

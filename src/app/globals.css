@@ -667,3 +667,22 @@ td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.
   .toplinks-m a{padding:7px 12px;font-size:14px;font-weight:500;color:var(--slate);border:1px solid var(--line);border-radius:4px;background:#fff}
   .tier-menu.admin{display:none}
 }
+
+/* Module switch: resting the mouse on a module drops its pages down. Tapping still opens the module. */
+.modseg{overflow:visible}
+.modwrap{position:relative;display:flex}
+.modseg > .modwrap > a{border-radius:0}
+.modseg > .modwrap:first-child > a{border-radius:3px 0 0 3px}
+.modseg > .modwrap:last-child > a{border-radius:0 3px 3px 0}
+.modpop{display:none}
+@media (hover:hover) and (pointer:fine){
+  .modpop{position:absolute;top:100%;left:0;z-index:70;min-width:200px;flex-direction:column;padding:5px;background:#fff;border:1px solid var(--line);border-radius:0 5px 5px 5px;box-shadow:0 12px 28px rgba(0,0,0,.15)}
+  .modwrap:hover > .modpop,.modwrap:focus-within > .modpop{display:flex}
+  .modseg > .modwrap > .modpop > a{display:block;flex:none;padding:8px 12px;font-size:13.5px;font-weight:500;color:var(--ink);white-space:nowrap;text-align:left;border-radius:3px;background:none}
+  .modseg > .modwrap > .modpop > a:hover{background:var(--surface);color:#000}
+  .modseg > .modwrap > .modpop > a.on{background:#fbf1cf;color:#000;font-weight:600}
+}
+@media (max-width:700px){
+  .modseg > .modwrap{flex:1}
+  .modseg > .modwrap > a{flex:1;text-align:center;padding:8px 10px;font-size:13px}
+}
