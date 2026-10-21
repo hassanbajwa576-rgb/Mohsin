@@ -45,8 +45,8 @@ function Lines({ values, roles, gold, cap }) {
   return (
     <div style={{ fontSize: 11.5, fontWeight: 400, lineHeight: 1.6 }}>
       {roles.map((i) => (
-        <div key={i} style={gold ? { color: 'var(--gold-d)', fontWeight: 600 } : low(values, cap, i) ? { ...LOWBOX, fontWeight: 600 } : { color: 'var(--gold-d)', fontWeight: 500 }}>
-          {gold ? ROLE_NAMES[i] : n0(values[i])}
+        <div key={i} style={gold ? { color: 'var(--gold-d)', fontWeight: 600 } : low(values, cap, i) ? { color: LOW, fontWeight: 600 } : { color: 'var(--gold-d)', fontWeight: 500 }}>
+          {!gold && low(values, cap, i) ? <span style={{ background: '#fbd3d3', padding: '0 6px', borderRadius: 3 }}>{n0(values[i])}</span> : gold ? ROLE_NAMES[i] : n0(values[i])}
         </div>
       ))}
     </div>
@@ -108,7 +108,7 @@ function AdjustedPosition({ rows, waiting }) {
     <div className={'adjtile' + (gold ? ' gold' : '')}>
       <small>{label}</small>
       <b>{pkr(amt)}</b>
-      {roles.map((i) => <i key={i} style={cap && low(who, cap, i) ? { ...LOWBOX, fontStyle: 'normal' } : undefined}>{ROLE_NAMES[i]} {n0(who[i])}</i>)}
+      {roles.map((i) => <i key={i} style={cap && low(who, cap, i) ? { color: LOW } : undefined}>{ROLE_NAMES[i]} {cap && low(who, cap, i) ? <span style={{ background: '#fbd3d3', padding: '0 6px', borderRadius: 3 }}>{n0(who[i])}</span> : n0(who[i])}</i>)}
     </div>
   );
   const FundCard = ({ r, title, tot }) => {
