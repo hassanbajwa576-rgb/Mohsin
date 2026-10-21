@@ -25,6 +25,14 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approv
           <span className='sep' />
           <span className='brand-name' translate='no'>Ops<em>Track</em></span>
         </Link>
+        {guard ? null : (
+          <nav className='toplinks' aria-label='Manager links'>
+            {user.role === 'om' ? <Link href='/approvals'>Approvals{approvals ? <span className='navbadge'>{approvals}</span> : null}</Link> : null}
+            {user.role === 'om' ? <Link href='/team'>Team</Link> : null}
+            {user.role === 'om' ? <Link href='/logs'>Audit Log</Link> : null}
+            <Link href='/guide'>Guide</Link>
+          </nav>
+        )}
         <div className='who'>
           <LangToggle lang={lang} />
           {guard ? null : <Bell initial={unread} />}

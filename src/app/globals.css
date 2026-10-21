@@ -646,3 +646,12 @@ td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.
   td.act .entry-act{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
   td.act .entry-act .inline{margin:0}
 }
+
+/* Manager links (Approvals, Team, Audit Log, Guide) live in the top bar on wide screens so the menu row has room for the tabs */
+.toplinks{display:none}
+@media (min-width:901px){
+  .toplinks{display:flex;align-items:center;gap:20px;margin-left:auto;margin-right:22px;font-size:14px;font-weight:500}
+  .toplinks a{color:var(--slate);white-space:nowrap}
+  .toplinks a:hover{color:var(--ink)}
+  .tier-menu.admin,.tier-sp{display:none}
+}
