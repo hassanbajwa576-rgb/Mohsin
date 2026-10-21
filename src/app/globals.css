@@ -633,3 +633,6 @@ table.rost th.lowcov{background:#f4b9b9;color:#7a1010}
 
 /* Headings read in Title Case across the whole app */
 h1,h2,h3{text-transform:capitalize}
+
+/* Edit and Remove side by side in tables */
+td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.act .entry-act .btn{white-space:nowrap}

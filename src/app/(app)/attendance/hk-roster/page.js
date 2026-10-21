@@ -179,6 +179,7 @@ export default async function RosterPage({ searchParams }) {
                       <td className='nw c-meta'>{p.joined_on || '-'}</td>
                       <td className='nw c-meta'>{p.birthday ? p.birthday.slice(5) : '-'}</td>
                       <td className='act'>
+                        <div className='entry-act'>
                         <details className='entry-edit'>
                           <summary className='btn'>Edit</summary>
                           <form action={updateHkPerson} className='entry-edit-form'>
@@ -195,6 +196,7 @@ export default async function RosterPage({ searchParams }) {
                           <input type='hidden' name='id' value={p.id} />
                           <ConfirmButton className='btn ghost' message='Remove this person from the Support team?'>Remove</ConfirmButton>
                         </form>
+                        </div>
                       </td>
                     </tr>
                   ))}
