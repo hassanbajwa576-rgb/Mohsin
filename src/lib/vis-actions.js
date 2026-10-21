@@ -6,6 +6,7 @@ import { getUser } from './auth';
 import { logEvent } from './audit';
 import { ATT_ROLES, allOffices, validDate, validTime } from './att';
 import { can } from './perms';
+import { notifyRoles, notifyUser } from './notify';
 import { VLABEL, canEditVisitor, V_COLS, V_FROM } from './visitors';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
@@ -19,7 +20,7 @@ async function need() {
 }
 async function needOm() {
   const u = await need();
-  if (u.role !== 'om' && !can(u, 'vis_log')) redirect('/visitors');
+  if (u.role !== 'om') redirect('/visitors');
   return u;
 }
 function back(path, msg, ok) {
@@ -109,4 +110,48 @@ export async function deleteVisitor(fd) {
   await q('DELETE FROM pc2_visitors WHERE id = $1', [id]);
   await logEvent(u, 'delete', 'visitor', id, 'Deleted visitor record: ' + v.name, null, null);
   back('/visitors/log', 'Visitor record deleted', true);
+}
+
+// Anyone who may edit a record can ask for it to be deleted; the Sr. Ops Manager approves or keeps it.
+export async function requestVisitorDelete(fd) {
+  const u = await need();
+  const id = Number(s(fd, 'id'));
+  const reason = s(fd, 'reason').slice(0, 200);
+  const here = '/visitors/edit?id=' + id;
+  const v = (await q(`SELECT ${V_COLS} ${V_FROM} WHERE v.id = $1`, [Number.isInteger(id) ? id : 0]))[0];
+  if (!v) back('/visitors', 'Visitor not found');
+  if (!canEditVisitor(u, v)) back('/visitors', 'You can only ask to delete a visitor you checked in yourself within 36 hours');
+  if (!reason) back(here, 'Write a short reason for the delete request');
+  await q('UPDATE pc2_visitors SET del_req_by = $1, del_req_at = now(), del_reason = $2 WHERE id = $3', [u.id, reason, id]);
+  await logEvent(u, 'edit', 'visitor', id, 'Asked to delete visitor record: ' + v.name + ' (' + reason + ')', null, null);
+  await notifyRoles(['om'], u.name + ' asked to delete the visitor record of ' + v.name + ': ' + reason, '/visitors/log', u.id);
+  back('/visitors', 'Delete request sent to the Sr. Ops Manager', true);
+}
+
+export async function cancelVisitorDelete(fd) {
+  const u = await need();
+  const id = Number(s(fd, 'id'));
+  const v = (await q('SELECT name, del_req_by FROM pc2_visitors WHERE id = $1 AND del_req_by IS NOT NULL', [Number.isInteger(id) ? id : 0]))[0];
+  if (!v) back('/visitors', 'No delete request found');
+  if (u.role !== 'om' && v.del_req_by !== u.id) back('/visitors', 'Only the person who asked can cancel the request');
+  await q('UPDATE pc2_visitors SET del_req_by = NULL, del_req_at = NULL, del_reason = NULL WHERE id = $1', [id]);
+  back(u.role === 'om' ? '/visitors/log' : '/visitors', 'Delete request cancelled', true);
+}
+
+// Sr. Ops Manager: approve (the record is deleted) or keep the record.
+export async function decideVisitorDelete(fd) {
+  const u = await needOm();
+  const id = Number(s(fd, 'id'));
+  const approve = s(fd, 'decision') === 'approve';
+  const v = (await q('SELECT name, del_req_by FROM pc2_visitors WHERE id = $1 AND del_req_by IS NOT NULL', [Number.isInteger(id) ? id : 0]))[0];
+  if (!v) back('/visitors/log', 'That request was already handled');
+  if (approve) {
+    await q('DELETE FROM pc2_visitors WHERE id = $1', [id]);
+    await logEvent(u, 'delete', 'visitor', id, 'Approved the delete request and removed visitor record: ' + v.name, null, null);
+  } else {
+    await q('UPDATE pc2_visitors SET del_req_by = NULL, del_req_at = NULL, del_reason = NULL WHERE id = $1', [id]);
+    await logEvent(u, 'edit', 'visitor', id, 'Kept visitor record ' + v.name + ' (delete request declined)', null, null);
+  }
+  if (v.del_req_by && v.del_req_by !== u.id) await notifyUser(v.del_req_by, 'Your request to delete the visitor record of ' + v.name + ' was ' + (approve ? 'approved' : 'declined'), '/visitors');
+  back('/visitors/log', approve ? 'Record deleted' : 'Record kept', true);
 }

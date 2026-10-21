@@ -4,8 +4,8 @@ import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey, validDate, fmt12, fmtDay, fmtDur } from '@/lib/att';
 import { addDay } from '@/lib/att-import';
-import { VTYPES, VLABEL, visitorRows } from '@/lib/visitors';
-import { deleteVisitor } from '@/lib/vis-actions';
+import { VTYPES, VLABEL, visitorRows, pendingDeletes } from '@/lib/visitors';
+import { deleteVisitor, decideVisitorDelete } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import ConfirmButton from '@/components/ConfirmButton';
@@ -24,6 +24,7 @@ export default async function VisitorLogPage({ searchParams }) {
   const vtype = VLABEL[sp.vtype] ? sp.vtype : '';
   const text = String(sp.q || '').trim().slice(0, 60);
   const rows = await visitorRows({ from, to, office, vtype, text });
+  const pending = user.role === 'om' ? await pendingDeletes() : [];
   const done = rows.filter((v) => v.out_ms);
   const avg = done.length ? done.reduce((a, v) => a + (Number(v.out_ms) - Number(v.in_ms)), 0) / done.length : 0;
   const qs = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(vtype ? { vtype } : {}), ...(text ? { q: text } : {}) }).toString();
@@ -64,6 +65,33 @@ export default async function VisitorLogPage({ searchParams }) {
         <Link href='/visitors/log' className='btn ghost'>Reset</Link>
       </form>
 
+      {pending.length ? (
+        <div className='card'>
+          <h3 style={{ marginTop: 0 }}>Delete requests ({pending.length})</h3>
+          <div className='tablewrap'>
+            <table className='tx'>
+              <thead><tr><th>Visitor</th><th>Requested by</th><th>Reason</th><th></th></tr></thead>
+              <tbody>
+                {pending.map((v) => (
+                  <tr key={v.id}>
+                    <td className='c-title'><b>{v.name}</b><div className='muted'>{fmtDay(v.in_ms)}, {fmt12(v.in_ms)}</div></td>
+                    <td className='c-meta'>{v.req_name}</td>
+                    <td className='c-meta'>{v.del_reason}</td>
+                    <td className='act'>
+                      <form action={decideVisitorDelete} className='inline'>
+                        <input type='hidden' name='id' value={v.id} />
+                        <button name='decision' value='approve' className='btn bad' type='submit'>Approve delete</button>
+                        <button name='decision' value='keep' className='btn' type='submit'>Keep record</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
       <div className='kpis'>
         <div className='card kpi'><span>Visitors</span><b>{rows.length}</b></div>
         <div className='card kpi alt'><span>Still inside</span><b>{rows.length - done.length}</b></div>
@@ -79,7 +107,7 @@ export default async function VisitorLogPage({ searchParams }) {
                 {rows.map((v) => (
                   <tr key={v.id}>
                     <td className='nw c-meta'>{fmtDay(v.in_ms)}</td>
-                    <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.company ? <div className='muted'>{v.company}</div> : null}{v.phone ? <div className='muted'>{v.phone}</div> : null}</td>
+                    <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.del_req_by ? <div className='over-t'>Delete requested by {v.req_name}</div> : null}{v.company ? <div className='muted'>{v.company}</div> : null}{v.phone ? <div className='muted'>{v.phone}</div> : null}</td>
                     <td className='c-meta'>{VLABEL[v.vtype]}</td>
                     <td className='c-meta'>{v.host || '-'}</td>
                     <td className='nw c-meta'>{fmt12(v.in_ms)}</td>
@@ -87,14 +115,12 @@ export default async function VisitorLogPage({ searchParams }) {
                     <td className='nw c-meta'>{v.out_ms ? fmtDur(Number(v.out_ms) - Number(v.in_ms)) : '-'}</td>
                     <td className='c-meta'>{v.purpose || ''}{v.badge ? <div className='muted'>Badge {v.badge}</div> : null}</td>
                     <td className='act'>
-                      {true ? (
-                        <>
-                          <Link className='btn' href={'/visitors/edit?id=' + v.id}>Edit</Link>
-                          <form action={deleteVisitor} className='inline'>
-                            <input type='hidden' name='id' value={v.id} />
-                            <ConfirmButton className='btn ghost' message='Delete this visitor record?'>Delete</ConfirmButton>
-                          </form>
-                        </>
+                      <Link className='btn' href={'/visitors/edit?id=' + v.id}>Edit</Link>
+                      {user.role === 'om' ? (
+                        <form action={deleteVisitor} className='inline'>
+                          <input type='hidden' name='id' value={v.id} />
+                          <ConfirmButton className='btn ghost' message='Delete this visitor record?'>Delete</ConfirmButton>
+                        </form>
                       ) : null}
                     </td>
                   </tr>

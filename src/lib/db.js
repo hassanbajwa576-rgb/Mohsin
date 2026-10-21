@@ -61,6 +61,9 @@ const DDL = [
   `CREATE INDEX IF NOT EXISTS pc2_import_review_open ON pc2_import_review (resolved_at)`,
   `CREATE TABLE IF NOT EXISTS pc2_visitors (id SERIAL PRIMARY KEY, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', company TEXT NOT NULL DEFAULT '', vtype TEXT NOT NULL, host TEXT NOT NULL DEFAULT '', purpose TEXT NOT NULL DEFAULT '', badge TEXT NOT NULL DEFAULT '', in_at TIMESTAMPTZ NOT NULL, out_at TIMESTAMPTZ, entered_by INTEGER, out_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS pc2_visitors_in ON pc2_visitors (in_at)`,
+  `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS del_req_by INTEGER`,
+  `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS del_req_at TIMESTAMPTZ`,
+  `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS del_reason TEXT`,
   `CREATE TABLE IF NOT EXISTS pc2_review_marks (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL, day TEXT NOT NULL, kind TEXT NOT NULL, sig TEXT NOT NULL, marked_by INTEGER, marked_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE UNIQUE INDEX IF NOT EXISTS pc2_review_marks_key ON pc2_review_marks (staff_id, day, kind, sig)`,
   `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS split_group TEXT`,
@@ -77,7 +80,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-21-1';
+const SCHEMA_VERSION = '2026-10-21-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

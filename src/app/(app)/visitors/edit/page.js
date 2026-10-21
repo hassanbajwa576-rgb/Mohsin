@@ -6,7 +6,7 @@ import { ATT_ROLES, dateKey, fmtTime } from '@/lib/att';
 import { can } from '@/lib/perms';
 import { allOffices } from '@/lib/att';
 import { VTYPES, V_COLS, V_FROM, canEditVisitor } from '@/lib/visitors';
-import { editVisitor } from '@/lib/vis-actions';
+import { editVisitor, requestVisitorDelete, cancelVisitorDelete } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
@@ -39,6 +39,25 @@ export default async function EditVisitorPage({ searchParams }) {
         <button className='btn primary' type='submit'>Save</button>
         <Link href={back} className='btn ghost'>Cancel</Link>
       </form>
+
+      {user.role !== 'om' ? (
+        <div className='card'>
+          <h3 style={{ marginTop: 0 }}>Delete this record</h3>
+          {v.del_req_by ? (
+            <>
+              <p className='muted'>Delete requested by {v.req_name || 'someone'}: {v.del_reason}. Waiting for the Sr. Ops Manager to approve.</p>
+              <form action={cancelVisitorDelete}><input type='hidden' name='id' value={v.id} /><button className='btn' type='submit'>Cancel the request</button></form>
+            </>
+          ) : (
+            <form action={requestVisitorDelete} className='form'>
+              <input type='hidden' name='id' value={v.id} />
+              <label className='wide'>Reason<input name='reason' maxLength={200} placeholder='Why should this record be deleted?' required /></label>
+              <p className='muted wide'>The record is only deleted after the Sr. Ops Manager approves.</p>
+              <button className='btn' type='submit'>Ask to delete</button>
+            </form>
+          )}
+        </div>
+      ) : null}
     </>
   );
 }

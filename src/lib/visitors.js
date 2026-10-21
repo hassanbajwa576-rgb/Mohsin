@@ -15,7 +15,7 @@ export const VTYPES = [
 export const VLABEL = Object.fromEntries(VTYPES);
 
 export const V_COLS = `v.id, v.name, v.phone, v.company, v.vtype, v.host, v.purpose, v.badge, v.entered_by, v.out_by, o.code AS office, v.office_id,
-  (extract(epoch from v.in_at) * 1000)::float8 AS in_ms, (extract(epoch from v.out_at) * 1000)::float8 AS out_ms, u.name AS by_name, (v.created_at > now() - interval '36 hours') AS fresh`;
+  (extract(epoch from v.in_at) * 1000)::float8 AS in_ms, (extract(epoch from v.out_at) * 1000)::float8 AS out_ms, u.name AS by_name, v.del_req_by, v.del_reason, (SELECT r.name FROM pc2_users r WHERE r.id = v.del_req_by) AS req_name, (v.created_at > now() - interval '36 hours') AS fresh`;
 
 // Who may change a visitor record: the Sr. Ops Manager, anyone with the visitor log access, and whoever checked the visitor in (for 36 hours).
 export const canEditVisitor = (u, v) => u.role === 'om' || (Array.isArray(u.perms) && u.perms.includes('vis_log')) || u.role === 'sso' || (v.entered_by === u.id && v.fresh);
@@ -39,6 +39,11 @@ export async function visitorRows({ from, to, office, vtype, text, openOnly }) {
   }
   if (openOnly) cond.push('v.out_at IS NULL');
   return q(`SELECT ${V_COLS} ${V_FROM} WHERE ${cond.join(' AND ')} ORDER BY v.in_at DESC, v.id DESC LIMIT 1000`, params);
+}
+
+/** Delete requests waiting for the Sr. Ops Manager, whatever the date. */
+export async function pendingDeletes() {
+  return q(`SELECT ${V_COLS} ${V_FROM} WHERE v.del_req_by IS NOT NULL ORDER BY v.del_req_at`);
 }
 
 /** Everyone still inside (checked in and not out yet), whatever day they came. */
