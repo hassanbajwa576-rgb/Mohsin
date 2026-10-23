@@ -81,6 +81,13 @@ const DDL = [
   `CREATE INDEX IF NOT EXISTS pc2_hk_opd_date ON pc2_hk_opd (claim_date)`,
   `CREATE TABLE IF NOT EXISTS pc2_push_subs (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, endpoint TEXT NOT NULL UNIQUE, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE TABLE IF NOT EXISTS pc2_push_keys (id INTEGER PRIMARY KEY, pub TEXT NOT NULL, priv TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS pc2_fuel_assets (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'vehicle', low_at NUMERIC(12,2) NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT TRUE, sort INTEGER NOT NULL DEFAULT 0)`,
+  `CREATE TABLE IF NOT EXISTS pc2_fuel_txn (id SERIAL PRIMARY KEY, asset_id INTEGER NOT NULL REFERENCES pc2_fuel_assets(id), kind TEXT NOT NULL CHECK (kind IN ('fill','topup','opening')), amount NUMERIC(12,2) NOT NULL, litres NUMERIC(10,2), reading NUMERIC(12,1), at TIMESTAMPTZ NOT NULL, note TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS pc2_fuel_txn_at ON pc2_fuel_txn (at)`,
+  `CREATE TABLE IF NOT EXISTS pc2_fuel_access (asset_id INTEGER NOT NULL REFERENCES pc2_fuel_assets(id) ON DELETE CASCADE, user_id INTEGER NOT NULL, PRIMARY KEY (asset_id, user_id))`,
+  `INSERT INTO pc2_fuel_access (asset_id, user_id) SELECT a.id, u.id FROM pc2_fuel_assets a, pc2_users u WHERE a.name = 'United Bike' AND u.name = 'Muhammad Zubair' ON CONFLICT DO NOTHING`,
+  `UPDATE pc2_users SET perms = CASE WHEN perms IS NULL OR perms = '' THEN 'fuel_use' WHEN position('fuel_use' in perms) > 0 THEN perms ELSE perms || ',fuel_use' END WHERE name = 'Muhammad Zubair'`,
+  `INSERT INTO pc2_fuel_assets (name, kind, low_at, sort) VALUES ('Office Genset', 'genset', 40000, 1), ('BOLDBus', 'bus', 50000, 2), ('BRV', 'vehicle', 25000, 3), ('United Bike', 'bike', 10000, 4) ON CONFLICT (name) DO NOTHING`,
   `CREATE TABLE IF NOT EXISTS pc2_review_marks (id SERIAL PRIMARY KEY, staff_id INTEGER NOT NULL, day TEXT NOT NULL, kind TEXT NOT NULL, sig TEXT NOT NULL, marked_by INTEGER, marked_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE UNIQUE INDEX IF NOT EXISTS pc2_review_marks_key ON pc2_review_marks (staff_id, day, kind, sig)`,
   `ALTER TABLE pc2_expenses ADD COLUMN IF NOT EXISTS split_group TEXT`,
@@ -97,7 +104,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-22-1';
+const SCHEMA_VERSION = '2026-10-22-3';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
