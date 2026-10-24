@@ -5,6 +5,7 @@ import { VTYPES, VLABEL, insideNow, visitorRows, hostNames, canEditVisitor, wait
 import { addVisitor, checkOutVisitor, addExpected, markArrived, markNoShow, cancelExpected } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
+import HostPicker from '@/components/HostPicker';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,37 @@ export default async function VisitorsPage({ searchParams }) {
       <Flash sp={sp} />
 
       <div className='card'>
+        <h3 style={{ marginTop: 0 }}>Inside now ({inside.length})</h3>
+        {inside.length ? (
+          <div className='tablewrap'>
+            <table className='tx'>
+              <thead><tr><th>Visitor</th><th>Type</th><th>Meeting with</th><th>Since</th><th>So far</th><th></th></tr></thead>
+              <tbody>
+                {inside.map((v) => (
+                  <tr key={v.id}>
+                    <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.company ? <div className='muted'>{v.company}</div> : null}{v.remarks ? <div className='muted'>{v.remarks}</div> : null}</td>
+                    <td className='c-meta'>{VLABEL[v.vtype]}</td>
+                    <td className='c-meta'>{v.host || '-'}</td>
+                    <td className='nw c-meta'>{(dateKey(v.in_ms) === today ? '' : fmtDay(v.in_ms) + ', ') + fmt12(v.in_ms)}</td>
+                    <td className='nw c-meta'>{fmtDur(now - Number(v.in_ms))}</td>
+                    <td className='act'>
+                      {canEditVisitor(user, v) ? <Link className='btn ghost' href={'/visitors/edit?id=' + v.id}>Edit</Link> : null}
+                      <form action={checkOutVisitor} className='inline'>
+                        <input type='hidden' name='id' value={v.id} />
+                        <input type='hidden' name='date' value={today} />
+                        <input type='time' name='time' defaultValue={nowTime} required className='sm' />
+                        <button className='btn primary' type='submit'>Check out</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className='muted'>Nobody is inside right now.</p>}
+      </div>
+
+      <div className='card'>
         <h3 style={{ marginTop: 0 }}>Expected visitors ({queue.length})</h3>
         <p className='muted' style={{ marginTop: 0 }}>{planner ? 'Add a visitor here before they come. The guard marks them as arrived or no show.' : 'When a visitor arrives, tap Arrived. If they do not come, tap No show.'}</p>
         {queue.length ? (
@@ -51,16 +83,25 @@ export default async function VisitorsPage({ searchParams }) {
                     <td className='nw c-meta'>{when(v.due_ms)}</td>
                     <td className='c-meta'>{v.by_name || '-'}</td>
                     <td className='act'>
-                      <form action={markArrived} className='inline'>
-                        <input type='hidden' name='id' value={v.id} />
-                        <input type='hidden' name='date' value={today} />
-                        <input type='time' name='time' defaultValue={nowTime} required className='sm' />
-                        <button className='btn primary' type='submit'>Arrived</button>
-                      </form>
-                      <form action={markNoShow} className='inline'>
-                        <input type='hidden' name='id' value={v.id} />
-                        <button className='btn' type='submit'>No show</button>
-                      </form>
+                      <details className='mark'>
+                        <summary className='btn primary'>Arrived</summary>
+                        <form action={markArrived} className='markform'>
+                          <input type='hidden' name='id' value={v.id} />
+                          <input type='hidden' name='date' value={today} />
+                          <label>Time came in<input type='time' name='time' defaultValue={nowTime} required /></label>
+                          <label>Badge / card no.<input name='badge' maxLength={20} placeholder='Optional' autoComplete='off' /></label>
+                          <label className='wide'>Remarks<input name='remarks' maxLength={200} placeholder='Optional' autoComplete='off' /></label>
+                          <button className='btn primary' type='submit'>Save arrival</button>
+                        </form>
+                      </details>
+                      <details className='mark'>
+                        <summary className='btn'>No show</summary>
+                        <form action={markNoShow} className='markform'>
+                          <input type='hidden' name='id' value={v.id} />
+                          <label className='wide'>Remarks<input name='remarks' maxLength={200} placeholder='For example: called to say they cannot come' autoComplete='off' /></label>
+                          <button className='btn' type='submit'>Save no show</button>
+                        </form>
+                      </details>
                       {planner ? (
                         <form action={cancelExpected} className='inline'>
                           <input type='hidden' name='id' value={v.id} />
@@ -114,9 +155,10 @@ export default async function VisitorsPage({ searchParams }) {
               <select name='vtype' required defaultValue='candidate'>{VTYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
             </label>
             <label>Company / bank<input name='company' maxLength={80} placeholder='Organisation (optional)' autoComplete='off' /></label>
-            <label>Meeting with
-              <input name='host' maxLength={80} list='vis-hosts' placeholder='Type a name' autoComplete='off' />
-            </label>
+            <div className='wide'>
+              <span className='att-lbl'>Meeting with (one or more people)</span>
+              <HostPicker names={names} listId='vis-hosts-exp' />
+            </div>
             {both ? (
               <label>Office
                 <select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select>
@@ -142,10 +184,10 @@ export default async function VisitorsPage({ searchParams }) {
           <label>Company / bank
             <input name='company' maxLength={80} placeholder='Organisation (optional)' autoComplete='off' />
           </label>
-          <label>Meeting with
-            <input name='host' maxLength={80} list='vis-hosts' placeholder='Type a name' autoComplete='off' />
-            <datalist id='vis-hosts'>{names.map((n) => <option key={n} value={n} />)}</datalist>
-          </label>
+          <div className='wide'>
+            <span className='att-lbl'>Meeting with (one or more people)</span>
+            <HostPicker names={names} listId='vis-hosts-walk' />
+          </div>
           <label>Badge / card no.<input name='badge' maxLength={20} placeholder='Optional' autoComplete='off' /></label>
           {both ? (
             <label>Office
@@ -157,37 +199,6 @@ export default async function VisitorsPage({ searchParams }) {
           <label className='wide'>Purpose / notes<input name='purpose' maxLength={200} placeholder='For example: interview for the Marketing role' autoComplete='off' /></label>
           <button className='btn primary' type='submit'>Record visitor in</button>
         </form>
-      </div>
-
-      <div className='card'>
-        <h3 style={{ marginTop: 0 }}>Inside now ({inside.length})</h3>
-        {inside.length ? (
-          <div className='tablewrap'>
-            <table className='tx'>
-              <thead><tr><th>Visitor</th><th>Type</th><th>Meeting with</th><th>Since</th><th>So far</th><th></th></tr></thead>
-              <tbody>
-                {inside.map((v) => (
-                  <tr key={v.id}>
-                    <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.company ? <div className='muted'>{v.company}</div> : null}</td>
-                    <td className='c-meta'>{VLABEL[v.vtype]}</td>
-                    <td className='c-meta'>{v.host || '-'}</td>
-                    <td className='nw c-meta'>{(dateKey(v.in_ms) === today ? '' : fmtDay(v.in_ms) + ', ') + fmt12(v.in_ms)}</td>
-                    <td className='nw c-meta'>{fmtDur(now - Number(v.in_ms))}</td>
-                    <td className='act'>
-                      {canEditVisitor(user, v) ? <Link className='btn ghost' href={'/visitors/edit?id=' + v.id}>Edit</Link> : null}
-                      <form action={checkOutVisitor} className='inline'>
-                        <input type='hidden' name='id' value={v.id} />
-                        <input type='hidden' name='date' value={today} />
-                        <input type='time' name='time' defaultValue={nowTime} required className='sm' />
-                        <button className='btn primary' type='submit'>Check out</button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : <p className='muted'>Nobody is inside right now.</p>}
       </div>
 
       <div className='card'>

@@ -764,3 +764,37 @@ main.wrap > .card:nth-of-type(n+4){animation-delay:.22s}
   main.wrap .kpi:hover,main.wrap .fuelcard:hover,main.wrap a.card.step:hover,main.wrap .fund:hover{transform:translateY(-4px);box-shadow:0 10px 22px rgba(0,0,0,.10);border-color:var(--gold)}
 }
 @media (prefers-reduced-motion:reduce){.modpop,.kpi,.fuelcard,.fund,.card{animation:none!important;transition:none!important;transform:none!important}}
+
+/* Visitors: several people to meet, and the Arrived / No show panels */
+.hostpick{display:flex;flex-direction:column;gap:6px}
+.hostchips{display:flex;flex-wrap:wrap;gap:6px}
+.hostchip{display:inline-flex;align-items:center;gap:4px;background:#fbf1cf;border:1px solid var(--gold);border-radius:14px;padding:2px 4px 2px 10px;font-size:13px;font-weight:500}
+.hostchip button{background:none;border:0;cursor:pointer;font-size:16px;line-height:1;padding:0 4px;color:var(--slate);width:auto;min-height:0}
+.hostrow{display:flex;gap:6px}
+.hostrow input{flex:1}
+.hostrow .btn{flex:none}
+details.mark{display:inline-block;vertical-align:top;margin:2px 4px 2px 0}
+details.mark > summary{list-style:none;cursor:pointer;display:inline-block}
+details.mark > summary::-webkit-details-marker{display:none}
+details.mark[open]{display:block;flex-basis:100%;width:100%;margin:6px 0}
+details.mark .markform{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;margin-top:6px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:4px;text-align:left}
+details.mark .markform label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--mut)}
+details.mark .markform .wide{grid-column:1/-1}
+
+/* More alphabold.com style motion: scroll reveal, button lift, sliding tab underline, row stagger */
+.rv{animation:none!important;opacity:0;transform:translateY(28px)}
+.rv.rv-in{opacity:1;transform:none;transition:opacity .7s ease,transform .7s cubic-bezier(.22,.8,.3,1)}
+@keyframes obRow{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.tx tbody tr{animation:obRow .45s ease backwards}
+.tx tbody tr:nth-child(2){animation-delay:.05s}.tx tbody tr:nth-child(3){animation-delay:.1s}.tx tbody tr:nth-child(4){animation-delay:.15s}.tx tbody tr:nth-child(5){animation-delay:.2s}.tx tbody tr:nth-child(n+6){animation-delay:.25s}
+.tx tbody tr{transition:background-color .2s ease}
+.tier-menu a,.tier-menu .grptab,.modseg .modwrap > a{transition:color .25s ease,background-color .25s ease,border-bottom-color .25s ease}
+@media (hover:hover) and (pointer:fine){
+  .btn{transition:transform .2s ease,box-shadow .25s ease,background-color .3s ease,border-color .3s ease,color .3s ease}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(227,173,33,.35)}
+  .btn:active{transform:none;box-shadow:none}
+  .tx tbody tr:hover{background-color:#fbf6e3}
+  .card.step:hover .n{transform:scale(1.15)}
+  .card.step .n{transition:transform .25s ease}
+}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1!important;transform:none!important}.tx tbody tr,.btn:hover{animation:none!important;transform:none!important}}

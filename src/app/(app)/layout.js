@@ -8,6 +8,7 @@ import { getLang } from '@/lib/lang';
 import { stopViewAs } from '@/lib/actions';
 import PushPrompt from '@/components/PushPrompt';
 import TextHelp from '@/components/TextHelp';
+import MotionKit from '@/components/MotionKit';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,7 @@ export default async function AppLayout({ children }) {
       <TableLabels />
       <PushPrompt />
       <TextHelp />
+      <MotionKit />
       <main className='wrap'>{children}</main>
       <footer className='foot'><b>OpsTrack</b> by AlphaBOLD | Powered by <b>Ops</b></footer>
     </>

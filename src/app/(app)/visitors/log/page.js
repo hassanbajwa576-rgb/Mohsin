@@ -115,7 +115,7 @@ export default async function VisitorLogPage({ searchParams }) {
                     <td className='nw c-meta'>{fmt12(v.in_ms)}</td>
                     <td className='nw c-meta'>{v.out_ms ? fmt12(v.out_ms) : <span className='muted'>inside</span>}</td>
                     <td className='nw c-meta'>{v.out_ms ? fmtDur(Number(v.out_ms) - Number(v.in_ms)) : '-'}</td>
-                    <td className='c-meta'>{v.purpose || ''}{v.badge ? <div className='muted'>Badge {v.badge}</div> : null}</td>
+                    <td className='c-meta'>{v.purpose || ''}{v.remarks ? <div className='muted'>Remarks: {v.remarks}</div> : null}{v.badge ? <div className='muted'>Badge {v.badge}</div> : null}</td>
                     <td className='act'>
                       <Link className='btn' href={'/visitors/edit?id=' + v.id}>Edit</Link>
                       {user.role === 'om' ? (
@@ -138,7 +138,7 @@ export default async function VisitorLogPage({ searchParams }) {
           <h3 style={{ marginTop: 0 }}>No shows ({missed.length})</h3>
           <div className='tablewrap'>
             <table className='tx'>
-              <thead><tr><th>Expected</th><th>Visitor</th><th>Type</th><th>Meeting with</th><th>Added by</th><th>Marked by</th></tr></thead>
+              <thead><tr><th>Expected</th><th>Visitor</th><th>Type</th><th>Meeting with</th><th>Added by</th><th>Marked by</th><th>Remarks</th></tr></thead>
               <tbody>
                 {missed.map((v) => (
                   <tr key={v.id}>
@@ -148,6 +148,7 @@ export default async function VisitorLogPage({ searchParams }) {
                     <td className='c-meta'>{v.host || '-'}</td>
                     <td className='c-meta'>{v.by_name || '-'}</td>
                     <td className='c-meta'>{v.marked_name || '-'}</td>
+                    <td className='c-meta'>{v.remarks || '-'}</td>
                   </tr>
                 ))}
               </tbody>

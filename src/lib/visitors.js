@@ -15,7 +15,7 @@ export const VTYPES = [
 ];
 export const VLABEL = Object.fromEntries(VTYPES);
 
-export const V_COLS = `v.id, v.name, v.phone, v.company, v.vtype, v.host, v.purpose, v.badge, v.entered_by, v.out_by, o.code AS office, v.office_id,
+export const V_COLS = `v.id, v.name, v.phone, v.company, v.vtype, v.host, v.purpose, v.remarks, v.badge, v.entered_by, v.out_by, o.code AS office, v.office_id,
   (extract(epoch from v.in_at) * 1000)::float8 AS in_ms, (extract(epoch from v.out_at) * 1000)::float8 AS out_ms, u.name AS by_name, v.del_req_by, v.del_reason, (SELECT r.name FROM pc2_users r WHERE r.id = v.del_req_by) AS req_name, (v.created_at > now() - interval '36 hours') AS fresh`;
 
 // Who may change a visitor record: the Sr. Ops Manager, anyone with the visitor log access, and whoever checked the visitor in (for 36 hours).
@@ -59,7 +59,7 @@ export async function hostNames(office) {
   return [...new Set([...a, ...b].map((x) => x.name))].sort((x, y) => x.localeCompare(y));
 }
 
-export const E_COLS = `e.id, e.name, e.phone, e.company, e.vtype, e.host, e.purpose, e.status, e.visitor_id, o.code AS office, e.office_id,
+export const E_COLS = `e.id, e.name, e.phone, e.company, e.vtype, e.host, e.purpose, e.remarks, e.status, e.visitor_id, o.code AS office, e.office_id,
   (extract(epoch from e.due_at) * 1000)::float8 AS due_ms, (extract(epoch from e.marked_at) * 1000)::float8 AS marked_ms,
   (SELECT c.name FROM pc2_users c WHERE c.id = e.created_by) AS by_name, (SELECT m.name FROM pc2_users m WHERE m.id = e.marked_by) AS marked_name`;
 const E_FROM = 'FROM pc2_expected e JOIN pc2_offices o ON o.id = e.office_id';

@@ -5,7 +5,8 @@ import { q } from '@/lib/db';
 import { ATT_ROLES, dateKey, fmtTime } from '@/lib/att';
 import { can } from '@/lib/perms';
 import { allOffices } from '@/lib/att';
-import { VTYPES, V_COLS, V_FROM, canEditVisitor } from '@/lib/visitors';
+import { VTYPES, V_COLS, V_FROM, canEditVisitor, hostNames } from '@/lib/visitors';
+import HostPicker from '@/components/HostPicker';
 import { editVisitor, requestVisitorDelete, cancelVisitorDelete } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
 
@@ -27,7 +28,7 @@ export default async function EditVisitorPage({ searchParams }) {
         <label>Phone<input name='phone' defaultValue={v.phone} maxLength={30} /></label>
         <label>Type of visit<select name='vtype' defaultValue={v.vtype}>{VTYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
         <label>Company / bank<input name='company' defaultValue={v.company} maxLength={80} /></label>
-        <label>Meeting with<input name='host' defaultValue={v.host} maxLength={80} /></label>
+        <div className='wide'><span className='att-lbl'>Meeting with (one or more people)</span><HostPicker defaultValue={v.host} names={await hostNames(allOffices(user) ? '' : user.office_code)} listId='vis-hosts-edit' /></div>
         <label>Badge / card no.<input name='badge' defaultValue={v.badge} maxLength={20} /></label>
         {allOffices(user) ? <label>Office<select name='office' defaultValue={v.office}><option>LHR</option><option>ISB</option></select></label> : null}
         <label>Date in<input type='date' name='in_date' defaultValue={dateKey(v.in_ms)} required /></label>
