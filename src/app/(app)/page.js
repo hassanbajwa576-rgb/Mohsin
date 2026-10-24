@@ -23,7 +23,7 @@ function Pipeline({ pipe, hot }) {
             <div className='n'>{i + 1}</div>
             <div className='t'>{STATUS_LABEL[st]}</div>
             <div className='c'>{p.c}</div>
-            <div className='s'>{pkr(p.v)}</div>
+            <div className='s'><CountUp value={p.v} /></div>
           </Link>
         );
       })}

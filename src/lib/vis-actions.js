@@ -156,3 +156,72 @@ export async function decideVisitorDelete(fd) {
   if (v.del_req_by && v.del_req_by !== u.id) await notifyUser(v.del_req_by, 'Your request to delete the visitor record of ' + v.name + ' was ' + (approve ? 'approved' : 'declined'), '/visitors');
   back(to, approve ? 'Record deleted' : 'Record kept', true);
 }
+
+// Imran, Zubair or the Sr. Ops Manager announce a visitor who is expected. It waits in the queue until the guard marks it.
+export async function addExpected(fd) {
+  const u = await need();
+  if (u.role === 'guard') redirect('/visitors');
+  const name = s(fd, 'name').slice(0, 80);
+  const vtype = s(fd, 'vtype');
+  const date = s(fd, 'date');
+  const time = s(fd, 'time');
+  if (!name) back('/visitors', "Enter the visitor's name");
+  if (!VLABEL[vtype]) back('/visitors', 'Choose the type of visit');
+  if (!validDate(date) || !validTime(time)) back('/visitors', 'Choose a valid date and time');
+  const code = allOffices(u) ? s(fd, 'office') : u.office_code;
+  const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [code]))[0];
+  if (!off) back('/visitors', 'Choose the office');
+  const r = await q(
+    `INSERT INTO pc2_expected (office_id, name, phone, company, vtype, host, purpose, due_at, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7, ($8::date + $9::time) AT TIME ZONE 'Asia/Karachi', $10) RETURNING id`,
+    [off.id, name, s(fd, 'phone').slice(0, 30), s(fd, 'company').slice(0, 80), vtype, s(fd, 'host').slice(0, 80), s(fd, 'purpose').slice(0, 200), date, time, u.id]
+  );
+  await logEvent(u, 'create', 'visitor', r[0].id, 'Visitor expected: ' + name + ' (' + VLABEL[vtype] + ', ' + off.code + ') ' + date + ' ' + time, null, { name, vtype });
+  back('/visitors', name + ' added to the visitor queue for ' + time, true);
+}
+
+async function queued(u, fd) {
+  const id = Number(s(fd, 'id'));
+  const e = (await q('SELECT e.* FROM pc2_expected e WHERE e.id = $1', [Number.isInteger(id) ? id : 0]))[0];
+  if (!e) back('/visitors', 'That visitor is not in the queue');
+  if (!allOffices(u) && u.office_id !== e.office_id) back('/visitors', 'That visitor is in the other office');
+  if (e.status !== 'waiting') back('/visitors', e.name + ' was already marked');
+  return e;
+}
+
+// The guard marks that the visitor arrived: the visit is recorded and leaves the queue.
+export async function markArrived(fd) {
+  const u = await need();
+  const e = await queued(u, fd);
+  const date = s(fd, 'date');
+  const time = s(fd, 'time');
+  if (!validDate(date) || !validTime(time)) back('/visitors', 'Choose a valid date and time');
+  if (await isFuture(date, time)) back('/visitors', 'That time is in the future');
+  const r = await q(
+    `INSERT INTO pc2_visitors (office_id, name, phone, company, vtype, host, purpose, badge, in_at, entered_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8, ($9::date + $10::time) AT TIME ZONE 'Asia/Karachi', $11) RETURNING id`,
+    [e.office_id, e.name, e.phone, e.company, e.vtype, e.host, e.purpose, s(fd, 'badge').slice(0, 20), date, time, u.id]
+  );
+  await q(`UPDATE pc2_expected SET status = 'arrived', visitor_id = $1, marked_by = $2, marked_at = now() WHERE id = $3`, [r[0].id, u.id, e.id]);
+  await logEvent(u, 'create', 'visitor', r[0].id, 'Visitor in (from queue): ' + e.name + ' ' + date + ' ' + time, null, { name: e.name, queue: e.id });
+  if (e.created_by && e.created_by !== u.id) await notifyUser(e.created_by, e.name + ' has arrived' + (e.host ? ' to meet ' + e.host : ''), '/visitors');
+  back('/visitors', e.name + ' arrived at ' + time, true);
+}
+
+// The guard marks that the visitor did not come.
+export async function markNoShow(fd) {
+  const u = await need();
+  const e = await queued(u, fd);
+  await q(`UPDATE pc2_expected SET status = 'noshow', marked_by = $1, marked_at = now() WHERE id = $2`, [u.id, e.id]);
+  await logEvent(u, 'edit', 'visitor', e.id, 'Visitor did not show: ' + e.name, null, null);
+  if (e.created_by && e.created_by !== u.id) await notifyUser(e.created_by, e.name + ' did not show up', '/visitors/log');
+  back('/visitors', e.name + ' marked as no show', true);
+}
+
+// Whoever announced a visitor (or the Sr. Ops Manager / Sr. Support Officer) can take it out of the queue.
+export async function cancelExpected(fd) {
+  const u = await need();
+  const e = await queued(u, fd);
+  if (u.role !== 'om' && u.role !== 'sso' && e.created_by !== u.id) back('/visitors', 'Only the person who added the visitor can remove it');
+  await q('DELETE FROM pc2_expected WHERE id = $1', [e.id]);
+  await logEvent(u, 'delete', 'visitor', e.id, 'Removed expected visitor: ' + e.name, null, null);
+  back('/visitors', e.name + ' removed from the queue', true);
+}

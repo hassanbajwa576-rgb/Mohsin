@@ -58,3 +58,25 @@ export async function hostNames(office) {
   const b = await q('SELECT name FROM pc2_users WHERE active AND role <> \'guard\'');
   return [...new Set([...a, ...b].map((x) => x.name))].sort((x, y) => x.localeCompare(y));
 }
+
+export const E_COLS = `e.id, e.name, e.phone, e.company, e.vtype, e.host, e.purpose, e.status, e.visitor_id, o.code AS office, e.office_id,
+  (extract(epoch from e.due_at) * 1000)::float8 AS due_ms, (extract(epoch from e.marked_at) * 1000)::float8 AS marked_ms,
+  (SELECT c.name FROM pc2_users c WHERE c.id = e.created_by) AS by_name, (SELECT m.name FROM pc2_users m WHERE m.id = e.marked_by) AS marked_name`;
+const E_FROM = 'FROM pc2_expected e JOIN pc2_offices o ON o.id = e.office_id';
+
+/** The queue: announced visitors not yet arrived or marked, up to the end of the given day (earlier days still waiting stay on top). */
+export async function waitingQueue(office, upToDay) {
+  return q(`SELECT ${E_COLS} ${E_FROM} WHERE e.status = 'waiting' AND e.due_at < (($1::date + 1)::timestamp AT TIME ZONE '${TZ}') ${office ? 'AND o.code = $2' : ''} ORDER BY e.due_at`, office ? [upToDay, office] : [upToDay]);
+}
+
+/** Announced visitors for days after the given day, still waiting. */
+export async function laterQueue(office, afterDay) {
+  return q(`SELECT ${E_COLS} ${E_FROM} WHERE e.status = 'waiting' AND e.due_at >= (($1::date + 1)::timestamp AT TIME ZONE '${TZ}') ${office ? 'AND o.code = $2' : ''} ORDER BY e.due_at LIMIT 100`, office ? [afterDay, office] : [afterDay]);
+}
+
+/** No shows between two dates (Karachi time), newest first. */
+export async function noShows({ from, to, office }) {
+  const params = [from, to];
+  if (office) params.push(office);
+  return q(`SELECT ${E_COLS} ${E_FROM} WHERE e.status = 'noshow' AND e.due_at >= (($1::date)::timestamp AT TIME ZONE '${TZ}') AND e.due_at < (($2::date + 1)::timestamp AT TIME ZONE '${TZ}') ${office ? 'AND o.code = $3' : ''} ORDER BY e.due_at DESC LIMIT 500`, params);
+}

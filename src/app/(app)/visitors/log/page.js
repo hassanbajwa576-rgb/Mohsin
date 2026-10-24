@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey, validDate, fmt12, fmtDay, fmtDur } from '@/lib/att';
 import { addDay } from '@/lib/att-import';
-import { VTYPES, VLABEL, visitorRows, pendingDeletes } from '@/lib/visitors';
+import { VTYPES, VLABEL, visitorRows, pendingDeletes, noShows } from '@/lib/visitors';
 import { deleteVisitor, decideVisitorDelete } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
@@ -25,6 +25,7 @@ export default async function VisitorLogPage({ searchParams }) {
   const text = String(sp.q || '').trim().slice(0, 60);
   const rows = await visitorRows({ from, to, office, vtype, text });
   const pending = user.role === 'om' ? await pendingDeletes() : [];
+  const missed = await noShows({ from, to, office });
   const done = rows.filter((v) => v.out_ms);
   const avg = done.length ? done.reduce((a, v) => a + (Number(v.out_ms) - Number(v.in_ms)), 0) / done.length : 0;
   const qs = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(vtype ? { vtype } : {}), ...(text ? { q: text } : {}) }).toString();
@@ -96,6 +97,7 @@ export default async function VisitorLogPage({ searchParams }) {
         <div className='card kpi'><span>Visitors</span><b>{rows.length}</b></div>
         <div className='card kpi alt'><span>Still inside</span><b>{rows.length - done.length}</b></div>
         <div className='card kpi alt'><span>Average stay</span><b>{done.length ? fmtDur(avg) : '-'}</b></div>
+        <div className='card kpi alt'><span>No shows</span><b>{missed.length}</b></div>
       </div>
 
       <div className='card'>
@@ -130,6 +132,29 @@ export default async function VisitorLogPage({ searchParams }) {
           </div>
         ) : <p className='muted'>No visitors for these filters.</p>}
       </div>
+
+      {missed.length ? (
+        <div className='card'>
+          <h3 style={{ marginTop: 0 }}>No shows ({missed.length})</h3>
+          <div className='tablewrap'>
+            <table className='tx'>
+              <thead><tr><th>Expected</th><th>Visitor</th><th>Type</th><th>Meeting with</th><th>Added by</th><th>Marked by</th></tr></thead>
+              <tbody>
+                {missed.map((v) => (
+                  <tr key={v.id}>
+                    <td className='nw c-meta'>{fmtDay(v.due_ms)}, {fmt12(v.due_ms)}</td>
+                    <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.company ? <div className='muted'>{v.company}</div> : null}{v.phone ? <div className='muted'>{v.phone}</div> : null}</td>
+                    <td className='c-meta'>{VLABEL[v.vtype]}</td>
+                    <td className='c-meta'>{v.host || '-'}</td>
+                    <td className='c-meta'>{v.by_name || '-'}</td>
+                    <td className='c-meta'>{v.marked_name || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

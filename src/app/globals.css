@@ -742,12 +742,25 @@ td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.
 
 /* Light motion, in the style of alphabold.com: soft colour changes, boxes easing in, bars filling */
 .btn{transition:background-color .3s ease,border-color .3s ease,color .3s ease}
-@keyframes obRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes obRise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 @keyframes obFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-main.wrap > .card,main.wrap > .kpis > *,main.wrap > .fuelcards > *,main.wrap > .pipe > *,main.wrap > .funds > *{animation:obRise .35s cubic-bezier(.58,.3,.005,1) backwards}
+main.wrap > .card,main.wrap > .kpis > *,main.wrap > .fuelcards > *,main.wrap > .pipe > *,main.wrap > .funds > *{animation:obRise .55s cubic-bezier(.22,.8,.3,1) backwards}
 main.wrap > .kpis > :nth-child(2),main.wrap > .fuelcards > :nth-child(2),main.wrap > .pipe > :nth-child(2),main.wrap > .funds > :nth-child(2){animation-delay:.05s}
 main.wrap > .kpis > :nth-child(3),main.wrap > .fuelcards > :nth-child(3),main.wrap > .pipe > :nth-child(3),main.wrap > .funds > :nth-child(3){animation-delay:.1s}
 main.wrap > .kpis > :nth-child(4),main.wrap > .fuelcards > :nth-child(4),main.wrap > .pipe > :nth-child(4),main.wrap > .funds > :nth-child(4){animation-delay:.15s}
 main.wrap > .kpis > :nth-child(n+5),main.wrap > .fuelcards > :nth-child(n+5){animation-delay:.2s}
 .opdbar span{transform-origin:left center;animation:obFill .8s cubic-bezier(.58,.3,.005,1) .15s backwards}
 @media (prefers-reduced-motion:reduce){main.wrap *,.btn,.opdbar span{animation:none!important;transition:none!important}}
+
+/* Stronger, easy-to-see motion: cards lift on hover (mouse only), menus slide in, tiles ease up one after another */
+@keyframes obPop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+main.wrap > .kpis > :nth-child(n+2),main.wrap > .fuelcards > :nth-child(n+2),main.wrap > .pipe > :nth-child(n+2),main.wrap > .funds > :nth-child(n+2){animation-duration:.55s}
+main.wrap > .card:nth-of-type(2){animation-delay:.08s}
+main.wrap > .card:nth-of-type(3){animation-delay:.16s}
+main.wrap > .card:nth-of-type(n+4){animation-delay:.22s}
+@media (hover:hover) and (pointer:fine){
+  .modwrap:hover > .modpop,.modwrap:focus-within > .modpop,.grpwrap:hover > .grppop,.grpwrap:focus-within > .grppop,.grpwrap.open > .grppop{animation:obPop .22s ease-out}
+  main.wrap .kpi,main.wrap .fuelcard,main.wrap a.card.step,main.wrap .fund{transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+  main.wrap .kpi:hover,main.wrap .fuelcard:hover,main.wrap a.card.step:hover,main.wrap .fund:hover{transform:translateY(-4px);box-shadow:0 10px 22px rgba(0,0,0,.10);border-color:var(--gold)}
+}
+@media (prefers-reduced-motion:reduce){.modpop,.kpi,.fuelcard,.fund,.card{animation:none!important;transition:none!important;transform:none!important}}
