@@ -8,25 +8,6 @@ import CountUp from '@/components/CountUp';
 import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
 import { submitDrafts } from '@/lib/actions';
-import { fmtTime } from '@/lib/att';
-
-// Hero greeting in the style of the AlphaBOLD site: big heading with the name in gold and one line on what needs attention.
-const SKIP = ['muhammad', 'mohammad', 'mohammed', 'md', 'mr'];
-function greeting(user) {
-  const hr = Number(fmtTime(Date.now()).slice(0, 2));
-  const parts = String(user.name || '').trim().split(/s+/);
-  const first = (parts.length > 1 && SKIP.includes(parts[0].toLowerCase()) ? parts[1] : parts[0]) || '';
-  return { hello: hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening', first };
-}
-function Hero({ user, line }) {
-  const g = greeting(user);
-  return (
-    <section className='hero'>
-      <h1>{g.hello}, <span className='gw'>{g.first}</span></h1>
-      <p>{line}</p>
-    </section>
-  );
-}
 
 const PIPE = ['draft', 'submitted', 'approved', 'sent'];
 
@@ -187,7 +168,10 @@ async function SoDashboard({ user, sp }) {
   return (
     <>
       <div className='head'>
-        <Hero user={user} line={acct.draft > 0 ? pkr(acct.draft) + ' of your expenses are ready to submit.' : 'You are all caught up. Advances issued to you, what you have spent and what is awaiting review are below.'} />
+        <div>
+          <h1>My dashboard</h1>
+          <p className='muted'>Advances issued to you, what you have spent and what is awaiting review</p>
+        </div>
         <Link href='/expenses' className='btn primary'>Submit an expense</Link>
       </div>
       <Flash sp={sp} />
@@ -286,15 +270,8 @@ export default async function Dashboard({ searchParams }) {
   const emptyFunds = funds.rows.filter(isEmptyFund);
   const offLine = (c) => Number((offSpent.find((r) => r.label === c) || {}).value || 0);
 
-  const toVerify = (pipe.submitted || {}).c || 0;
-  const toApprove = (pipe.verified || {}).c || 0;
-  const heroLine = isOM
-    ? (toVerify + toApprove ? [toApprove ? toApprove + ' expense' + (toApprove > 1 ? 's' : '') + ' to approve' : '', toVerify ? toVerify + ' to verify' : ''].filter(Boolean).join(' and ') + '. Everything else is on track.' : 'Nothing is waiting for you. Everything is on track.')
-    : (toVerify ? toVerify + ' expense' + (toVerify > 1 ? 's' : '') + ' submitted and waiting to be verified.' : 'Nothing is waiting to be verified.');
-
   return (
     <>
-      <Hero user={user} line={heroLine} />
       <div className='chips' style={{ marginBottom: 12 }}>
         {['all', 'LHR', 'ISB'].map((o) => (
           <Link key={o} href={qs(o)} className={'chip' + (office === o ? ' on' : '')}>{o === 'all' ? 'Both offices' : o}</Link>
