@@ -6,6 +6,7 @@ import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
 import { OPD_LIMIT, opdSummary, opdClaims } from '@/lib/hk-opd';
 import { addOpdClaim, deleteOpdClaim } from '@/lib/roster-actions';
 import Flash from '@/components/Flash';
+import CountUp from '@/components/CountUp';
 import HkTabs from '@/components/HkTabs';
 import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
@@ -55,8 +56,8 @@ export default async function HkOpdPage({ searchParams }) {
 
       <div className='kpis'>
         <div className='card kpi'><span>Team members</span><b>{people.length}</b></div>
-        <div className='card kpi alt'><span>Availed in {year}</span><b>{pkr(totalAvailed)}</b></div>
-        <div className='card kpi alt'><span>Available in {year}</span><b>{pkr(people.length * OPD_LIMIT - totalAvailed)}</b></div>
+        <div className='card kpi alt'><span>Availed in {year}</span><b><CountUp value={totalAvailed} /></b></div>
+        <div className='card kpi alt'><span>Available in {year}</span><b><CountUp value={people.length * OPD_LIMIT - totalAvailed} /></b></div>
       </div>
 
       {edit ? (

@@ -4,6 +4,7 @@ import { q } from '@/lib/db';
 import { expWhere, fundSummary, issueRows, soAccount, waitingByFund, EXP_FROM, EXP_COLS } from '@/lib/queries';
 import { pkr, STATUS_LABEL, FUNDS } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
+import CountUp from '@/components/CountUp';
 import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
 import { submitDrafts } from '@/lib/actions';
@@ -175,10 +176,10 @@ async function SoDashboard({ user, sp }) {
       </div>
       <Flash sp={sp} />
       <div className='kpis'>
-        <div className='card kpi'><span>Advances</span><b>{pkr(acct.advances)}</b></div>
-        <div className='card kpi alt'><span>Expenses</span><b>{pkr(acct.spent)}</b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
-        <div className='card kpi'><span>Advances Outstanding</span><b>{pkr(acct.outstanding)}</b><small>Reduces only when you submit your expenses</small></div>
-        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b style={acct.advances > 0 ? (acct.cash < 0.2 * acct.advances ? LOWBOX : GOODBOX) : undefined}>{pkr(acct.cash)}</b></div>
+        <div className='card kpi'><span>Advances</span><b><CountUp value={acct.advances} /></b></div>
+        <div className='card kpi alt'><span>Expenses</span><b><CountUp value={acct.spent} /></b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
+        <div className='card kpi'><span>Advances Outstanding</span><b><CountUp value={acct.outstanding} /></b><small>Reduces only when you submit your expenses</small></div>
+        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b style={acct.advances > 0 ? (acct.cash < 0.2 * acct.advances ? LOWBOX : GOODBOX) : undefined}><CountUp value={acct.cash} /></b></div>
       </div>
       {acct.draft > 0 ? (
         <form action={submitDrafts} className='card submitbar'>

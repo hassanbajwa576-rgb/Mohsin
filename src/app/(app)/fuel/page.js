@@ -6,6 +6,7 @@ import { todayKey, fmtTime, fmt12, fmtDay } from '@/lib/att';
 import { cards, recentFuel, fuelScope, FUEL_KINDS, FKIND } from '@/lib/fuel';
 import { addFuel } from '@/lib/fuel-actions';
 import Flash from '@/components/Flash';
+import CountUp from '@/components/CountUp';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export default async function FuelPage({ searchParams }) {
         {list.map((c) => (
           <div key={c.id} className={'card fuelcard' + (c.low ? ' low' : '')}>
             <div className='fname'>{c.name}</div>
-            <div className={'fbal' + (c.n === 0 ? ' none' : c.low ? ' bad' : ' ok')}>{c.n === 0 ? 'No entries yet' : pkr(c.balance)}</div>
+            <div className={'fbal' + (c.n === 0 ? ' none' : c.low ? ' bad' : ' ok')}>{c.n === 0 ? 'No entries yet' : <CountUp value={c.balance} />}</div>
             <div className='fmeta'>Refill when below {pkr(c.low_at)}</div>
             {c.n > 0 ? (
               <div className='fmeta'>
