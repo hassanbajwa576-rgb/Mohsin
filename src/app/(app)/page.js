@@ -316,6 +316,17 @@ export default async function Dashboard({ searchParams }) {
   const usedFunds = funds.rows.filter((f) => !isEmptyFund(f));
   const emptyFunds = funds.rows.filter(isEmptyFund);
   const offLine = (c) => Number((offSpent.find((r) => r.label === c) || {}).value || 0);
+  // Same layout as the Support Officer dashboard: what needs you, four big figures, where the cash is, then the detail.
+  const toVerify = (pipe.submitted || {}).c || 0;
+  const toApprove = (pipe.verified || {}).c || 0;
+  const waitN = isOM ? toVerify + toApprove : toVerify;
+  const waitV = isOM ? ((pipe.submitted || {}).v || 0) + ((pipe.verified || {}).v || 0) : (pipe.submitted || {}).v || 0;
+  const cashParts = [
+    ['Sr. Ops Manager', T.pool, 'seg1'],
+    ['Sr. Support Officer', T.ssoCash, 'seg2'],
+    ['Support Officers', T.soCash, 'seg3'],
+  ];
+  const cashSum = cashParts.reduce((a, c) => a + Math.max(0, Number(c[1])), 0);
 
   return (
     <>
@@ -325,6 +336,35 @@ export default async function Dashboard({ searchParams }) {
         ))}
       </div>
       <Flash sp={sp} />
+
+      {waitN ? (
+        <div className='attn'>
+          <b>{isOM ? 'Waiting for your decision' : 'Waiting for your verification'}</b>
+          <span>{waitN} expense{waitN > 1 ? 's' : ''} ({pkr(waitV)}){isOM && toVerify && toApprove ? ': ' + toVerify + ' to verify, ' + toApprove + ' to approve' : ''}.</span>
+          <a className='btn primary' href='#to-review'>Review them</a>
+        </div>
+      ) : null}
+
+      <div className='kpis'>
+        <div className='card kpi'><span>Advances</span><b><CountUp value={T.received} /></b><small>{periodLabel}</small></div>
+        <div className='card kpi alt'><span>Expenses</span><b><CountUp value={T.spent} /></b><small>{periodLabel}</small></div>
+        <div className='card kpi'><span>Advances Outstanding</span><b><CountUp value={T.outstanding} /></b><small>Not yet cleared with Accounts</small></div>
+        <div className={'card kpi alt' + (T.remaining < 0 ? ' neg' : '')}><span>CIH</span><b><CountUp value={T.remaining} /></b><small>Cash in hand, all holders</small></div>
+      </div>
+
+      {cashSum > 0 ? (
+        <div className='card'>
+          <h3>Where The Cash Is</h3>
+          <div className='cashbar'>
+            {cashParts.map(([label, v, cls]) => (Number(v) > 0 ? <i key={label} className={cls} style={{ width: (Number(v) / cashSum) * 100 + '%' }} title={label} /> : null))}
+          </div>
+          <div className='cashkey'>
+            {cashParts.map(([label, v, cls]) => (
+              <span key={label}><em className={cls} />{label} <b>{pkr(Math.max(0, Number(v)))}</b></span>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <AdjustedPosition rows={funds.rows} waiting={waiting} />
 
@@ -347,12 +387,14 @@ export default async function Dashboard({ searchParams }) {
         <span className='muted'>Advances and Expenses cover the period. CIH and Outstanding are balances to its end.</span>
       </form>
 
-      <h2>Expense pipeline</h2>
-      <Pipeline pipe={pipe} hot={todoStatuses} />
+      <div className='card'>
+        <h3>Where Expenses Stand</h3>
+        <Stepper pipe={pipe} />
+      </div>
 
       {todo.length ? (
         <>
-          <h2>{isOM ? 'Needs your review' : 'Waiting for your verification'}</h2>
+          <h2 id='to-review'>{isOM ? 'Needs your review' : 'Waiting for your verification'}</h2>
           <div className='card'>
             <ExpenseTable rows={todo.slice(0, 5)} user={user} back='/' />
             {todo.length > 5 ? <p className='totals'>Showing 5 of {todo.length} - <Link href='/expenses?status=submitted'>View all on the Expenses page</Link></p> : null}

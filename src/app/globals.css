@@ -857,3 +857,13 @@ main.wrap > .hero{margin-bottom:22px}
 .tag.open{background:#fbf1cf;color:#b88a10}
 tr.rowdone td{color:var(--mut)}
 @media (prefers-reduced-motion:reduce){.spentbar i{animation:none!important}}
+
+/* Where the cash is: one bar split by holder */
+.cashbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line);margin:6px 0 10px}
+.cashbar i{display:block;height:100%}
+.seg1{background:var(--gold)}
+.seg2{background:var(--slate)}
+.seg3{background:#9aa3ad}
+.cashkey{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--mut)}
+.cashkey em{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.cashkey b{color:var(--ink);font-variant-numeric:tabular-nums}
