@@ -132,7 +132,8 @@ export default async function AttendanceDashboard({ searchParams }) {
                   {ps.length === 0 ? <span className='muted'>-</span> : ps.map((p) => (
                     <span key={p.id} className={'chipn' + (k === 'off' ? (p.early ? ' late' : ' ok') : p.late ? ' late' : p.firstIn ? ' ok' : '')}>
                       {p.name}
-                      {p.firstIn && k !== 'off' ? <small title='First check in of the day'>In <b>{to12(p.firstIn)}</b>{k === 'break' && p.breakOut ? <> &middot; Break out <b>{to12(p.breakOut)}</b></> : null}</small> : null}
+                      {k === 'break' && p.breakOut ? <small title={'Checked in ' + to12(p.firstIn)}>Break out <b>{to12(p.breakOut)}</b></small> : null}
+                      {p.firstIn && k === 'on' ? <small title='First check in of the day'>In <b>{to12(p.firstIn)}</b></small> : null}
                       {k === 'off' && p.lastOut ? <small className={p.early ? 't-bad' : ''} title='Last check out'>Out <b>{to12(p.lastOut)}</b></small> : null}
                     </span>
                   ))}

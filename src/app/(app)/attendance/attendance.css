@@ -53,3 +53,7 @@ tr.conflict td{background:var(--badbg)}
 .vbars i{display:block;width:100%;background:var(--gold);border-radius:2px 2px 0 0;min-height:2px}
 .chipn.ok{color:var(--ok);border-color:var(--ok);background:var(--okbg)}
 .chipn small b{font-weight:600;color:inherit}
+/* Who is where: keep each chip on one line; the On break column is wider because it carries two times */
+.chipn{white-space:nowrap}
+.chipn small{font-size:10.5px;margin-left:3px}
+@media (max-width:700px){.chipn{white-space:normal}}
