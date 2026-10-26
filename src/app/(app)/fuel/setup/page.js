@@ -28,7 +28,7 @@ export default async function FuelSetupPage({ searchParams }) {
       <Flash sp={sp} />
       <div className='card'>
         {list.map((c) => (
-          <form key={c.id} action={saveFuelLevel} className='form' style={{ marginTop: 0, marginBottom: 14 }}>
+          <form key={c.id + '-' + c.low_at + '-' + c.name} action={saveFuelLevel} className='form' style={{ marginTop: 0, marginBottom: 14 }}>
             <input type='hidden' name='id' value={c.id} />
             <label>Card<input name='name' defaultValue={c.name} maxLength={60} required /></label>
             <label>Refill when below (PKR)<input type='number' name='low_at' min='0' step='1' defaultValue={c.low_at} required /></label>

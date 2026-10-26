@@ -63,6 +63,7 @@ export async function addFuel(fd) {
     [a.id, kind, amount, kind === 'fill' ? litres : null, kind === 'fill' ? reading : null, date, time, s(fd, 'note').slice(0, 120), u.id]
   );
   const after = kind === 'fill' ? before - amount : before + amount;
+  if (kind === 'topup') await q("UPDATE pc2_fuel_refill SET status = 'done', closed_by = $1, closed_at = now() WHERE asset_id = $2 AND status = 'open'", [u.id, a.id]);
   await logEvent(u, 'create', 'fuel', r[0].id, FKIND[kind] + ': ' + a.name + ' ' + pkr(amount) + (litres ? ' (' + litres + ' L)' : ''), null, { kind, amount });
   // Tell the Sr. Ops Manager and the Sr. Support Officer the moment a card drops below its refill level.
   if (kind === 'fill' && before >= a.low_at && after < a.low_at) {
@@ -110,6 +111,35 @@ export async function editFuel(fd) {
   back('/fuel/log', a.name + ': entry updated', true);
 }
 
+// Imran or Zubair ask Mohsin to refill a card. One open request per card; it shows on his Approvals page.
+export async function requestRefill(fd) {
+  const u = await need();
+  const id = Number(s(fd, 'asset'));
+  const a = (await q('SELECT id, name FROM pc2_fuel_assets WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
+  if (!a) back('/fuel', 'Choose the card');
+  if (u.role === 'om') back('/fuel', 'You can record the top-up directly');
+  const scope = await fuelScope(u);
+  if (scope && !scope.includes(a.id)) back('/fuel', 'You can only ask for a refill of your own card');
+  const open = await q("SELECT id FROM pc2_fuel_refill WHERE asset_id = $1 AND status = 'open'", [a.id]);
+  if (open.length) back('/fuel', 'A refill is already requested for ' + a.name);
+  const r = await q('INSERT INTO pc2_fuel_refill (asset_id, requested_by) VALUES ($1, $2) RETURNING id', [a.id, u.id]);
+  await logEvent(u, 'create', 'fuel', r[0].id, 'Refill requested: ' + a.name, null, null);
+  await notifyRoles(['om'], u.name + ' asked for a refill of the ' + a.name + ' fuel card', '/approvals', u.id);
+  back('/fuel', 'Refill request for ' + a.name + ' sent to Mohsin', true);
+}
+
+// Sr. Ops Manager: mark a refill request as done.
+export async function closeRefill(fd) {
+  const u = await needOm();
+  const id = Number(s(fd, 'id'));
+  const r = (await q("SELECT r.id, r.requested_by, a.name FROM pc2_fuel_refill r JOIN pc2_fuel_assets a ON a.id = r.asset_id WHERE r.id = $1 AND r.status = 'open'", [Number.isInteger(id) ? id : 0]))[0];
+  if (!r) back('/approvals', 'That request was already handled');
+  await q("UPDATE pc2_fuel_refill SET status = 'done', closed_by = $1, closed_at = now() WHERE id = $2", [u.id, id]);
+  await logEvent(u, 'edit', 'fuel', id, 'Refill request done: ' + r.name, null, null);
+  if (r.requested_by !== u.id) await notifyUser(r.requested_by, 'The ' + r.name + ' fuel card refill was done', '/fuel');
+  back('/approvals', r.name + ': refill request closed', true);
+}
+
 // Sr. Ops Manager: remove a wrong entry.
 export async function deleteFuel(fd) {
   const u = await needOm();
@@ -131,6 +161,9 @@ export async function saveFuelLevel(fd) {
   const a = (await q('SELECT id, name FROM pc2_fuel_assets WHERE id = $1', [Number.isInteger(id) ? id : 0]))[0];
   if (!a) back('/fuel/setup', 'That card no longer exists');
   await q('UPDATE pc2_fuel_assets SET low_at = $1, name = $2 WHERE id = $3', [low, name || a.name, id]);
+  // Read it back so a save that did not stick is reported instead of looking like it worked.
+  const saved = (await q('SELECT low_at::float8 AS low_at FROM pc2_fuel_assets WHERE id = $1', [id]))[0];
+  if (!saved || Math.abs(Number(saved.low_at) - low) > 0.005) back('/fuel/setup', 'The refill level did not save. Please try again.');
   // Who besides Mohsin and Imran can see this card. They get the FuelTrack access automatically.
   const want = [...new Set(fd.getAll('who').map(Number).filter((n) => Number.isInteger(n) && n > 0))];
   const had = (await q('SELECT user_id FROM pc2_fuel_access WHERE asset_id = $1', [id])).map((r) => r.user_id);
@@ -147,7 +180,7 @@ export async function saveFuelLevel(fd) {
     );
   }
   await logEvent(u, 'edit', 'fuel', id, 'Fuel card ' + (name || a.name) + ': low level ' + pkr(low), null, null);
-  back('/fuel/setup', (name || a.name) + ' saved', true);
+  back('/fuel/setup', (name || a.name) + ' saved. Refill when below ' + pkr(low) + '.', true);
 }
 
 export async function addFuelAsset(fd) {

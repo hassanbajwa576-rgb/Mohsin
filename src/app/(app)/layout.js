@@ -29,7 +29,7 @@ export default async function AppLayout({ children }) {
   }
   if (user.role === 'om') {
     try {
-      approvals = (await q("SELECT (SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int FROM pc2_expenses WHERE status IN ('submitted', 'verified')) + (SELECT COUNT(*)::int FROM pc2_visitors WHERE del_req_by IS NOT NULL) + (SELECT COUNT(*)::int FROM pc2_hk_off WHERE status = 'pending') AS n"))[0].n;
+      approvals = (await q("SELECT (SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int FROM pc2_expenses WHERE status IN ('submitted', 'verified')) + (SELECT COUNT(*)::int FROM pc2_visitors WHERE del_req_by IS NOT NULL) + (SELECT COUNT(*)::int FROM pc2_hk_off WHERE status = 'pending') + (SELECT COUNT(*)::int FROM pc2_fuel_refill WHERE status = 'open') AS n"))[0].n;
     } catch {
       approvals = 0;
     }

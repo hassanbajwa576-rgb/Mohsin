@@ -4,7 +4,8 @@ import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { todayKey, fmtTime, fmt12, fmtDay } from '@/lib/att';
 import { cards, recentFuel, fuelScope, seesBalance, FUEL_KINDS, FKIND } from '@/lib/fuel';
-import { addFuel } from '@/lib/fuel-actions';
+import { addFuel, requestRefill } from '@/lib/fuel-actions';
+import { q } from '@/lib/db';
 import Flash from '@/components/Flash';
 import CountUp from '@/components/CountUp';
 
@@ -25,6 +26,7 @@ export default async function FuelPage({ searchParams }) {
   const list = await cards(scope);
   const mgr = seesBalance(user);
   const recent = await recentFuel(10, scope, !mgr);
+  const asks = await q("SELECT r.asset_id, (extract(epoch from r.requested_at) * 1000)::float8 AS at_ms, u.name FROM pc2_fuel_refill r LEFT JOIN pc2_users u ON u.id = r.requested_by WHERE r.status = 'open'");
   const lowOnes = mgr ? list.filter((c) => c.low) : [];
   const now = Date.now();
 
@@ -44,7 +46,7 @@ export default async function FuelPage({ searchParams }) {
 
       <div className='fuelcards'>
         {list.map((c) => (
-          <div key={c.id} className={'card fuelcard' + (c.low ? ' low' : '')}>
+          <div key={c.id} id={'card-' + c.id} className={'card fuelcard' + (c.low ? ' low' : '')}>
             <div className='fname'>{mgr || /fuel/i.test(c.name) ? c.name : c.name + ' fuel card'}</div>
             {mgr ? <div className={'fbal' + (c.n === 0 ? ' none' : c.low ? ' bad' : ' ok')}>{c.n === 0 ? 'No entries yet' : <CountUp value={c.balance} />}</div> : null}
             {mgr ? <div className='fmeta'>Refill when below {pkr(c.low_at)}</div> : null}
@@ -53,12 +55,23 @@ export default async function FuelPage({ searchParams }) {
             {!mgr && c.n > 0 ? <div className='fmeta'>{c.low ? 'Please tell Mohsin or Imran to refill.' : 'Enough balance for now.'}</div> : null}
             {!mgr ? null : c.n > 0 ? (
               <div className='fmeta'>
-                {c.low ? <b className='fneed'>Needs a refill</b> : c.daysLeft !== null ? 'About ' + c.daysLeft + ' days of fuel left at the last 30 days pace' : 'Balance is healthy'}
+                {c.low ? <b className='fneed'>Needs a refill</b> : 'Balance is healthy'}
               </div>
             ) : <div className='fmeta'>Add the opening balance below to start</div>}
             <div className='fmeta'>{c.fill_ms ? (mgr ? 'Last fuel ' + fmtDay(c.fill_ms) : null) : 'No fuel recorded yet'}{mgr && c.topup_ms ? ' | Last top-up ' + fmtDay(c.topup_ms) : ''}</div>
             {!mgr && c.fill_ms ? <div style={{ fontSize: 24, fontWeight: 700 }}>{pkr(c.fill_amount)}</div> : null}
             {!mgr && c.fill_ms ? <div className='fmeta'>Last fuel filled on {fmtDay(c.fill_at_ms)}, {fmt12(c.fill_at_ms)}</div> : null}
+            {user.role !== 'om' ? (() => {
+              const ask = asks.find((x) => x.asset_id === c.id);
+              return ask ? (
+                <div className='fmeta'><b>Refill requested</b> by {ask.name || 'someone'} on {fmtDay(ask.at_ms)}. Waiting for Mohsin.</div>
+              ) : (
+                <form action={requestRefill} className='inline'>
+                  <input type='hidden' name='asset' value={c.id} />
+                  <button className='btn' type='submit'>Request refill</button>
+                </form>
+              );
+            })() : null}
           </div>
         ))}
       </div>

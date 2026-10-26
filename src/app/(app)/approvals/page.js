@@ -9,6 +9,7 @@ import { pendingDeletes } from '@/lib/visitors';
 import { pendingRequests, TINFO } from '@/lib/roster';
 import { decideVisitorDelete } from '@/lib/vis-actions';
 import { decideTimeOff } from '@/lib/roster-actions';
+import { closeRefill } from '@/lib/fuel-actions';
 import ExpenseTable from '@/components/ExpenseTable';
 import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
@@ -25,10 +26,11 @@ export default async function ApprovalsPage({ searchParams }) {
   const expenses = await q(`SELECT ${EXP_COLS} ${EXP_FROM} WHERE e.status IN ('submitted', 'verified') ORDER BY e.spent_on DESC, e.id DESC LIMIT 200`);
   const visitors = await pendingDeletes();
   const timeoff = await pendingRequests('');
+  const refills = await q("SELECT r.id, r.asset_id, a.name AS card, u.name AS by_name, (extract(epoch from r.requested_at) * 1000)::float8 AS at_ms FROM pc2_fuel_refill r JOIN pc2_fuel_assets a ON a.id = r.asset_id LEFT JOIN pc2_users u ON u.id = r.requested_by WHERE r.status = 'open' ORDER BY r.requested_at");
   const imports = (await q("SELECT COUNT(*)::int AS n FROM pc2_import_review WHERE resolved_at IS NULL AND kind = 'conflict'"))[0].n;
   // Split expenses count once.
   const expCount = new Set(expenses.map((e) => e.split_group || 'e' + e.id)).size;
-  const total = expCount + visitors.length + timeoff.length;
+  const total = expCount + visitors.length + timeoff.length + refills.length;
 
   return (
     <>
@@ -45,6 +47,7 @@ export default async function ApprovalsPage({ searchParams }) {
         <div className='card kpi alt'><span>Expenses</span><b>{expCount}</b><small>{pkr(expenses.reduce((a, e) => a + Number(e.amount), 0))}</small></div>
         <div className='card kpi alt'><span>Time off requests</span><b>{timeoff.length}</b></div>
         <div className='card kpi alt'><span>Visitor delete requests</span><b>{visitors.length}</b></div>
+        <div className='card kpi alt'><span>Fuel refill requests</span><b>{refills.length}</b></div>
       </div>
 
       {!total && !imports ? <div className='card'><p className='muted' style={{ margin: 0 }}>Nothing is waiting for you.</p></div> : null}
@@ -53,6 +56,33 @@ export default async function ApprovalsPage({ searchParams }) {
         <div className='card'>
           <h3 style={{ marginTop: 0 }}>Expenses To Approve ({expCount})</h3>
           <ExpenseTable rows={expenses} user={user} back='/approvals' />
+        </div>
+      ) : null}
+
+      {refills.length ? (
+        <div className='card'>
+          <h3 style={{ marginTop: 0 }}>Fuel Refill Requests ({refills.length})</h3>
+          <div className='tablewrap'>
+            <table className='tx'>
+              <thead><tr><th>Fuel card</th><th>Asked by</th><th>When</th><th></th></tr></thead>
+              <tbody>
+                {refills.map((r) => (
+                  <tr key={r.id}>
+                    <td className='c-title'><b><Link href={'/fuel#card-' + r.asset_id}>{r.card}</Link></b></td>
+                    <td className='c-meta'>{r.by_name || '-'}</td>
+                    <td className='nw c-meta'>{fmtDay(r.at_ms)}, {fmt12(r.at_ms)}</td>
+                    <td className='act'>
+                      <Link className='btn primary' href={'/fuel#card-' + r.asset_id}>Open card to refill</Link>
+                      <form action={closeRefill} className='inline'>
+                        <input type='hidden' name='id' value={r.id} />
+                        <button className='btn' type='submit'>Mark done</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
 

@@ -820,3 +820,7 @@ main.wrap > .hero{margin-bottom:22px}
   .tier-menu a.on:hover,.modpop a.on:hover{color:#000}
 }
 @media (max-width:700px){.head h1{font-size:26px}.hero h1{font-size:28px}}
+
+/* A fuel card opened from a refill request is highlighted */
+.fuelcard:target{border-color:var(--gold);box-shadow:0 0 0 3px rgba(227,173,33,.35)}
+.fuelcard .inline{margin-top:6px}

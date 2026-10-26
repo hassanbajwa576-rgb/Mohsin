@@ -66,6 +66,7 @@ const DDL = [
   `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS del_reason TEXT`,
   `CREATE TABLE IF NOT EXISTS pc2_expected (id SERIAL PRIMARY KEY, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', company TEXT NOT NULL DEFAULT '', vtype TEXT NOT NULL, host TEXT NOT NULL DEFAULT '', purpose TEXT NOT NULL DEFAULT '', due_at TIMESTAMPTZ NOT NULL, status TEXT NOT NULL DEFAULT 'waiting', visitor_id INTEGER, created_by INTEGER, marked_by INTEGER, marked_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS pc2_expected_due ON pc2_expected (due_at)`,
+  `CREATE TABLE IF NOT EXISTS pc2_fuel_refill (id SERIAL PRIMARY KEY, asset_id INTEGER NOT NULL REFERENCES pc2_fuel_assets(id) ON DELETE CASCADE, requested_by INTEGER NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), status TEXT NOT NULL DEFAULT 'open', closed_by INTEGER, closed_at TIMESTAMPTZ)`,
   `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS remarks TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE pc2_expected ADD COLUMN IF NOT EXISTS remarks TEXT NOT NULL DEFAULT ''`,
   `CREATE TABLE IF NOT EXISTS pc2_hk_people (id SERIAL PRIMARY KEY, name TEXT NOT NULL, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), role TEXT NOT NULL DEFAULT '', active BOOLEAN NOT NULL DEFAULT TRUE, created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
@@ -108,7 +109,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-24-2';
+const SCHEMA_VERSION = '2026-10-26-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
