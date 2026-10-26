@@ -5,7 +5,7 @@ import { q } from './db';
 import { getUser } from './auth';
 import { logEvent } from './audit';
 import { can } from './perms';
-import { notifyRoles } from './notify';
+import { notifyRoles, notifyUser } from './notify';
 import { validDate, validTime } from './att';
 import { FKIND, fuelScope, canEditFuel, seesBalance } from './fuel';
 
@@ -67,6 +67,9 @@ export async function addFuel(fd) {
   // Tell the Sr. Ops Manager and the Sr. Support Officer the moment a card drops below its refill level.
   if (kind === 'fill' && before >= a.low_at && after < a.low_at) {
     await notifyRoles(['om', 'sso'], a.name + ' fuel card is low: ' + pkr(after) + ' left. Refill it (the level is ' + pkr(a.low_at) + ').', '/fuel', u.id);
+    // Whoever uses this card is told it is running low, without any amount.
+    const users = await q("SELECT f.user_id FROM pc2_fuel_access f JOIN pc2_users x ON x.id = f.user_id WHERE f.asset_id = $1 AND x.active AND x.role NOT IN ('om', 'sso')", [a.id]);
+    for (const r of users) await notifyUser(r.user_id, a.name + ' fuel card is running low. Please tell Mohsin or Imran.', '/fuel');
   }
   const low = kind === 'fill' && after < a.low_at;
   if (!seesBalance(u)) back(here, a.name + ': fuel ' + pkr(amount) + ' recorded.', true);
