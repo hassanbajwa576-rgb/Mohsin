@@ -47,7 +47,7 @@ export default async function ApprovalsPage({ searchParams }) {
         <div className='card kpi alt'><span>Expenses</span><b>{expCount}</b><small>{pkr(expenses.reduce((a, e) => a + Number(e.amount), 0))}</small></div>
         <div className='card kpi alt'><span>Time off requests</span><b>{timeoff.length}</b></div>
         <div className='card kpi alt'><span>Visitor delete requests</span><b>{visitors.length}</b></div>
-        <div className='card kpi alt'><span>Fuel refill requests</span><b>{refills.length}</b></div>
+        <div className='card kpi alt'><span>Card top-up requests</span><b>{refills.length}</b></div>
       </div>
 
       {!total && !imports ? <div className='card'><p className='muted' style={{ margin: 0 }}>Nothing is waiting for you.</p></div> : null}
@@ -61,7 +61,7 @@ export default async function ApprovalsPage({ searchParams }) {
 
       {refills.length ? (
         <div className='card'>
-          <h3 style={{ marginTop: 0 }}>Fuel Refill Requests ({refills.length})</h3>
+          <h3 style={{ marginTop: 0 }}>Card Top-up Requests ({refills.length})</h3>
           <div className='tablewrap'>
             <table className='tx'>
               <thead><tr><th>Fuel card</th><th>Asked by</th><th>When</th><th></th></tr></thead>
@@ -72,7 +72,7 @@ export default async function ApprovalsPage({ searchParams }) {
                     <td className='c-meta'>{r.by_name || '-'}</td>
                     <td className='nw c-meta'>{fmtDay(r.at_ms)}, {fmt12(r.at_ms)}</td>
                     <td className='act'>
-                      <Link className='btn primary' href={'/fuel#card-' + r.asset_id}>Open card to refill</Link>
+                      <Link className='btn primary' href={'/fuel#card-' + r.asset_id}>Open card to top up</Link>
                       <form action={closeRefill} className='inline'>
                         <input type='hidden' name='id' value={r.id} />
                         <button className='btn' type='submit'>Mark done</button>

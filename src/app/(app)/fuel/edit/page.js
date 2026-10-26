@@ -38,11 +38,11 @@ export default async function FuelEditPage({ searchParams }) {
               {list.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
-          {seesBalance(user) ? (
+          {user.role === 'om' ? (
             <label>What happened
               <select name='kind' defaultValue={t.kind}>{FUEL_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
             </label>
-          ) : <input type='hidden' name='kind' value='fill' />}
+          ) : null}
           <label>Amount (PKR)<input type='number' name='amount' min='0.01' step='0.01' inputMode='decimal' defaultValue={t.amount} required /></label>
           <label>Date<input type='date' name='date' defaultValue={dateKey(t.at_ms)} required /></label>
           <label>Time<input type='time' name='time' defaultValue={fmtTime(t.at_ms)} required /></label>

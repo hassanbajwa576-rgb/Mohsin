@@ -8,7 +8,7 @@ import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
 
-// Sr. Ops Manager: the balance below which each card needs a refill, and adding another card.
+// Sr. Ops Manager: the balance below which each card needs a top-up, and adding another card.
 export default async function FuelSetupPage({ searchParams }) {
   const user = await requireUser(['om', 'sso', 'so', 'guard']);
   if (!can(user, 'fuel_use')) redirect('/');
@@ -22,7 +22,7 @@ export default async function FuelSetupPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Fuel Setup</h1>
-          <p className='muted'>The balance below which a card needs a refill, and who can see each card. When a fill takes a card under its level, the Sr. Ops Manager and the Sr. Support Officer are notified.</p>
+          <p className='muted'>The balance below which a card needs a top-up, and who can see each card. When a fill takes a card under its level, the Sr. Ops Manager and the Sr. Support Officer are notified.</p>
         </div>
       </div>
       <Flash sp={sp} />
@@ -31,7 +31,7 @@ export default async function FuelSetupPage({ searchParams }) {
           <form key={c.id + '-' + c.low_at + '-' + c.name} action={saveFuelLevel} className='form' style={{ marginTop: 0, marginBottom: 14 }}>
             <input type='hidden' name='id' value={c.id} />
             <label>Card<input name='name' defaultValue={c.name} maxLength={60} required /></label>
-            <label>Refill when below (PKR)<input type='number' name='low_at' min='0' step='1' defaultValue={c.low_at} required /></label>
+            <label>Top up when below (PKR)<input type='number' name='low_at' min='0' step='1' defaultValue={c.low_at} required /></label>
             <div className='wide'>
               <span className='att-lbl'>Also visible to (Mohsin and Imran always see every card)</span>
               <div className='deptgrid'>
@@ -50,7 +50,7 @@ export default async function FuelSetupPage({ searchParams }) {
         <h3 style={{ marginTop: 0 }}>Add Another Card</h3>
         <form action={addFuelAsset} className='form'>
           <label>Name<input name='name' maxLength={60} required placeholder='For example: Hilux' /></label>
-          <label>Refill when below (PKR)<input type='number' name='low_at' min='0' step='1' placeholder='0' /></label>
+          <label>Top up when below (PKR)<input type='number' name='low_at' min='0' step='1' placeholder='0' /></label>
           <button className='btn primary' type='submit'>Add card</button>
         </form>
       </div>

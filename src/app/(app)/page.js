@@ -99,9 +99,9 @@ function AdjustedPosition({ rows, waiting }) {
     return (
       <tr>
         <td>{bold ? <b>{label}</b> : <b>{r.label}</b>}<Lines roles={roles} gold values={[]} /></td>
-        <td className='r nw' style={st}>{pkr(r.ready)}<Lines roles={roles} values={r.readyWho} /></td>
-        <td className='r nw' style={st}>{pkr(r.drafts)}<Lines roles={roles} values={r.draftsWho} /></td>
-        <td className='r nw' style={st}>{pkr(r.cash)}<Lines roles={roles} values={r.cashWho} cap={r.capWho} /></td>
+        <td className='r nw' style={st}><span className='fig'>{pkr(r.ready)}</span><Lines roles={roles} values={r.readyWho} /></td>
+        <td className='r nw' style={st}><span className='fig'>{pkr(r.drafts)}</span><Lines roles={roles} values={r.draftsWho} /></td>
+        <td className='r nw' style={st}><span className='fig'>{pkr(r.cash)}</span><Lines roles={roles} values={r.cashWho} cap={r.capWho} /></td>
         <td className='r nw'><b>{pkr(r.net)}</b><Lines roles={roles} values={r.totWho} /></td>
       </tr>
     );

@@ -16,8 +16,8 @@ export async function fuelScope(user) {
   return r.map((x) => x.asset_id);
 }
 
-/** Mohsin and Imran can change any entry; anyone else only the entries they recorded themselves. */
-export const canEditFuel = (user, t) => user.role === 'om' || user.role === 'sso' || (t.created_by === user.id && t.kind === 'fill');
+/** Mohsin can change any entry. Imran can change any fuel fill. Anyone else only the fills they recorded themselves. */
+export const canEditFuel = (user, t) => user.role === 'om' || (t.kind === 'fill' && (user.role === 'sso' || t.created_by === user.id));
 
 /** Only Mohsin and Imran see card balances, top-ups and refill levels. Others (for example Zubair) only record fuel filled. */
 export const seesBalance = (user) => user.role === 'om' || user.role === 'sso';

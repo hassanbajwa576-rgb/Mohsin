@@ -17,7 +17,7 @@ const pkr = (n) => {
   return 'PKR ' + (frac ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Math.round(v).toLocaleString('en-US'));
 };
 
-// Fuel cards for the genset and the vehicles: record fuel filled and card top-ups, and see which card needs a refill.
+// Fuel cards for the genset and the vehicles: record fuel filled and card top-ups, and see which card needs a top-up.
 export default async function FuelPage({ searchParams }) {
   const user = await requireUser(['om', 'sso', 'so', 'guard']);
   if (!can(user, 'fuel_use')) redirect('/');
@@ -41,21 +41,22 @@ export default async function FuelPage({ searchParams }) {
       <Flash sp={sp} />
 
       {lowOnes.length ? (
-        <p className='badline'>Refill needed: {lowOnes.map((c) => c.name + ' (' + pkr(c.balance) + ' left)').join(', ')}</p>
+        <p className='badline'>Top-up needed: {lowOnes.map((c) => c.name + ' (' + pkr(c.balance) + ' left)').join(', ')}</p>
       ) : null}
 
       <div className='fuelcards'>
         {list.map((c) => (
           <div key={c.id} id={'card-' + c.id} className={'card fuelcard' + (c.low ? ' low' : '')}>
             <div className='fname'>{mgr || /fuel/i.test(c.name) ? c.name : c.name + ' fuel card'}</div>
+            {mgr && c.n > 0 ? <div className='fmeta'>Balance on the card</div> : null}
             {mgr ? <div className={'fbal' + (c.n === 0 ? ' none' : c.low ? ' bad' : ' ok')}>{c.n === 0 ? 'No entries yet' : <CountUp value={c.balance} />}</div> : null}
-            {mgr ? <div className='fmeta'>Refill when below {pkr(c.low_at)}</div> : null}
+            {mgr ? <div className='fmeta'>Top up when below {pkr(c.low_at)}</div> : null}
             {!mgr && c.n > 0 ? <div className='fmeta'>Fuel card status</div> : null}
             {!mgr && c.n > 0 ? <div className={'fbal ' + (c.low ? 'bad' : 'ok')} style={{ fontSize: 15 }}>{c.low ? 'Fuel card: Low' : 'Fuel card: OK'}</div> : null}
-            {!mgr && c.n > 0 ? <div className='fmeta'>{c.low ? 'Please tell Mohsin or Imran to refill.' : 'Enough balance for now.'}</div> : null}
+            {!mgr && c.n > 0 ? <div className='fmeta'>{c.low ? 'Please request a card top-up.' : 'Enough balance for now.'}</div> : null}
             {!mgr ? null : c.n > 0 ? (
               <div className='fmeta'>
-                {c.low ? <b className='fneed'>Needs a refill</b> : 'Balance is healthy'}
+                {c.low ? <b className='fneed'>Needs a top-up</b> : 'Balance is healthy'}
               </div>
             ) : <div className='fmeta'>Add the opening balance below to start</div>}
             <div className='fmeta'>{c.fill_ms ? (mgr ? 'Last fuel ' + fmtDay(c.fill_ms) : null) : 'No fuel recorded yet'}{mgr && c.topup_ms ? ' | Last top-up ' + fmtDay(c.topup_ms) : ''}</div>
@@ -64,11 +65,11 @@ export default async function FuelPage({ searchParams }) {
             {user.role !== 'om' ? (() => {
               const ask = asks.find((x) => x.asset_id === c.id);
               return ask ? (
-                <div className='fmeta'><b>Refill requested</b> by {ask.name || 'someone'} on {fmtDay(ask.at_ms)}. Waiting for Mohsin.</div>
+                <div className='fmeta'><b>Top-up requested</b> by {ask.name || 'someone'} on {fmtDay(ask.at_ms)}. Waiting for Mohsin.</div>
               ) : (
                 <form action={requestRefill} className='inline'>
                   <input type='hidden' name='asset' value={c.id} />
-                  <button className='btn' type='submit'>Request refill</button>
+                  <button className='btn' type='submit'>Request card top-up</button>
                 </form>
               );
             })() : null}
@@ -77,7 +78,7 @@ export default async function FuelPage({ searchParams }) {
       </div>
 
       <div className='card'>
-        <h3 style={{ marginTop: 0 }}>{mgr ? 'Record Fuel Or A Top-up' : 'Record Fuel'}</h3>
+        <h3 style={{ marginTop: 0 }}>{user.role === 'om' ? 'Record Fuel Or A Top-up' : 'Record Fuel'}</h3>
         <form action={addFuel} className='form'>
           <label>Card
             <select name='asset' required defaultValue=''>
@@ -85,7 +86,7 @@ export default async function FuelPage({ searchParams }) {
               {list.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
-          {mgr ? (
+          {user.role === 'om' ? (
             <label>What happened
               <select name='kind' defaultValue='fill'>{FUEL_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
             </label>
@@ -96,7 +97,7 @@ export default async function FuelPage({ searchParams }) {
           <label className='wide'>Note (optional)<input name='note' maxLength={120} placeholder='For example: filled at the PSO pump' /></label>
           <button className='btn primary' type='submit'>Save</button>
         </form>
-        {mgr ? <p className='muted' style={{ marginBottom: 0 }}>Use <b>Opening balance</b> once for each card to enter what is on it today. After that, record <b>Fuel filled</b> each time and <b>Card top-up</b> each time money is added.</p> : null}
+        {user.role === 'om' ? <p className='muted' style={{ marginBottom: 0 }}>Use <b>Opening balance</b> once for each card to enter what is on it today. After that, record <b>Fuel filled</b> each time and <b>Card top-up</b> each time money is added.</p> : null}
       </div>
 
       <div className='card'>

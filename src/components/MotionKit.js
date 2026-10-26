@@ -11,7 +11,7 @@ const BOXES = 'main.wrap > .card, main.wrap > .kpis > *, main.wrap > .fuelcards 
 const FIGURES = 'main.wrap .kpi b, main.wrap .fuelcard .fbal, main.wrap .pipe .c';
 // The PettyTrack dashboard and Accounts keep their figures in tables and fund boxes, so count those too (only on those pages).
 const MONEY_PAGES = ['/', '/accounts'];
-const MONEY_FIGURES = 'main.wrap td b, main.wrap .fund b, main.wrap .fund-h b, main.wrap .step .s';
+const MONEY_FIGURES = 'main.wrap td b, main.wrap td .fig, main.wrap .adjtile b, main.wrap .fund b, main.wrap .fund-h b, main.wrap .step .s';
 const NUM = /^(PKR\s*)?(-?[\d,]+)$/;
 
 export default function MotionKit() {
