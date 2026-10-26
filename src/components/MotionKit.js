@@ -9,6 +9,9 @@ import { usePathname } from 'next/navigation';
 // Everything is left exactly as it is for people who ask their device for less motion.
 const BOXES = 'main.wrap > .card, main.wrap > .kpis > *, main.wrap > .fuelcards > *, main.wrap > .pipe > *, main.wrap > .funds > *';
 const FIGURES = 'main.wrap .kpi b, main.wrap .fuelcard .fbal, main.wrap .pipe .c';
+// The PettyTrack dashboard and Accounts keep their figures in tables and fund boxes, so count those too (only on those pages).
+const MONEY_PAGES = ['/', '/accounts'];
+const MONEY_FIGURES = 'main.wrap td b, main.wrap .fund b, main.wrap .fund-h b, main.wrap .step .s';
 const NUM = /^(PKR\s*)?(-?[\d,]+)$/;
 
 export default function MotionKit() {
@@ -45,7 +48,7 @@ export default function MotionKit() {
           seen.observe(el);
         }
       });
-      document.querySelectorAll(FIGURES).forEach((el) => {
+      document.querySelectorAll(MONEY_PAGES.includes(path) ? FIGURES + ', ' + MONEY_FIGURES : FIGURES).forEach((el) => {
         const t = el.textContent.trim();
         if (el.children.length || !NUM.test(t) || t === '0' || el.dataset.mkCount) return;
         el.dataset.mkCount = t;

@@ -45,10 +45,12 @@ export default async function FuelPage({ searchParams }) {
       <div className='fuelcards'>
         {list.map((c) => (
           <div key={c.id} className={'card fuelcard' + (c.low ? ' low' : '')}>
-            <div className='fname'>{c.name}</div>
+            <div className='fname'>{mgr || /fuel/i.test(c.name) ? c.name : c.name + ' fuel card'}</div>
             {mgr ? <div className={'fbal' + (c.n === 0 ? ' none' : c.low ? ' bad' : ' ok')}>{c.n === 0 ? 'No entries yet' : <CountUp value={c.balance} />}</div> : null}
             {mgr ? <div className='fmeta'>Refill when below {pkr(c.low_at)}</div> : null}
-            {!mgr && c.n > 0 ? <div className={'fbal ' + (c.low ? 'bad' : 'ok')} style={{ fontSize: 15 }}>{c.low ? 'Running low: tell Mohsin or Imran' : 'Card OK'}</div> : null}
+            {!mgr && c.n > 0 ? <div className='fmeta'>Fuel card status</div> : null}
+            {!mgr && c.n > 0 ? <div className={'fbal ' + (c.low ? 'bad' : 'ok')} style={{ fontSize: 15 }}>{c.low ? 'Fuel card: Low' : 'Fuel card: OK'}</div> : null}
+            {!mgr && c.n > 0 ? <div className='fmeta'>{c.low ? 'Please tell Mohsin or Imran to refill.' : 'Enough balance for now.'}</div> : null}
             {!mgr ? null : c.n > 0 ? (
               <div className='fmeta'>
                 {c.low ? <b className='fneed'>Needs a refill</b> : c.daysLeft !== null ? 'About ' + c.daysLeft + ' days of fuel left at the last 30 days pace' : 'Balance is healthy'}
