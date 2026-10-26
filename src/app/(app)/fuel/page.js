@@ -78,8 +78,6 @@ export default async function FuelPage({ searchParams }) {
             </label>
           ) : <input type='hidden' name='kind' value='fill' />}
           <label>Amount (PKR)<input type='number' name='amount' min='1' step='0.01' inputMode='decimal' required /></label>
-          <label>Litres (fuel only)<input type='number' name='litres' min='0.1' step='0.01' inputMode='decimal' placeholder='Optional' /></label>
-          <label>Meter reading (km or hours)<input type='number' name='reading' min='0' step='0.1' inputMode='decimal' placeholder='Optional' /></label>
           <label>Date<input type='date' name='date' defaultValue={todayKey()} required /></label>
           <label>Time<input type='time' name='time' defaultValue={fmtTime(now)} required /></label>
           <label className='wide'>Note (optional)<input name='note' maxLength={120} placeholder='For example: filled at the PSO pump' /></label>
@@ -93,7 +91,7 @@ export default async function FuelPage({ searchParams }) {
         {recent.length ? (
           <div className='tablewrap'>
             <table className='tx'>
-              <thead><tr><th>When</th><th>Card</th><th>What</th><th className='r'>Amount</th><th>Litres</th><th>By</th></tr></thead>
+              <thead><tr><th>When</th><th>Card</th><th>What</th><th className='r'>Amount</th><th>By</th></tr></thead>
               <tbody>
                 {recent.map((t) => (
                   <tr key={t.id}>
@@ -101,7 +99,6 @@ export default async function FuelPage({ searchParams }) {
                     <td className='c-title'><b>{t.asset}</b></td>
                     <td className='c-meta'>{FKIND[t.kind]}{t.note ? <div className='muted'>{t.note}</div> : null}</td>
                     <td className='r nw c-meta'>{t.kind === 'fill' ? '- ' : '+ '}{pkr(t.amount)}</td>
-                    <td className='c-meta'>{t.litres ? t.litres : '-'}</td>
                     <td className='c-meta'>{t.by_name || '-'}</td>
                   </tr>
                 ))}

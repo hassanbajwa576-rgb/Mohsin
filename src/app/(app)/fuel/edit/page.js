@@ -10,7 +10,7 @@ import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
 
-// Correct a fuel entry: the card, what happened, the amount, litres, meter reading, date, time or note.
+// Correct a fuel entry: the card, what happened, the amount, date, time or note.
 export default async function FuelEditPage({ searchParams }) {
   const user = await requireUser(['om', 'sso', 'so', 'guard']);
   if (!can(user, 'fuel_use')) redirect('/');
@@ -44,8 +44,6 @@ export default async function FuelEditPage({ searchParams }) {
             </label>
           ) : <input type='hidden' name='kind' value='fill' />}
           <label>Amount (PKR)<input type='number' name='amount' min='0.01' step='0.01' inputMode='decimal' defaultValue={t.amount} required /></label>
-          <label>Litres (fuel only)<input type='number' name='litres' min='0.1' step='0.01' inputMode='decimal' defaultValue={t.litres ?? ''} placeholder='Optional' /></label>
-          <label>Meter reading (km or hours)<input type='number' name='reading' min='0' step='0.1' inputMode='decimal' defaultValue={t.reading ?? ''} placeholder='Optional' /></label>
           <label>Date<input type='date' name='date' defaultValue={dateKey(t.at_ms)} required /></label>
           <label>Time<input type='time' name='time' defaultValue={fmtTime(t.at_ms)} required /></label>
           <label className='wide'>Note (optional)<input name='note' maxLength={120} defaultValue={t.note || ''} /></label>

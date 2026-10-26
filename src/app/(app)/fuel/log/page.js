@@ -32,7 +32,6 @@ export default async function FuelLogPage({ searchParams }) {
   const list = await cards(scope);
   const rows = await fuelRows({ from, to, asset, kind, scope });
   const spent = rows.filter((r) => r.kind === 'fill').reduce((a, r) => a + r.amount, 0);
-  const litres = rows.filter((r) => r.kind === 'fill').reduce((a, r) => a + (r.litres || 0), 0);
   const topups = rows.filter((r) => r.kind === 'topup').reduce((a, r) => a + r.amount, 0);
   const qs = new URLSearchParams({ from, to, ...(asset ? { asset: String(asset) } : {}), ...(kind ? { kind } : {}) }).toString();
 
@@ -65,7 +64,7 @@ export default async function FuelLogPage({ searchParams }) {
       </form>
 
       <div className='kpis'>
-        <div className='card kpi'><span>Fuel bought</span><b>{pkr(spent)}</b><small>{litres ? Math.round(litres * 10) / 10 + ' litres' : 'Litres not recorded'}</small></div>
+        <div className='card kpi'><span>Fuel bought</span><b>{pkr(spent)}</b></div>
         {mgr ? <div className='card kpi alt'><span>Card top-ups</span><b>{pkr(topups)}</b></div> : null}
         <div className='card kpi alt'><span>Entries</span><b>{rows.length}</b></div>
       </div>
@@ -74,7 +73,7 @@ export default async function FuelLogPage({ searchParams }) {
         {rows.length ? (
           <div className='tablewrap'>
             <table className='tx'>
-              <thead><tr><th>When</th><th>Card</th><th>What</th><th className='r'>Amount</th><th>Litres</th><th>Meter</th><th>By</th><th></th></tr></thead>
+              <thead><tr><th>When</th><th>Card</th><th>What</th><th className='r'>Amount</th><th>By</th><th></th></tr></thead>
               <tbody>
                 {rows.map((t) => (
                   <tr key={t.id}>
@@ -82,8 +81,6 @@ export default async function FuelLogPage({ searchParams }) {
                     <td className='c-title'><b>{t.asset}</b></td>
                     <td className='c-meta'>{FKIND[t.kind]}{t.note ? <div className='muted'>{t.note}</div> : null}</td>
                     <td className='r nw c-meta'>{t.kind === 'fill' ? '- ' : '+ '}{pkr(t.amount)}</td>
-                    <td className='c-meta'>{t.litres ? t.litres : '-'}</td>
-                    <td className='c-meta'>{t.reading != null ? t.reading : '-'}</td>
                     <td className='c-meta'>{t.by_name || '-'}</td>
                     <td className='act'>
                       {canEditFuel(user, t) ? <Link className='btn' href={'/fuel/edit?id=' + t.id}>Edit</Link> : null}

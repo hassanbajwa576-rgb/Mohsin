@@ -103,8 +103,8 @@ export async function editFuel(fd) {
   const ms = Number((await q(`SELECT (extract(epoch from (($1::date + $2::time) AT TIME ZONE 'Asia/Karachi')) * 1000)::float8 AS ms`, [date, time]))[0].ms);
   if (ms > Date.now() + 60000) back(here, 'That time is in the future');
   await q(
-    `UPDATE pc2_fuel_txn SET asset_id = $1, kind = $2, amount = $3, litres = $4, reading = $5, at = ($6::date + $7::time) AT TIME ZONE 'Asia/Karachi', note = $8 WHERE id = $9`,
-    [a.id, kind, amount, kind === 'fill' ? litres : null, kind === 'fill' ? reading : null, date, time, s(fd, 'note').slice(0, 120), id]
+    `UPDATE pc2_fuel_txn SET asset_id = $1, kind = $2, amount = $3, at = ($4::date + $5::time) AT TIME ZONE 'Asia/Karachi', note = $6 WHERE id = $7`,
+    [a.id, kind, amount, date, time, s(fd, 'note').slice(0, 120), id]
   );
   await logEvent(u, 'edit', 'fuel', id, 'Edited fuel entry: ' + t.name + ' ' + FKIND[t.kind] + ' ' + pkr(t.amount) + ' to ' + a.name + ' ' + FKIND[kind] + ' ' + pkr(amount), null, { kind, amount });
   back('/fuel/log', a.name + ': entry updated', true);
