@@ -73,7 +73,7 @@ export async function addFuel(fd) {
     for (const r of users) await notifyUser(r.user_id, a.name + ' fuel card is running low. Please tell Mohsin or Imran.', '/fuel');
   }
   const low = kind === 'fill' && after < a.low_at;
-  if (!seesBalance(u)) back(here, a.name + ': fuel ' + pkr(amount) + ' recorded.', true);
+  if (!seesBalance(u)) back(here, a.name + ': fuel refilled, ' + pkr(amount) + ' recorded.', true);
   back(here, a.name + ': ' + FKIND[kind].toLowerCase() + ' ' + pkr(amount) + ' recorded. Balance ' + pkr(after) + (low ? '. The card is now low and needs a top-up.' : '.'), true);
 }
 

@@ -35,7 +35,7 @@ export default async function FuelPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Fuel Entry</h1>
-          <p className='muted'>{scope ? 'Your fuel card' + (list.length === 1 ? '' : 's') + '. ' : 'One fuel card each for the Office Genset, BOLDBus, BRV and United Bike. '}{mgr ? 'Record every fill and every top-up so the balance is always right.' : 'Record every fill with the amount.'}</p>
+          <p className='muted'>{scope ? 'Your fuel card' + (list.length === 1 ? '' : 's') + '. ' : 'One fuel card each for the Office Genset, BOLDBus, BRV and United Bike. '}{mgr ? 'Record every fill and every top-up so the balance is always right.' : 'Record each time fuel is refilled in the vehicle.'}</p>
         </div>
       </div>
       <Flash sp={sp} />
@@ -78,9 +78,10 @@ export default async function FuelPage({ searchParams }) {
       </div>
 
       <div className='card'>
-        <h3 style={{ marginTop: 0 }}>{user.role === 'om' ? 'Record Fuel Or A Top-up' : 'Record Fuel'}</h3>
+        <h3 style={{ marginTop: 0 }}>{user.role === 'om' ? 'Record Fuel Or A Top-up' : 'Record Fuel Refilled'}</h3>
+        {user.role !== 'om' ? <p className='muted' style={{ marginTop: 0 }}>Enter the fuel you put into the vehicle and the amount you paid for it.</p> : null}
         <form action={addFuel} className='form'>
-          <label>Card
+          <label>{user.role === 'om' ? 'Card' : 'Fuel card'}
             <select name='asset' required defaultValue=''>
               <option value='' disabled>Choose</option>
               {list.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -91,11 +92,11 @@ export default async function FuelPage({ searchParams }) {
               <select name='kind' defaultValue='fill'>{FUEL_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
             </label>
           ) : <input type='hidden' name='kind' value='fill' />}
-          <label>Amount (PKR)<input type='number' name='amount' min='1' step='0.01' inputMode='decimal' required /></label>
+          <label>{user.role === 'om' ? 'Amount (PKR)' : 'Amount paid for fuel (PKR)'}<input type='number' name='amount' min='1' step='0.01' inputMode='decimal' required /></label>
           <label>Date<input type='date' name='date' defaultValue={todayKey()} required /></label>
           <label>Time<input type='time' name='time' defaultValue={fmtTime(now)} required /></label>
           <label className='wide'>Note (optional)<input name='note' maxLength={120} placeholder='For example: filled at the PSO pump' /></label>
-          <button className='btn primary' type='submit'>Save</button>
+          <button className='btn primary' type='submit'>{user.role === 'om' ? 'Save' : 'Save fuel refilled'}</button>
         </form>
         {user.role === 'om' ? <p className='muted' style={{ marginBottom: 0 }}>Use <b>Opening balance</b> once for each card to enter what is on it today. After that, record <b>Fuel filled</b> each time and <b>Card top-up</b> each time money is added.</p> : null}
       </div>
