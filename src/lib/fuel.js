@@ -16,6 +16,12 @@ export async function fuelScope(user) {
   return r.map((x) => x.asset_id);
 }
 
+/** Mohsin and Imran can change any entry; anyone else only the entries they recorded themselves. */
+export const canEditFuel = (user, t) => user.role === 'om' || user.role === 'sso' || (t.created_by === user.id && t.kind === 'fill');
+
+/** Only Mohsin and Imran see card balances, top-ups and refill levels. Others (for example Zubair) only record fuel filled. */
+export const seesBalance = (user) => user.role === 'om' || user.role === 'sso';
+
 /** Every active card with its balance (top-ups and opening balance minus fuel filled), the 30 day spend and the last movements. */
 export async function cards(scope = null) {
   if (scope && !scope.length) return [];
@@ -34,7 +40,7 @@ export async function cards(scope = null) {
   return rows.map((r) => ({ ...r, daysLeft: r.spent30 > 0 && r.balance > 0 ? Math.floor(r.balance / (r.spent30 / 30)) : null, low: r.n > 0 && r.balance < r.low_at }));
 }
 
-export const TXN_COLS = `t.id, t.asset_id, t.kind, t.amount::float8 AS amount, t.litres::float8 AS litres, t.reading::float8 AS reading, t.note, a.name AS asset,
+export const TXN_COLS = `t.id, t.asset_id, t.created_by, t.kind, t.amount::float8 AS amount, t.litres::float8 AS litres, t.reading::float8 AS reading, t.note, a.name AS asset,
   (extract(epoch from t.at) * 1000)::float8 AS at_ms, u.name AS by_name`;
 export const TXN_FROM = `FROM pc2_fuel_txn t JOIN pc2_fuel_assets a ON a.id = t.asset_id LEFT JOIN pc2_users u ON u.id = t.created_by`;
 
@@ -57,7 +63,8 @@ export async function fuelRows({ from, to, asset, kind, scope = null, limit = 10
   return q(`SELECT ${TXN_COLS} ${TXN_FROM} WHERE ${cond.join(' AND ')} ORDER BY t.at DESC, t.id DESC LIMIT ${Number(limit) || 1000}`, params);
 }
 
-export async function recentFuel(n = 10, scope = null) {
+export async function recentFuel(n = 10, scope = null, fillOnly = false) {
   if (scope && !scope.length) return [];
-  return q(`SELECT ${TXN_COLS} ${TXN_FROM} ${scope ? 'WHERE t.asset_id = ANY($1::int[])' : ''} ORDER BY t.at DESC, t.id DESC LIMIT ${Number(n) || 10}`, scope ? [scope] : []);
+  const cond = [scope ? 't.asset_id = ANY($1::int[])' : '', fillOnly ? "t.kind = 'fill'" : ''].filter(Boolean);
+  return q(`SELECT ${TXN_COLS} ${TXN_FROM} ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''} ORDER BY t.at DESC, t.id DESC LIMIT ${Number(n) || 10}`, scope ? [scope] : []);
 }

@@ -7,7 +7,7 @@ import { logEvent } from './audit';
 import { can } from './perms';
 import { notifyRoles } from './notify';
 import { validDate, validTime } from './att';
-import { FKIND, fuelScope } from './fuel';
+import { FKIND, fuelScope, canEditFuel, seesBalance } from './fuel';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const pkr = (n) => {
@@ -39,7 +39,7 @@ export async function addFuel(fd) {
   const u = await need();
   const here = '/fuel';
   const id = Number(s(fd, 'asset'));
-  const kind = s(fd, 'kind');
+  const kind = seesBalance(u) ? s(fd, 'kind') : 'fill';
   const amount = Math.round(Number(s(fd, 'amount')) * 100) / 100;
   const litres = s(fd, 'litres') ? Number(s(fd, 'litres')) : null;
   const reading = s(fd, 'reading') ? Number(s(fd, 'reading')) : null;
@@ -69,7 +69,42 @@ export async function addFuel(fd) {
     await notifyRoles(['om', 'sso'], a.name + ' fuel card is low: ' + pkr(after) + ' left. Refill it (the level is ' + pkr(a.low_at) + ').', '/fuel', u.id);
   }
   const low = kind === 'fill' && after < a.low_at;
+  if (!seesBalance(u)) back(here, a.name + ': fuel ' + pkr(amount) + ' recorded.', true);
   back(here, a.name + ': ' + FKIND[kind].toLowerCase() + ' ' + pkr(amount) + ' recorded. Balance ' + pkr(after) + (low ? '. The card is now low and needs a refill.' : '.'), true);
+}
+
+// Correct an entry. Mohsin and Imran can change any entry; anyone else only the entries they recorded, on their own cards.
+export async function editFuel(fd) {
+  const u = await need();
+  const id = Number(s(fd, 'id'));
+  const here = '/fuel/edit?id=' + id;
+  const t = (await q('SELECT t.id, t.created_by, t.kind, t.amount::float8 AS amount, a.name FROM pc2_fuel_txn t JOIN pc2_fuel_assets a ON a.id = t.asset_id WHERE t.id = $1', [Number.isInteger(id) ? id : 0]))[0];
+  if (!t) back('/fuel/log', 'That entry no longer exists');
+  if (!canEditFuel(u, t)) back('/fuel/log', 'You can change only the entries you recorded yourself');
+  const kind = seesBalance(u) ? s(fd, 'kind') : 'fill';
+  const amount = Math.round(Number(s(fd, 'amount')) * 100) / 100;
+  const litres = s(fd, 'litres') ? Number(s(fd, 'litres')) : null;
+  const reading = s(fd, 'reading') ? Number(s(fd, 'reading')) : null;
+  const date = s(fd, 'date');
+  const time = s(fd, 'time');
+  if (!FKIND[kind]) back(here, 'Choose what you are recording');
+  if (!(amount > 0)) back(here, 'Enter the amount in rupees');
+  if (litres !== null && !(litres > 0)) back(here, 'Litres must be more than 0');
+  if (reading !== null && !(reading >= 0)) back(here, 'Enter the meter reading as a number');
+  if (!validDate(date) || !validTime(time)) back(here, 'Choose a valid date and time');
+  const assetId = Number(s(fd, 'asset'));
+  const a = (await q('SELECT id, name FROM pc2_fuel_assets WHERE id = $1 AND active', [Number.isInteger(assetId) ? assetId : 0]))[0];
+  if (!a) back(here, 'Choose the card');
+  const scope = await fuelScope(u);
+  if (scope && !scope.includes(a.id)) back(here, 'You can only use your own card');
+  const ms = Number((await q(`SELECT (extract(epoch from (($1::date + $2::time) AT TIME ZONE 'Asia/Karachi')) * 1000)::float8 AS ms`, [date, time]))[0].ms);
+  if (ms > Date.now() + 60000) back(here, 'That time is in the future');
+  await q(
+    `UPDATE pc2_fuel_txn SET asset_id = $1, kind = $2, amount = $3, litres = $4, reading = $5, at = ($6::date + $7::time) AT TIME ZONE 'Asia/Karachi', note = $8 WHERE id = $9`,
+    [a.id, kind, amount, kind === 'fill' ? litres : null, kind === 'fill' ? reading : null, date, time, s(fd, 'note').slice(0, 120), id]
+  );
+  await logEvent(u, 'edit', 'fuel', id, 'Edited fuel entry: ' + t.name + ' ' + FKIND[t.kind] + ' ' + pkr(t.amount) + ' to ' + a.name + ' ' + FKIND[kind] + ' ' + pkr(amount), null, { kind, amount });
+  back('/fuel/log', a.name + ': entry updated', true);
 }
 
 // Sr. Ops Manager: remove a wrong entry.

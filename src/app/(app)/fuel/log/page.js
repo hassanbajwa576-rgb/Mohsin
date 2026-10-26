@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { todayKey, validDate, fmt12, fmtDay } from '@/lib/att';
 import { addDay } from '@/lib/att-import';
-import { cards, fuelRows, fuelScope, FUEL_KINDS, FKIND } from '@/lib/fuel';
+import { cards, fuelRows, fuelScope, canEditFuel, seesBalance, FUEL_KINDS, FKIND } from '@/lib/fuel';
 import { deleteFuel } from '@/lib/fuel-actions';
 import Flash from '@/components/Flash';
 import ConfirmButton from '@/components/ConfirmButton';
@@ -26,7 +26,8 @@ export default async function FuelLogPage({ searchParams }) {
   let from = validDate(sp.from || '') ? sp.from : addDay(to, -29);
   if (from > to) from = to;
   const asset = Number(sp.asset) || 0;
-  const kind = FKIND[sp.kind] ? sp.kind : '';
+  const mgr = seesBalance(user);
+  const kind = !mgr ? 'fill' : FKIND[sp.kind] ? sp.kind : '';
   const scope = await fuelScope(user);
   const list = await cards(scope);
   const rows = await fuelRows({ from, to, asset, kind, scope });
@@ -54,16 +55,18 @@ export default async function FuelLogPage({ searchParams }) {
         <label>Card
           <select name='asset' defaultValue={asset || ''}><option value=''>All cards</option>{list.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         </label>
-        <label>What
-          <select name='kind' defaultValue={kind}><option value=''>Everything</option>{FUEL_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-        </label>
+        {mgr ? (
+          <label>What
+            <select name='kind' defaultValue={kind}><option value=''>Everything</option>{FUEL_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+          </label>
+        ) : null}
         <button className='btn' type='submit'>Apply</button>
         <Link href='/fuel/log' className='btn ghost'>Reset</Link>
       </form>
 
       <div className='kpis'>
         <div className='card kpi'><span>Fuel bought</span><b>{pkr(spent)}</b><small>{litres ? Math.round(litres * 10) / 10 + ' litres' : 'Litres not recorded'}</small></div>
-        <div className='card kpi alt'><span>Card top-ups</span><b>{pkr(topups)}</b></div>
+        {mgr ? <div className='card kpi alt'><span>Card top-ups</span><b>{pkr(topups)}</b></div> : null}
         <div className='card kpi alt'><span>Entries</span><b>{rows.length}</b></div>
       </div>
 
@@ -71,7 +74,7 @@ export default async function FuelLogPage({ searchParams }) {
         {rows.length ? (
           <div className='tablewrap'>
             <table className='tx'>
-              <thead><tr><th>When</th><th>Card</th><th>What</th><th className='r'>Amount</th><th>Litres</th><th>Meter</th><th>By</th>{user.role === 'om' ? <th></th> : null}</tr></thead>
+              <thead><tr><th>When</th><th>Card</th><th>What</th><th className='r'>Amount</th><th>Litres</th><th>Meter</th><th>By</th><th></th></tr></thead>
               <tbody>
                 {rows.map((t) => (
                   <tr key={t.id}>
@@ -82,14 +85,15 @@ export default async function FuelLogPage({ searchParams }) {
                     <td className='c-meta'>{t.litres ? t.litres : '-'}</td>
                     <td className='c-meta'>{t.reading != null ? t.reading : '-'}</td>
                     <td className='c-meta'>{t.by_name || '-'}</td>
-                    {user.role === 'om' ? (
-                      <td className='act'>
+                    <td className='act'>
+                      {canEditFuel(user, t) ? <Link className='btn' href={'/fuel/edit?id=' + t.id}>Edit</Link> : null}
+                      {user.role === 'om' ? (
                         <form action={deleteFuel} className='inline'>
                           <input type='hidden' name='id' value={t.id} />
                           <ConfirmButton className='btn ghost' message='Remove this entry?'>Remove</ConfirmButton>
                         </form>
-                      </td>
-                    ) : null}
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>

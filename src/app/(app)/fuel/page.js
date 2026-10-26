@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { todayKey, fmtTime, fmt12, fmtDay } from '@/lib/att';
-import { cards, recentFuel, fuelScope, FUEL_KINDS, FKIND } from '@/lib/fuel';
+import { cards, recentFuel, fuelScope, seesBalance, FUEL_KINDS, FKIND } from '@/lib/fuel';
 import { addFuel } from '@/lib/fuel-actions';
 import Flash from '@/components/Flash';
 import CountUp from '@/components/CountUp';
@@ -23,8 +23,9 @@ export default async function FuelPage({ searchParams }) {
   const sp = await searchParams;
   const scope = await fuelScope(user);
   const list = await cards(scope);
-  const recent = await recentFuel(10, scope);
-  const lowOnes = list.filter((c) => c.low);
+  const mgr = seesBalance(user);
+  const recent = await recentFuel(10, scope, !mgr);
+  const lowOnes = mgr ? list.filter((c) => c.low) : [];
   const now = Date.now();
 
   return (
@@ -32,7 +33,7 @@ export default async function FuelPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Fuel Entry</h1>
-          <p className='muted'>{scope ? 'Your fuel card' + (list.length === 1 ? '' : 's') + '. ' : 'One fuel card each for the Office Genset, BOLDBus, BRV and United Bike. '}Record every fill and every top-up so the balance is always right.</p>
+          <p className='muted'>{scope ? 'Your fuel card' + (list.length === 1 ? '' : 's') + '. ' : 'One fuel card each for the Office Genset, BOLDBus, BRV and United Bike. '}{mgr ? 'Record every fill and every top-up so the balance is always right.' : 'Record every fill with the amount.'}</p>
         </div>
       </div>
       <Flash sp={sp} />
@@ -45,20 +46,20 @@ export default async function FuelPage({ searchParams }) {
         {list.map((c) => (
           <div key={c.id} className={'card fuelcard' + (c.low ? ' low' : '')}>
             <div className='fname'>{c.name}</div>
-            <div className={'fbal' + (c.n === 0 ? ' none' : c.low ? ' bad' : ' ok')}>{c.n === 0 ? 'No entries yet' : <CountUp value={c.balance} />}</div>
-            <div className='fmeta'>Refill when below {pkr(c.low_at)}</div>
-            {c.n > 0 ? (
+            {mgr ? <div className={'fbal' + (c.n === 0 ? ' none' : c.low ? ' bad' : ' ok')}>{c.n === 0 ? 'No entries yet' : <CountUp value={c.balance} />}</div> : null}
+            {mgr ? <div className='fmeta'>Refill when below {pkr(c.low_at)}</div> : null}
+            {!mgr ? null : c.n > 0 ? (
               <div className='fmeta'>
                 {c.low ? <b className='fneed'>Needs a refill</b> : c.daysLeft !== null ? 'About ' + c.daysLeft + ' days of fuel left at the last 30 days pace' : 'Balance is healthy'}
               </div>
             ) : <div className='fmeta'>Add the opening balance below to start</div>}
-            <div className='fmeta'>{c.fill_ms ? 'Last fuel ' + fmtDay(c.fill_ms) : 'No fuel recorded yet'}{c.topup_ms ? ' | Last top-up ' + fmtDay(c.topup_ms) : ''}</div>
+            <div className='fmeta'>{c.fill_ms ? 'Last fuel ' + fmtDay(c.fill_ms) : 'No fuel recorded yet'}{mgr && c.topup_ms ? ' | Last top-up ' + fmtDay(c.topup_ms) : ''}</div>
           </div>
         ))}
       </div>
 
       <div className='card'>
-        <h3 style={{ marginTop: 0 }}>Record Fuel Or A Top-up</h3>
+        <h3 style={{ marginTop: 0 }}>{mgr ? 'Record Fuel Or A Top-up' : 'Record Fuel'}</h3>
         <form action={addFuel} className='form'>
           <label>Card
             <select name='asset' required defaultValue=''>
@@ -66,9 +67,11 @@ export default async function FuelPage({ searchParams }) {
               {list.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
-          <label>What happened
-            <select name='kind' defaultValue='fill'>{FUEL_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-          </label>
+          {mgr ? (
+            <label>What happened
+              <select name='kind' defaultValue='fill'>{FUEL_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+            </label>
+          ) : <input type='hidden' name='kind' value='fill' />}
           <label>Amount (PKR)<input type='number' name='amount' min='1' step='0.01' inputMode='decimal' required /></label>
           <label>Litres (fuel only)<input type='number' name='litres' min='0.1' step='0.01' inputMode='decimal' placeholder='Optional' /></label>
           <label>Meter reading (km or hours)<input type='number' name='reading' min='0' step='0.1' inputMode='decimal' placeholder='Optional' /></label>
@@ -77,7 +80,7 @@ export default async function FuelPage({ searchParams }) {
           <label className='wide'>Note (optional)<input name='note' maxLength={120} placeholder='For example: filled at the PSO pump' /></label>
           <button className='btn primary' type='submit'>Save</button>
         </form>
-        <p className='muted' style={{ marginBottom: 0 }}>Use <b>Opening balance</b> once for each card to enter what is on it today. After that, record <b>Fuel filled</b> each time and <b>Card top-up</b> each time money is added.</p>
+        {mgr ? <p className='muted' style={{ marginBottom: 0 }}>Use <b>Opening balance</b> once for each card to enter what is on it today. After that, record <b>Fuel filled</b> each time and <b>Card top-up</b> each time money is added.</p> : null}
       </div>
 
       <div className='card'>
