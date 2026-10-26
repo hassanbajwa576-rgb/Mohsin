@@ -824,3 +824,6 @@ main.wrap > .hero{margin-bottom:22px}
 /* A fuel card opened from a refill request is highlighted */
 .fuelcard:target{border-color:var(--gold);box-shadow:0 0 0 3px rgba(227,173,33,.35)}
 .fuelcard .inline{margin-top:6px}
+
+/* A counted figure sits in a span inside the big KPI number; it must keep the big bold look, not the small caption style */
+.kpi b span{font-size:inherit;font-weight:inherit;color:inherit}
