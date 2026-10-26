@@ -827,3 +827,33 @@ main.wrap > .hero{margin-bottom:22px}
 
 /* A counted figure sits in a span inside the big KPI number; it must keep the big bold look, not the small caption style */
 .kpi b span{font-size:inherit;font-weight:inherit;color:inherit}
+
+/* Support Officer dashboard: alert strip, spent bar, one progress line for the expense stages, advance status tags */
+.attn{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:#fbf1cf;border:1px solid var(--gold);border-radius:4px;padding:12px 16px;margin-bottom:16px}
+.attn b{font-size:14px}
+.attn span{color:var(--slate);font-size:13.5px;flex:1 1 260px}
+.attn .btn{margin-left:auto}
+.spentbar{height:10px;background:var(--line);border-radius:5px;overflow:hidden;margin:6px 0 8px}
+.spentbar i{display:block;height:100%;background:var(--gold);border-radius:5px;transform-origin:left center;animation:obFill .9s cubic-bezier(.58,.3,.005,1) .1s backwards}
+.barrow{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--mut)}
+.barrow b{color:var(--ink);font-variant-numeric:tabular-nums}
+.stepper{display:grid;grid-template-columns:repeat(4,1fr);position:relative}
+.stepper .st{position:relative;padding:0 10px;text-align:center;min-width:0;display:block}
+.stepper .st::before{content:'';position:absolute;top:15px;left:-50%;width:100%;height:3px;background:var(--line)}
+.stepper .st:first-child::before{display:none}
+.stepper .st.done::before,.stepper .st.now::before{background:var(--gold)}
+.stepper .dot{position:relative;z-index:1;width:32px;height:32px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--card);border:3px solid var(--line);color:var(--mut)}
+.stepper .st.done .dot{background:var(--gold);border-color:var(--gold);color:#1d1d1b}
+.stepper .st.now .dot{border-color:var(--gold);color:var(--ink);box-shadow:0 0 0 4px #fbf1cf}
+.stepper .t{font-size:12.5px;font-weight:600}
+.stepper .c{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.stepper .s{font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.stepper .st.empty .c,.stepper .st.empty .t{color:var(--mut)}
+@media (max-width:640px){.stepper{grid-template-columns:repeat(2,1fr);row-gap:16px}.stepper .st::before{display:none}}
+.mini{display:inline-block;width:70px;height:6px;background:var(--line);border-radius:3px;vertical-align:middle;margin-right:8px;overflow:hidden}
+.mini i{display:block;height:100%;background:var(--gold)}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.tag.ok{background:#d9f1df;color:#1b6e34}
+.tag.open{background:#fbf1cf;color:#b88a10}
+tr.rowdone td{color:var(--mut)}
+@media (prefers-reduced-motion:reduce){.spentbar i{animation:none!important}}

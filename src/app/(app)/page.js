@@ -31,6 +31,28 @@ function Pipeline({ pipe, hot }) {
   );
 }
 
+// The four stages of an expense as one progress line. Stages already passed are gold, stages holding expenses glow.
+function Stepper({ pipe }) {
+  const info = PIPE.map((st) => pipe[st] || { c: 0, v: 0 });
+  const last = info.reduce((a, p, i) => (p.c > 0 ? i : a), -1);
+  return (
+    <div className='stepper'>
+      {PIPE.map((st, i) => {
+        const p = info[i];
+        const cls = p.c > 0 ? ' now' : i < last ? ' done empty' : ' empty';
+        return (
+          <Link key={st} href={'/expenses?status=' + st} className={'st' + cls}>
+            <div className='dot'>{i + 1}</div>
+            <div className='t'>{STATUS_LABEL[st]}</div>
+            <div className='c'>{p.c}</div>
+            <div className='s'><CountUp value={p.v} /></div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 // Net position per fund: what is still open after everything settled with Accounts.
 const n0 = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
 
@@ -165,6 +187,8 @@ async function SoDashboard({ user, sp }) {
     q(`SELECT e.status, COUNT(*)::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ${EXP_FROM} ${w.where} GROUP BY e.status`, w.params),
     q(`SELECT ${EXP_COLS} ${EXP_FROM} ${w.where} ORDER BY e.spent_on DESC, e.id DESC LIMIT 10`, w.params),
   ]);
+  const lowCash = acct.advances > 0 && acct.cash < 0.2 * acct.advances;
+  const usedPct = acct.advances > 0 ? Math.min(100, Math.round((acct.spent / acct.advances) * 100)) : 0;
   return (
     <>
       <div className='head'>
@@ -175,14 +199,34 @@ async function SoDashboard({ user, sp }) {
         <Link href='/expenses' className='btn primary'>Submit an expense</Link>
       </div>
       <Flash sp={sp} />
+      {lowCash ? (
+        <div className='attn'>
+          <b>Your cash in hand is low</b>
+          <span>{pkr(acct.cash)} left of the {pkr(acct.advances)} issued to you. Ask Mohsin for a new advance when you need one.</span>
+          <a className='btn primary' href='#my-advances'>Open my advances</a>
+        </div>
+      ) : acct.draft > 0 ? (
+        <div className='attn'>
+          <b>Expenses ready to submit</b>
+          <span>{pkr(acct.draft)} of your expenses are waiting to be submitted.</span>
+          <a className='btn primary' href='#submit-bar'>Go to submit</a>
+        </div>
+      ) : null}
       <div className='kpis'>
-        <div className='card kpi'><span>Advances</span><b><CountUp value={acct.advances} /></b></div>
+        <div className='card kpi'><span>Advances</span><b><CountUp value={acct.advances} /></b><small>Issued to you in total</small></div>
         <div className='card kpi alt'><span>Expenses</span><b><CountUp value={acct.spent} /></b><small>Not yet submitted: {pkr(acct.draft)}</small></div>
-        <div className='card kpi'><span>Advances Outstanding</span><b><CountUp value={acct.outstanding} /></b><small>Reduces only when you submit your expenses</small></div>
-        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b style={acct.advances > 0 ? (acct.cash < 0.2 * acct.advances ? LOWBOX : GOODBOX) : undefined}><CountUp value={acct.cash} /></b></div>
+        <div className='card kpi'><span>Advances Outstanding</span><b><CountUp value={acct.outstanding} /></b><small>Advances issued to you minus the expenses you have submitted</small></div>
+        <div className={'card kpi alt' + (acct.cash < 0 ? ' neg' : '')}><span>CIH</span><b style={acct.advances > 0 ? (acct.cash < 0.2 * acct.advances ? LOWBOX : GOODBOX) : undefined}><CountUp value={acct.cash} /></b><small>{lowCash ? 'Below 20% of what was issued' : 'Cash you hold now'}</small></div>
       </div>
+      {acct.advances > 0 ? (
+        <div className='card'>
+          <h3>How Much Of Your Advance Is Spent</h3>
+          <div className='spentbar'><i style={{ width: usedPct + '%' }} /></div>
+          <div className='barrow'><span><b>{pkr(acct.spent)}</b> spent of <b>{pkr(acct.advances)}</b> issued</span><span><b>{usedPct}%</b> used, <b>{pkr(acct.cash)}</b> left</span></div>
+        </div>
+      ) : null}
       {acct.draft > 0 ? (
-        <form action={submitDrafts} className='card submitbar'>
+        <form action={submitDrafts} id='submit-bar' className='card submitbar'>
           <div>
             <b>{pkr(acct.draft)}</b> of expenses are ready to submit
             <div className='muted'>Submitting sends them to the Sr. Ops Manager for review and clears them from your advance.</div>
@@ -190,20 +234,23 @@ async function SoDashboard({ user, sp }) {
           <button className='btn primary' type='submit'>Submit expenses</button>
         </form>
       ) : null}
-      <h2>Where my expenses stand</h2>
-      <Pipeline pipe={byStatus(pipeRows)} hot={['draft']} />
-      <h2>My advances</h2>
       <div className='card'>
+        <h3>Where My Expenses Stand</h3>
+        <Stepper pipe={byStatus(pipeRows)} />
+      </div>
+      <div className='card' id='my-advances'>
+        <h3>My Advances</h3>
         {issues.length === 0 ? <p className='muted'>No advance has been issued to you yet.</p> : (
           <div className='tablewrap'>
             <table>
-              <thead><tr><th>#</th><th>Date</th><th>Fund</th><th className='r'>Issued</th><th className='r'>Spent</th><th className='r'>Returned</th><th className='r'>In hand</th></tr></thead>
+              <thead><tr><th>#</th><th>Date</th><th>Fund</th><th className='r'>Issued</th><th className='r'>Spent</th><th className='r'>Returned</th><th className='r'>In hand</th><th></th></tr></thead>
               <tbody>
                 {issues.map((i) => (
-                  <tr key={i.id}>
+                  <tr key={i.id} className={i.amount - i.returned - Number(i.spent) <= 0 ? 'rowdone' : ''}>
                     <td>{i.id}</td><td className='nw'>{i.issued_on}</td><td>{FUNDS[i.fund]}</td>
-                    <td className='r nw'>{pkr(i.amount)}</td><td className='r nw'>{pkr(i.spent)}</td><td className='r nw'>{pkr(i.returned)}</td>
+                    <td className='r nw'>{pkr(i.amount)}</td><td className='r nw'><span className='mini'><i style={{ width: Math.min(100, Math.round((Number(i.spent) / Math.max(1, Number(i.amount))) * 100)) + '%' }} /></span>{pkr(i.spent)}</td><td className='r nw'>{pkr(i.returned)}</td>
                     <td className='r nw'><b style={acct.advances > 0 ? (acct.cash < 0.2 * acct.advances ? LOWBOX : GOODBOX) : undefined}>{pkr(i.amount - i.returned - Number(i.spent))}</b></td>
+                    <td>{i.amount - i.returned - Number(i.spent) <= 0 ? <span className='tag ok'>Fully spent</span> : <span className='tag open'>Open</span>}</td>
                   </tr>
                 ))}
               </tbody>
