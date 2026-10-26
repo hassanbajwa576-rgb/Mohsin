@@ -10,7 +10,11 @@ import { validDate, validTime } from './att';
 import { FKIND, fuelScope } from './fuel';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
-const pkr = (n) => 'PKR ' + Math.round(Number(n) || 0).toLocaleString('en-US');
+const pkr = (n) => {
+  const v = Number(n) || 0;
+  const frac = Math.abs(v - Math.round(v)) > 0.004;
+  return 'PKR ' + (frac ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Math.round(v).toLocaleString('en-US'));
+};
 
 async function need() {
   const u = await getUser();

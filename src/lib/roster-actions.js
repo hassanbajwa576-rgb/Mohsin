@@ -76,20 +76,21 @@ export async function addTimeOff(fd) {
   back(here, a.st.name + ': ' + TLABEL[a.kind] + (a.hrs !== null ? ' ' + a.hrs + ' h' : '') + ' recorded', true);
 }
 
-// Ask for time off (anyone). It waits for the Sr. Ops Manager or the Sr. Support Officer.
+// Ask for time off (anyone). It waits for the Sr. Ops Manager to approve.
 export async function requestTimeOff(fd) {
   const u = await needAny();
   const here = ROOT + '/request';
   const a = await readTimeOff(fd, u, here);
   const r = await q(`INSERT INTO pc2_hk_off (hk_id, from_date, to_date, kind, note, created_by, hours, status, requested_by) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $6) RETURNING id`, [a.st.id, a.from, a.to, a.kind, a.note, u.id, a.hrs]);
   await logEvent(u, 'create', 'timeoff', r[0].id, 'Time off requested: ' + a.st.name + ' ' + TLABEL[a.kind] + ' ' + span(a), null, { kind: a.kind });
-  await notifyRoles(['om', 'sso'], u.name + ' asked for time off for ' + a.st.name + ': ' + TLABEL[a.kind] + ' ' + span(a), ROOT, u.id);
+  await notifyRoles(['om'], u.name + ' asked for time off for ' + a.st.name + ': ' + TLABEL[a.kind] + ' ' + span(a), ROOT, u.id);
   back(here, 'Request sent for ' + a.st.name + '. You will be told when it is approved or declined.', true);
 }
 
-// Approve or decline a request.
+// Approve or decline a request. Only the Sr. Ops Manager decides.
 export async function decideTimeOff(fd) {
   const u = await need();
+  if (u.role !== 'om') redirect(ROOT);
   const id = Number(s(fd, 'id'));
   const approve = s(fd, 'decision') === 'approve';
   const to = s(fd, 'back') === '/approvals' ? '/approvals' : ROOT;

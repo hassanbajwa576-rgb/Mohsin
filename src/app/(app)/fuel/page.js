@@ -10,7 +10,11 @@ import CountUp from '@/components/CountUp';
 
 export const dynamic = 'force-dynamic';
 
-const pkr = (n) => 'PKR ' + Math.round(Number(n) || 0).toLocaleString('en-US');
+const pkr = (n) => {
+  const v = Number(n) || 0;
+  const frac = Math.abs(v - Math.round(v)) > 0.004;
+  return 'PKR ' + (frac ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Math.round(v).toLocaleString('en-US'));
+};
 
 // Fuel cards for the genset and the vehicles: record fuel filled and card top-ups, and see which card needs a refill.
 export default async function FuelPage({ searchParams }) {

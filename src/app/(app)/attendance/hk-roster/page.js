@@ -113,11 +113,13 @@ export default async function RosterPage({ searchParams }) {
                     <td className='c-meta'>{e.req_name || '-'}</td>
                     <td className='c-meta'>{e.note || ''}</td>
                     <td className='act'>
-                      <form action={decideTimeOff} className='inline'>
-                        <input type='hidden' name='id' value={e.id} />
-                        <button name='decision' value='approve' className='btn ok' type='submit'>Approve</button>
-                        <button name='decision' value='decline' className='btn bad' type='submit'>Decline</button>
-                      </form>
+                      {user.role === 'om' ? (
+                        <form action={decideTimeOff} className='inline'>
+                          <input type='hidden' name='id' value={e.id} />
+                          <button name='decision' value='approve' className='btn ok' type='submit'>Approve</button>
+                          <button name='decision' value='decline' className='btn bad' type='submit'>Decline</button>
+                        </form>
+                      ) : <span className='muted'>Waiting for Mohsin</span>}
                     </td>
                   </tr>
                 ))}
