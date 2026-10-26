@@ -31,6 +31,8 @@ export async function cards(scope = null) {
        COALESCE(SUM(t.amount) FILTER (WHERE t.kind = 'fill' AND t.at >= now() - interval '30 days'), 0)::float8 AS spent30,
        (extract(epoch from MAX(t.at) FILTER (WHERE t.kind IN ('topup', 'opening'))) * 1000)::float8 AS topup_ms,
        (extract(epoch from MAX(t.at) FILTER (WHERE t.kind = 'fill')) * 1000)::float8 AS fill_ms,
+       (SELECT f.amount::float8 FROM pc2_fuel_txn f WHERE f.asset_id = a.id AND f.kind = 'fill' ORDER BY f.at DESC, f.id DESC LIMIT 1) AS fill_amount,
+       (extract(epoch from (SELECT MAX(f.at) FROM pc2_fuel_txn f WHERE f.asset_id = a.id AND f.kind = 'fill')) * 1000)::float8 AS fill_at_ms,
        COUNT(t.id)::int AS n
      FROM pc2_fuel_assets a LEFT JOIN pc2_fuel_txn t ON t.asset_id = a.id
      WHERE a.active ${scope ? 'AND a.id = ANY($1::int[])' : ''} GROUP BY a.id ORDER BY a.sort, a.id`,
