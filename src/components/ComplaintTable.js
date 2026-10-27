@@ -17,7 +17,7 @@ export default function ComplaintTable({ rows, empty = 'No complaints.' }) {
               <td className='c-title'>
                 <OfficeTag o={c.office} />
                 <b><Link href={'/support/view?id=' + c.id}>{c.title}</Link></b>
-                <div className='muted'>Raised by {c.raised_name || '-'}, {fmtDay(c.created_ms)}</div>
+                <div className='muted'>Raised by {c.raised_name || '-'}, {fmtDay(c.created_ms)}</div>{c.resp_name ? <div className='muted'>Responsible: {c.resp_name}</div> : null}
               </td>
               <td className='c-meta'>{CLABEL[c.category]}</td>
               <td className='c-meta'><span className={'pri pri-' + c.priority}>{PLABEL[c.priority]}</span></td>

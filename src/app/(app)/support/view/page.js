@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, fmtDay, fmt12 } from '@/lib/att';
+import { hkPeople } from '@/lib/roster';
 import { CATS, PRIOS, CLABEL, PLABEL, WLABEL, canSee, complaintById, filesOf, notesOf, assignees, isMgr, refOf, remindOverdue } from '@/lib/support';
-import { addNote, assignComplaint, updateComplaint, resolveComplaint, reopenComplaint } from '@/lib/support-actions';
+import { addNote, assignComplaint, tagResponsible, updateComplaint, resolveComplaint, reopenComplaint } from '@/lib/support-actions';
 import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
 
@@ -19,7 +20,7 @@ export default async function ComplaintViewPage({ searchParams }) {
   await remindOverdue();
   const mgr = isMgr(user);
   const mineToHandle = mgr || c.assigned_to === user.id;
-  const [files, notes, people] = await Promise.all([filesOf(c.id), notesOf(c.id), mgr ? assignees() : []]);
+  const [files, notes, people, team] = await Promise.all([filesOf(c.id), notesOf(c.id), mgr ? assignees() : [], mgr ? hkPeople({}) : []]);
   const pics = files.filter((f) => f.mime.startsWith('image/'));
   const docs = files.filter((f) => !f.mime.startsWith('image/'));
 
@@ -40,6 +41,7 @@ export default async function ComplaintViewPage({ searchParams }) {
         <div className='kpis' style={{ marginBottom: 0 }}>
           <div className='card kpi alt'><span>Raised by</span><b style={{ fontSize: 15 }}>{c.raised_name || '-'}</b><small>{fmtDay(c.created_ms)}, {fmt12(c.created_ms)}</small></div>
           <div className='card kpi alt'><span>Handling</span><b style={{ fontSize: 15 }}>{c.assigned_name || 'Not assigned'}</b></div>
+          <div className='card kpi alt'><span>Responsible</span><b style={{ fontSize: 15 }}>{c.resp_name || 'Not tagged'}</b>{c.resp_note ? <small>{c.resp_note}</small> : null}</div>
           <div className={'card kpi alt' + (c.overdue ? ' neg' : '')}><span>Due</span><b style={{ fontSize: 15 }}>{c.due_on}</b>{c.overdue ? <small>Overdue</small> : null}</div>
           <div className='card kpi alt'><span>From</span><b style={{ fontSize: 15 }}>{c.complainant_name || WLABEL[c.complainant_type]}</b><small>{c.complainant_name ? WLABEL[c.complainant_type] : ''}{c.complainant_phone ? ' ' + c.complainant_phone : ''}</small></div>
         </div>
@@ -85,6 +87,23 @@ export default async function ComplaintViewPage({ searchParams }) {
               </select>
             </label>
             <button className='btn' type='submit'>Assign</button>
+          </form>
+          <form action={tagResponsible} className='form' style={{ marginTop: 12 }}>
+            <input type='hidden' name='id' value={c.id} />
+            <label>Responsible (support team)
+              <select name='hk' defaultValue={c.resp_hk_id || ''}>
+                <option value=''>Nobody</option>
+                {team.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.office}{p.dept ? ', ' + p.dept : ''})</option>)}
+              </select>
+            </label>
+            <label>Or an OpsTrack user
+              <select name='ruser' defaultValue={c.resp_user_id || ''}>
+                <option value=''>Nobody</option>
+                {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </label>
+            <label className='wide'>Floor or area, and why<input name='resp_note' maxLength={200} defaultValue={c.resp_note || ''} placeholder='For example: 2nd floor east wing, washroom not cleaned' autoComplete='off' /></label>
+            <button className='btn' type='submit'>Tag responsible person</button>
           </form>
           <form action={updateComplaint} className='form' style={{ marginTop: 12 }}>
             <input type='hidden' name='id' value={c.id} />

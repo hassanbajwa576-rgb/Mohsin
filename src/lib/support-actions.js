@@ -58,6 +58,25 @@ export async function assignComplaint(fd) {
   back(here(c.id), 'Assigned to ' + who.name, true);
 }
 
+// Mohsin or Imran tag the person whose floor or area it was, or who was responsible. Clearing both removes the tag.
+export async function tagResponsible(fd) {
+  const u = await need();
+  if (!isMgr(u)) back('/support', 'Only Mohsin or Imran can tag a responsible person');
+  const c = await load(u, fd);
+  const hkId = Number(s(fd, 'hk'));
+  const userId = Number(s(fd, 'ruser'));
+  const hk = Number.isInteger(hkId) && hkId > 0 ? (await q('SELECT id, name FROM pc2_hk_people WHERE id = $1', [hkId]))[0] : null;
+  const ru = Number.isInteger(userId) && userId > 0 ? (await q("SELECT id, name FROM pc2_users WHERE id = $1 AND active AND role <> 'guard'", [userId]))[0] : null;
+  const note = s(fd, 'resp_note').slice(0, 200);
+  await q('UPDATE pc2_complaints SET resp_hk_id = $1, resp_user_id = $2, resp_note = $3 WHERE id = $4', [hk ? hk.id : null, ru ? ru.id : null, note, c.id]);
+  const names = [hk && hk.name, ru && ru.name].filter(Boolean).join(' and ');
+  const text = names ? 'Tagged responsible: ' + names + (note ? ' (' + note + ')' : '') : 'Responsible person cleared';
+  await q("INSERT INTO pc2_complaint_notes (complaint_id, user_id, note, kind) VALUES ($1, $2, $3, 'assign')", [c.id, u.id, text]);
+  await logEvent(u, 'edit', 'complaint', c.id, refOf(c.id) + ': ' + text, null, null);
+  if (ru && ru.id !== u.id) await notifyUser(ru.id, u.name + ' tagged you as responsible for ' + refOf(c.id) + ': ' + c.title, here(c.id));
+  back(here(c.id), names ? 'Tagged ' + names : 'Tag cleared', true);
+}
+
 // Mohsin or Imran change the priority, category or due date.
 export async function updateComplaint(fd) {
   const u = await need();

@@ -4,6 +4,7 @@ import { notifyRoles, notifyUser } from './notify';
 
 export const CATS = [
   ['facilities', 'Facilities'],
+  ['cleaning', 'Cleaning'],
   ['it', 'IT'],
   ['hr', 'HR'],
   ['vendor', 'Vendor'],
@@ -37,9 +38,11 @@ export const C_COLS = `c.id, c.title, c.description, c.category, c.priority, c.s
   c.resolution, c.raised_by, c.assigned_to, c.office_id, o.code AS office, to_char(c.due_on, 'YYYY-MM-DD') AS due_on,
   (c.status = 'open' AND c.due_on < (now() AT TIME ZONE 'Asia/Karachi')::date) AS overdue,
   (extract(epoch from c.created_at) * 1000)::float8 AS created_ms, (extract(epoch from c.resolved_at) * 1000)::float8 AS resolved_ms,
+  c.resp_hk_id, c.resp_user_id, c.resp_note, COALESCE(hp.name, ru.name) AS resp_name,
   rb.name AS raised_name, ab.name AS assigned_name, rs.name AS resolved_name`;
 export const C_FROM = `FROM pc2_complaints c JOIN pc2_offices o ON o.id = c.office_id LEFT JOIN pc2_users rb ON rb.id = c.raised_by
-  LEFT JOIN pc2_users ab ON ab.id = c.assigned_to LEFT JOIN pc2_users rs ON rs.id = c.resolved_by`;
+  LEFT JOIN pc2_users ab ON ab.id = c.assigned_to LEFT JOIN pc2_users rs ON rs.id = c.resolved_by
+  LEFT JOIN pc2_hk_people hp ON hp.id = c.resp_hk_id LEFT JOIN pc2_users ru ON ru.id = c.resp_user_id`;
 
 /** Mohsin and Imran see every complaint; everyone else sees the ones they raised or that are assigned to them. */
 export const canSee = (u, c) => isMgr(u) || c.raised_by === u.id || c.assigned_to === u.id;
@@ -73,7 +76,7 @@ export async function complaintRows(u, { status, priority, category, office, tex
   }
   if (text) {
     params.push('%' + String(text).replace(/[\\%_]/g, '').trim().slice(0, 60) + '%');
-    cond.push(`(c.title ILIKE $${params.length} OR c.description ILIKE $${params.length} OR c.location ILIKE $${params.length} OR c.complainant_name ILIKE $${params.length} OR ('SC-' || lpad(c.id::text, 4, '0')) ILIKE $${params.length})`);
+    cond.push(`(c.title ILIKE $${params.length} OR c.description ILIKE $${params.length} OR c.location ILIKE $${params.length} OR c.complainant_name ILIKE $${params.length} OR hp.name ILIKE $${params.length} OR ru.name ILIKE $${params.length} OR ('SC-' || lpad(c.id::text, 4, '0')) ILIKE $${params.length})`);
   }
   return q(
     `SELECT ${C_COLS} ${C_FROM} ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''}
@@ -109,6 +112,15 @@ export async function stats(u) {
     params
   );
   return r[0];
+}
+
+/** Who complaints were tagged to as responsible: how many in total, still open and resolved. Mohsin and Imran only. */
+export async function byPerson() {
+  return q(`SELECT COALESCE(hp.name, ru.name) AS name, CASE WHEN c.resp_hk_id IS NOT NULL THEN 'Support team' ELSE 'OpsTrack user' END AS kind,
+      COUNT(*)::int AS total, COUNT(*) FILTER (WHERE c.status = 'open')::int AS open, COUNT(*) FILTER (WHERE c.status = 'resolved')::int AS done,
+      COUNT(*) FILTER (WHERE c.category = 'cleaning')::int AS cleaning, MAX(c.id) AS last_id
+    FROM pc2_complaints c LEFT JOIN pc2_hk_people hp ON hp.id = c.resp_hk_id LEFT JOIN pc2_users ru ON ru.id = c.resp_user_id
+    WHERE c.resp_hk_id IS NOT NULL OR c.resp_user_id IS NOT NULL GROUP BY 1, 2 ORDER BY total DESC, name`);
 }
 
 /** People a complaint can be assigned to. */

@@ -68,6 +68,9 @@ const DDL = [
   `CREATE INDEX IF NOT EXISTS pc2_expected_due ON pc2_expected (due_at)`,
   `CREATE TABLE IF NOT EXISTS pc2_complaints (id SERIAL PRIMARY KEY, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT NOT NULL, priority TEXT NOT NULL DEFAULT 'medium', status TEXT NOT NULL DEFAULT 'open', location TEXT NOT NULL DEFAULT '', complainant_type TEXT NOT NULL DEFAULT 'staff', complainant_name TEXT NOT NULL DEFAULT '', complainant_phone TEXT NOT NULL DEFAULT '', due_on DATE NOT NULL, resolution TEXT NOT NULL DEFAULT '', raised_by INTEGER, assigned_to INTEGER, resolved_by INTEGER, resolved_at TIMESTAMPTZ, reminded_on DATE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS pc2_complaints_status ON pc2_complaints (status, due_on)`,
+  `ALTER TABLE pc2_complaints ADD COLUMN IF NOT EXISTS resp_hk_id INTEGER`,
+  `ALTER TABLE pc2_complaints ADD COLUMN IF NOT EXISTS resp_user_id INTEGER`,
+  `ALTER TABLE pc2_complaints ADD COLUMN IF NOT EXISTS resp_note TEXT NOT NULL DEFAULT ''`,
   `CREATE TABLE IF NOT EXISTS pc2_complaint_files (id SERIAL PRIMARY KEY, complaint_id INTEGER NOT NULL REFERENCES pc2_complaints(id) ON DELETE CASCADE, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL DEFAULT 0, data BYTEA NOT NULL, uploaded_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS pc2_complaint_files_c ON pc2_complaint_files (complaint_id)`,
   `CREATE TABLE IF NOT EXISTS pc2_complaint_notes (id SERIAL PRIMARY KEY, complaint_id INTEGER NOT NULL REFERENCES pc2_complaints(id) ON DELETE CASCADE, user_id INTEGER, note TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'note', created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
@@ -115,7 +118,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-27-1';
+const SCHEMA_VERSION = '2026-10-27-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

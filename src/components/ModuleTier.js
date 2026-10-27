@@ -90,6 +90,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const fu = [page('/fuel', 'Fuel Entry'), page('/fuel/log', 'Fuel Log')];
   if (om) fu.push(page('/fuel/setup', 'Setup'));
   const su = [page('/support', 'Dashboard'), page('/support/new', 'Record Complaint'), page('/support/list', 'All Complaints')];
+  if (om || role === 'sso') su.push(page('/support/people', 'By Person'));
   const menu = sup ? su : fuel ? fu : visit ? vis : guard || attend ? att : petty;
   // Every page of a module, for the dropdown under its name.
   const all = (list) => list.flatMap((m) => (m.items ? m.items : [m]));
