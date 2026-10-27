@@ -882,3 +882,13 @@ tr.rowdone td{color:var(--mut)}
 .cnote.k-resolve{border-left-color:#1b6e34}
 .cnote.k-reopen{border-left-color:#b3261e}
 textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var(--line);border-radius:3px;padding:8px 10px;background:var(--card);color:var(--ink);resize:vertical}
+
+/* Option A: the manager links sit in the top bar next to the account, with a gold divider; the menu row keeps only the tabs */
+.tier-menu.admin{display:none}
+@media (min-width:901px){
+  .toplinks{margin-left:auto;margin-right:18px;gap:4px}
+  .toplinks::before{content:'';width:2px;height:20px;background:var(--gold);border-radius:1px;margin-right:12px}
+  .toplinks a{position:relative;padding:8px 10px;font-size:13.5px;color:var(--mut);border-bottom:2px solid transparent}
+  .toplinks a.on{color:var(--ink);font-weight:600;border-bottom-color:var(--gold)}
+  .toplinks + .who{margin-left:0}
+}

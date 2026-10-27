@@ -5,6 +5,7 @@ import Logo from './Logo';
 import Bell from './Bell';
 import LangToggle from './LangToggle';
 import ModuleTier from './ModuleTier';
+import TopLinks from './TopLinks';
 import { PERMS, can } from '@/lib/perms';
 
 // Two-tier header. Row 1: AlphaBOLD logo, OpsTrack, account. Row 2: module switch and menu.
@@ -25,6 +26,7 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approv
           <span className='sep' />
           <span className='brand-name' translate='no'>Ops<em>Track</em></span>
         </Link>
+        {guard ? null : <TopLinks role={user.role} approvals={approvals} />}
         <div className='who'>
           <LangToggle lang={lang} />
           {guard ? null : <Bell initial={unread} />}
