@@ -53,6 +53,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const attend = path === '/attendance' || path.indexOf('/attendance/') === 0;
   const visit = path === '/visitors' || path.indexOf('/visitors/') === 0;
   const fuel = path === '/fuel' || path.indexOf('/fuel/') === 0;
+  const sup = path === '/support' || path.indexOf('/support/') === 0;
   const guard = role === 'guard';
   const om = role === 'om';
   const page = (href, label, badge) => ({ href, label, badge });
@@ -88,7 +89,8 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
 
   const fu = [page('/fuel', 'Fuel Entry'), page('/fuel/log', 'Fuel Log')];
   if (om) fu.push(page('/fuel/setup', 'Setup'));
-  const menu = fuel ? fu : visit ? vis : guard || attend ? att : petty;
+  const su = [page('/support', 'Dashboard'), page('/support/new', 'Record Complaint'), page('/support/list', 'All Complaints')];
+  const menu = sup ? su : fuel ? fu : visit ? vis : guard || attend ? att : petty;
   // Every page of a module, for the dropdown under its name.
   const all = (list) => list.flatMap((m) => (m.items ? m.items : [m]));
   const admin = [];
@@ -99,16 +101,17 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const opened = menu.find((m) => m.items && m.label === open);
 
   // Exact match for the section home pages, prefix match for everything else.
-  const on = (href) => (href === '/' || href === '/attendance' || href === '/visitors' || href === '/fuel' ? path === href : path === href || path.indexOf(href + '/') === 0);
+  const on = (href) => (href === '/' || href === '/attendance' || href === '/visitors' || href === '/fuel' || href === '/support' ? path === href : path === href || path.indexOf(href + '/') === 0);
 
   return (
     <div className='tier' ref={bar}>
       <div className='tier-in'>
         <span className='modseg' translate='no'>
-          {guard ? null : <Mod href='/' label='PettyTrack' active={!attend && !visit && !fuel} items={petty} on={on} />}
+          {guard ? null : <Mod href='/' label='PettyTrack' active={!attend && !visit && !fuel && !sup} items={petty} on={on} />}
           <Mod href='/attendance' label='AttendTrack' active={attend} items={all(att)} on={on} />
           <Mod href='/visitors' label='VisitTrack' active={visit} items={vis} on={on} />
           {access.includes('fuel_use') ? <Mod href='/fuel' label='FuelTrack' active={fuel} items={fu} on={on} /> : null}
+          <Mod href='/support' label='SupportTrack' active={sup} items={su} on={on} />
         </span>
         <span className='tier-sep' />
         <div className='tier-scroll'>

@@ -66,6 +66,12 @@ const DDL = [
   `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS del_reason TEXT`,
   `CREATE TABLE IF NOT EXISTS pc2_expected (id SERIAL PRIMARY KEY, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', company TEXT NOT NULL DEFAULT '', vtype TEXT NOT NULL, host TEXT NOT NULL DEFAULT '', purpose TEXT NOT NULL DEFAULT '', due_at TIMESTAMPTZ NOT NULL, status TEXT NOT NULL DEFAULT 'waiting', visitor_id INTEGER, created_by INTEGER, marked_by INTEGER, marked_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS pc2_expected_due ON pc2_expected (due_at)`,
+  `CREATE TABLE IF NOT EXISTS pc2_complaints (id SERIAL PRIMARY KEY, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT NOT NULL, priority TEXT NOT NULL DEFAULT 'medium', status TEXT NOT NULL DEFAULT 'open', location TEXT NOT NULL DEFAULT '', complainant_type TEXT NOT NULL DEFAULT 'staff', complainant_name TEXT NOT NULL DEFAULT '', complainant_phone TEXT NOT NULL DEFAULT '', due_on DATE NOT NULL, resolution TEXT NOT NULL DEFAULT '', raised_by INTEGER, assigned_to INTEGER, resolved_by INTEGER, resolved_at TIMESTAMPTZ, reminded_on DATE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS pc2_complaints_status ON pc2_complaints (status, due_on)`,
+  `CREATE TABLE IF NOT EXISTS pc2_complaint_files (id SERIAL PRIMARY KEY, complaint_id INTEGER NOT NULL REFERENCES pc2_complaints(id) ON DELETE CASCADE, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL DEFAULT 0, data BYTEA NOT NULL, uploaded_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS pc2_complaint_files_c ON pc2_complaint_files (complaint_id)`,
+  `CREATE TABLE IF NOT EXISTS pc2_complaint_notes (id SERIAL PRIMARY KEY, complaint_id INTEGER NOT NULL REFERENCES pc2_complaints(id) ON DELETE CASCADE, user_id INTEGER, note TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'note', created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS pc2_complaint_notes_c ON pc2_complaint_notes (complaint_id)`,
   `CREATE TABLE IF NOT EXISTS pc2_fuel_refill (id SERIAL PRIMARY KEY, asset_id INTEGER NOT NULL REFERENCES pc2_fuel_assets(id) ON DELETE CASCADE, requested_by INTEGER NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), status TEXT NOT NULL DEFAULT 'open', closed_by INTEGER, closed_at TIMESTAMPTZ)`,
   `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS remarks TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE pc2_expected ADD COLUMN IF NOT EXISTS remarks TEXT NOT NULL DEFAULT ''`,
@@ -109,7 +115,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-26-1';
+const SCHEMA_VERSION = '2026-10-27-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
