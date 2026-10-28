@@ -56,6 +56,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const sup = path === '/support' || path.indexOf('/support/') === 0;
   const guard = role === 'guard';
   const om = role === 'om';
+  const sso = role === 'sso';
   const page = (href, label, badge) => ({ href, label, badge });
   // Several pages under one name. One page on its own stays a plain tab; none at all disappears.
   const group = (label, items, badge) => (items.length > 1 ? { label, items, badge } : items[0] || null);
@@ -115,7 +116,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   bots.push({ href: '/support', label: 'Support', active: sup, d: 'M4 5h16v11H9l-5 4zM8 10h8' });
 
   return (
-    <div className={'tier' + (om ? ' tier-om' : '')} ref={bar}>
+    <div className={'tier' + (om || sso ? ' tier-om' : '')} ref={bar}>
       <div className='tier-in'>
         <span className='modseg' translate='no'>
           {guard ? null : <Mod href='/' label='PettyTrack' active={!attend && !visit && !fuel && !sup} items={petty} on={on} />}
@@ -144,7 +145,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
           {opened.items.map((it) => <Link key={it.href} href={it.href} className={on(it.href) ? 'on' : ''}>{it.label}{it.badge}</Link>)}
         </nav>
       ) : null}
-      {om ? (
+      {om || sso ? (
         <nav className='botbar' aria-label='Modules' translate='no'>
           {bots.map((b) => (
             <Link key={b.href} href={b.href} className={b.active ? 'on' : ''}>
