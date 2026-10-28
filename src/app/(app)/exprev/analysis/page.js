@@ -85,13 +85,14 @@ export default async function ExpRevAnalysis({ searchParams }) {
   const tI = sum(isb);
   const T = tL + tI;
   // The same months and switches for each year, to compare year with year (latest four years with entries).
-  const tally = (rs) => {
+  const tally = (rs, f0 = from, t0 = to, hd0 = '') => {
     const l = Array(12).fill(0);
     const i = Array(12).fill(0);
     const hd = new Map();
     for (const r of rs) {
-      if (r.m < from || r.m > to) continue;
+      if (r.m < f0 || r.m > t0) continue;
       if (noBB && isBB(r.cc)) continue;
+      if (hd0 && r.cc !== hd0) continue;
       const k = r.cc || '(no cost center)';
       const h = hd.get(k) || { lhr: 0, isb: 0 };
       if (alloc && sharedSet.has(r.cc)) {
@@ -122,7 +123,12 @@ export default async function ExpRevAnalysis({ searchParams }) {
   const defA = years[1] || years[0];
   const ya = asYear(sp.ya) || defA;
   const yb = asYear(sp.yb) || defB;
-  const getT = async (yy) => tallies.find((x) => x.y === yy) || { y: yy, ...tally(await officeCosts(yy)) };
+  const cF = Math.min(12, Math.max(1, Number(sp.cf) || from));
+  const cT0 = Math.min(12, Math.max(1, Number(sp.ct) || to));
+  const cT = Math.max(cF, cT0);
+  const cH = String(sp.ch || '');
+  const cmC = cT - cF + 1;
+  const getT = async (yy) => ({ y: yy, ...tally(yy === y ? rows : await officeCosts(yy), cF, cT, cH) });
   const [TA, TB] = ya !== yb && years.length > 1 ? await Promise.all([getT(ya), getT(yb)]) : [null, null];
   const cmpHeads = TA && TB ? [...new Set([...TA.hd.keys(), ...TB.hd.keys()])].map((k) => { const a = TA.hd.get(k) ? TA.hd.get(k).lhr + TA.hd.get(k).isb : 0; const bb = TB.hd.get(k) ? TB.hd.get(k).lhr + TB.hd.get(k).isb : 0; return { k, a, b: bb, d: bb - a }; }).sort((x, z) => Math.abs(z.d) - Math.abs(x.d)) : [];
   const Diff = ({ v }) => <span className={v > 0.5 ? 'an-over' : v < -0.5 ? 'an-left' : ''}>{(v > 0.5 ? '+' : '') + money(v)}</span>;
@@ -346,18 +352,21 @@ export default async function ExpRevAnalysis({ searchParams }) {
           <input type='hidden' name='t' value={to} />
           {sp.al === 'raw' ? <input type='hidden' name='al' value='raw' /> : null}
           {noBB ? <input type='hidden' name='bb' value='no' /> : null}
+          <label>Month from<select name='cf' defaultValue={cF} autoComplete='off'>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
+          <label>Month to<select name='ct' defaultValue={cT} autoComplete='off'>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
+          <label>Expense head<select name='ch' defaultValue={cH} autoComplete='off'><option value=''>All heads</option>{[...new Set([...allHeads, ...headNames])].sort().map((h) => <option key={h} value={h}>{h}</option>)}</select></label>
           <label>First year<select name='ya' defaultValue={ya} autoComplete='off'>{years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}</select></label>
           <label>Second year<select name='yb' defaultValue={yb} autoComplete='off'>{years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}</select></label>
           <button className='btn' type='submit'>Compare</button>
         </form>
         {TA && TB ? (
           <>
-            <p className='muted' style={{ margin: '0 0 8px', fontSize: 12.5 }}>{ya} against {yb}, {MONTHS[from - 1]} to {MONTHS[to - 1]}, with the switches above. Difference is {yb} minus {ya}: red means more was spent in {yb}, green means less.</p>
+            <p className='muted' style={{ margin: '0 0 8px', fontSize: 12.5 }}>{ya} against {yb}, {MONTHS[cF - 1]} to {MONTHS[cT - 1]}{cH ? ', ' + cH : ', all heads'}, with the switches above. Difference is {yb} minus {ya}: red means more was spent in {yb}, green means less.</p>
             <div className='tablewrap'>
               <table className='tx an-tbl'>
                 <thead><tr><th></th><th className='r'>{ya}</th><th className='r'>{yb}</th><th className='r'>Difference</th><th className='r'>Change</th></tr></thead>
                 <tbody>
-                  {[['Total cost', TA.tot, TB.tot], ['LHR', TA.tl, TB.tl], ['ISB', TA.ti, TB.ti], ['Average a month', TA.tot / Math.max(1, cm), TB.tot / Math.max(1, cm)]].map(([label, a, bb]) => (
+                  {[['Total cost', TA.tot, TB.tot], ['LHR', TA.tl, TB.tl], ['ISB', TA.ti, TB.ti], ['Average a month', TA.tot / Math.max(1, cmC), TB.tot / Math.max(1, cmC)]].map(([label, a, bb]) => (
                     <tr key={label}>
                       <td className='c-title'>{label}</td>
                       <td className='r nw c-meta'><span className='er-cl'>{ya}</span>{money(a)}</td>
@@ -383,7 +392,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
                 <thead><tr><th>Month</th><th className='r'>{ya}</th><th className='r'>{yb}</th><th className='r'>Difference</th><th className='r'>Change</th></tr></thead>
                 <tbody>
                   {MONTHS.map((n, i) => {
-                    if (i < from - 1 || i >= to) return null;
+                    if (i < cF - 1 || i >= cT) return null;
                     const a = TA.l[i] + TA.i[i];
                     const bb = TB.l[i] + TB.i[i];
                     return (
