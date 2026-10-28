@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { q } from './db';
 import { getUser } from './auth';
 import { logEvent } from './audit';
-import { ATT_ROLES, validDate } from './att';
+import { SUPPORT_ROLES, validDate } from './att';
 import { notifyRoles, notifyUser } from './notify';
 import { PLABEL, CLABEL, isMgr, refOf, canSee, complaintById } from './support';
 
@@ -14,7 +14,7 @@ async function need() {
   const u = await getUser();
   if (!u) redirect('/login');
   if (u.totp_required && !u.totp_enabled) redirect('/security');
-  if (!ATT_ROLES.includes(u.role)) redirect('/');
+  if (!SUPPORT_ROLES.includes(u.role)) redirect('/');
   return u;
 }
 function back(path, msg, ok) {

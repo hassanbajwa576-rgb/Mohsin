@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
+import { SUPPORT_ROLES, allOffices, todayKey } from '@/lib/att';
 import { CATS, PRIOS, WHO, DUE_DAYS } from '@/lib/support';
 import SupportForm from '@/components/SupportForm';
 import Flash from '@/components/Flash';
@@ -7,7 +7,7 @@ import Flash from '@/components/Flash';
 export const dynamic = 'force-dynamic';
 
 export default async function NewComplaintPage({ searchParams }) {
-  const user = await requireUser(ATT_ROLES);
+  const user = await requireUser(SUPPORT_ROLES);
   const sp = await searchParams;
   return (
     <>

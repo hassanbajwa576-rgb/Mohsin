@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES } from '@/lib/att';
+import { SUPPORT_ROLES } from '@/lib/att';
 import { byPerson, isMgr } from '@/lib/support';
 import Flash from '@/components/Flash';
 
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 // Mohsin and Imran: how many complaints were tagged to each person, so repeats are easy to spot.
 export default async function ComplaintsByPersonPage({ searchParams }) {
-  const user = await requireUser(ATT_ROLES);
+  const user = await requireUser(SUPPORT_ROLES);
   if (!isMgr(user)) redirect('/support');
   const sp = await searchParams;
   const rows = await byPerson();

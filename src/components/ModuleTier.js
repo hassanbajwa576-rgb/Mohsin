@@ -112,7 +112,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
           <Mod href='/attendance' label='AttendTrack' active={attend} items={all(att)} on={on} />
           <Mod href='/visitors' label='VisitTrack' active={visit} items={vis} on={on} />
           {access.includes('fuel_use') ? <Mod href='/fuel' label='FuelTrack' active={fuel} items={fu} on={on} /> : null}
-          <Mod href='/support' label='SupportTrack' active={sup} items={su} on={on} />
+          {guard ? null : <Mod href='/support' label='SupportTrack' active={sup} items={su} on={on} />}
         </span>
         <span className='tier-sep' />
         <div className='tier-scroll'>

@@ -1,7 +1,7 @@
 import { getUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { logEvent } from '@/lib/audit';
-import { ATT_ROLES, allOffices, validDate } from '@/lib/att';
+import { SUPPORT_ROLES, allOffices, validDate } from '@/lib/att';
 import { notifyRoles } from '@/lib/notify';
 import { CLABEL, PLABEL, WLABEL, DUE_DAYS, refOf } from '@/lib/support';
 
@@ -17,7 +17,7 @@ const t = (fd, k) => String(fd.get(k) ?? '').trim();
 export async function POST(req) {
   const u = await getUser();
   if (!u) return Response.json({ ok: false, error: 'Please sign in again.' }, { status: 401 });
-  if (!ATT_ROLES.includes(u.role) || (u.totp_required && !u.totp_enabled)) return Response.json({ ok: false, error: 'Not allowed.' }, { status: 403 });
+  if (!SUPPORT_ROLES.includes(u.role) || (u.totp_required && !u.totp_enabled)) return Response.json({ ok: false, error: 'Not allowed.' }, { status: 403 });
   let fd;
   try {
     fd = await req.formData();

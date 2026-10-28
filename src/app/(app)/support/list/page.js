@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, allOffices } from '@/lib/att';
+import { SUPPORT_ROLES, allOffices } from '@/lib/att';
 import { CATS, PRIOS, complaintRows, remindOverdue } from '@/lib/support';
 import ComplaintTable from '@/components/ComplaintTable';
 import Flash from '@/components/Flash';
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 // Every complaint the person may see, with filters.
 export default async function ComplaintListPage({ searchParams }) {
-  const user = await requireUser(ATT_ROLES);
+  const user = await requireUser(SUPPORT_ROLES);
   const sp = await searchParams;
   await remindOverdue();
   const status = ['open', 'resolved', 'overdue'].includes(sp.status) ? sp.status : '';

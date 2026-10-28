@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
-import { ATT_ROLES, fmtDay, fmt12 } from '@/lib/att';
+import { SUPPORT_ROLES, fmtDay, fmt12 } from '@/lib/att';
 import { hkPeople } from '@/lib/roster';
 import { CATS, PRIOS, CLABEL, PLABEL, WLABEL, canSee, complaintById, filesOf, notesOf, assignees, isMgr, refOf, remindOverdue } from '@/lib/support';
 import { addNote, assignComplaint, tagResponsible, updateComplaint, resolveComplaint, reopenComplaint } from '@/lib/support-actions';
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 // One complaint: the facts, the pictures, the timeline, and what the person handling it can do.
 export default async function ComplaintViewPage({ searchParams }) {
-  const user = await requireUser(ATT_ROLES);
+  const user = await requireUser(SUPPORT_ROLES);
   const sp = await searchParams;
   const c = await complaintById(sp.id);
   if (!c) redirect('/support/list?err=' + encodeURIComponent('That complaint no longer exists'));

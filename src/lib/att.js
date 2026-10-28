@@ -17,6 +17,8 @@ export const BREAK_LIMIT_MIN = 60;
 export const KIND_LABEL = { in: 'Check In', out: 'Check Out', break_out: 'Break Out', break_in: 'Break In' };
 export const STATE_LABEL = { off: 'Off duty', on: 'On duty', break: 'On break' };
 export const ATT_ROLES = ['om', 'sso', 'so', 'guard'];
+// SupportTrack is for staff only; guards do not get it.
+export const SUPPORT_ROLES = ['om', 'sso', 'so'];
 
 // state machine: what each kind of entry is allowed to do from each state
 const NEXT = {
