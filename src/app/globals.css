@@ -1238,3 +1238,6 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .tablewrap .er-grid td:nth-child(1){flex:0 0 100%!important;width:100%!important;max-width:100%!important;margin-bottom:2px}
   .tablewrap .er-grid td:nth-child(n+2){flex:1 1 0!important;width:auto!important;min-width:0!important;max-width:none!important}
 }
+/* Variance colours everywhere, phone cards included: positive green, negative red */
+.tablewrap .er-grid td.pos-t,.tablewrap .er-grid td.pos-t b{color:#1a7f37!important;font-weight:600}
+.tablewrap .er-grid td.neg-t,.tablewrap .er-grid td.neg-t b{color:#b3261e!important;font-weight:600}
