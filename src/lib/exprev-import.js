@@ -172,7 +172,12 @@ export async function readWorkbook(buf) {
         b.push(fromP !== null ? fromP : m < BLOCKS ? num(rows, r, 3 + 4 * m) : 0);
         q.push(m < BLOCKS ? num(rows, r, 5 + 4 * m) : 0);
       }
-      const hit = fieldOf(f);
+      // Rows that only started to be used later in the year have their formula in a later month's block.
+      let hit = fieldOf(f);
+      for (let m = 1; !hit && !f && m < 12; m++) {
+        const cm = rows.get(r) && rows.get(r).get(4 + 4 * m);
+        if (cm && cm.f) hit = fieldOf(cm.f);
+      }
       const sum = f && /^SUM\(D(\d+):D(\d+)\)$/.exec(f.replace(/\s+/g, ''));
       if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q });
       else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q: [] });
