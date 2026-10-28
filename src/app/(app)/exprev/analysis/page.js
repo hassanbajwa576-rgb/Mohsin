@@ -7,7 +7,12 @@ export const dynamic = 'force-dynamic';
 
 const LHR = '#BA7517';
 const ISB = '#185FA5';
-const pct = (a, b) => (b ? ((a / b) * 100).toFixed(1) + '%' : '-');
+// One decimal; a share under 0.1% but above zero shows two, so a small spend never reads 0.0%.
+const pct = (a, b) => {
+  if (!b) return '-';
+  const v = (a / b) * 100;
+  return (v > 0 && v < 0.1 ? v.toFixed(2) : v.toFixed(1)) + '%';
+};
 const mil = (v) => (v / 1e6).toFixed(1) + 'M';
 
 // Cost analysis: total, LHR and ISB (a blank office in the sheet means LHR), by month and by head, with percentages.
