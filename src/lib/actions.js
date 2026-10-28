@@ -11,6 +11,7 @@ import { fundSummary, custodyFor } from './queries';
 import { notifyRoles, notifyUser } from './notify';
 import { logEvent, diff } from './audit';
 import { PERMS, ROLE_PERMS } from './perms';
+import { ALL_PAGES, PAGE_NEEDS, defaultPages } from './pages';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const amt = (fd) => Math.round(Number(s(fd, 'amount').replace(/,/g, '')));
@@ -559,7 +560,7 @@ export async function editUser(fd) {
   const id = Number(s(fd, 'id'));
   const here = '/team/edit?id=' + id;
   const before = (await q(
-    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.totp_required, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
+    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.pages, u.totp_required, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
     [id]
   ))[0];
   if (!before) back('/team', 'Team member not found');
@@ -579,15 +580,25 @@ export async function editUser(fd) {
   const shift = role === 'guard' && ['morning', 'evening'].includes(s(fd, 'shift')) ? s(fd, 'shift') : '';
   // Extra attendance access ticked on the form (what the role already includes is not stored).
   const roleBase = ROLE_PERMS[role] || [];
-  const permsStr = PERMS.map(([k]) => k).filter((k) => fd.get('perm_' + k) === 'on' && !roleBase.includes(k)).join(',');
-  const old = { name: before.name, email: before.email, username: before.username || '', role: before.role, office: before.office, phone: before.phone, shift: before.shift, perms: before.perms || '', authenticator: before.totp_required ? 'required' : 'optional' };
+  const permList = PERMS.map(([k]) => k).filter((k) => fd.get('perm_' + k) === 'on' && !roleBase.includes(k));
+  // Pages ticked in "Pages this person can open": a page that needs a permission switches that permission on.
+  const ticked = fd.getAll('pg').map(String).filter((h) => ALL_PAGES.includes(h));
+  for (const h of ticked) {
+    const need = PAGE_NEEDS[h];
+    if (need && !roleBase.includes(need) && !permList.includes(need)) permList.push(need);
+  }
+  const permsStr = permList.join(',');
+  const dflt = defaultPages(role, permList, ROLE_PERMS);
+  const sameAsDefault = ticked.length === 0 || (ticked.length === dflt.length && dflt.every((h) => ticked.includes(h)));
+  const pagesStr = fd.get('pages_form') === '1' && role !== 'om' && !sameAsDefault ? ticked.join(',') : '';
+  const old = { name: before.name, email: before.email, username: before.username || '', role: before.role, office: before.office, phone: before.phone, shift: before.shift, perms: before.perms || '', pages: before.pages || '', authenticator: before.totp_required ? 'required' : 'optional' };
   const reqTotp = role !== 'om' && fd.get('require_totp') === 'on';
-  const after = { name, email, username, role, office: off.code, phone, shift, perms: permsStr, authenticator: reqTotp ? 'required' : 'optional' };
+  const after = { name, email, username, role, office: off.code, phone, shift, perms: permsStr, pages: pagesStr, authenticator: reqTotp ? 'required' : 'optional' };
   const changes = diff(old, after);
   if (!changes.length) back('/team', 'No changes were made', true);
   let failed = false;
   try {
-    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4, phone = $5, shift = $6, perms = $7, totp_required = $8, username = $9 WHERE id = $10', [name, email, role, off.id, phone, shift, permsStr, reqTotp, username, id]);
+    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4, phone = $5, shift = $6, perms = $7, totp_required = $8, username = $9, pages = $10 WHERE id = $11', [name, email, role, off.id, phone, shift, permsStr, reqTotp, username, pagesStr, id]);
   } catch {
     failed = true;
   }

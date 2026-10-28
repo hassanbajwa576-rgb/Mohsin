@@ -1318,3 +1318,9 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 /* Over budget red, budget left green (beats the grey label style of the summary boxes) */
 .kpi small .an-over,.kpi .an-over{color:#b3261e!important;font-weight:700!important;font-size:inherit!important}
 .kpi small .an-left,.kpi .an-left{color:#1a7f37!important;font-weight:700!important;font-size:inherit!important}
+
+/* Team: pages a person can open; the guard overlay while a blocked page redirects */
+.pgs .pg-group{margin:10px 0 0}
+.pgs .pg-group>b{display:block;font-size:13px;margin-bottom:4px}
+.pgs .pg-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 14px}
+.pg-block{position:fixed;inset:0;z-index:200;background:var(--bg,#f7f6f3);display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:15px}

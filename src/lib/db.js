@@ -121,6 +121,7 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS pc2_er_entries (id SERIAL PRIMARY KEY, spent_on DATE NOT NULL, cost_center TEXT NOT NULL DEFAULT '', expense_type TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '', amount NUMERIC(14,2) NOT NULL, pay_mode TEXT NOT NULL DEFAULT '', office TEXT NOT NULL DEFAULT '', vendor TEXT NOT NULL DEFAULT '', remarks TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS pc2_er_entries_on ON pc2_er_entries (spent_on)`,
   // Advance types: the list is data now (the Sr. Ops Manager adds more); the old fixed list of three is dropped from the tables.
+  `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS pages TEXT NOT NULL DEFAULT ''`,
   `CREATE TABLE IF NOT EXISTS pc2_fund_types (key TEXT PRIMARY KEY, label TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `INSERT INTO pc2_fund_types (key, label, sort) VALUES ('petty','Petty Cash',1),('brc','BRC',2),('other','Others',3) ON CONFLICT (key) DO NOTHING`,
   `DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS t, conname FROM pg_constraint WHERE contype = 'c' AND conrelid::regclass::text LIKE 'pc2\_%' AND pg_get_constraintdef(oid) LIKE '%fund%' AND pg_get_constraintdef(oid) LIKE '%petty%' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.t, r.conname); END LOOP; END $$`,
@@ -132,7 +133,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-30-1';
+const SCHEMA_VERSION = '2026-10-30-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

@@ -10,7 +10,7 @@ import MobileMenu from './MobileMenu';
 import { PERMS, can } from '@/lib/perms';
 
 // Two-tier header. Row 1: AlphaBOLD logo, OpsTrack, account. Row 2: module switch and menu.
-export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approvals = 0 }) {
+export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approvals = 0, allowed = null }) {
   const guard = user.role === 'guard';
   const access = PERMS.map(([k]) => k).filter((k) => can(user, k));
   const who = (
@@ -27,14 +27,14 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approv
           <span className='sep' />
           <span className='brand-name' translate='no'>Ops<em>Track</em></span>
         </Link>
-        {guard ? null : <TopLinks role={user.role} approvals={approvals} />}
+        {guard ? null : <TopLinks role={user.role} approvals={approvals} allowed={allowed} />}
         <div className='who'>
           <LangToggle lang={lang} />
           {guard ? null : <Bell initial={unread} />}
           {guard
             ? <span className='me'>{who}</span>
             : <Link href='/profile' className='me' title='My profile'>{who}</Link>}
-          {guard ? null : <MobileMenu role={user.role} approvals={approvals} />}
+          {guard ? null : <MobileMenu role={user.role} approvals={approvals} allowed={allowed} />}
           <form action={logout}><button className='btn ghost' type='submit'>Sign out</button></form>
         </div>
       </div>
@@ -46,7 +46,7 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approv
             <Link href='/guide'>Guide</Link>
         </nav>
       )}
-      <ModuleTier role={user.role} access={access} reviews={reviews} approvals={approvals} />
+      <ModuleTier role={user.role} access={access} reviews={reviews} approvals={approvals} allowed={allowed} />
     </header>
   );
 }

@@ -34,7 +34,7 @@ function Group({ label, items, on, badge, open, toggle }) {
 }
 
 // Second header row: the PettyTrack / AttendTrack / VisitTrack switch and the pages of the module you are in.
-export default function ModuleTier({ role, access = [], reviews = 0, approvals = 0 }) {
+export default function ModuleTier({ role, access = [], reviews = 0, approvals = 0, allowed = null }) {
   const path = usePathname() || '/';
   const [open, setOpen] = useState('');
   const bar = useRef(null);
@@ -94,7 +94,16 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const su = [page('/support', 'Dashboard'), page('/support/new', 'Record Complaint'), page('/support/list', 'All Complaints')];
   if (om || role === 'sso') su.push(page('/support/people', 'By Person'));
   const er = [page('/exprev', 'Dashboard'), page('/exprev/entries', 'Expenditures'), page('/exprev/budget', 'Budget vs Actual'), page('/exprev/analysis', 'Analysis'), page('/exprev/import', 'Import')];
-  const menu = exr ? er : sup ? su : fuel ? fu : visit ? vis : guard || attend ? att : petty;
+  // Pages picked for this person on the Team page: everything else is left out of the bars and menus.
+  const ok = (href) => !allowed || allowed.includes(href);
+  const keep = (list) => list.map((m) => (m && m.items ? { ...m, items: m.items.filter((i) => ok(i.href)) } : m)).filter((m) => m && (m.items ? m.items.length > 0 : ok(m.href)));
+  const pettyK = keep(petty);
+  const attK = keep(att);
+  const visK = keep(vis);
+  const fuK = keep(fu);
+  const suK = keep(su);
+  const erK = keep(er);
+  const menu = exr ? erK : sup ? suK : fuel ? fuK : visit ? visK : guard || attend ? attK : pettyK;
   // Every page of a module, for the dropdown under its name.
   const all = (list) => list.flatMap((m) => (m.items ? m.items : [m]));
   const admin = [];
@@ -102,6 +111,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
     if (om) admin.push(page('/exprev', 'ExpRev'), page('/approvals', 'Approvals'), page('/team', 'Team'), page('/logs', 'Audit log'));
     admin.push(page('/guide', 'Guide'));
   }
+  const adminK = admin.filter((m) => ok(m.href));
   const opened = menu.find((m) => m.items && m.label === open);
 
   // Exact match for the section home pages, prefix match for everything else.
@@ -109,24 +119,23 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
 
   // Phone only, Sr. Ops Manager only: the module switch moves to a bottom bar with icons.
   const ic = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', width: 22, height: 22, viewBox: '0 0 24 24', 'aria-hidden': true };
-  const bots = [
-    { href: '/', label: 'Petty', active: !attend && !visit && !fuel && !sup && !exr, d: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12M16 14h2' },
-    { href: '/attendance', label: 'Attendance', active: attend, d: 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' },
-    { href: '/visitors', label: 'Visitors', active: visit, d: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 3-5 6-5s6 2 6 5M16 5a3 3 0 0 1 0 6M18 15c2 .5 3 2.5 3 5' },
-  ];
-  if (access.includes('fuel_use')) bots.push({ href: '/fuel', label: 'Fuel', active: fuel, d: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z' });
-  bots.push({ href: '/support', label: 'Support', active: sup, d: 'M4 5h16v11H9l-5 4zM8 10h8' });
-  if (om) bots.push({ href: '/exprev', label: 'ExpRev', active: exr, d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' });
+  const bots = [];
+  if (pettyK.length) bots.push({ href: '/', label: 'Petty', active: !attend && !visit && !fuel && !sup && !exr, d: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12M16 14h2' });
+  if (attK.length) bots.push({ href: '/attendance', label: 'Attendance', active: attend, d: 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' });
+  if (visK.length) bots.push({ href: '/visitors', label: 'Visitors', active: visit, d: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 3-5 6-5s6 2 6 5M16 5a3 3 0 0 1 0 6M18 15c2 .5 3 2.5 3 5' });
+  if (access.includes('fuel_use') && fuK.length) bots.push({ href: '/fuel', label: 'Fuel', active: fuel, d: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z' });
+  if (suK.length) bots.push({ href: '/support', label: 'Support', active: sup, d: 'M4 5h16v11H9l-5 4zM8 10h8' });
+  if (om && erK.length) bots.push({ href: '/exprev', label: 'ExpRev', active: exr, d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' });
 
   return (
     <div className={'tier' + (om || sso ? ' tier-om' : '')} ref={bar}>
       <div className='tier-in'>
         <span className='modseg' translate='no'>
-          {guard ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup && !exr} items={petty} on={on} />}
-          <Mod href='/attendance' label='Attendance' active={attend} items={all(att)} on={on} />
-          <Mod href='/visitors' label='Visitors' active={visit} items={vis} on={on} />
-          {access.includes('fuel_use') ? <Mod href='/fuel' label='Fuel' active={fuel} items={fu} on={on} /> : null}
-          {guard ? null : <Mod href='/support' label='Support' active={sup} items={su} on={on} />}
+          {guard || !pettyK.length ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup && !exr} items={pettyK} on={on} />}
+          {attK.length ? <Mod href='/attendance' label='Attendance' active={attend} items={all(attK)} on={on} /> : null}
+          {visK.length ? <Mod href='/visitors' label='Visitors' active={visit} items={visK} on={on} /> : null}
+          {access.includes('fuel_use') && fuK.length ? <Mod href='/fuel' label='Fuel' active={fuel} items={fuK} on={on} /> : null}
+          {guard || !suK.length ? null : <Mod href='/support' label='Support' active={sup} items={suK} on={on} />}
         </span>
         <span className='tier-sep' />
         <div className='tier-scroll'>
@@ -137,7 +146,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
         </nav>
         <span className='tier-sp' />
         <nav className='tier-menu admin'>
-          {admin.map((m) => (
+          {adminK.map((m) => (
             <Link key={m.href} href={m.href} className={on(m.href) ? 'on' : ''}>{m.label}{m.href === '/approvals' && approvals ? <span className='navbadge' title='Waiting for your decision'>{approvals}</span> : null}</Link>
           ))}
         </nav>

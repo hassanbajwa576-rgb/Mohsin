@@ -10,7 +10,7 @@ export default async function TeamPage({ searchParams }) {
   const me = await requireUser(['om']);
   const sp = await searchParams;
   const users = await q(
-    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.totp_enabled, u.totp_required, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
+    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.pages, u.totp_enabled, u.totp_required, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
   );
 
   const reqs = await q("SELECT DISTINCT message FROM pc2_notifications WHERE is_read = FALSE AND message LIKE 'Password reset requested by %' AND created_at > now() - interval '7 days'");
@@ -68,6 +68,7 @@ export default async function TeamPage({ searchParams }) {
                   <td><code>{u.username || '-'}</code></td>
                   <td>
                     {ROLE_LABEL[u.role]}{u.shift ? ' - ' + (u.shift === 'morning' ? 'Morning' : 'Evening') : ''}
+                    {u.pages ? <div className='muted'>Pages picked: {u.pages.split(',').length}</div> : null}
                     {u.perms ? <div className='muted'>+ {u.perms.split(',').map((k) => PERM_SHORT[k] || k).join(', ')}</div> : null}
                     {u.totp_enabled ? <div className='muted'>Authenticator on</div> : u.totp_required ? <div className='muted'>Authenticator required</div> : null}
                   </td>

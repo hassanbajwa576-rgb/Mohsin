@@ -12,6 +12,7 @@ import MotionKit from '@/components/MotionKit';
 import TitleGold from '@/components/TitleGold';
 import Welcome from '@/components/Welcome';
 import NameCase from '@/components/NameCase';
+import PageGuard from '@/components/PageGuard';
 import { NumpadProvider } from '@/components/TimePick';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +31,8 @@ export default async function AppLayout({ children }) {
       ? q("SELECT (SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int FROM pc2_expenses WHERE status IN ('submitted', 'verified')) + (SELECT COUNT(*)::int FROM pc2_visitors WHERE del_req_by IS NOT NULL) + (SELECT COUNT(*)::int FROM pc2_hk_off WHERE status = 'pending') + (SELECT COUNT(*)::int FROM pc2_fuel_refill WHERE status = 'open') AS n").then((r) => r[0].n).catch(() => 0)
       : 0,
   ]);
+  // Pages picked for this person on the Team page; none picked means the role's own pages.
+  const allowed = user.role !== 'om' && user.pagesList && user.pagesList.length ? user.pagesList : null;
   const ROLE = { om: 'Sr. Ops Manager', sso: 'Sr. Support Officer', so: 'Support Officer', guard: 'Guard' };
   const roleLine = (ROLE[user.role] || '') + (user.role === 'om' ? ' | PK' : user.office_code ? ' | ' + user.office_code : '');
   return (
@@ -41,7 +44,8 @@ export default async function AppLayout({ children }) {
           <form action={stopViewAs}><button className='btn' type='submit'>Return to my account</button></form>
         </div>
       ) : null}
-      <Nav user={user} unread={unread} lang={lang} reviews={reviews} approvals={approvals} />
+      <Nav user={user} unread={unread} lang={lang} reviews={reviews} approvals={approvals} allowed={allowed} />
+      {allowed ? <PageGuard allowed={allowed} /> : null}
       <TableLabels />
       <PushPrompt />
       <TextHelp />
