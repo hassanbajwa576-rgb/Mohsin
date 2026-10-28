@@ -119,6 +119,14 @@ export default async function ExpRevAnalysis({ searchParams }) {
       <div className='card'>
         <h3>By head: total cost and share</h3>
         <div className='an-leg'><span><i style={{ background: LHR }} />LHR</span><span><i style={{ background: ISB }} />ISB</span></div>
+        <div className='an-row an-head'>
+          <span>Head</span>
+          <span />
+          <span>Total cost</span>
+          <span>% of total</span>
+          <span className='an-lhr'>LHR %</span>
+          <span className='an-isb'>ISB %</span>
+        </div>
         {topN.map((h) => (
           <div key={h.cc} className='an-row'>
             <span className='an-name'>{h.cc}</span>
@@ -126,7 +134,10 @@ export default async function ExpRevAnalysis({ searchParams }) {
               <div style={{ width: (h.lhr / maxH) * 100 + '%', background: LHR }} />
               <div style={{ width: (h.isb / maxH) * 100 + '%', background: ISB }} />
             </div>
-            <span className='an-num'><b>{money(h.tot)}</b> <small>{pct(h.tot, T)}</small><small className='an-lhr'> LHR {pct(h.lhr, h.tot)}</small><small className='an-isb'> ISB {pct(h.isb, h.tot)}</small></span>
+            <span className='an-n an-tot'><span className='er-cl'>Total cost</span><b>{money(h.tot)}</b></span>
+            <span className='an-n'><span className='er-cl'>% of total</span>{pct(h.tot, T)}</span>
+            <span className='an-n an-lhr'><span className='er-cl'>LHR %</span>{pct(h.lhr, h.tot)}</span>
+            <span className='an-n an-isb'><span className='er-cl'>ISB %</span>{pct(h.isb, h.tot)}</span>
           </div>
         ))}
         {list.length > topN.length ? <p className='muted' style={{ margin: '6px 0 0', fontSize: 12 }}>The {list.length - topN.length} smaller heads are not shown.</p> : null}
