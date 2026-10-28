@@ -6,6 +6,9 @@ import { useEffect, useState } from 'react';
 // A table whose parent rows open and close, like the + and - outline buttons in Excel.
 // A row is a parent when the row after it is indented deeper (higher level); its children are every row below it until the level comes back.
 // head: [{ t, href, sel, r }]   rows: [{ k, level, cls, bold, label, cells: [{ t, c }] , foot }]
+// Short column names for the phone cards, where all four figures share one line.
+const SHORT = { 'Actual by Ops': 'Actual', 'In QuickBooks': 'QBO' };
+
 export default function OutlineTable({ head, rows, tfoot }) {
   const [open, setOpen] = useState(() => new Set());
   // The column headings stay in view under the top bar while the page scrolls.
@@ -65,7 +68,7 @@ export default function OutlineTable({ head, rows, tfoot }) {
                       {r.bold ? <b>{r.label}</b> : r.label}
                     </span>
                   </td>
-                  {r.cells.map((c, j) => <td key={j} className={'r nw c-meta ' + (c.c || '')}><span className='er-cl'>{head[j + 1] ? head[j + 1].t : ''}</span>{c.bold ? <b>{c.t}</b> : c.t}</td>)}
+                  {r.cells.map((c, j) => <td key={j} className={'r nw c-meta ' + (c.c || '')}><span className='er-cl'>{head[j + 1] ? SHORT[head[j + 1].t] || head[j + 1].t : ''}</span>{c.bold ? <b>{c.t}</b> : c.t}</td>)}
                 </tr>
               );
             })}

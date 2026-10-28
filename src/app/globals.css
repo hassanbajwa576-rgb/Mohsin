@@ -1224,3 +1224,11 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .tablewrap .er-grid .er-cl{font-size:10px;margin-bottom:2px;white-space:nowrap}
   .tablewrap .er-grid tr.er-sub{margin-left:12px}
 }
+
+/* Phones: all four figures on one line */
+@media (max-width:720px){
+  .tablewrap .er-grid tr{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px 6px!important;padding:8px!important}
+  .tablewrap .er-grid td.r{font-size:12px;white-space:nowrap;overflow:hidden}
+  .tablewrap .er-grid td.r b{font-weight:600}
+  .tablewrap .er-grid .er-cl{font-size:9.5px;letter-spacing:0;text-transform:none;font-weight:500}
+}
