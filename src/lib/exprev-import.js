@@ -14,9 +14,10 @@ function sharedStrings(xml) {
 // rows: Map(rowNumber -> Map(columnNumber -> { v, f }))
 function readSheet(xml, ss) {
   const rows = new Map();
-  for (const r of xml.matchAll(/<row r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
+  for (const r of xml.matchAll(/<row r="(\d+)"([^>]*)>([\s\S]*?)<\/row>/g)) {
     const cells = new Map();
-    for (const c of r[2].matchAll(/<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+    cells.level = Number((/outlineLevel="(\d+)"/.exec(r[2]) || [])[1]) || 0;
+    for (const c of r[3].matchAll(/<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
       if (!c[3]) continue;
       const raw = (c[3].match(/<v>([\s\S]*?)<\/v>/) || [])[1];
       const f = (c[3].match(/<f[^>]*>([\s\S]*?)<\/f>/) || [])[1];
@@ -177,6 +178,7 @@ export async function readWorkbook(buf) {
         lines.push({ row: r, label: 'Total Budgeted', kind: 'grand', b: [], q: [], ya: ytdCol ? num(rows, r, ytdCol + 1) : null });
         continue;
       }
+      const lvl = (rows.get(r) && rows.get(r).level) || 0;
       const cellD = rows.get(r) && rows.get(r).get(4);
       const f = cellD && cellD.f;
       const cellC = rows.get(r) && rows.get(r).get(3);
@@ -199,9 +201,9 @@ export async function readWorkbook(buf) {
       const xa = [];
       for (let m = 0; m < 12; m++) xa.push(blocks.has(m) ? num(rows, r, blocks.get(m) + 1) : null);
       const ya = ytdCol ? num(rows, r, ytdCol + 1) : null;
-      if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q, xa, ya });
-      else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q: [], xa, ya });
-      else lines.push({ row: r, label, kind: 'head', b, q, xa, ya });
+      if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q, xa, ya, lvl });
+      else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q: [], xa, ya, lvl });
+      else lines.push({ row: r, label, kind: 'head', b, q, xa, ya, lvl });
     }
     // Closed months: the ones the workbook has worked out (the first Total Budgeted row has an actual for them, no gap).
     for (const l of lines) {

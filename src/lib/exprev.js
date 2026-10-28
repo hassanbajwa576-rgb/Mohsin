@@ -79,24 +79,24 @@ export async function budgetView(year) {
       q: has ? v.q || zeros() : zeros(),
       a: has ? v.a || zeros() : zeros(),
       ya: typeof v.ya === 'number' ? v.ya : null,
-      inside: false,
+      // The workbook's own outline: a row indented under a heading belongs to it.
+      inside: Number(l.meta.lvl) >= 1,
     };
   });
-  // Every line between a heading and its total belongs to that total, even one the sheet's SUM leaves out (a line with no spend).
+  // A total ("Total 6600 ...") takes every line between its own heading ("6600 ...") and itself, even one the sheet's SUM leaves out.
   for (const t of rows.filter((r) => r.kind === 'total')) {
-    for (const r of rows) {
-      if (r.row >= t.rng[0] - 6 && r.row < t.rng[0] && r.kind === 'line') {
-        const prev = rows.filter((x) => x.row < r.row && x.row >= t.rng[0] - 6).some((x) => x.kind === 'total');
-        if (!prev) r.inside = true;
-      }
-    }
+    const code = (/(\d{4})/.exec(t.label) || [])[1];
+    const head = code && rows.find((r) => r.kind === 'head' && r.row < t.row && r.label.startsWith(code));
+    if (!head) continue;
+    t.members = new Set();
+    for (const r of rows) if (r.row > head.row && r.row < t.row && r.kind !== 'total') { r.inside = true; t.members.add(r.row); }
   }
   const totals = rows.filter((r) => r.kind === 'total');
   // A total's year-to-date actual is the workbook's own figure when it has one; otherwise it is the sum of its lines.
   const ownYa = new Set(totals.filter((r) => r.ya !== null).map((r) => r.row));
   for (const t of totals) {
     for (const r of rows) {
-      if (r.row >= t.rng[0] && r.row <= t.rng[1] && r.kind !== 'total') {
+      if ((t.members ? t.members.has(r.row) : r.row >= t.rng[0] && r.row <= t.rng[1]) && r.kind !== 'total') {
         r.inside = true;
         t.b = plus(t.b, r.b);
         t.q = plus(t.q, r.q);
