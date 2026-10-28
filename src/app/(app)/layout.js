@@ -11,6 +11,7 @@ import TextHelp from '@/components/TextHelp';
 import MotionKit from '@/components/MotionKit';
 import TitleGold from '@/components/TitleGold';
 import Welcome from '@/components/Welcome';
+import NameCase from '@/components/NameCase';
 import { NumpadProvider } from '@/components/TimePick';
 
 export const dynamic = 'force-dynamic';
@@ -46,6 +47,7 @@ export default async function AppLayout({ children }) {
       <TextHelp />
       <MotionKit />
       <TitleGold />
+      <NameCase />
       <NumpadProvider on><main className='wrap'>{children}</main></NumpadProvider>
       <Welcome name={user.name} role={roleLine} />
       <footer className='foot'><b>OpsTrack</b> by AlphaBOLD | Powered by <b>Ops</b></footer>
