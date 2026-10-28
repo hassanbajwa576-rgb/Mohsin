@@ -93,7 +93,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   if (om) fu.push(page('/fuel/setup', 'Setup'));
   const su = [page('/support', 'Dashboard'), page('/support/new', 'Record Complaint'), page('/support/list', 'All Complaints')];
   if (om || role === 'sso') su.push(page('/support/people', 'By Person'));
-  const er = [page('/exprev', 'Dashboard'), page('/exprev/entries', 'Expenditures'), page('/exprev/budget', 'Budget vs Actual'), page('/exprev/analysis', 'Analysis'), page('/exprev/import', 'Import')];
+  const er = [page('/exprev', 'Dashboard'), page('/exprev/entries', 'Expenditures'), page('/exprev/budget', 'Bud vs Act'), page('/exprev/analysis', 'Analysis'), page('/exprev/import', 'Import')];
   // Pages picked for this person on the Team page: everything else is left out of the bars and menus.
   const ok = (href) => !allowed || allowed.includes(href);
   const keep = (list) => list.map((m) => (m && m.items ? { ...m, items: m.items.filter((i) => ok(i.href)) } : m)).filter((m) => m && (m.items ? m.items.length > 0 : ok(m.href)));
