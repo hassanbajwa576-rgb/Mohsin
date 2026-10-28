@@ -52,12 +52,19 @@ const total = (a) => a.reduce((x, y) => x + y, 0);
 const EXTRA = /^(assets \/ security advances|vendor taxes payment)/i;
 export async function dashboard(year) {
   const [lines, s] = await Promise.all([q("SELECT label, field, mval, meta FROM pc2_er_sheet WHERE kind = 'dash' ORDER BY sort"), sums(year)]);
-  const cc = lines.filter((l) => l.field === 'cc').map((l) => ({ label: l.label, extra: (l.meta && l.meta.grp === 1) || EXTRA.test(l.label), vals: pick(s, 'cc', l.mval) }));
+  // A cost center row, with the expense types listed beneath it in the workbook as its children (opened with the + button).
+  const cc = [];
+  for (const l of lines) {
+    const lvl = l.meta && typeof l.meta.lvl === 'number' ? l.meta.lvl : l.field === 'cc' ? 0 : 1;
+    const vals = pick(s, l.field, l.mval);
+    if (lvl === 0) cc.push({ label: l.label, extra: (l.meta && l.meta.grp === 1) || EXTRA.test(l.label), vals, kids: [] });
+    else if (cc.length) cc[cc.length - 1].kids.push({ label: l.label, vals });
+  }
   const main = cc.filter((r) => !r.extra);
   const extras = cc.filter((r) => r.extra);
   const listed = cc.reduce((a, r) => plus(a, r.vals), zeros());
   const other = s.month.map((v, i) => v - listed[i]);
-  if (other.some((v) => Math.abs(v) > 0.5)) main.push({ label: 'Other (not on the list)', extra: false, vals: other });
+  if (other.some((v) => Math.abs(v) > 0.5)) main.push({ label: 'Other (not on the list)', extra: false, vals: other, kids: [] });
   const mainTotal = main.reduce((a, r) => plus(a, r.vals), zeros());
   return { main, extras, mainTotal, month: s.month, year: total(s.month) };
 }

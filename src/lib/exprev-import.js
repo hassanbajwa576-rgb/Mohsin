@@ -102,6 +102,7 @@ export async function readWorkbook(buf) {
   const da = await open(dashSheet);
   const dash = [];
   const seen = new Set();
+  let parent = '';
   let totals = 0;
   for (let r = 9; r <= 200; r++) {
     const label = text(da, r, 2).trim();
@@ -110,12 +111,15 @@ export async function readWorkbook(buf) {
       if (++totals >= 2) break;
       continue;
     }
-    if (!label || seen.has(label)) continue;
+    const lvl = (da.get(r) && da.get(r).level) || 0;
+    const key = lvl ? parent + '|' + label : label;
+    if (!label || seen.has(key)) continue;
     let hit = null;
     for (let c = 3; c <= 14 && !hit; c++) hit = fieldOf(da.get(r) && da.get(r).get(c) && da.get(r).get(c).f);
     if (!hit) continue;
-    seen.add(label);
-    dash.push({ label, field: hit.field, match: hit.match, grp: totals ? 1 : 0 });
+    seen.add(key);
+    if (!lvl) parent = label;
+    dash.push({ label, field: hit.field, match: hit.match, grp: totals ? 1 : 0, lvl });
   }
 
   // ---- consolidated profit and loss (latest year): this is where the monthly budget lives

@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/auth';
 import { todayKey } from '@/lib/att';
 import { MONTHS, MON3, money, pkr, erYears, erStatus, dashboard } from '@/lib/exprev';
 import Flash from '@/components/Flash';
+import XlTable from '@/components/XlTable';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,24 +102,18 @@ export default async function ExpRevDashboard({ searchParams }) {
 
       <div className='card'>
         <h3>All categories, {y}</h3>
-        <div className='tablewrap'>
-          <table className='er-xl'>
-            <thead>
-              <tr>
-                <th />
-                {MONTHS.map((n, i) => <th key={n}><Link href={qs(y, i + 1)}>{n.toUpperCase()}</Link></th>)}
-                <th>TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.main.map((r, k) => <XlRow key={r.label} r={r} cls={k % 2 ? 'xl-b' : 'xl-a'} m={m} />)}
-              <XlRow r={{ label: 'Total Expenses', vals: d.mainTotal }} cls='xl-tot' m={m} />
-              <tr className='xl-gap'><td colSpan={14} /></tr>
-              {d.extras.map((r, k) => <XlRow key={r.label} r={r} cls={k ? 'xl-ven' : 'xl-adv'} m={m} />)}
-              <XlRow r={{ label: 'Total Expenses', vals: d.month }} cls='xl-grand' m={m} />
-            </tbody>
-          </table>
-        </div>
+        <XlTable
+          months={MONTHS}
+          hrefs={MONTHS.map((_, i) => qs(y, i + 1))}
+          m={m}
+          rows={[
+            ...d.main.map((r, k) => ({ ...r, cls: k % 2 ? 'xl-b' : 'xl-a' })),
+            { label: 'Total Expenses', vals: d.mainTotal, cls: 'xl-tot' },
+            { label: 'gap', gap: true },
+            ...d.extras.map((r, k) => ({ ...r, cls: k ? 'xl-ven' : 'xl-adv' })),
+            { label: 'Grand total', vals: d.month, cls: 'xl-grand' },
+          ]}
+        />
       </div>
     </>
   );

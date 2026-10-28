@@ -47,6 +47,17 @@ export default async function ExpRevBudget({ searchParams }) {
   const isYtd = from === 1 && to === d.closed;
   const act = (r) => (isYtd && typeof r.ya === 'number' ? r.ya : pick(r.a));
   const ga = g ? act(g) : 0;
+  // The two lines the workbook keeps under its final total: variance on the budgeted lines only, and with the non-budgeted ones too.
+  const g1 = d.rows.find((r) => r.kind === 'grand');
+  const varOf = (r) => (r ? pickC(r.b) - act(r) : 0);
+  const sumRows = [['Variance with Budgeted', varOf(g1)], ['Variance with Bud + Non-Bud', varOf(g)]].map(([label, v], i) => ({
+    k: 'sum' + i,
+    level: 0,
+    cls: 'er-main',
+    bold: true,
+    label,
+    cells: [{ t: '' }, { t: '' }, { t: '' }, { t: money(v), c: v < -0.5 ? 'neg-t' : v > 0.5 ? 'pos-t' : '', bold: true }],
+  }));
   const href = (mm) => '/exprev/budget?m=' + mm;
 
   return (
@@ -79,7 +90,7 @@ export default async function ExpRevBudget({ searchParams }) {
       <div className='card'>
         <OutlineTable
           head={[{ t: 'Expense' }, { t: 'Budgeted', r: true }, { t: 'Actual by Ops', r: true }, { t: 'In QuickBooks', r: true }, { t: 'Variance', r: true }]}
-          rows={d.rows.map((r) => {
+          rows={[...d.rows.map((r) => {
             const b = pick(r.b);
             const a = act(r);
             const v = pickC(r.b) - a;
@@ -92,7 +103,7 @@ export default async function ExpRevBudget({ searchParams }) {
               label: r.label,
               cells: [{ t: money(b) }, { t: money(a) }, { t: flat ? '' : money(pick(r.q)) }, { t: r.kind === 'rest' || r.kind === 'restitem' ? '' : money(v), c: v < -0.5 ? 'neg-t' : v > 0.5 ? 'pos-t' : '' }],
             };
-          })}
+          }), ...sumRows]}
         />
       </div>
     </>
