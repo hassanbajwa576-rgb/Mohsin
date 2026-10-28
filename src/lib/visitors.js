@@ -15,8 +15,8 @@ export const VTYPES = [
 ];
 // Tags the Sr. Ops Manager can put on a visitor record, as support for the guard.
 export const OM_TAGS = [
-  ['hr_missed', 'HR did not inform in the WhatsApp group'],
-  ['cleared', 'Cleared by Mohsin'],
+  ['informed', 'Informed in WhatsApp by HR'],
+  ['hr_missed', 'Not informed in WhatsApp by HR'],
 ];
 export const OM_TAG_LABEL = Object.fromEntries(OM_TAGS);
 export const VLABEL = Object.fromEntries(VTYPES);

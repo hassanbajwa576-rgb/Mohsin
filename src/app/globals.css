@@ -1028,7 +1028,7 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .vtag{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
 .vtag-note{font-size:12.5px;color:var(--ink)}
 .badge.vtag-hr_missed{background:var(--warnbg);color:var(--warn)}
-.badge.vtag-cleared{background:var(--okbg);color:var(--ok)}
+.badge.vtag-informed{background:var(--okbg);color:var(--ok)}
 .vtag-edit{display:inline-block;vertical-align:top}
 .vtag-edit summary{list-style:none;cursor:pointer}
 .vtag-edit summary::-webkit-details-marker{display:none}
