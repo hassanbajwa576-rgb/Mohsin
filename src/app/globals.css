@@ -1100,3 +1100,6 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .er-pager{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 14px}
 .er-pgs{display:inline-flex;gap:6px;align-items:center}
 .er-pager .off{opacity:.45;pointer-events:none}
+
+.ready-search{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.ready-search input{flex:1 1 280px;max-width:420px}
