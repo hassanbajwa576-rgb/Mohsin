@@ -1,7 +1,7 @@
 ﻿import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { todayKey } from '@/lib/att';
-import { MONTHS, MON3, money, pkr, erYears, officeCosts, sharedHeads, headcount } from '@/lib/exprev';
+import { MONTHS, MON3, money, pkr, erYears, officeCosts, sharedHeads, headcount, budgetByHead } from '@/lib/exprev';
 import { saveSharedHeads } from '@/lib/exprev-actions';
 import Flash from '@/components/Flash';
 
@@ -73,6 +73,23 @@ export default async function ExpRevAnalysis({ searchParams }) {
     }
     heads.set(k, h);
   }
+  // Budget for the same months. The workbook has no budget per office, so each head's budget goes to the offices in the same
+  // proportion as its spend in these months (a shared head: by headcount; a head with no spend yet: by headcount).
+  const bud = await budgetByHead(y);
+  let bT = 0;
+  let bL = 0;
+  let bI = 0;
+  for (const [cc, arr] of Object.entries(bud)) {
+    if (noBB && isBB(cc)) continue;
+    const B = arr.slice(from - 1, to).reduce((a, v) => a + v, 0);
+    if (!B) continue;
+    const h = heads.get(cc);
+    const spent = h ? h.lhr + h.isb : 0;
+    const fl = alloc && sharedSet.has(cc) ? wL : spent > 0 ? h.lhr / spent : hcTotal > 0 ? wL : 1;
+    bT += B;
+    bL += B * fl;
+    bI += B * (1 - fl);
+  }
   const sum = (a) => a.reduce((x, v) => x + v, 0);
   const tL = sum(lhr);
   const tI = sum(isb);
@@ -125,12 +142,15 @@ export default async function ExpRevAnalysis({ searchParams }) {
         <button className='btn' type='submit'>Show</button>
       </form>
 
-      <div className='kpis er-kpis er-kpis4'>
+      <div className='kpis er-kpis er-kpis5'>
         <div className='card kpi'><span>Total cost</span><b>{pkr(T)}</b><small>100%</small></div>
-        <div className='card kpi alt'><span>LHR cost</span><b>{pkr(tL)}</b><small>{pct(tL, T)} of total</small></div>
-        <div className='card kpi alt'><span>ISB cost</span><b>{pkr(tI)}</b><small>{pct(tI, T)} of total</small></div>
+        <div className='card kpi alt'><span>Budgeted{noBB ? ' (without BOLDBelief)' : ''}</span><b>{pkr(bT)}</b><small>{bT - T >= 0 ? 'Left: ' : 'Over by: '}{pkr(Math.abs(bT - T))}</small></div>
+        <div className='card kpi alt'><span>LHR cost</span><b>{pkr(tL)}</b><small>{pct(tL, T)} of total</small><small>Budget {pkr(bL)} · {bL - tL >= 0 ? 'left ' : 'over '}{pkr(Math.abs(bL - tL))}</small></div>
+        <div className='card kpi alt'><span>ISB cost</span><b>{pkr(tI)}</b><small>{pct(tI, T)} of total</small><small>Budget {pkr(bI)} · {bI - tI >= 0 ? 'left ' : 'over '}{pkr(Math.abs(bI - tI))}</small></div>
         <div className='card kpi alt'><span>Average a month</span><b>{pkr(T / Math.max(1, span))}</b><small>ISB {pkr(tI / Math.max(1, span))}</small></div>
       </div>
+
+      <p className='muted' style={{ margin: '0 0 12px', fontSize: 12.5 }}>Budgeted is the workbook's budget for the same months. It has no budget per office, so each head's budget goes to LHR and ISB in the same proportion as that head's spend (shared heads by headcount; a head with no spend yet by headcount).</p>
 
       <div className='card'>
         <h3>Month by month: LHR and ISB</h3>

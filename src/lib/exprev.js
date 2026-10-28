@@ -180,6 +180,41 @@ export async function headcount() {
   return out;
 }
 
+// The monthly budget of each cost center, from the budget lines of the workbook. A line is tied to its cost center by its own
+// cost center, by the cost center that uses its expense type, or (headings with no formula) by the 4-digit code in its name.
+export async function budgetByHead(year) {
+  const [lines, pairs] = await Promise.all([
+    q("SELECT label, row_kind, field, mval, vals FROM pc2_er_sheet WHERE kind = 'bva' AND row_kind IN ('line', 'head')"),
+    q("SELECT cost_center AS cc, expense_type AS et, COUNT(*)::int AS n FROM pc2_er_entries GROUP BY 1, 2"),
+  ]);
+  const etCc = new Map();
+  const best = new Map();
+  const ccs = new Set();
+  for (const p of pairs) {
+    if (p.cc) ccs.add(p.cc);
+    if (p.et && (!best.has(p.et) || p.n > best.get(p.et))) {
+      best.set(p.et, p.n);
+      etCc.set(p.et, p.cc);
+    }
+  }
+  const out = {};
+  for (const l of lines) {
+    const b = l.vals && Array.isArray(l.vals.b) ? l.vals.b : null;
+    if (!b || !b.some((x) => x)) continue;
+    let cc = '';
+    if (l.field === 'cc') cc = l.mval;
+    else if (l.field === 'et') cc = etCc.get(l.mval) || '';
+    else {
+      const code = (/^(\d{4})\b/.exec(l.label) || [])[1];
+      if (code) cc = [...ccs].find((c) => c.endsWith('- ' + code)) || [...etCc.keys()].filter((e) => e.endsWith('- ' + code)).map((e) => etCc.get(e))[0] || '';
+    }
+    const k = cc || '(budget not tied to a head)';
+    out[k] = out[k] || Array(12).fill(0);
+    for (let i = 0; i < 12; i++) out[k][i] += Number(b[i]) || 0;
+  }
+  return out;
+}
+
 export async function budgetYear() {
   const r = await q("SELECT meta FROM pc2_er_sheet WHERE kind = 'bva' ORDER BY sort LIMIT 1");
   return r[0] ? Number(r[0].meta.year) || 0 : 0;
