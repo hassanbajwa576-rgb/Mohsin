@@ -918,3 +918,15 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .botbar a.on svg{stroke:#000;background:var(--gold,#e3ac22)}
   .botbar a.on::before{content:'';position:absolute;top:-8px;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--gold,#e3ac22)}
 }
+
+/* Number pad time entry (Sr. Ops Manager). Chips sit after the field in the DOM so label clicks focus the field. */
+.tp{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tp-chips{order:-1;display:flex;gap:6px;flex-wrap:wrap}
+.tp-chips button{border:1px solid var(--line);background:#fafaf8;border-radius:16px;padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;min-height:36px;width:auto}
+.tp-chips button:active{background:var(--gold)}
+.tp-row{display:flex;gap:8px;align-items:stretch}
+.tp-row input{flex:1;min-width:0;font-size:18px;font-weight:600;letter-spacing:.04em}
+.tp-ap{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.tp-ap button{border:0;background:#fff;padding:0 14px;font-size:14px;font-weight:600;color:var(--slate);cursor:pointer;min-height:40px;width:auto;border-radius:0}
+.tp-ap button.on{background:var(--gold);color:#000}
+.tp-err{color:#b3261e;font-size:12.5px;font-weight:500}

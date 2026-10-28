@@ -6,6 +6,7 @@ import { addVisitor, checkOutVisitor, addExpected, markArrived, markNoShow, canc
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import HostPicker from '@/components/HostPicker';
+import TimePick from '@/components/TimePick';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +56,7 @@ export default async function VisitorsPage({ searchParams }) {
                       <form action={checkOutVisitor} className='inline'>
                         <input type='hidden' name='id' value={v.id} />
                         <input type='hidden' name='date' value={today} />
-                        <input type='time' name='time' defaultValue={nowTime} required className='sm' />
+                        <TimePick role={user.role} name='time' defaultValue={nowTime} required className='sm' />
                         <button className='btn primary' type='submit'>Check out</button>
                       </form>
                     </td>
@@ -88,7 +89,7 @@ export default async function VisitorsPage({ searchParams }) {
                         <form action={markArrived} className='markform'>
                           <input type='hidden' name='id' value={v.id} />
                           <input type='hidden' name='date' value={today} />
-                          <label>Time came in<input type='time' name='time' defaultValue={nowTime} required /></label>
+                          <label>Time came in<TimePick role={user.role} name='time' defaultValue={nowTime} required /></label>
                           <label>Badge / card no.<input name='badge' maxLength={20} placeholder='Optional' autoComplete='off' /></label>
                           <label className='wide'>Remarks<input name='remarks' maxLength={200} placeholder='Optional' autoComplete='off' /></label>
                           <button className='btn primary' type='submit'>Save arrival</button>
@@ -165,7 +166,7 @@ export default async function VisitorsPage({ searchParams }) {
               </label>
             ) : null}
             <label>Date<input type='date' name='date' defaultValue={today} required /></label>
-            <label>Expected time<input type='time' name='time' defaultValue={nowTime} required /></label>
+            <label>Expected time<TimePick role={user.role} name='time' defaultValue={nowTime} required chips /></label>
             <label className='wide'>Purpose / notes<input name='purpose' maxLength={200} placeholder='For example: interview for the Marketing role' autoComplete='off' /></label>
             <button className='btn primary' type='submit'>Add to queue</button>
           </form>
@@ -195,7 +196,7 @@ export default async function VisitorsPage({ searchParams }) {
             </label>
           ) : null}
           <label>Date in<input type='date' name='date' defaultValue={today} required /></label>
-          <label>Time in<input type='time' name='time' defaultValue={nowTime} required /></label>
+          <label>Time in<TimePick role={user.role} name='time' defaultValue={nowTime} required chips /></label>
           <label className='wide'>Purpose / notes<input name='purpose' maxLength={200} placeholder='For example: interview for the Marketing role' autoComplete='off' /></label>
           <button className='btn primary' type='submit'>Record visitor in</button>
         </form>

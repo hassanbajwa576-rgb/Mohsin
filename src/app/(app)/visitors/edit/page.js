@@ -7,6 +7,7 @@ import { can } from '@/lib/perms';
 import { allOffices } from '@/lib/att';
 import { VTYPES, V_COLS, V_FROM, canEditVisitor, hostNames } from '@/lib/visitors';
 import HostPicker from '@/components/HostPicker';
+import TimePick from '@/components/TimePick';
 import { editVisitor, requestVisitorDelete, cancelVisitorDelete } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
 
@@ -32,9 +33,9 @@ export default async function EditVisitorPage({ searchParams }) {
         <label>Badge / card no.<input name='badge' defaultValue={v.badge} maxLength={20} /></label>
         {allOffices(user) ? <label>Office<select name='office' defaultValue={v.office}><option>LHR</option><option>ISB</option></select></label> : null}
         <label>Date in<input type='date' name='in_date' defaultValue={dateKey(v.in_ms)} required /></label>
-        <label>Time in<input type='time' name='in_time' defaultValue={fmtTime(v.in_ms)} required /></label>
+        <label>Time in<TimePick role={user.role} name='in_time' defaultValue={fmtTime(v.in_ms)} required /></label>
         <label>Date out<input type='date' name='out_date' defaultValue={v.out_ms ? dateKey(v.out_ms) : ''} /></label>
-        <label>Time out<input type='time' name='out_time' defaultValue={v.out_ms ? fmtTime(v.out_ms) : ''} /></label>
+        <label>Time out<TimePick role={user.role} name='out_time' defaultValue={v.out_ms ? fmtTime(v.out_ms) : ''} /></label>
         <label className='wide'>Purpose / notes<input name='purpose' defaultValue={v.purpose} maxLength={200} /></label>
         <p className='muted wide'>Leave the check out date and time empty if the visitor is still inside.</p>
         <button className='btn primary' type='submit'>Save</button>
