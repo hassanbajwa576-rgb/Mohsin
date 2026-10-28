@@ -53,7 +53,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
   const tI = sum(isb);
   const T = tL + tI;
   const list = [...heads.values()].map((h) => ({ ...h, tot: h.lhr + h.isb })).sort((a, b) => b.tot - a.tot);
-  const topN = list.slice(0, 12);
+  const topN = list;
   const maxM = Math.max(1, ...lhr.map((v, i) => v + isb[i]));
   const maxH = Math.max(1, ...topN.map((h) => h.tot));
   const href = (yy, p) => '/exprev/analysis?y=' + yy + (p ? '&p=' + p : '');
@@ -140,7 +140,6 @@ export default async function ExpRevAnalysis({ searchParams }) {
             <span className='an-n an-isb'><span className='er-cl'>ISB %</span>{pct(h.isb, h.tot)}</span>
           </div>
         ))}
-        {list.length > topN.length ? <p className='muted' style={{ margin: '6px 0 0', fontSize: 12 }}>The {list.length - topN.length} smaller heads are not shown.</p> : null}
       </div>
 
       <div className='card'>
