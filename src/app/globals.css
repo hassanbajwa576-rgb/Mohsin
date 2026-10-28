@@ -1232,3 +1232,9 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .tablewrap .er-grid td.r b{font-weight:600}
   .tablewrap .er-grid .er-cl{font-size:9.5px;letter-spacing:0;text-transform:none;font-weight:500}
 }
+/* Phones: title on its own line, then the four figures side by side (flex, so it cannot wrap to a fifth cell) */
+@media (max-width:720px){
+  .tablewrap .er-grid tr{display:flex!important;flex-wrap:wrap!important;gap:6px 4px!important;padding:8px!important}
+  .tablewrap .er-grid td:nth-child(1){flex:0 0 100%!important;width:100%!important;max-width:100%!important;margin-bottom:2px}
+  .tablewrap .er-grid td:nth-child(n+2){flex:1 1 0!important;width:auto!important;min-width:0!important;max-width:none!important}
+}
