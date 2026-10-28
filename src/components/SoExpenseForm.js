@@ -7,7 +7,7 @@ const pkr = (n) => 'PKR ' + Math.round(Number(n) || 0).toLocaleString('en-US');
 // Add expense for a Support Officer. "Automatic" pays from the oldest advance first and splits the expense across
 // advances when one is not enough; a single advance can still be picked by hand.
 export default function SoExpenseForm({ action, advances, funds, categories, today }) {
-  const first = Object.keys(funds).find((k) => advances.some((a) => a.fund === k)) || '';
+  const first = Object.keys(funds).find((k) => advances.some((a) => a.fund === k)) || Object.keys(funds)[0] || '';
   const [pick, setPick] = useState('auto:' + first);
   const [amount, setAmount] = useState('');
   const n = Number(amount) || 0;
@@ -16,7 +16,8 @@ export default function SoExpenseForm({ action, advances, funds, categories, tod
     .filter((a) => a.fund === fund)
     .slice()
     .sort((x, y) => String(x.issued_on).localeCompare(String(y.issued_on)) || x.id - y.id);
-  const fundKeys = Object.keys(funds).filter((k) => advances.some((a) => a.fund === k));
+  // Every fund is offered, even with no cash in hand: an expense can always be recorded.
+  const fundKeys = Object.keys(funds);
 
   // What the amount would be paid from.
   let plan = [];
@@ -72,10 +73,8 @@ export default function SoExpenseForm({ action, advances, funds, categories, tod
         <p className='okline wide'>{pkr(n)} will be taken from your {funds[fundOfPick] || ''} cash in hand ({pkr(held)} available).</p>
       ) : null}
       {n > 0 && short > 0 ? (
-        <p className='badline wide'>
-          {pick.startsWith('auto:')
-            ? 'You only hold ' + pkr(held) + ' in total on ' + (funds[fundOfPick] || 'this fund') + ', so this expense cannot be added.'
-            : 'That advance has only ' + pkr(held) + ' left. Choose Automatic to use more than one advance.'}
+        <p className='okline wide'>
+          {held > 0 ? pkr(held) + ' will be taken from your cash in hand and ' + pkr(short) + ' is recorded without an advance behind it.' : 'You have no cash in hand on ' + (funds[fundOfPick] || 'this fund') + '. The expense is still recorded.'}
         </p>
       ) : null}
       <button className='btn primary' type='submit'>Add expense</button>

@@ -67,10 +67,7 @@ export default async function ExpensesPage({ searchParams }) {
 
       <details className='card' open>
         <summary>Add expense</summary>
-        {isSO && open.length === 0 ? (
-          <p className='muted'>You have no cash in hand. Ask the Sr. Support Officer to issue you an advance first.</p>
-        ) : (
-          isSO ? (
+        {isSO ? (
             <SoExpenseForm
               action={addExpense}
               advances={open.map((i) => ({ id: i.id, fund: i.fund, left: i.left, issued_on: i.issued_on }))}
@@ -96,11 +93,10 @@ export default async function ExpensesPage({ searchParams }) {
             <label className='wide'>Description<input name='description' placeholder='What was it for?' /></label>
             <button className='btn primary' type='submit'>{isOM ? 'Record expense' : 'Add expense'}</button>
           </form>
-          )
         )}
       </details>
 
-      {isSO && open.length === 0 ? null : (
+      {(
         <details className='card'>
           <summary>Paste expenses from Excel</summary>
           <PasteExpenses
@@ -109,7 +105,7 @@ export default async function ExpensesPage({ searchParams }) {
             isOM={isOM}
             officeCode={user.office_code}
             advances={[
-              ...Object.keys(FUNDS).filter((k) => open.some((i) => i.fund === k)).map((k) => ({ id: 'auto:' + k, label: FUNDS[k] + ' - in hand ' + pkr(open.filter((i) => i.fund === k).reduce((a, i) => a + i.left, 0)) })),
+              ...Object.keys(FUNDS).map((k) => ({ id: 'auto:' + k, label: FUNDS[k] + ' - in hand ' + pkr(open.filter((i) => i.fund === k).reduce((a, i) => a + i.left, 0)) })),
             ]}
             funds={Object.entries(FUNDS)}
             categories={CATEGORIES}

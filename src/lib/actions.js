@@ -85,10 +85,9 @@ async function openAdvances(userId, fund) {
   );
 }
 
-// Shares an amount across advances, oldest first. Returns [{ issueId, amount }] or null when the advances hold less than the amount.
+// Shares an amount across advances, oldest first. Returns [{ issueId, amount }]. Whatever the advances cannot cover is kept as a part with no advance (issueId null),
+// so a Support Officer can always record an expense, even with no cash in hand.
 function allocate(list, amount) {
-  const have = list.reduce((a, x) => a + Math.max(0, x.remaining), 0);
-  if (amount > have) return null;
   const parts = [];
   let left = amount;
   for (const x of list) {
@@ -100,6 +99,7 @@ function allocate(list, amount) {
       left -= take;
     }
   }
+  if (left > 0) parts.push({ issueId: null, amount: left });
   return parts;
 }
 
@@ -128,9 +128,7 @@ export async function addExpense(fd) {
       fund = pick.slice(5);
       if (!FUNDS[fund]) back('/expenses', 'Pick where the money comes from');
       const list = await openAdvances(u.id, fund);
-      const alloc = allocate(list, amount);
-      if (!alloc) back('/expenses', 'You only hold ' + pkr(list.reduce((a, x) => a + Math.max(0, x.remaining), 0)) + ' in total on ' + FUNDS[fund] + ', so this expense cannot be added');
-      parts = alloc;
+      parts = allocate(list, amount);
     } else {
       const i = (await q(
         `SELECT i.id, i.fund, i.amount - i.returned - COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0) AS remaining FROM pc2_issues i WHERE i.id = $1 AND i.issued_to = $2`,
@@ -169,7 +167,7 @@ export async function addExpense(fd) {
   const msg = u.name + ' added an expense: ' + pkr(amount) + ' - ' + category + (description ? ' (' + description + ')' : '');
   if (u.role === 'so') await notifyRoles(['om', 'sso'], msg + ' (kept with them until submitted)', '/expenses?status=draft', u.id);
   else if (u.role === 'sso') await notifyRoles(['om'], msg, '/expenses?status=submitted', u.id);
-  const split = parts.length > 1 ? ' It was paid from ' + parts.length + ' advances (' + parts.map((p) => '#' + p.issueId + ': ' + pkr(p.amount)).join(', ') + ').' : '';
+  const split = parts.length > 1 ? ' It was split across ' + parts.length + ' parts (' + parts.map((p) => (p.issueId ? '#' + p.issueId : 'no advance') + ': ' + pkr(p.amount)).join(', ') + ').' : '';
   back('/expenses', u.role === 'so' ? 'Expense added.' + split + ' It stays with you until you submit your expenses to the Sr. SO or Sr. Ops Manager.' : 'Expense recorded', true);
 }
 // Sr. Ops Manager edits any expense that has not yet been sent to Accounts.
@@ -779,8 +777,6 @@ export async function addExpensesBulk(fd) {
       fund = pick.slice(5);
       if (!FUNDS[fund]) back('/expenses', 'Pick where the money comes from');
       const list = await openAdvances(u.id, fund);
-      const have = list.reduce((a, x) => a + Math.max(0, x.remaining), 0);
-      if (total > have) back('/expenses', 'These rows total ' + pkr(total) + ', more than your cash in hand (' + pkr(have) + ')');
       plan = clean.map((r) => ({ ...r, parts: allocate(list, r.amount) }));
     } else {
       const i = (await q(
