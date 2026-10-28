@@ -1,13 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // A table whose parent rows open and close, like the + and - outline buttons in Excel.
 // A row is a parent when the row after it is indented deeper (higher level); its children are every row below it until the level comes back.
 // head: [{ t, href, sel, r }]   rows: [{ k, level, cls, bold, label, cells: [{ t, c }] , foot }]
 export default function OutlineTable({ head, rows, tfoot }) {
   const [open, setOpen] = useState(() => new Set());
+  // The column headings stay in view under the top bar while the page scrolls.
+  useEffect(() => {
+    const set = () => { const n = document.querySelector('.nav'); document.documentElement.style.setProperty('--navh', (n ? n.offsetHeight : 0) + 'px'); };
+    set();
+    window.addEventListener('resize', set);
+    return () => window.removeEventListener('resize', set);
+  }, []);
   const isParent = (i) => i + 1 < rows.length && rows[i + 1].level > rows[i].level;
   const parents = rows.map((r, i) => (isParent(i) ? r.k : null)).filter((k) => k !== null);
   const toggle = (k) =>
@@ -35,7 +42,7 @@ export default function OutlineTable({ head, rows, tfoot }) {
           <button type='button' className='btn ghost' onClick={() => setOpen(new Set())}>Collapse all</button>
         </div>
       ) : null}
-      <div className='tablewrap'>
+      <div className='tablewrap er-wrap'>
         <table className='tx er-grid'>
           <thead>
             <tr>

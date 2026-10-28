@@ -179,6 +179,32 @@ export async function addExpected(fd) {
   back('/visitors', name + ' added to the visitor queue for ' + time, true);
 }
 
+// Change an expected visitor who has not arrived yet.
+export async function editExpected(fd) {
+  const u = await need();
+  if (u.role === 'guard') redirect('/visitors');
+  const id = Number(s(fd, 'id'));
+  const here = '/visitors/expected?id=' + id;
+  const cur = (await q("SELECT id, name, office_id FROM pc2_expected WHERE id = $1 AND status = 'waiting'", [Number.isInteger(id) ? id : 0]))[0];
+  if (!cur) back('/visitors', 'That visitor is no longer in the queue');
+  if (!allOffices(u) && u.office_id !== cur.office_id) back('/visitors', 'That visitor is in the other office');
+  const name = s(fd, 'name').slice(0, 80);
+  const vtype = s(fd, 'vtype');
+  const date = s(fd, 'date');
+  const time = s(fd, 'time');
+  if (!name) back(here, "Enter the visitor's name");
+  if (!VLABEL[vtype]) back(here, 'Choose the type of visit');
+  if (!validDate(date) || !validTime(time)) back(here, 'Choose a valid date and time');
+  const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [allOffices(u) ? s(fd, 'office') : u.office_code]))[0];
+  if (!off) back(here, 'Choose the office');
+  await q(
+    `UPDATE pc2_expected SET office_id = $1, name = $2, phone = $3, company = $4, vtype = $5, host = $6, purpose = $7, due_at = ($8::date + $9::time) AT TIME ZONE 'Asia/Karachi' WHERE id = $10`,
+    [off.id, name, s(fd, 'phone').slice(0, 30), s(fd, 'company').slice(0, 80), vtype, s(fd, 'host').slice(0, 200), s(fd, 'purpose').slice(0, 200), date, time, id]
+  );
+  await logEvent(u, 'edit', 'visitor', id, 'Edited expected visitor: ' + name + ' (' + off.code + ') ' + date + ' ' + time, null, { name, vtype });
+  back('/visitors', 'Expected visitor updated', true);
+}
+
 async function queued(u, fd) {
   const id = Number(s(fd, 'id'));
   const e = (await q('SELECT e.* FROM pc2_expected e WHERE e.id = $1', [Number.isInteger(id) ? id : 0]))[0];

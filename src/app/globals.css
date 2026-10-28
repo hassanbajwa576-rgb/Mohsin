@@ -1103,3 +1103,16 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 
 .ready-search{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .ready-search input{flex:1 1 280px;max-width:420px}
+
+/* Budget / P&L tables: headings stay under the top bar while scrolling */
+.tablewrap.er-wrap{overflow:visible}
+.er-wrap .er-grid thead th{position:sticky;top:var(--navh,0px);z-index:5;background:var(--bg,#fff);border-bottom:2px solid var(--gold)}
+.er-range{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin:12px 0}
+.er-range label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mut)}
+.er-range select{min-width:120px}
+/* Dashboard: the month headings and the category column stay put while the table scrolls */
+.tablewrap.er-xlwrap{overflow:auto;max-height:calc(100vh - 150px)}
+.er-xl thead th{position:sticky;top:0;z-index:3}
+.er-xl thead th:first-child{background:var(--bg,#fff);z-index:4;left:0}
+.er-grid td.pos-t{color:#1a7f37;font-weight:600}
+.kpi.pos b{color:#1a7f37}

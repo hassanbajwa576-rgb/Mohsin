@@ -109,6 +109,7 @@ export default async function VisitorsPage({ searchParams }) {
                           <button className='btn' type='submit'>Save no show</button>
                         </form>
                       </details>
+                      {planner ? <Link className='btn ghost' href={'/visitors/expected?id=' + v.id}>Edit</Link> : null}
                       {planner ? (
                         <form action={cancelExpected} className='inline'>
                           <input type='hidden' name='id' value={v.id} />
@@ -136,6 +137,7 @@ export default async function VisitorsPage({ searchParams }) {
                       <td className='c-meta'>{v.host || '-'}</td>
                       <td className='nw c-meta'>{fmtDay(v.due_ms)}, {fmt12(v.due_ms)}</td>
                       <td className='act'>
+                        {planner ? <Link className='btn ghost' href={'/visitors/expected?id=' + v.id}>Edit</Link> : null}
                         {planner ? (
                           <form action={cancelExpected} className='inline'>
                             <input type='hidden' name='id' value={v.id} />
