@@ -1375,3 +1375,5 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 /* Analysis: shortcuts scroll smoothly and stop below the top bar */
 html:has(.an-filters){scroll-behavior:smooth}
 #year-by-year,#compare-two{scroll-margin-top:150px}
+.ob-clear{background:rgba(255,255,255,.22);border:0;color:#fff;border-radius:14px;padding:4px 12px;font-size:12.5px;font-weight:600;cursor:pointer;min-height:0}
+.ob-clear:hover{background:rgba(255,255,255,.38)}

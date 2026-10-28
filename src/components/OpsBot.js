@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const KEY = 'ot-opsbot';
 const hhmm = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+const CHIPS = (om) => (om ? ['How much did we spend this year?', 'ISB spend by month', 'Top heads this year', 'Compare with last year', 'Budget vs actual year to date', 'Who holds the cash?'] : ['What is my cash in hand?', 'How many expenses are waiting?', 'Visitors today', 'Advances outstanding']);
 const FIRST = (om) => ({
   from: 'bot',
   t: hhmm(),
@@ -39,6 +40,18 @@ export default function OpsBot({ role }) {
     if (end.current) end.current.scrollIntoView({ block: 'end' });
   }, [msgs, open, busy]);
 
+  // Erase the chat: back to the welcome message and the suggestions.
+  function clear() {
+    setMsgs([FIRST(om)]);
+    setChips(CHIPS(om));
+    setText('');
+    try {
+      sessionStorage.removeItem(KEY);
+    } catch {
+      // nothing stored
+    }
+  }
+
   async function send(q) {
     const v = String(q ?? text).trim();
     if (!v || busy) return;
@@ -64,6 +77,7 @@ export default function OpsBot({ role }) {
           <div className='ob-head'>
             <span className='ob-av'><span className='ob-dot' /></span>
             <b>OpsBot</b>
+            <button type='button' className='ob-clear' onClick={clear} title='Erase this chat'>Clear chat</button>
             <button type='button' className='ob-x' aria-label='Close chat' onClick={() => setOpen(false)}>×</button>
           </div>
           <div className='ob-body'>
