@@ -1385,3 +1385,13 @@ html:has(.an-filters){scroll-behavior:smooth}
   .tablewrap .an-tbl .er-cl{display:block;font-size:10.5px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.03em;margin:0 0 3px;white-space:nowrap}
   .tablewrap .an-tbl td b{font-weight:700}
 }
+/* Analysis cards on phones: label and figure in one line each, four across; the tab row scrolls to show Analysis */
+@media (max-width:720px){
+  .tablewrap .an-tbl tr{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px 6px!important}
+  .tablewrap .an-tbl td{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tablewrap .an-tbl .er-cl{font-size:9.5px;letter-spacing:0}
+  .an-chart{min-width:0}
+  .tier-scroll{scroll-snap-type:none}
+  .subrow{overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-padding-right:12px}
+  .subrow a{flex:0 0 auto}
+}

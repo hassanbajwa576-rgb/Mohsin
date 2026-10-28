@@ -21,6 +21,7 @@ export default function OpsBot({ role }) {
   const [chips, setChips] = useState(om ? ['How much did we spend this year?', 'ISB spend by month', 'Top heads this year', 'Compare with last year', 'Budget vs actual year to date', 'Who holds the cash?'] : ['What is my cash in hand?', 'How many expenses are waiting?', 'Visitors today', 'Advances outstanding']);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const ctxRef = useRef(null);
   const end = useRef(null);
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function OpsBot({ role }) {
     setMsgs([FIRST(om)]);
     setChips(CHIPS(om));
     setText('');
+    ctxRef.current = null;
     try {
       sessionStorage.removeItem(KEY);
     } catch {
@@ -60,10 +62,11 @@ export default function OpsBot({ role }) {
     setMsgs((m) => [...m, { from: 'me', t: hhmm(), text: v }]);
     setBusy(true);
     try {
-      const r = await fetch('/api/opsbot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: v }) });
+      const r = await fetch('/api/opsbot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: v, ctx: ctxRef.current }) });
       const j = await r.json();
       setMsgs((m) => [...m, { from: 'bot', t: hhmm(), text: j.reply || 'I could not find an answer.' }]);
       setChips(j.suggestions || []);
+      ctxRef.current = j.ctx || null;
     } catch {
       setMsgs((m) => [...m, { from: 'bot', t: hhmm(), text: 'I could not reach the app. Please try again.' }]);
     }
@@ -77,6 +80,7 @@ export default function OpsBot({ role }) {
           <div className='ob-head'>
             <span className='ob-av'><span className='ob-dot' /></span>
             <b>OpsBot</b>
+            <button type='button' className='ob-clear' onClick={() => send('What can I ask?')} title='See what you can ask'>Ideas</button>
             <button type='button' className='ob-clear' onClick={clear} title='Erase this chat'>Clear chat</button>
             <button type='button' className='ob-x' aria-label='Close chat' onClick={() => setOpen(false)}>×</button>
           </div>

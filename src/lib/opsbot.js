@@ -5,6 +5,7 @@ import { can } from './perms';
 import { MONTHS, MON3, pkr, officeCosts, budgetByHead, erYears, headcount } from './exprev';
 import { fundSummary, soAccount } from './queries';
 import { visitorRows, insideNow, VLABEL } from './visitors';
+import { FUNDS } from './fmt';
 
 // OpsBot without any AI service: it reads the question, works out what is asked (period, office, head, topic) and answers from the
 // app's own data, for the person's own access only.
@@ -15,14 +16,16 @@ const pc = (a, b) => (b ? ((a / b) * 100).toFixed(1) + '%' : '-');
 const MONWORDS = MONTHS.flatMap((m, i) => [[m.toLowerCase(), i + 1], [m.slice(0, 3).toLowerCase(), i + 1]]).concat([['sept', 9]]);
 const monthOf = (w) => (MONWORDS.find(([k]) => k === w) || [])[1] || 0;
 const SUGGEST_OM = ['How much did we spend this year?', 'ISB spend by month', 'Top heads this year', 'Compare with last year', 'Budget vs actual year to date', 'Who holds the cash?', 'Who is on duty today?', 'How many employees in ISB?', 'Open complaints', 'Find 18376'];
+const IDEAS_OM = ['SPENDING: How much did we spend this year? | ISB spend by month | Top heads in Q2 | Travel from March to June | Cost per employee | Highest month this year | Biggest vendors', 'COMPARE: Compare with last year | Year by year for office rent', 'BUDGET: Budget vs actual year to date | Budget for Bank Fees', 'CASH: Who holds the cash? | Advances outstanding | Funds received this month | Cash returned this year | Latest batches', 'PETTY: Zubair expenses this month | Rejected expenses | Expenses by category | Biggest expenses this month | Find 18376', 'PEOPLE: Who is on duty today? | How many employees in ISB? | Who is off this week? | Who is Imran?', 'OTHER: Visitors today | Visitors still expected | Open complaints | What needs my attention? | What changed today?'];
 const SUGGEST_OTHER = ['What is my cash in hand?', 'How many expenses are waiting?', 'Visitors today', 'Advances outstanding', 'Open complaints'];
 
 // The period asked for: a year plus a range of months.
 function when(n, nowY, nowM) {
   let year = nowY;
+  let explicit = false;
   const ym = /\b(20\d\d)\b/.exec(n);
-  if (ym) year = Number(ym[1]);
-  else if (has(n, /\b(last|previous|prior) year\b/)) year = nowY - 1;
+  if (ym) { year = Number(ym[1]); explicit = true; }
+  else if (has(n, /\b(last|previous|prior) year\b/)) { year = nowY - 1; explicit = true; }
   const words = n.split(' ');
   const ms = [];
   words.forEach((w, i) => {
@@ -33,6 +36,7 @@ function when(n, nowY, nowM) {
   let to = year === nowY ? nowM : 12;
   let label = year === nowY ? 'January to ' + MONTHS[nowM - 1] : 'the whole year';
   const quarter = /\bq([1-4])\b/.exec(n);
+  if (quarter || has(n, /\blast month\b|\bthis month\b|\b(ytd|year to date|so far)\b|\b(whole|full|entire|all) year\b|\bfor the year\b/) || ms.length) explicit = true;
   if (quarter) {
     from = (Number(quarter[1]) - 1) * 3 + 1;
     to = from + 2;
@@ -59,7 +63,7 @@ function when(n, nowY, nowM) {
     to = 12;
     label = 'the whole year';
   }
-  return { year, from, to, label: label + ' ' + year };
+  return { year, from, to, label: label + ' ' + year, explicit };
 }
 
 function pickHead(n, ccs) {
@@ -189,6 +193,10 @@ async function extraTopics(user, n, nowY, nowM, today) {
     const h = await headcount();
     return lines('Active employees in the Attendance list: ' + (h.LHR + h.ISB) + '.', '  LHR: ' + h.LHR + ' (' + pc(h.LHR, h.LHR + h.ISB) + ')', '  ISB: ' + h.ISB + ' (' + pc(h.ISB, h.LHR + h.ISB) + ')');
   }
+  if (has(n, /complaint|ticket/) && has(n, /category|categories|by type/)) {
+    const rr = await q("SELECT c.category AS k, COUNT(*)::int AS n FROM pc2_complaints c JOIN pc2_offices o ON o.id = c.office_id WHERE c.status = 'open'" + (office ? " AND o.code = '" + office + "'" : '') + ' GROUP BY 1 ORDER BY 2 DESC');
+    return rr.length ? lines('Open complaints by category' + (office ? ' in ' + office : '') + ':', ...rr.map((x) => '  ' + x.k + ': ' + x.n)) : 'There are no open complaints.';
+  }
   if (has(n, /complaint|ticket/)) {
     const where = office ? "AND o.code = '" + office + "'" : '';
     const r = (await q("SELECT COUNT(*) FILTER (WHERE c.status = 'open')::int AS open, COUNT(*) FILTER (WHERE c.status = 'open' AND c.due_on < $1::date)::int AS late, COUNT(*)::int AS total FROM pc2_complaints c JOIN pc2_offices o ON o.id = c.office_id WHERE true " + where, [today]))[0];
@@ -203,6 +211,80 @@ async function extraTopics(user, n, nowY, nowM, today) {
     if (!can(user, 'fuel_use')) return 'You do not have access to FuelTrack.';
     const r = (await q("SELECT COUNT(*)::int AS n FROM pc2_fuel_refill WHERE status = 'open'"))[0];
     return 'Fuel refill requests still open: ' + r.n + '.';
+  }
+﻿  // ---- more topics
+  const wP = when(n, nowY, nowM);
+  const [pFrom, pTo] = range(wP);
+  // What needs attention (Sr. Ops Manager)
+  if (has(n, /needs? (my )?attention|what is pending|what s pending|anything pending|to do list|waiting for me|what should i do/)) {
+    if (!om) return 'That summary is for the Sr. Ops Manager. Ask me about your own expenses or advances.';
+    const r = (await q("SELECT (SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int FROM pc2_expenses WHERE status IN ('submitted', 'verified')) AS exp, (SELECT COUNT(*)::int FROM pc2_visitors WHERE del_req_by IS NOT NULL) AS vis, (SELECT COUNT(*)::int FROM pc2_hk_off WHERE status = 'pending') AS off, (SELECT COUNT(*)::int FROM pc2_fuel_refill WHERE status = 'open') AS fuel, (SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int FROM pc2_expenses WHERE status = 'approved' AND batch_id IS NULL) AS ready"))[0];
+    return lines('Waiting for you:', '  Expenses to approve: ' + r.exp, '  Visitor delete requests: ' + r.vis, '  Time off requests: ' + r.off, '  Fuel refill requests open: ' + r.fuel, '  Approved expenses not yet sent to Accounts: ' + r.ready);
+  }
+  // Who is off (Support roster)
+  if (has(n, /who is off|who s off|on leave|off today|off this week|time off today/)) {
+    if (!sup) return 'The roster is available to the Sr. Ops Manager and the Sr. Support Officer.';
+    const week = has(n, /week/);
+    const r = await q("SELECT p.name, h.kind, to_char(h.from_date, 'DD Mon') AS f, to_char(h.to_date, 'DD Mon') AS t FROM pc2_hk_off h JOIN pc2_hk_people p ON p.id = h.hk_id WHERE h.from_date <= ($1::date + $2::int) AND h.to_date >= $1::date ORDER BY h.from_date LIMIT 20", [today, week ? 6 : 0]);
+    return r.length ? lines('Time off ' + (week ? 'in the next 7 days' : 'today') + ':', ...r.map((x) => '  ' + x.name + ' - ' + x.kind + ' (' + x.f + (x.f === x.t ? '' : ' to ' + x.t) + ')')) : 'Nobody has time off ' + (week ? 'in the next 7 days' : 'today') + '.';
+  }
+  // Expected visitors and no shows
+  if (has(n, /expected visitor|visitors? expected|expecting|coming today|coming tomorrow|no show|noshow/)) {
+    const scope = allOffices(user) ? '' : user.office_code;
+    if (has(n, /no show|noshow/)) {
+      const r = (await q("SELECT COUNT(*)::int AS n FROM pc2_expected e JOIN pc2_offices o ON o.id = e.office_id WHERE e.status = 'noshow' AND e.due_at >= $1::date AND e.due_at < ($2::date + 1) AND ($3 = '' OR o.code = $3)", [pFrom, pTo, scope]))[0];
+      return 'No shows ' + wP.label + ': ' + r.n + '.';
+    }
+    const r = await q("SELECT e.name, e.vtype, e.host, to_char(e.due_at AT TIME ZONE 'Asia/Karachi', 'DD Mon HH24:MI') AS at FROM pc2_expected e JOIN pc2_offices o ON o.id = e.office_id WHERE e.status = 'waiting' AND ($1 = '' OR o.code = $1) ORDER BY e.due_at LIMIT 10", [scope]);
+    return r.length ? lines('Visitors still expected (' + r.length + (r.length === 10 ? ' or more' : '') + '):', ...r.map((x) => '  ' + x.at + '  ' + x.name + (x.host ? ' to see ' + x.host : '') + ' (' + (VLABEL[x.vtype] || x.vtype) + ')')) : 'No visitors are expected right now.';
+  }
+  // What changed (audit log, Sr. Ops Manager)
+  if (has(n, /what changed|recent changes|latest activity|recent activity|audit log|who changed/)) {
+    if (!om) return 'The activity log is for the Sr. Ops Manager.';
+    const r = await q("SELECT actor_name, summary, to_char(at AT TIME ZONE 'Asia/Karachi', 'DD Mon HH24:MI') AS t FROM pc2_audit ORDER BY id DESC LIMIT 8");
+    return lines('Latest activity:', ...r.map((x) => '  ' + x.t + '  ' + x.actor_name + ': ' + String(x.summary).slice(0, 110)));
+  }
+  // Cost per employee
+  if (has(n, /per employee|per head count|per person|cost per (employee|staff)|per staff/)) {
+    if (!om) return 'Cost analysis is for the Sr. Ops Manager.';
+    const rowsC = await officeCosts(wP.year);
+    const a = agg(rowsC, { from: wP.from, to: wP.to, office: office || 'ALL', head: null, exBB: has(n, /without boldbelief|excluding boldbelief|operational/) });
+    const h = await headcount();
+    const cnt = office === 'ISB' ? h.ISB : office === 'LHR' ? h.LHR : h.LHR + h.ISB;
+    return cnt ? lines('Spend ' + wP.label + (office ? ' for ' + office : '') + ': ' + pkr(a.tot) + ' over ' + cnt + ' employees.', 'About ' + pkr(a.tot / cnt) + ' per employee, ' + pkr(a.tot / cnt / Math.max(1, wP.to - wP.from + 1)) + ' per employee a month.') : 'There are no active employees in the Attendance list to divide by.';
+  }
+  // Vendors and payment modes (ExpRev)
+  if (has(n, /vendor|supplier|payment mode|pay mode|paid by cash|petty cash entries/) && om) {
+    const col = has(n, /payment mode|pay mode/) ? 'pay_mode' : 'vendor';
+    const r = await q("SELECT COALESCE(NULLIF(" + col + ", ''), '(blank)') AS k, SUM(amount)::float8 AS v, COUNT(*)::int AS c FROM pc2_er_entries WHERE spent_on >= $1 AND spent_on <= $2 GROUP BY 1 ORDER BY 2 DESC LIMIT 8", [pFrom, pTo]);
+    return lines((col === 'vendor' ? 'Biggest vendors' : 'Spend by payment mode') + ', ' + wP.label + ':', ...r.map((x) => '  ' + x.k + ': ' + pkr(x.v) + ' (' + x.c + ' entries)'));
+  }
+  // Petty: by category or fund, biggest and average expense, funds received, returns, batches
+  if (has(n, /by category|by fund|categories|which fund|per fund|per category/) && has(n, /expens|spend|spent|fund|categor/) && !has(n, /head|cost center/)) {
+    const col = has(n, /fund/) ? 'e.fund' : 'e.category';
+    const args = [pFrom, pTo];
+    let sql = "FROM pc2_expenses e WHERE e.status <> 'rejected' AND e.spent_on >= $1 AND e.spent_on <= $2";
+    if (user.role === 'so') { args.push(user.id); sql += ' AND e.submitted_by = $3'; }
+    const r = await q('SELECT ' + col + ' AS k, SUM(e.amount)::float8 AS v FROM pc2_expenses e WHERE e.status <> \'rejected\' AND e.spent_on >= $1 AND e.spent_on <= $2' + (user.role === 'so' ? ' AND e.submitted_by = $3' : '') + ' GROUP BY 1 ORDER BY 2 DESC LIMIT 12', args);
+    return lines('Petty expenses ' + (col === 'e.fund' ? 'by fund' : 'by category') + ', ' + wP.label + ':', ...r.map((x) => '  ' + (col === 'e.fund' ? FUNDS[x.k] || x.k : x.k) + ': ' + pkr(x.v)));
+  }
+  if (has(n, /(biggest|largest|highest|top) (petty )?(expense|entry|entries|expenses)|average expense/) && !has(n, /head|cost center|exprev/)) {
+    const args = [pFrom, pTo];
+    const r = await q("SELECT to_char(e.spent_on, 'YYYY-MM-DD') AS d, e.category, e.amount::float8 AS a, u.name FROM pc2_expenses e JOIN pc2_users u ON u.id = e.submitted_by WHERE e.status <> 'rejected' AND e.spent_on >= $1 AND e.spent_on <= $2" + (user.role === 'so' ? ' AND e.submitted_by = ' + Number(user.id) : '') + ' ORDER BY e.amount DESC LIMIT 5', args);
+    const av = (await q("SELECT COALESCE(AVG(e.amount), 0)::float8 AS v, COUNT(*)::int AS c FROM pc2_expenses e WHERE e.status <> 'rejected' AND e.spent_on >= $1 AND e.spent_on <= $2" + (user.role === 'so' ? ' AND e.submitted_by = ' + Number(user.id) : ''), args))[0];
+    return lines('Petty expenses ' + wP.label + ': ' + av.c + ' expense(s), average ' + pkr(av.v) + '.', 'Biggest:', ...r.map((x) => '  ' + x.d + '  ' + pkr(x.a) + '  ' + x.category + ' (' + x.name + ')'));
+  }
+  if (has(n, /received from accounts|funds received|advances received|money received/) && sup) {
+    const r = (await q('SELECT COALESCE(SUM(amount), 0)::float8 AS v, COUNT(*)::int AS c FROM pc2_advances WHERE received_on >= $1 AND received_on <= $2', [pFrom, pTo]))[0];
+    return 'Received from Accounts ' + wP.label + ': ' + pkr(r.v) + ' in ' + r.c + ' receipt(s).';
+  }
+  if (has(n, /returned|returns|cash returned/) && sup) {
+    const r = (await q('SELECT COALESCE(SUM(amount), 0)::float8 AS v, COUNT(*)::int AS c FROM pc2_returns WHERE returned_on >= $1 AND returned_on <= $2', [pFrom, pTo]))[0];
+    return 'Cash returned to Accounts ' + wP.label + ': ' + pkr(r.v) + ' in ' + r.c + ' return(s).';
+  }
+  if (has(n, /batch/) && sup) {
+    const r = await q("SELECT id, total::float8 AS total, item_count, to_char(created_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD') AS d FROM pc2_batches ORDER BY id DESC LIMIT 4");
+    return r.length ? lines('Latest batches sent to Accounts:', ...r.map((x) => '  #' + x.id + '  ' + x.d + '  ' + x.item_count + ' expenses  ' + pkr(x.total))) : 'No batch has been sent to Accounts yet.';
   }
   const us = await q('SELECT u.id, u.name, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.active');
   const person = us.find((x) => norm(x.name).split(' ').some((w) => w.length >= 3 && new RegExp('\\b' + w + '\\b').test(n)));
@@ -243,7 +325,7 @@ async function extraTopics(user, n, nowY, nowM, today) {
   return null;
 }
 
-export async function opsbotAnswer(user, text) {
+export async function opsbotAnswer(user, text, ctx = null) {
   const n = norm(text);
   const today = todayKey();
   const nowY = Number(today.slice(0, 4));
@@ -251,13 +333,17 @@ export async function opsbotAnswer(user, text) {
   const om = user.role === 'om';
   const sugg = om ? SUGGEST_OM : SUGGEST_OTHER;
   if (!n) return { reply: 'Ask me something about the app.', suggestions: sugg };
-  if (has(n, /^(hi|hello|hey|salam|help)\b|what can you|who are you|how do i ask/)) {
+  if (has(n, /what can i ask|ideas|examples|what can you do|show me questions|list of questions|topics/) && om) return { reply: 'You can ask me things like:\n' + IDEAS_OM.map((x) => '- ' + x).join('\n'), suggestions: SUGGEST_OM };
+  if (has(n, /what can i ask|ideas|examples|what can you do/) && !om) return { reply: 'You can ask me things like:\n- What is my cash in hand?\n- How many expenses are waiting?\n- Advances outstanding\n- Visitors today\n- Open complaints\n- Who is on duty today? (if you can see attendance)', suggestions: SUGGEST_OTHER };
+  if (has(n, /^(hi|hello|hey|salam|help)\b|who are you|how do i ask/)) {
     return { reply: om ? 'I am OpsBot. I answer from the data in OpsTrack. Ask about spending by office, head or month, the budget, year against year, cash in hand, advances, the expenses of one person ("Zubair expenses this month"), expenses in a stage ("rejected expenses"), attendance ("who is on duty today"), headcount, complaints, time off requests, fuel refills, the team, visitors, or find an amount ("find 18376"). Name a month, a year, an office or a head. I only know what is in the app.' : 'I am OpsBot. I answer from the data in OpsTrack that you can open: your cash in hand, advances, expenses and visitors.', suggestions: sugg };
   }
   const extra = await extraTopics(user, n, nowY, nowM, today);
   if (extra) return { reply: extra, suggestions: [] };
   if (has(n, /visitor|inside now|who is in\b|who is inside/)) return { reply: await visitorsAnswer(user, n, nowY, nowM, today), suggestions: [] };
-  const money = has(n, /spend|spent|cost|expens|paid|how much|total|budget|variance|compare|versus|\bvs\b|head|office|isb|lhr|travel|rent|month|share|percent|top|biggest/);
+  // A short follow-up ("and ISB?", "what about last year?") continues the last question.
+  const follow = !!ctx && (has(n, /^(and|what about|how about|same|also|now|then|ok|okay|for|in)\b/) || n.split(' ').length <= 4);
+  const money = (follow && ctx && ctx.intent) || has(n, /spend|spent|cost|expens|paid|how much|total|budget|variance|compare|versus|\bvs\b|head|office|isb|lhr|travel|rent|month|share|percent|top|biggest/);
   const pettyTopic = has(n, /cash in hand|cih|holding|who has|who holds|advance|outstanding|ready for accounts|awaiting|pending|waiting|approval|my cash|my expenses/);
   if (pettyTopic && !has(n, /budget|isb|lhr|head|month|compare|travel|rent/)) return { reply: await pettyAnswer(user, n), suggestions: [] };
   if (!om) {
@@ -266,19 +352,25 @@ export async function opsbotAnswer(user, text) {
   }
   if (!money) return { reply: 'I did not understand that. Try one of these, or name a month, year, head or office.', suggestions: sugg };
 
-  // Sr. Ops Manager: expenditure analysis
-  const w = when(n, nowY, nowM);
-  const office = has(n, /\bisb\b|islamabad/) && !has(n, /\blhr\b|lahore/) ? 'ISB' : has(n, /\blhr\b|lahore/) && !has(n, /\bisb\b|islamabad/) ? 'LHR' : 'ALL';
-  const exBB = has(n, /without boldbelief|excluding boldbelief|excl boldbelief|operational/);
+  // Sr. Ops Manager: expenditure analysis, with what was asked remembered for the next question
+  const INTENTS = [['budget', /budget|variance|provision|over budget|under budget|left/], ['compare', /compare|versus|\bvs\b|year wise|year over year|yearly|previous year|last year/], ['monthly', /month wise|month by month|monthly|each month|by month|trend|per month|(highest|lowest|busiest|quietest|biggest) month/], ['heads', /top|biggest|highest|largest|most|head wise|by head|per head|each head|breakdown|categories/], ['split', /share|percent|%|split|office wise|by office/]];
+  const said = (INTENTS.find(([, re]) => re.test(n)) || [])[0];
+  const intent = said || (follow && ctx && ctx.intent) || 'spend';
+  const w0 = when(n, nowY, nowM);
+  const w = follow && ctx && !w0.explicit ? { year: ctx.year, from: ctx.from, to: ctx.to, label: ctx.label } : w0;
+  const said2 = has(n, /\bisb\b|islamabad/) && !has(n, /\blhr\b|lahore/) ? 'ISB' : has(n, /\blhr\b|lahore/) && !has(n, /\bisb\b|islamabad/) ? 'LHR' : '';
+  const office = said2 || (follow && ctx && !has(n, /both offices|all offices/) ? ctx.office : 'ALL');
+  const exBB = has(n, /without boldbelief|excluding boldbelief|excl boldbelief|operational/) || (follow && ctx && ctx.exBB && !has(n, /with boldbelief/));
   const ccs = (await q("SELECT DISTINCT cost_center FROM pc2_er_entries WHERE cost_center <> ''")).map((r) => r.cost_center);
-  const head = pickHead(n, ccs);
+  const head = pickHead(n, ccs) || (follow && ctx && !has(n, /all heads|every head/) ? ctx.head : null);
   const f = { from: w.from, to: w.to, office, head, exBB };
   const where = (head ? ' on ' + head : '') + (office !== 'ALL' ? ' for ' + office : '') + (exBB ? ' (without BOLDBelief)' : '');
   const note = 'As booked: an entry with no office counts as LHR.';
   const rows = await officeCosts(w.year);
   const a = agg(rows, f);
-
-  if (has(n, /budget|variance|provision|over budget|under budget|left/)) {
+  const ctxOut = { intent, year: w.year, from: w.from, to: w.to, label: w.label, office, head, exBB };
+  const done = (reply, extra = []) => ({ reply: lines(reply, ...extra), suggestions: [], ctx: ctxOut });
+  const sumBud = async () => {
     const bud = await budgetByHead(w.year);
     let B = 0;
     for (const [cc, arr] of Object.entries(bud)) {
@@ -286,36 +378,62 @@ export async function opsbotAnswer(user, text) {
       if (head && cc !== head) continue;
       B += arr.slice(w.from - 1, w.to).reduce((x, y) => x + y, 0);
     }
+    return B;
+  };
+  // Background lines for an answer: last year, the budget and the busiest month.
+  const context = async (tot) => {
+    const out = [];
+    const prev = agg(await officeCosts(w.year - 1), f).tot;
+    if (prev > 0) out.push('Same months in ' + (w.year - 1) + ': ' + pkr(prev) + ' (' + (tot >= prev ? 'up ' : 'down ') + pc(Math.abs(tot - prev), prev) + ').');
+    const B = await sumBud();
+    if (B > 0 && office === 'ALL') out.push('Budget for these months: ' + pkr(B) + ', ' + pc(tot, B) + ' used' + (tot > B ? ' (over by ' + pkr(tot - B) + ').' : ' (' + pkr(B - tot) + ' left).'));
+    if (w.to > w.from) {
+      let hi = w.from;
+      for (let m = w.from; m <= w.to; m++) if (a.byMonth[m - 1] > a.byMonth[hi - 1]) hi = m;
+      if (a.byMonth[hi - 1] > 0) out.push('Busiest month: ' + MONTHS[hi - 1] + ' (' + pkr(a.byMonth[hi - 1]) + ').');
+    }
+    return out;
+  };
+
+  if (intent === 'budget') {
+    const B = await sumBud();
     const actual = agg(rows, { ...f, office: 'ALL' }).tot;
-    return { reply: lines('Budget ' + w.label + (head ? ' on ' + head : '') + (exBB ? ' (without BOLDBelief)' : '') + ':', 'Budgeted: ' + pkr(B), 'Spent (from the entries): ' + pkr(actual), actual > B ? 'Over budget by ' + pkr(actual - B) + '.' : 'Left in budget: ' + pkr(B - actual) + '.', office !== 'ALL' ? 'The workbook has no budget per office, so this is for both offices.' : '', 'The Budget vs Actual page uses the workbook\'s own figures for the months it has worked out, so small differences are possible.'), suggestions: [] };
+    return done('Budget ' + w.label + (head ? ' on ' + head : '') + (exBB ? ' (without BOLDBelief)' : '') + ':', ['Budgeted: ' + pkr(B), 'Spent (from the entries): ' + pkr(actual) + ' (' + pc(actual, B) + ' of the budget)', actual > B ? 'Over budget by ' + pkr(actual - B) + '.' : 'Left in budget: ' + pkr(B - actual) + '.', office !== 'ALL' ? 'The workbook has no budget per office, so this is for both offices.' : '', "The Budget vs Actual page uses the workbook's own figures for the months it has worked out, so small differences are possible."]);
   }
-  if (has(n, /compare|versus|\bvs\b|year wise|year over year|yearly|previous year|last year/) && !has(n, /^how much did we spend last year$/)) {
+  if (intent === 'compare') {
     const ys = (await erYears()).slice(0, 4).sort((x, y) => x - y);
     const out = [];
     let prev = null;
     for (const yy of ys) {
-      const t = agg(yy === w.year ? rows : await officeCosts(yy), f).tot;
-      if (t > 0) {
-        out.push('  ' + yy + ': ' + pkr(t) + (prev ? ' (' + (t >= prev ? '+' : '') + pc(t - prev, prev) + ' on the year before)' : ''));
-        prev = t;
+      const tt = agg(yy === w.year ? rows : await officeCosts(yy), f).tot;
+      if (tt > 0) {
+        out.push('  ' + yy + ': ' + pkr(tt) + (prev ? ' (' + (tt >= prev ? '+' : '-') + pc(Math.abs(tt - prev), prev) + ' on the year before)' : ''));
+        prev = tt;
       }
     }
-    return { reply: lines('Spend' + where + ', ' + MONTHS[w.from - 1] + ' to ' + MONTHS[w.to - 1] + ', year by year:', ...out, note), suggestions: [] };
+    return done('Spend' + where + ', ' + MONTHS[w.from - 1] + ' to ' + MONTHS[w.to - 1] + ', year by year:', [...out, note]);
   }
-  if (has(n, /month wise|month by month|monthly|each month|by month|trend|per month/)) {
+  if (intent === 'monthly') {
     const ml = [];
     for (let m = w.from; m <= w.to; m++) ml.push('  ' + MON3[m - 1] + ': ' + pkr(a.byMonth[m - 1]));
-    return { reply: lines('Spend' + where + ' by month, ' + w.year + ':', ...ml, 'Total: ' + pkr(a.tot), note), suggestions: [] };
+    let hiM = w.from;
+    let loM = w.from;
+    for (let m = w.from; m <= w.to; m++) {
+      if (a.byMonth[m - 1] > a.byMonth[hiM - 1]) hiM = m;
+      if (a.byMonth[m - 1] < a.byMonth[loM - 1]) loM = m;
+    }
+    return done('Spend' + where + ' by month, ' + w.year + ':', [...ml, 'Total: ' + pkr(a.tot), w.to > w.from ? 'Highest: ' + MONTHS[hiM - 1] + ' (' + pkr(a.byMonth[hiM - 1]) + '). Lowest: ' + MONTHS[loM - 1] + ' (' + pkr(a.byMonth[loM - 1]) + ').' : '', ...(await context(a.tot)), note]);
   }
-  if (has(n, /top|biggest|highest|largest|most/) || has(n, /head wise|by head|per head|each head|breakdown|categories/)) {
-    const list = sortedHeads(a).slice(0, has(n, /top/) ? 5 : 15);
-    return { reply: lines('Spend' + where + ', ' + w.label + (has(n, /top|biggest|highest|largest|most/) ? ' (largest first)' : '') + ':', ...list.map(([k, v]) => '  ' + k + ': ' + pkr(v) + ' (' + pc(v, a.tot) + ')'), 'Total: ' + pkr(a.tot), note), suggestions: [] };
+  if (intent === 'heads') {
+    const top = has(n, /top|biggest|highest|largest|most/);
+    const list = sortedHeads(a).slice(0, top ? 5 : 15);
+    return done('Spend' + where + ', ' + w.label + (top ? ' (largest first)' : '') + ':', [...list.map(([k, v]) => '  ' + k + ': ' + pkr(v) + ' (' + pc(v, a.tot) + ')'), 'Total: ' + pkr(a.tot), note]);
   }
-  if (has(n, /share|percent|%|split|office wise|by office|\bisb\b.*\blhr\b|\blhr\b.*\bisb\b/) || (office === 'ALL' && has(n, /\b(isb|lhr)\b/))) {
+  if (intent === 'split') {
     const both = agg(rows, { ...f, office: 'ALL' });
-    return { reply: lines('Spend' + (head ? ' on ' + head : '') + (exBB ? ' (without BOLDBelief)' : '') + ', ' + w.label + ':', 'LHR: ' + pkr(both.lhr) + ' (' + pc(both.lhr, both.tot) + ')', 'ISB: ' + pkr(both.isb) + ' (' + pc(both.isb, both.tot) + ')', 'Total: ' + pkr(both.tot), note), suggestions: [] };
+    return done('Spend' + (head ? ' on ' + head : '') + (exBB ? ' (without BOLDBelief)' : '') + ', ' + w.label + ':', ['LHR: ' + pkr(both.lhr) + ' (' + pc(both.lhr, both.tot) + ')', 'ISB: ' + pkr(both.isb) + ' (' + pc(both.isb, both.tot) + ')', 'Total: ' + pkr(both.tot), ...(await context(both.tot)), note]);
   }
   const span = w.to - w.from + 1;
-  const top = head ? [] : sortedHeads(a).slice(0, 3);
-  return { reply: lines('Spend' + where + ', ' + w.label + ': ' + pkr(a.tot) + '.', office === 'ALL' ? 'LHR ' + pkr(a.lhr) + ' (' + pc(a.lhr, a.tot) + '), ISB ' + pkr(a.isb) + ' (' + pc(a.isb, a.tot) + ').' : '', 'About ' + pkr(a.tot / Math.max(1, span)) + ' a month over ' + span + ' month(s).', top.length ? 'Biggest heads: ' + top.map(([k, v]) => k + ' ' + pkr(v)).join('; ') + '.' : '', note), suggestions: [] };
+  const topHeads = head ? [] : sortedHeads(a).slice(0, 3);
+  return done('Spend' + where + ', ' + w.label + ': ' + pkr(a.tot) + '.', [office === 'ALL' ? 'LHR ' + pkr(a.lhr) + ' (' + pc(a.lhr, a.tot) + '), ISB ' + pkr(a.isb) + ' (' + pc(a.isb, a.tot) + ').' : '', 'About ' + pkr(a.tot / Math.max(1, span)) + ' a month over ' + span + ' month(s).', topHeads.length ? 'Biggest heads: ' + topHeads.map(([k, v]) => k + ' ' + pkr(v)).join('; ') + '.' : '', ...(await context(a.tot)), note, 'You can ask a follow-up, for example "and for ISB?" or "what about last year?".']);
 }
