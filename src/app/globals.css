@@ -1313,3 +1313,5 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .er-kpis5 .kpi small{display:block}
 @media (max-width:1100px){.er-kpis5{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:720px){.er-kpis5{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.er-kpis5 .kpi:first-child{grid-column:1/-1}}
+.an-over{color:#b3261e;font-weight:600}
+.an-left{color:#1a7f37;font-weight:600}

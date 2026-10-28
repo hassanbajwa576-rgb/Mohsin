@@ -143,10 +143,10 @@ export default async function ExpRevAnalysis({ searchParams }) {
       </form>
 
       <div className='kpis er-kpis er-kpis5'>
-        <div className='card kpi'><span>Budgeted{noBB ? ' (without BOLDBelief)' : ''}</span><b>{pkr(bT)}</b><small>{bT - T >= 0 ? 'Left: ' : 'Over by: '}{pkr(Math.abs(bT - T))}</small></div>
+        <div className='card kpi'><span>Budgeted{noBB ? ' (without BOLDBelief)' : ''}</span><b>{pkr(bT)}</b><small><span className={bT - T >= 0 ? 'an-left' : 'an-over'}>{bT - T >= 0 ? 'Left: ' : 'Over by: '}{pkr(Math.abs(bT - T))}</span></small></div>
         <div className='card kpi alt'><span>Total cost</span><b>{pkr(T)}</b><small>Actual spend</small></div>
-        <div className='card kpi alt'><span>LHR cost</span><b>{pkr(tL)}</b><small>{pct(tL, T)} of total</small><small>Budget {pkr(bL)} · {bL - tL >= 0 ? 'left ' : 'over '}{pkr(Math.abs(bL - tL))}</small></div>
-        <div className='card kpi alt'><span>ISB cost</span><b>{pkr(tI)}</b><small>{pct(tI, T)} of total</small><small>Budget {pkr(bI)} · {bI - tI >= 0 ? 'left ' : 'over '}{pkr(Math.abs(bI - tI))}</small></div>
+        <div className='card kpi alt'><span>LHR cost</span><b>{pkr(tL)}</b><small>{pct(tL, T)} of total</small><small>Budget {pkr(bL)} · <span className={bL - tL >= 0 ? 'an-left' : 'an-over'}>{bL - tL >= 0 ? 'left ' : 'over '}{pkr(Math.abs(bL - tL))}</span></small></div>
+        <div className='card kpi alt'><span>ISB cost</span><b>{pkr(tI)}</b><small>{pct(tI, T)} of total</small><small>Budget {pkr(bI)} · <span className={bI - tI >= 0 ? 'an-left' : 'an-over'}>{bI - tI >= 0 ? 'left ' : 'over '}{pkr(Math.abs(bI - tI))}</span></small></div>
         <div className='card kpi alt'><span>Average a month</span><b>{pkr(T / Math.max(1, span))}</b><small>ISB {pkr(tI / Math.max(1, span))}</small></div>
       </div>
 
