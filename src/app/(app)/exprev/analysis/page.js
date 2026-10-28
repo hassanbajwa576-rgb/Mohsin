@@ -78,7 +78,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
       <div className='card'>
         <h3>Month by month: LHR and ISB</h3>
         <div className='an-leg'><span><i style={{ background: LHR }} />LHR</span><span><i style={{ background: ISB }} />ISB</span></div>
-        <svg className='an-chart' viewBox='0 0 640 200' role='img' aria-label='Monthly cost, LHR and ISB'>
+        <svg className='an-chart' viewBox='0 0 640 180' role='img' aria-label='Monthly cost, LHR and ISB'>
           {MON3.map((n, i) => {
             const x = 28 + i * (bw + gap);
             const hl = (lhr[i] / maxM) * 130;
@@ -88,15 +88,17 @@ export default async function ExpRevAnalysis({ searchParams }) {
               <g key={n} opacity={on ? 1 : 0.35}>
                 <rect x={x} y={150 - hl} width={bw} height={hl} rx='2' fill={LHR} />
                 <rect x={x} y={150 - hl - hi} width={bw} height={hi} rx='2' fill={ISB} />
-                {on && lhr[i] + isb[i] > 0 ? <text x={x + bw / 2} y={146 - hl - hi} textAnchor='middle' className='an-t'>{mil(lhr[i] + isb[i])}</text> : null}
-                {on && isb[i] > 0 ? <text x={x + bw / 2} y={170} textAnchor='middle' className='an-t an-isb'>{pct(isb[i], lhr[i] + isb[i])}</text> : null}
-                <text x={x + bw / 2} y={186} textAnchor='middle' className='an-t'>{n}</text>
+                {on && lhr[i] > 0 && hl >= 12 ? <text x={x + bw / 2} y={150 - hl / 2 + 3.5} textAnchor='middle' className='an-in'>{pct(lhr[i], lhr[i] + isb[i])}</text> : null}
+                {on && isb[i] > 0 && hi >= 12 ? <text x={x + bw / 2} y={150 - hl - hi / 2 + 3.5} textAnchor='middle' className='an-in'>{pct(isb[i], lhr[i] + isb[i])}</text> : null}
+                {on && isb[i] > 0 && hi < 12 ? <text x={x + bw / 2} y={146 - hl - hi} textAnchor='middle' className='an-t an-isb'>{pct(isb[i], lhr[i] + isb[i])}</text> : null}
+                {on && lhr[i] + isb[i] > 0 ? <text x={x + bw / 2} y={(hi < 12 && isb[i] > 0 ? 134 : 146) - hl - hi} textAnchor='middle' className='an-t'>{mil(lhr[i] + isb[i])}</text> : null}
+                <text x={x + bw / 2} y={168} textAnchor='middle' className='an-t'>{n}</text>
               </g>
             );
           })}
           <line x1='22' y1='150' x2='636' y2='150' stroke='currentColor' opacity='.2' />
         </svg>
-        <p className='muted' style={{ margin: '4px 0 0', fontSize: 12 }}>Above each bar: the month's total. Below it, in blue: the ISB share of that month.</p>
+        <p className='muted' style={{ margin: '4px 0 0', fontSize: 12 }}>Above each bar: the month's total. Inside the bar: LHR share (brown) and ISB share (blue). A thin ISB slice shows its share just above the bar.</p>
       </div>
 
       <div className='card'>
