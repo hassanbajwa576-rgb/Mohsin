@@ -84,6 +84,46 @@ export default async function ExpRevAnalysis({ searchParams }) {
   const tL = sum(lhr);
   const tI = sum(isb);
   const T = tL + tI;
+  // The same months and switches for each year, to compare year with year (latest four years with entries).
+  const tally = (rs) => {
+    const l = Array(12).fill(0);
+    const i = Array(12).fill(0);
+    const hd = new Map();
+    for (const r of rs) {
+      if (r.m < from || r.m > to) continue;
+      if (noBB && isBB(r.cc)) continue;
+      const k = r.cc || '(no cost center)';
+      const h = hd.get(k) || { lhr: 0, isb: 0 };
+      if (alloc && sharedSet.has(r.cc)) {
+        l[r.m - 1] += r.s * wL;
+        i[r.m - 1] += r.s * wI;
+        h.lhr += r.s * wL;
+        h.isb += r.s * wI;
+      } else {
+        (r.o === 'ISB' ? i : l)[r.m - 1] += r.s;
+        h[r.o === 'ISB' ? 'isb' : 'lhr'] += r.s;
+      }
+      hd.set(k, h);
+    }
+    return { l, i, hd, tl: sum(l), ti: sum(i), tot: sum(l) + sum(i) };
+  };
+  const tallies = await Promise.all(years.slice(0, 4).map(async (yy) => ({ y: yy, ...tally(yy === y ? rows : await officeCosts(yy)) })));
+  const YR = tallies.filter((x) => x.tot > 0).sort((a, b) => a.y - b.y);
+  const YC = ['#7a8a99', '#185FA5', '#BA7517', '#8a4fb0'].slice(-Math.max(YR.length, 1));
+  const chg = (cur, prev) => (prev > 0 ? ((cur - prev) / prev) * 100 : null);
+  const Chg = ({ cur, prev }) => {
+    const v = chg(cur, prev);
+    if (v === null) return <span>-</span>;
+    return <span className={v > 0.05 ? 'an-over' : v < -0.05 ? 'an-left' : ''}>{(v > 0 ? '+' : '') + v.toFixed(1)}%</span>;
+  };
+  const cm = to - from + 1;
+  const gw = 600 / cm;
+  const bwY = Math.min(26, (gw * 0.8) / Math.max(YR.length, 1));
+  const maxY = Math.max(1, ...YR.flatMap((x) => x.l.map((v, i) => v + x.i[i])));
+  const headNames = [...new Set(YR.flatMap((x) => [...x.hd.keys()]))];
+  const latest = YR[YR.length - 1];
+  const prevY = YR.length > 1 ? YR[YR.length - 2] : null;
+  const headRows = headNames.map((k) => ({ k, vals: YR.map((x) => (x.hd.get(k) ? x.hd.get(k).lhr + x.hd.get(k).isb : 0)) })).sort((a, b) => (b.vals[b.vals.length - 1] || 0) - (a.vals[a.vals.length - 1] || 0));
   const list = [...heads.values()].map((h) => ({ ...h, tot: h.lhr + h.isb })).sort((a, b) => b.tot - a.tot);
   const topN = list;
   const maxM = Math.max(1, ...lhr.map((v, i) => v + isb[i]));
@@ -215,6 +255,69 @@ export default async function ExpRevAnalysis({ searchParams }) {
           </table>
         </div>
       </div>
+
+      {YR.length > 1 ? (
+        <div className='card'>
+          <h3>Year by year: {MONTHS[from - 1]} to {MONTHS[to - 1]}</h3>
+          <p className='muted' style={{ margin: '0 0 8px', fontSize: 12.5 }}>The same months in each year, with the same switches as above. Red means spending went up on the year before, green means it went down.</p>
+          <div className='tablewrap'>
+            <table className='tx an-tbl'>
+              <thead><tr><th>Year</th><th className='r'>Total</th><th className='r'>LHR</th><th className='r'>ISB</th><th className='r'>ISB %</th><th className='r'>Change</th></tr></thead>
+              <tbody>
+                {YR.map((x, k) => (
+                  <tr key={x.y}>
+                    <td className='c-title'><i className='an-dot' style={{ background: YC[k] }} />{x.y}</td>
+                    <td className='r nw c-meta'><span className='er-cl'>Total</span><b>{money(x.tot)}</b></td>
+                    <td className='r nw c-meta'><span className='er-cl'>LHR</span>{money(x.tl)}</td>
+                    <td className='r nw c-meta'><span className='er-cl'>ISB</span>{money(x.ti)}</td>
+                    <td className='r nw c-meta'><span className='er-cl'>ISB %</span>{pct(x.ti, x.tot)}</td>
+                    <td className='r nw c-meta'><span className='er-cl'>Change</span>{k ? <Chg cur={x.tot} prev={YR[k - 1].tot} /> : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <h4 className='an-sub'>Month by month</h4>
+          <div className='an-leg'>{YR.map((x, k) => <span key={x.y}><i style={{ background: YC[k] }} />{x.y}</span>)}</div>
+          <svg className='an-chart' viewBox='0 0 640 190' role='img' aria-label='Monthly cost for each year'>
+            {Array.from({ length: cm }, (_, n) => {
+              const m = from - 1 + n;
+              const gx = 20 + n * gw;
+              return (
+                <g key={m}>
+                  {YR.map((x, k) => {
+                    const v = x.l[m] + x.i[m];
+                    const h = (v / maxY) * 140;
+                    return <rect key={x.y} x={gx + (gw - bwY * YR.length) / 2 + k * bwY} y={160 - h} width={Math.max(2, bwY - 2)} height={h} rx='2' fill={YC[k]} />;
+                  })}
+                  <text x={gx + gw / 2} y={178} textAnchor='middle' className='an-t'>{MON3[m]}</text>
+                </g>
+              );
+            })}
+            <line x1='14' y1='160' x2='636' y2='160' stroke='currentColor' opacity='.2' />
+          </svg>
+
+          <h4 className='an-sub'>By head</h4>
+          <div className='tablewrap'>
+            <table className='tx an-tbl'>
+              <thead><tr><th>Head</th>{YR.map((x) => <th key={x.y} className='r'>{x.y}</th>)}<th className='r'>Change</th></tr></thead>
+              <tbody>
+                {headRows.map((h) => (
+                  <tr key={h.k}>
+                    <td className='c-title'>{h.k}</td>
+                    {h.vals.map((v, k) => <td key={k} className='r nw c-meta'><span className='er-cl'>{YR[k].y}</span>{money(v)}</td>)}
+                    <td className='r nw c-meta'><span className='er-cl'>Change</span>{prevY ? <Chg cur={h.vals[h.vals.length - 1]} prev={h.vals[h.vals.length - 2]} /> : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr><td>Total</td>{YR.map((x) => <td key={x.y} className='r nw'><span className='er-cl'>{x.y}</span>{money(x.tot)}</td>)}<td className='r nw'><span className='er-cl'>Change</span>{prevY ? <Chg cur={latest.tot} prev={prevY.tot} /> : '-'}</td></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <details className='card'>
         <summary><b>Shared heads</b> <span className='muted'>({shared.length}): costs split between the offices by headcount</span></summary>

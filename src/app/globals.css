@@ -1332,3 +1332,5 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .tablewrap .er-xl tbody tr.xl-ven th,.tablewrap .er-xl tbody tr.xl-ven td{background:#fbe4a8;color:#111}
 .tablewrap .er-xl tbody tr.xl-grand th,.tablewrap .er-xl tbody tr.xl-grand td{background:#7030a0;color:#fff;font-weight:700}
 .tablewrap .er-xl tbody tr.xl-kid th,.tablewrap .er-xl tbody tr.xl-kid td{background:#f4f1e6;color:#111;font-weight:400}
+.an-sub{font-size:13px;font-weight:600;margin:16px 0 6px}
+.an-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px}
