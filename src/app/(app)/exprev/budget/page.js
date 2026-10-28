@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { todayKey } from '@/lib/att';
+import OutlineTable from '@/components/OutlineTable';
 import { MONTHS, MON3, money, pkr, budgetView, budgetYear } from '@/lib/exprev';
 
 export const dynamic = 'force-dynamic';
@@ -51,28 +52,23 @@ export default async function ExpRevBudget({ searchParams }) {
       </div>
 
       <div className='card'>
-        <div className='tablewrap'>
-          <table className='tx er-grid'>
-            <thead><tr><th>Expense</th><th className='r'>Budgeted</th><th className='r'>Actual by Ops</th><th className='r'>In QuickBooks</th><th className='r'>Variance</th></tr></thead>
-            <tbody>
-              {d.rows.map((r) => {
-                const b = pick(r.b);
-                const a = pick(r.a);
-                const v = b - a;
-                const cls = r.kind === 'total' ? 'er-main' : r.kind === 'grand' ? 'er-grand' : r.kind === 'head' && !b && !a ? 'er-head' : r.inside ? 'er-sub' : 'er-main';
-                return (
-                  <tr key={r.row} className={cls}>
-                    <td className='c-title'>{r.inside ? <span className='er-ind'>{r.label}</span> : r.kind === 'total' || r.kind === 'grand' ? <b>{r.label}</b> : r.label}</td>
-                    <td className='r nw c-meta'>{money(b)}</td>
-                    <td className='r nw c-meta'>{money(a)}</td>
-                    <td className='r nw c-meta'>{r.kind === 'total' || r.kind === 'grand' || r.kind === 'rest' ? '' : money(pick(r.q))}</td>
-                    <td className={'r nw c-meta' + (v < -0.5 ? ' neg-t' : '')}>{r.kind === 'rest' ? '' : money(v)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <OutlineTable
+          head={[{ t: 'Expense' }, { t: 'Budgeted', r: true }, { t: 'Actual by Ops', r: true }, { t: 'In QuickBooks', r: true }, { t: 'Variance', r: true }]}
+          rows={d.rows.map((r) => {
+            const b = pick(r.b);
+            const a = pick(r.a);
+            const v = b - a;
+            const flat = r.kind === 'total' || r.kind === 'grand' || r.kind === 'rest';
+            return {
+              k: String(r.row),
+              level: r.inside ? 1 : 0,
+              cls: r.kind === 'total' ? 'er-main' : r.kind === 'grand' ? 'er-grand' : r.kind === 'head' && !b && !a ? 'er-head' : r.inside ? 'er-sub' : 'er-main',
+              bold: r.kind === 'total' || r.kind === 'grand',
+              label: r.label,
+              cells: [{ t: money(b) }, { t: money(a) }, { t: flat ? '' : money(pick(r.q)) }, { t: r.kind === 'rest' ? '' : money(v), c: v < -0.5 ? 'neg-t' : '' }],
+            };
+          })}
+        />
       </div>
     </>
   );

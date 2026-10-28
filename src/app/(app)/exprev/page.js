@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { todayKey } from '@/lib/att';
 import { MONTHS, MON3, money, pkr, erYears, erStatus, dashboard } from '@/lib/exprev';
+import OutlineTable from '@/components/OutlineTable';
 import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
@@ -90,33 +91,11 @@ export default async function ExpRevDashboard({ searchParams }) {
 
       <div className='card'>
         <h3>All categories, {y}</h3>
-        <div className='tablewrap'>
-          <table className='tx er-grid'>
-            <thead>
-              <tr>
-                <th>Category</th>
-                {MON3.map((n, i) => <th key={n} className={'r' + (i + 1 === m ? ' er-sel' : '')}><Link href={qs(y, i + 1)}>{n}</Link></th>)}
-                <th className='r'>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.rows.map((r) => (
-                <tr key={r.label} className={r.level ? 'er-sub' : 'er-main'}>
-                  <td className='c-title'>{r.level ? <span className='er-ind'>{r.label}</span> : <b>{r.label}</b>}</td>
-                  {r.vals.map((v, i) => <td key={i} className={'r nw c-meta' + (i + 1 === m ? ' er-sel' : '')}>{money(v)}</td>)}
-                  <td className='r nw c-meta'><b>{money(r.vals.reduce((a, v) => a + v, 0))}</b></td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>Total expenses</td>
-                {d.month.map((v, i) => <td key={i} className={'r nw' + (i + 1 === m ? ' er-sel' : '')}>{money(v)}</td>)}
-                <td className='r nw'>{money(d.year)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <OutlineTable
+          head={[{ t: 'Category' }, ...MON3.map((n, i) => ({ t: n, r: true, sel: i + 1 === m, href: qs(y, i + 1) })), { t: 'Total', r: true }]}
+          rows={d.rows.map((r, i) => ({ k: r.label + i, level: r.level, cls: r.level ? 'er-sub' : 'er-main', bold: !r.level, label: r.label, cells: [...r.vals.map((v, j) => ({ t: money(v), c: j + 1 === m ? 'er-sel' : '' })), { t: money(r.vals.reduce((a, v) => a + v, 0)), bold: true }] }))}
+          tfoot={{ label: 'Total expenses', cells: [...d.month.map((v, j) => ({ t: money(v), c: j + 1 === m ? 'er-sel' : '' })), { t: money(d.year) }] }}
+        />
       </div>
     </>
   );

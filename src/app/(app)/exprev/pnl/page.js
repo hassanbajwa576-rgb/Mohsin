@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
+import OutlineTable from '@/components/OutlineTable';
 import { MON3, money, pnlView } from '@/lib/exprev';
 
 export const dynamic = 'force-dynamic';
@@ -27,23 +28,17 @@ export default async function ExpRevPnl() {
         </div>
       </div>
       <div className='card'>
-        <div className='tablewrap'>
-          <table className='tx er-grid'>
-            <thead><tr><th>Account</th>{MON3.map((n) => <th key={n} className='r'>{n}</th>)}<th className='r'>Total</th></tr></thead>
-            <tbody>
-              {p.rows.map((r, i) => {
-                const sum = r.vals.reduce((a, v) => a + (v || 0), 0);
-                return (
-                  <tr key={i} className={r.kind === 'total' ? 'er-main' : r.kind === 'head' ? 'er-head' : 'er-sub'}>
-                    <td className='c-title'><span style={{ paddingLeft: r.level * 12 }}>{r.kind === 'total' ? <b>{r.label}</b> : r.label}</span></td>
-                    {r.vals.map((v, j) => <td key={j} className='r nw c-meta'>{v === null ? '' : money(v)}</td>)}
-                    <td className='r nw c-meta'>{r.kind === 'head' ? '' : <b>{money(sum)}</b>}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <OutlineTable
+          head={[{ t: 'Account' }, ...MON3.map((n) => ({ t: n, r: true })), { t: 'Total', r: true }]}
+          rows={p.rows.map((r, i) => ({
+            k: r.label + i,
+            level: r.level,
+            cls: r.kind === 'total' ? 'er-main' : r.kind === 'head' ? 'er-head' : 'er-sub',
+            bold: r.kind === 'total',
+            label: r.label,
+            cells: [...r.vals.map((v) => ({ t: v === null ? '' : money(v) })), { t: r.kind === 'head' ? '' : money(r.vals.reduce((a, v) => a + (v || 0), 0)), bold: true }],
+          }))}
+        />
       </div>
     </>
   );

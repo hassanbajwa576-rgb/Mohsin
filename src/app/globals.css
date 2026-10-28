@@ -1057,3 +1057,21 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .er-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500}
 .er-form .wide{grid-column:1/-1}
 @media(max-width:640px){.er-toprow{grid-template-columns:1fr auto}.er-toprow .er-track{grid-column:1/-1;order:3}}
+
+/* ExpRev tables: fit a full year on one screen */
+.tablewrap .er-grid th,.tablewrap .er-grid td{padding:9px 7px;font-size:13px}
+.tablewrap .er-grid th:first-child,.tablewrap .er-grid td:first-child{min-width:190px;max-width:260px;padding-left:12px}
+.tablewrap .er-grid .er-main td:first-child{white-space:normal}
+.tablewrap .er-grid th.r,.tablewrap .er-grid td.r{text-align:right;white-space:nowrap}
+.tablewrap .er-grid .er-sub td{background:transparent}
+.tablewrap .er-grid .er-main td{background:#fdf8e7}
+.tablewrap .er-grid tr.er-sub:hover td,.tablewrap .er-grid tr.er-main:hover td{background:#fbf1cf}
+.tablewrap .er-grid td.er-sel,.tablewrap .er-grid th.er-sel{background:#fdf1c4}
+
+/* Outline buttons (expand / collapse) */
+.er-tools{display:flex;gap:8px;margin-bottom:10px}
+.er-lab{display:inline-flex;align-items:center;gap:8px}
+.er-tog,.er-tog-sp{width:20px;height:20px;flex:none}
+.er-tog{border:1px solid var(--slate);background:var(--card);color:var(--slate);border-radius:3px;font:700 14px/1 inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.er-tog:hover{background:var(--gold);border-color:var(--gold);color:#000}
+.er-tog:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
