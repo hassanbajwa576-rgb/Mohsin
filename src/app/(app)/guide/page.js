@@ -1,6 +1,7 @@
 import { requireUser } from '@/lib/auth';
 import { ROLE_LABEL } from '@/lib/fmt';
-import { can } from '@/lib/perms';
+import { can, ROLE_PERMS } from '@/lib/perms';
+import { PAGE_GROUPS, defaultPages } from '@/lib/pages';
 
 const TERMS_OPS = [
   ['Advances', 'Funds received from the Accounts team (Petty Cash, BRC and Others). It counts the money that came in during the period you selected.'],
@@ -30,6 +31,21 @@ const CASH_NEW = [
   ['Paid from', 'A Support Officer picks Petty Cash or BRC when adding an expense. The expense is taken from the oldest advance first and, if one advance is not enough, from the next one. The Sr. Ops Manager sees it as one line with the total.'],
   ['Cash in hand colours', 'Cash in hand shows in red on a light red background when a person holds less than 20% of the cash issued to them, and in green when they hold 20% or more. It appears on the dashboard, the Advances page and the Support Officer dashboard.'],
   ['Approvals page', 'The Sr. Ops Manager sees everything waiting for a decision on one page: expenses, time off requests and visitor delete requests. The number next to Approvals in the top bar shows how many are waiting.'],
+  ['Expenses with no cash in hand', 'A Support Officer can record an expense even when no cash is left on the advance. Whatever the advances cannot cover is recorded without an advance behind it, and the expense still goes through review.'],
+  ['One entry, even when paid from two advances', 'An expense taken from more than one advance is shown as a single entry with the full amount on the Expenses, Accounts and dashboard pages, and counted once.'],
+  ['Paste from Excel', 'On Expenses, open "Paste from Excel" and paste your rows. You can paste the full sheet columns (Cost Center, Expense Type, Detail, Amount, Payment Mode, Office): the detail and amount are picked out, the category is guessed from the type, and an Office column (ISB or LHR) puts that row in that office. The Sr. Ops Manager and the Sr. Support Officer can also pick the office for a single expense.'],
+  ['Names', 'Anywhere you type a name, the first letter of each word becomes a capital letter by itself.'],
+];
+
+// Only for the Sr. Ops Manager and the Sr. Support Officer (Accounts page).
+const ACCOUNTS_NEW = [
+  ['Search by amount', 'On Accounts, type an amount in the search box above the ready expenses to find it, tick it and submit.'],
+];
+
+const OM_PETTY = [
+  ['Merge ticked into one entry', 'On Accounts, tick two or more ready expenses of the same person, office, fund and category and press "Merge ticked into one entry". They then show as one entry everywhere, including on the Support Officer\'s own account.'],
+  ['Undo Today', 'On Accounts, "Undo today\'s changes" shows everything you did to expenses today (batches sent to Accounts, approvals, added, edited and deleted expenses) and puts it all back in one step. Nothing is lost: the Audit Log keeps a copy.'],
+  ['Advance types', 'On Advances, the "Advance types" card lets you add another type (for example BOLDBus), rename one, or remove one that was never used. A new type shows in every dropdown and report straight away.'],
 ];
 
 const ATT_NEW = [
@@ -47,6 +63,40 @@ const VISIT_NEW = [
   ['Inside now', 'Everyone still in the office, with how long they have been there and a Check out button.'],
   ['Visitor Log', 'For the Sr. Ops Manager, the Sr. Support Officer and anyone given Visitor log access: every visitor with the time spent, filters, totals and an Excel download.'],
   ['Changing a record', 'The person who checked a visitor in can edit the record for 36 hours. To delete one, they send a request with a reason, and it is deleted only after the Sr. Ops Manager approves it.'],
+];
+
+const VISIT_PLAN = [
+  ['Expected visitors', 'Add a visitor before they come, with the day and time. The guard marks them Arrived or No show. Until then you can press Edit to change the name, who they meet, the office or the time, or Remove to cancel.'],
+];
+const VISIT_OM = [
+  ['Remark tag', 'On a visitor you can set "Informed in WhatsApp by HR" or "Not informed in WhatsApp by HR", with a note, as a supporting record when HR missed the WhatsApp group.'],
+];
+
+const FUEL_NEW = [
+  ['Fuel Entry and Fuel Log', 'Record fuel and top-ups against a fuel card, and look back at what was recorded. Which cards you see depends on your access.'],
+];
+const SUPPORT_NEW = [
+  ['Support', 'Record a complaint, follow the list of all complaints and see the dashboard. The Sr. Ops Manager and the Sr. Support Officer also see By Person.'],
+];
+
+const EXPREV = [
+  ['Dashboard', 'A grid like the workbook\'s Dashboard sheet: one row per cost center, a + to open the expense types under it, the subtotal, the advances and tax rows and the final total. The month headings stay under the top bar while you scroll. Choose All offices, LHR or ISB at the top; ISB and LHR totals by month are the last two rows.'],
+  ['Expenditures', 'Every entry from the workbook, a page at a time, with quick ranges (this month, last month, this year, last year, all time), From and To dates, cost center, Office (LHR or ISB) and a search box.'],
+  ['Budget vs Actual', 'Follows the workbook. For the months it has worked out (January to its last month) the budget, Actual by Ops and In QuickBooks are its own figures; later months show the budget only. It opens on year to date; use the month buttons or From and To. Variance is Budgeted minus Actual: red when over budget, green when under. Under the final total are "Variance with Budgeted" and "Variance with Bud + Non-Bud".'],
+  ['Analysis', 'Total cost, Budgeted, LHR cost and ISB cost for the months you pick, a month-by-month chart and table with the LHR and ISB percentages, and every head with its total, share, LHR % and ISB %. Switches: With or Without BOLDBelief (it is not an operating cost); Split by headcount or As booked.'],
+  ['Shared costs', 'BOLDBelief and Bank Fees can be divided between the offices by employees (active staff in the Attendance list). The Shared heads card at the bottom of Analysis chooses which heads are split. "As booked" keeps each cost with the office on its entry.'],
+  ['Offices', 'An entry belongs to ISB when the Office column of the sheet says ISB; an entry with no office counts as LHR.'],
+  ['Import', 'Upload the Ops Expenses Dashboard workbook after you update it. It replaces everything in ExpRev with what is in the file. Import is on the computer, not on the phone.'],
+];
+
+const PHONE = [
+  ['Menu button', 'On a phone, Approvals, Team, Audit log and Guide are behind the Menu button next to Sign out.'],
+  ['Wide tables', 'Wide grids, such as the ExpRev dashboard, scroll sideways with the names pinned on the left. Other lists turn into cards with every figure labelled.'],
+];
+
+const TEAM_PAGES = [
+  ['Pages each person can open', 'On Team, press Edit on a person. "Pages this person can open" lists every module and page: untick one to hide it for them, tick one to add it. A page that needs a permission (for example Reports) switches that permission on when you save. Leave it unchanged to keep what their role gives.'],
+  ['PK', 'Your office shows as PK in the top bar and on the welcome screen, because you cover both offices.'],
 ];
 
 const ROSTER_NEW = [
@@ -131,11 +181,28 @@ export default async function GuidePage() {
   const user = await requireUser();
   const isSO = user.role === 'so';
   const isOM = user.role === 'om';
+  // The pages this person can open: the ones picked for them on Team, otherwise what their role gives.
+  const picked = isOM || !user.pagesList ? [] : user.pagesList;
+  const allowed = picked.length ? picked : defaultPages(user.role, user.perms || [], ROLE_PERMS);
+  const has = (h) => allowed.includes(h);
+  const hasAny = (list) => list.some(has);
+  const petty = hasAny(['/', '/expenses', '/advances', '/accounts']);
+  const attend = hasAny(PAGE_GROUPS.find((g) => g.key === 'attendance').pages.map(([h]) => h));
+  const visitors = hasAny(['/visitors', '/visitors/log']);
+  const fuel = hasAny(['/fuel', '/fuel/log', '/fuel/setup']);
+  const support = hasAny(['/support', '/support/new', '/support/list', '/support/people']);
+  const exprev = isOM && hasAny(['/exprev', '/exprev/entries', '/exprev/budget', '/exprev/analysis', '/exprev/import']);
+  const modules = [petty ? 'PettyTrack' : '', attend ? 'AttendTrack' : '', visitors ? 'VisitTrack' : '', fuel ? 'FuelTrack' : '', support ? 'Support' : '', exprev ? 'ExpRev' : ''].filter(Boolean);
+  const mine = PAGE_GROUPS.map((g) => ({ label: g.label, names: g.pages.filter(([h]) => has(h)).map(([, l]) => l) })).filter((g) => g.names.length);
   const pages = PAGES.filter((p) => p.roles.includes(user.role)).map((p) => {
     let d = p.d;
     if (isSO && p.so) d = p.so;
     else if (!isOM && p.rest) d = p.rest;
     return [p.n, d];
+  }).filter((r, i) => {
+    const p = PAGES.filter((x) => x.roles.includes(user.role))[i];
+    const need = { Dashboard: '/', Expenses: '/expenses', Advances: '/advances', Accounts: '/accounts', Team: '/team', 'Audit Log': '/logs', Approvals: '/approvals', Guide: '/guide' }[p.n];
+    return !need || has(need);
   });
 
   return (
@@ -149,7 +216,13 @@ export default async function GuidePage() {
 
       <details className='card' open>
         <summary>About OpsTrack</summary>
-        <p className='flow'>OpsTrack has three modules. PettyTrack handles petty cash, advances, expenses and submissions to Accounts. AttendTrack records employee check in, check out and breaks, and holds the Support team roster. VisitTrack records office visitors. The switch next to the logo shows where you are. On a wide screen, Approvals, Team, Audit Log and Guide are in the top bar.</p>
+        <p className='flow'>OpsTrack is AlphaBOLD Pakistan\'s operations app. You can open: {modules.length ? modules.join(', ') : 'the pages listed below'}. {petty ? 'PettyTrack handles petty cash, advances, expenses and submissions to Accounts. ' : ''}{attend ? 'AttendTrack records employee check in, check out and breaks. ' : ''}{visitors ? 'VisitTrack records office visitors. ' : ''}{fuel ? 'FuelTrack records fuel and top-ups. ' : ''}{support ? 'Support holds the Support team complaints and roster. ' : ''}{exprev ? 'ExpRev reviews expenditure, budget and cost by office. ' : ''}The switch next to the logo shows where you are.</p>
+      </details>
+
+      <details className='card' open>
+        <summary>Pages you can open</summary>
+        <Table head={['Module', 'Pages']} rows={mine.map((g) => [g.label, g.names.join(', ')])} />
+        {isOM ? null : <p className='flow'>This list is set by the Sr. Ops Manager on the Team page. If you need another page, ask for it to be added.</p>}
       </details>
 
       <div className='card guide-you'>
@@ -157,30 +230,35 @@ export default async function GuidePage() {
         <p>{YOU[user.role]}</p>
       </div>
 
-      {!isSO ? (
+      {!isSO && petty ? (
         <details className='card' open>
           <summary>The flow in one line</summary>
           <p className='flow'>Accounts sends funds, the Sr. Ops Manager records them as Advances, cash is issued to the team, expenses are added and submitted, the Sr. Ops Manager approves, and approved expenses are submitted back to Accounts. Accounts then reimburses, which is recorded as new Advances.</p>
         </details>
       ) : null}
 
-      <details className='card' open>
-        <summary>{isSO ? 'Your dashboard headings' : 'Dashboard headings'}</summary>
-        <Table head={['Heading', 'What it means']} rows={isSO ? TERMS_SO : TERMS_OPS} />
-      </details>
+      {petty ? (
+        <>
+          <details className='card' open>
+            <summary>{isSO ? 'Your dashboard headings' : 'Dashboard headings'}</summary>
+            <Table head={['Heading', 'What it means']} rows={isSO ? TERMS_SO : TERMS_OPS} />
+          </details>
 
-      <details className='card' open>
-        <summary>Expense stages (the pipeline)</summary>
-        <Table head={['Stage', 'What it means']} rows={STAGES} />
-      </details>
+          <details className='card' open>
+            <summary>Expense stages (the pipeline)</summary>
+            <Table head={['Stage', 'What it means']} rows={STAGES} />
+          </details>
 
-      <details className='card'>
-        <summary>Worked example</summary>
-        <ol className='guide-list'>
-          {(isSO ? EXAMPLE_SO : EXAMPLE_OPS).map((s) => <li key={s}>{s}</li>)}
-        </ol>
-      </details>
+          <details className='card'>
+            <summary>Worked example</summary>
+            <ol className='guide-list'>
+              {(isSO ? EXAMPLE_SO : EXAMPLE_OPS).map((s) => <li key={s}>{s}</li>)}
+            </ol>
+          </details>
+        </>
+      ) : null}
 
+      {attend ? (
       <details className='card'>
         <summary>Attendance entries (AttendTrack)</summary>
         <Table
@@ -193,23 +271,71 @@ export default async function GuidePage() {
           ]}
         />
       </details>
+      ) : null}
 
-      <details className='card'>
-        <summary>What is new in PettyTrack</summary>
-        <Table head={['Feature', 'What it means']} rows={isOM ? CASH_NEW : CASH_NEW.filter((r) => r[0] !== 'Approvals page')} />
-      </details>
+      {petty ? (
+        <details className='card'>
+          <summary>What is new in PettyTrack</summary>
+          <Table
+            head={['Feature', 'What it means']}
+            rows={[
+              ...CASH_NEW.filter((r) => (r[0] !== 'Approvals page' || isOM) && (r[0] !== 'Paste from Excel' || has('/expenses'))),
+              ...(has('/accounts') ? ACCOUNTS_NEW : []),
+              ...(isOM ? OM_PETTY : []),
+            ]}
+          />
+        </details>
+      ) : null}
 
-      <details className='card'>
-        <summary>What is new in AttendTrack</summary>
-        <Table head={['Feature', 'What it means']} rows={ATT_NEW.filter((r) => (r[0] !== 'Import from Excel' || can(user, 'att_import')) && (r[0] !== 'Reconciliation' || can(user, 'att_reconcile')))} />
-      </details>
+      {attend ? (
+        <details className='card'>
+          <summary>What is new in AttendTrack</summary>
+          <Table
+            head={['Feature', 'What it means']}
+            rows={ATT_NEW.filter((r) => {
+              const need = { 'Add Entry': '/attendance', Entries: '/attendance/entries', "Today's board and Dashboard": '/attendance/board', 'Day log': '/attendance/logs', 'Reports and Analysis': '/attendance/reports', 'Import from Excel': '/attendance/import', Reconciliation: '/attendance/reconcile' }[r[0]];
+              return (!need || has(need)) && (r[0] !== 'Import from Excel' || can(user, 'att_import')) && (r[0] !== 'Reconciliation' || can(user, 'att_reconcile'));
+            })}
+          />
+        </details>
+      ) : null}
 
-      <details className='card'>
-        <summary>VisitTrack (visitors)</summary>
-        <Table head={['Feature', 'What it means']} rows={VISIT_NEW} />
-      </details>
+      {visitors ? (
+        <details className='card'>
+          <summary>VisitTrack (visitors)</summary>
+          <Table
+            head={['Feature', 'What it means']}
+            rows={[
+              ...VISIT_NEW.filter((r) => r[0] !== 'Visitor Log' || has('/visitors/log')),
+              ...(user.role !== 'guard' && has('/visitors') ? VISIT_PLAN : []),
+              ...(isOM ? VISIT_OM : []),
+            ]}
+          />
+        </details>
+      ) : null}
 
-      {user.role === 'om' || user.role === 'sso' ? (
+      {fuel ? (
+        <details className='card'>
+          <summary>FuelTrack</summary>
+          <Table head={['Feature', 'What it means']} rows={FUEL_NEW} />
+        </details>
+      ) : null}
+
+      {support ? (
+        <details className='card'>
+          <summary>Support</summary>
+          <Table head={['Feature', 'What it means']} rows={SUPPORT_NEW} />
+        </details>
+      ) : null}
+
+      {exprev ? (
+        <details className='card' open>
+          <summary>ExpRev (expenditure review)</summary>
+          <Table head={['Page', 'What it does']} rows={EXPREV.filter((r) => ({ Dashboard: '/exprev', Expenditures: '/exprev/entries', Budget: '/exprev/budget', Analysis: '/exprev/analysis', Shared: '/exprev/analysis', Import: '/exprev/import' }[r[0].split(' ')[0]] ? has({ Dashboard: '/exprev', Expenditures: '/exprev/entries', Budget: '/exprev/budget', Analysis: '/exprev/analysis', Shared: '/exprev/analysis', Import: '/exprev/import' }[r[0].split(' ')[0]]) : true))} />
+        </details>
+      ) : null}
+
+      {attend && (has('/attendance/hk-roster') || has('/attendance/hk-roster/request')) ? (user.role === 'om' || user.role === 'sso') && has('/attendance/hk-roster') ? (
         <details className='card'>
           <summary>Support team roster, time off and OPD</summary>
           <p className='flow'>Only the Sr. Ops Manager and the Sr. Support Officer can see the roster, balances, OPD and setup.</p>
@@ -220,7 +346,12 @@ export default async function GuidePage() {
           <summary>Time off requests</summary>
           <p className='flow'>Use the Time Off Request tab in AttendTrack to ask for time off for a Support team member. The Sr. Ops Manager or the Sr. Support Officer approves or declines it and you are told the result.</p>
         </details>
-      )}
+      ) : null}
+
+      <details className='card'>
+        <summary>On your phone</summary>
+        <Table head={['Feature', 'What it means']} rows={isOM ? [...PHONE, ...TEAM_PAGES] : PHONE} />
+      </details>
 
       <details className='card'>
         <summary>Pages and menus</summary>
