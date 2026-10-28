@@ -49,7 +49,7 @@ export default async function ExpRevBudget({ searchParams }) {
   const ga = g ? act(g) : 0;
   // The two lines the workbook keeps under its final total: variance on the budgeted lines only, and with the non-budgeted ones too.
   const g1 = d.rows.find((r) => r.kind === 'grand');
-  const varOf = (r) => (r ? pickC(r.b) - act(r) : 0);
+  const varOf = (r) => (r ? pick(r.b) - act(r) : 0);
   const sumRows = [['Variance with Budgeted', varOf(g1)], ['Variance with Bud + Non-Bud', varOf(g)]].map(([label, v], i) => ({
     k: 'sum' + i,
     level: 0,
@@ -84,7 +84,7 @@ export default async function ExpRevBudget({ searchParams }) {
       <div className='kpis er-kpis'>
         <div className='card kpi'><span>Budgeted, {span}</span><b>{pkr(gb)}</b></div>
         <div className='card kpi alt'><span>Actual by Ops</span><b>{pkr(ga)}</b></div>
-        <div className={'card kpi alt' + (gbc - ga < 0 ? ' neg' : ' pos')}><span>{gbc - ga < 0 ? 'Over budget by' : 'Under budget by'}</span><b>{pkr(Math.abs(gbc - ga))}</b></div>
+        <div className={'card kpi alt' + (gb - ga < 0 ? ' neg' : ' pos')}><span>{gb - ga < 0 ? 'Over budget by' : 'Budget left'}</span><b>{pkr(Math.abs(gb - ga))}</b></div>
       </div>
 
       <div className='card'>
@@ -93,7 +93,7 @@ export default async function ExpRevBudget({ searchParams }) {
           rows={[...d.rows.map((r) => {
             const b = pick(r.b);
             const a = act(r);
-            const v = pickC(r.b) - a;
+            const v = b - a;
             const flat = r.kind === 'total' || r.kind === 'grand' || r.kind === 'grand2' || r.kind === 'rest' || r.kind === 'restitem';
             return {
               k: String(r.row),

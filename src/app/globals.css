@@ -1174,3 +1174,19 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .tablewrap .er-xl thead th:first-child{width:150px}
   .tablewrap .er-xl td{overflow:visible}
 }
+
+/* Phones: sturdier ExpRev layout (labels written into the cells, grid widths forced, no page-wide sideways scroll) */
+.er-cl{display:none}
+@media (max-width:720px){
+  main.wrap{overflow-x:clip}
+  .er-kpis{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .er-kpis .kpi{min-width:0}
+  .er-kpis .kpi small{white-space:normal}
+  .tablewrap .er-grid td::before{display:none!important;content:none!important}
+  .tablewrap .er-grid .er-cl{display:block;font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--mut);margin:0 0 1px}
+  .tablewrap .er-grid td.r{white-space:normal}
+  .tablewrap .er-xl{table-layout:auto;width:max-content;min-width:100%}
+  .tablewrap .er-xl td,.tablewrap .er-xl thead th{min-width:92px;white-space:nowrap}
+  .tablewrap .er-xl tbody th{min-width:150px;width:150px}
+  .tablewrap .er-xl thead th:first-child{min-width:150px}
+}

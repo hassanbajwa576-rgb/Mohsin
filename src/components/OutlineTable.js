@@ -65,7 +65,7 @@ export default function OutlineTable({ head, rows, tfoot }) {
                       {r.bold ? <b>{r.label}</b> : r.label}
                     </span>
                   </td>
-                  {r.cells.map((c, j) => <td key={j} className={'r nw c-meta ' + (c.c || '')}>{c.bold ? <b>{c.t}</b> : c.t}</td>)}
+                  {r.cells.map((c, j) => <td key={j} className={'r nw c-meta ' + (c.c || '')}><span className='er-cl'>{head[j + 1] ? head[j + 1].t : ''}</span>{c.bold ? <b>{c.t}</b> : c.t}</td>)}
                 </tr>
               );
             })}
