@@ -111,7 +111,7 @@ async function pettyAnswer(user, n) {
     const d = (await q("SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int AS c, COALESCE(SUM(amount), 0)::float8 AS v FROM pc2_expenses WHERE status = 'draft'"))[0];
     return lines('Waiting for review: ' + r.c + ' expense(s), ' + pkr(r.v) + '.', 'Not yet submitted by Support Officers: ' + d.c + ' expense(s), ' + pkr(d.v) + '.');
   }
-  const rows = await fundSummary();
+  const { rows } = await fundSummary();
   const sum = (k) => rows.reduce((a, r) => a + Number(r[k] || 0), 0);
   if (has(n, /outstanding/)) {
     return lines('Advances outstanding: ' + pkr(sum('outstanding')) + ' (received from Accounts, not yet cleared by a submission).', ...rows.filter((r) => r.outstanding).map((r) => '  ' + r.label + ': ' + pkr(r.outstanding)));

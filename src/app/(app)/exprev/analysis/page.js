@@ -116,6 +116,16 @@ export default async function ExpRevAnalysis({ searchParams }) {
     if (v === null) return <span>-</span>;
     return <span className={v > 0.05 ? 'an-over' : v < -0.05 ? 'an-left' : ''}>{(v > 0 ? '+' : '') + v.toFixed(1)}%</span>;
   };
+  // Two years picked by hand, compared on the same months and switches.
+  const asYear = (v) => (years.includes(Number(v)) ? Number(v) : 0);
+  const defB = years[0];
+  const defA = years[1] || years[0];
+  const ya = asYear(sp.ya) || defA;
+  const yb = asYear(sp.yb) || defB;
+  const getT = async (yy) => tallies.find((x) => x.y === yy) || { y: yy, ...tally(await officeCosts(yy)) };
+  const [TA, TB] = ya !== yb && years.length > 1 ? await Promise.all([getT(ya), getT(yb)]) : [null, null];
+  const cmpHeads = TA && TB ? [...new Set([...TA.hd.keys(), ...TB.hd.keys()])].map((k) => { const a = TA.hd.get(k) ? TA.hd.get(k).lhr + TA.hd.get(k).isb : 0; const bb = TB.hd.get(k) ? TB.hd.get(k).lhr + TB.hd.get(k).isb : 0; return { k, a, b: bb, d: bb - a }; }).sort((x, z) => Math.abs(z.d) - Math.abs(x.d)) : [];
+  const Diff = ({ v }) => <span className={v > 0.5 ? 'an-over' : v < -0.5 ? 'an-left' : ''}>{(v > 0.5 ? '+' : '') + money(v)}</span>;
   const cm = to - from + 1;
   const gw = 600 / cm;
   const bwY = Math.min(26, (gw * 0.8) / Math.max(YR.length, 1));
@@ -161,6 +171,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
         </div>
         <div className='inline er-months'>
           <a href='#year-by-year' className='chip'>Year by year ↓</a>
+          <a href='#compare-two' className='chip'>Compare two years ↓</a>
         </div>
       </div>
       {noBB ? <p className='muted' style={{ margin: '0 0 6px', fontSize: 13 }}>BOLDBelief is left out of every figure below.</p> : null}
@@ -326,6 +337,89 @@ export default async function ExpRevAnalysis({ searchParams }) {
           <p className='muted'>There are no entries in {MONTHS[from - 1]} to {MONTHS[to - 1]} for a second year to compare with.</p>
         </div>
       )}
+
+      <div className='card' id='compare-two'>
+        <h3>Compare two years</h3>
+        <form method='get' className='er-range'>
+          <input type='hidden' name='y' value={y} />
+          <input type='hidden' name='f' value={from} />
+          <input type='hidden' name='t' value={to} />
+          {sp.al === 'raw' ? <input type='hidden' name='al' value='raw' /> : null}
+          {noBB ? <input type='hidden' name='bb' value='no' /> : null}
+          <label>First year<select name='ya' defaultValue={ya} autoComplete='off'>{years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}</select></label>
+          <label>Second year<select name='yb' defaultValue={yb} autoComplete='off'>{years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}</select></label>
+          <button className='btn' type='submit'>Compare</button>
+        </form>
+        {TA && TB ? (
+          <>
+            <p className='muted' style={{ margin: '0 0 8px', fontSize: 12.5 }}>{ya} against {yb}, {MONTHS[from - 1]} to {MONTHS[to - 1]}, with the switches above. Difference is {yb} minus {ya}: red means more was spent in {yb}, green means less.</p>
+            <div className='tablewrap'>
+              <table className='tx an-tbl'>
+                <thead><tr><th></th><th className='r'>{ya}</th><th className='r'>{yb}</th><th className='r'>Difference</th><th className='r'>Change</th></tr></thead>
+                <tbody>
+                  {[['Total cost', TA.tot, TB.tot], ['LHR', TA.tl, TB.tl], ['ISB', TA.ti, TB.ti], ['Average a month', TA.tot / Math.max(1, cm), TB.tot / Math.max(1, cm)]].map(([label, a, bb]) => (
+                    <tr key={label}>
+                      <td className='c-title'>{label}</td>
+                      <td className='r nw c-meta'><span className='er-cl'>{ya}</span>{money(a)}</td>
+                      <td className='r nw c-meta'><span className='er-cl'>{yb}</span>{money(bb)}</td>
+                      <td className='r nw c-meta'><span className='er-cl'>Difference</span><Diff v={bb - a} /></td>
+                      <td className='r nw c-meta'><span className='er-cl'>Change</span><Chg cur={bb} prev={a} /></td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td className='c-title'>ISB share</td>
+                    <td className='r nw c-meta'><span className='er-cl'>{ya}</span>{pct(TA.ti, TA.tot)}</td>
+                    <td className='r nw c-meta'><span className='er-cl'>{yb}</span>{pct(TB.ti, TB.tot)}</td>
+                    <td className='r nw c-meta'><span className='er-cl'>Difference</span></td>
+                    <td className='r nw c-meta'><span className='er-cl'>Change</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h4 className='an-sub'>Month by month</h4>
+            <div className='tablewrap'>
+              <table className='tx an-tbl'>
+                <thead><tr><th>Month</th><th className='r'>{ya}</th><th className='r'>{yb}</th><th className='r'>Difference</th><th className='r'>Change</th></tr></thead>
+                <tbody>
+                  {MONTHS.map((n, i) => {
+                    if (i < from - 1 || i >= to) return null;
+                    const a = TA.l[i] + TA.i[i];
+                    const bb = TB.l[i] + TB.i[i];
+                    return (
+                      <tr key={n}>
+                        <td className='c-title'>{n}</td>
+                        <td className='r nw c-meta'><span className='er-cl'>{ya}</span>{money(a)}</td>
+                        <td className='r nw c-meta'><span className='er-cl'>{yb}</span>{money(bb)}</td>
+                        <td className='r nw c-meta'><span className='er-cl'>Difference</span><Diff v={bb - a} /></td>
+                        <td className='r nw c-meta'><span className='er-cl'>Change</span><Chg cur={bb} prev={a} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <h4 className='an-sub'>By head (largest change first)</h4>
+            <div className='tablewrap'>
+              <table className='tx an-tbl'>
+                <thead><tr><th>Head</th><th className='r'>{ya}</th><th className='r'>{yb}</th><th className='r'>Difference</th><th className='r'>Change</th></tr></thead>
+                <tbody>
+                  {cmpHeads.map((h) => (
+                    <tr key={h.k}>
+                      <td className='c-title'>{h.k}</td>
+                      <td className='r nw c-meta'><span className='er-cl'>{ya}</span>{money(h.a)}</td>
+                      <td className='r nw c-meta'><span className='er-cl'>{yb}</span>{money(h.b)}</td>
+                      <td className='r nw c-meta'><span className='er-cl'>Difference</span><Diff v={h.d} /></td>
+                      <td className='r nw c-meta'><span className='er-cl'>Change</span><Chg cur={h.b} prev={h.a} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : <p className='muted'>Pick two different years and press Compare.</p>}
+      </div>
 
       <details className='card'>
         <summary><b>Shared heads</b> <span className='muted'>({shared.length}): costs split between the offices by headcount</span></summary>
