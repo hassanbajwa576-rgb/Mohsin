@@ -18,24 +18,17 @@ export const dynamic = 'force-dynamic';
 export default async function AppLayout({ children }) {
   const user = await requireUser(['om', 'sso', 'so', 'guard']);
   const unread = 0; // the bell loads the real count in the background
-  const lang = await getLang();
-  // Days from an Excel import that still need a decision (Sr. Ops Manager only).
-  let reviews = 0;
-  let approvals = 0;
-  if (can(user, 'att_import')) {
-    try {
-      reviews = (await q('SELECT COUNT(*)::int AS n FROM pc2_import_review WHERE resolved_at IS NULL AND kind = \'conflict\''))[0].n;
-    } catch {
-      reviews = 0;
-    }
-  }
-  if (user.role === 'om') {
-    try {
-      approvals = (await q("SELECT (SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int FROM pc2_expenses WHERE status IN ('submitted', 'verified')) + (SELECT COUNT(*)::int FROM pc2_visitors WHERE del_req_by IS NOT NULL) + (SELECT COUNT(*)::int FROM pc2_hk_off WHERE status = 'pending') + (SELECT COUNT(*)::int FROM pc2_fuel_refill WHERE status = 'open') AS n"))[0].n;
-    } catch {
-      approvals = 0;
-    }
-  }
+  // Language, import reviews and approvals are fetched together so the page starts sooner.
+  const [lang, reviews, approvals] = await Promise.all([
+    getLang(),
+    // Days from an Excel import that still need a decision (Sr. Ops Manager only).
+    can(user, 'att_import')
+      ? q("SELECT COUNT(*)::int AS n FROM pc2_import_review WHERE resolved_at IS NULL AND kind = 'conflict'").then((r) => r[0].n).catch(() => 0)
+      : 0,
+    user.role === 'om'
+      ? q("SELECT (SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int FROM pc2_expenses WHERE status IN ('submitted', 'verified')) + (SELECT COUNT(*)::int FROM pc2_visitors WHERE del_req_by IS NOT NULL) + (SELECT COUNT(*)::int FROM pc2_hk_off WHERE status = 'pending') + (SELECT COUNT(*)::int FROM pc2_fuel_refill WHERE status = 'open') AS n").then((r) => r[0].n).catch(() => 0)
+      : 0,
+  ]);
   const ROLE = { om: 'Sr. Ops Manager', sso: 'Sr. Support Officer', so: 'Support Officer', guard: 'Guard' };
   const roleLine = (ROLE[user.role] || '') + (user.office_code ? ' | ' + user.office_code : '');
   return (
