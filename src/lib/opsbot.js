@@ -169,6 +169,30 @@ async function extraTopics(user, n, nowY, nowM, today) {
   const om = user.role === 'om';
   const sup = om || user.role === 'sso';
   const office = officeAsked(n, user);
+  // Is someone in the office now (one person by name, or everyone on duty)
+  if (can(user, 'att_view') && !has(n, /visitor/) && has(n, /in (the )?office|in office|inside|here now|present now|is .* here|is .* in\b|who is in|who s in|anyone in|anybody in/)) {
+    const staffRows = await q('SELECT s.id, s.name FROM pc2_staff s WHERE s.active');
+    const who = staffRows.find((s) => norm(s.name).split(' ').some((w) => w.length >= 3 && new RegExp('\\b' + w + '\\b').test(n)));
+    const office = officeAsked(n, user);
+    const { staff, by } = await dayBoard(today, office);
+    if (who) {
+      const evs = by.get(who.id) || [];
+      if (!evs.length) return who.name + ' has no entry today, so is not in the office.';
+      const st = stateOf(evs);
+      const first = fmtTime(evs[0].ms);
+      if (st.state === 'off') return who.name + ' is not in the office: checked in at ' + first + ' and checked out at ' + fmtTime(st.since) + '.';
+      return who.name + ' is in the office (' + (st.state === 'break' ? 'on a break' : 'on duty') + '), checked in at ' + first + '.';
+    }
+    const inL = [];
+    const outL = [];
+    for (const s of staff) {
+      const evs = by.get(s.id) || [];
+      if (!evs.length) continue;
+      const st = stateOf(evs).state;
+      (st === 'off' ? outL : inL).push(s.name + (st === 'break' ? ' (on a break)' : ''));
+    }
+    return inL.length ? lines('In the office now' + (office ? ' in ' + office : '') + ' (' + inL.length + '):', ...names(inL)) : 'Nobody is in the office' + (office ? ' in ' + office : '') + ' right now.';
+  }
   // Attendance: who was late today, and one employee's stats for the chosen months
   if (can(user, 'att_view') && !has(n, /visitor/)) {
     if (has(n, /\blate\b/) && !has(n, /\bstats?\b/)) {
