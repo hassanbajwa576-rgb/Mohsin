@@ -1305,3 +1305,6 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .an-checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px 14px}
 .an-check{display:flex;align-items:center;gap:8px;font-size:13px}
 .an-check input{min-height:0;width:auto}
+.an-filters{display:flex;flex-wrap:wrap;gap:6px 20px;align-items:center;margin:0 0 8px}
+.an-filters .er-months{margin:0;flex-wrap:wrap}
+@media (max-width:720px){.an-filters .er-months{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;width:100%}.an-filters .chip{flex:0 0 auto}}

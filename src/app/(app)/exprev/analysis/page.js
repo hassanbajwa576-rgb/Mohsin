@@ -98,19 +98,20 @@ export default async function ExpRevAnalysis({ searchParams }) {
           {years.map((yy) => <Link key={yy} href={href(yy, sp.p)} className={'chip' + (yy === y ? ' on' : '')}>{yy}</Link>)}
         </div>
       </div>
-      <div className='inline er-months'>
-        <Link href={href(y, '')} className={'chip' + (!ytd && sp.f === undefined && sp.t === undefined ? ' on' : '')}>All months</Link>
-        <Link href={href(y, 'ytd')} className={'chip' + (ytd && sp.f === undefined && sp.t === undefined ? ' on' : '')}>Year to date ({MON3[lastWith - 1]})</Link>
-      </div>
-
       <Flash sp={sp} />
-      <div className='inline er-months'>
-        <Link href={bbHref('')} className={'chip' + (!noBB ? ' on' : '')}>With BOLDBelief</Link>
-        <Link href={bbHref('no')} className={'chip' + (noBB ? ' on' : '')}>Without BOLDBelief (operational cost)</Link>
-      </div>
-      <div className='inline er-months'>
-        <Link href={alHref('')} className={'chip' + (alloc ? ' on' : '')}>Shared costs split by headcount</Link>
-        <Link href={alHref('raw')} className={'chip' + (!alloc ? ' on' : '')}>As booked</Link>
+      <div className='an-filters'>
+        <div className='inline er-months'>
+          <Link href={href(y, '')} className={'chip' + (!ytd && sp.f === undefined && sp.t === undefined ? ' on' : '')}>All months</Link>
+          <Link href={href(y, 'ytd')} className={'chip' + (ytd && sp.f === undefined && sp.t === undefined ? ' on' : '')}>YTD ({MON3[lastWith - 1]})</Link>
+        </div>
+        <div className='inline er-months'>
+          <Link href={bbHref('')} className={'chip' + (!noBB ? ' on' : '')}>With BOLDBelief</Link>
+          <Link href={bbHref('no')} className={'chip' + (noBB ? ' on' : '')} title='BOLDBelief is not an operating cost'>Without BOLDBelief</Link>
+        </div>
+        <div className='inline er-months'>
+          <Link href={alHref('')} className={'chip' + (alloc ? ' on' : '')} title='Shared heads are divided between the offices by employees'>Split by headcount</Link>
+          <Link href={alHref('raw')} className={'chip' + (!alloc ? ' on' : '')} title='Each cost stays with the office written on its entry'>As booked</Link>
+        </div>
       </div>
       {noBB ? <p className='muted' style={{ margin: '0 0 6px', fontSize: 13 }}>BOLDBelief is left out of every figure below.</p> : null}
       {alloc ? <p className='muted' style={{ margin: '0 0 12px', fontSize: 13 }}>{shared.filter((h) => !(noBB && isBB(h))).join(' and ')} {shared.length > 1 ? 'are' : 'is'} divided by employees: LHR {hc.LHR} ({pct(hc.LHR, hcTotal)}), ISB {hc.ISB} ({pct(hc.ISB, hcTotal)}). Headcount is the active staff in the Attendance list, today's number for every month.</p> : <p className='muted' style={{ margin: '0 0 12px', fontSize: 13 }}>Every cost is shown against the office written on its entry.</p>}
