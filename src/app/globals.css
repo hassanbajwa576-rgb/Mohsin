@@ -899,3 +899,14 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .toplinks a.on{color:var(--ink);font-weight:600;border-bottom-color:var(--gold)}
   .toplinks + .who{margin-left:0}
 }
+
+/* Sr. Ops Manager on a phone: modules live in a bottom bar. */
+.botbar{display:none}
+@media (max-width:700px){
+  .tier-om .modseg,.tier-om .tier-sep{display:none}
+  .botbar{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;position:fixed;left:0;right:0;bottom:0;z-index:60;background:#fff;border-top:1px solid var(--line);padding:6px 0 calc(6px + env(safe-area-inset-bottom,0px))}
+  .botbar a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;font-size:11px;font-weight:500;color:var(--slate);min-width:0}
+  .botbar a.on{color:var(--gold-text,#b88a10);font-weight:600}
+  .botbar a.on svg{stroke:var(--gold-text,#b88a10)}
+  body:has(.botbar){padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+}
