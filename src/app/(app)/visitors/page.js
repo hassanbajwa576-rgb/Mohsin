@@ -7,6 +7,8 @@ import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import HostPicker from '@/components/HostPicker';
 import TimePick from '@/components/TimePick';
+import ExpectedAlert from '@/components/ExpectedAlert';
+import { runVisitorReminders } from '@/lib/visitor-reminders';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +21,7 @@ export default async function VisitorsPage({ searchParams }) {
   const now = Date.now();
   const today = todayKey();
   const nowTime = fmtTime(now);
+  await runVisitorReminders();
   const inside = await insideNow(office);
   const seen = (await visitorRows({ from: today, to: today, office })).filter((v) => v.out_ms);
   const names = await hostNames(office);
@@ -36,6 +39,7 @@ export default async function VisitorsPage({ searchParams }) {
         </div>
       </div>
       <Flash sp={sp} />
+      {user.role === 'guard' ? <ExpectedAlert items={queue.map((x) => ({ id: x.id, name: x.name, company: x.company, host: x.host, due_ms: x.due_ms }))} /> : null}
 
       <div className='card'>
         <h3 style={{ marginTop: 0 }}>Inside now ({inside.length})</h3>

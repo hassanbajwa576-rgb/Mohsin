@@ -934,3 +934,12 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .tp-time input{flex:0 0 auto;width:64px;min-width:0;text-align:center;font-size:24px;font-weight:700;letter-spacing:.02em;border:2px solid transparent;border-radius:6px;background:transparent;padding:6px 0;box-shadow:none}
 .tp-time input:focus{border-color:var(--gold);background:#fbf1cf;outline:none;box-shadow:0 0 0 3px rgba(227,172,34,.35)}
 .tp-time b{font-size:24px;font-weight:700;color:var(--slate)}
+
+/* Guard reminder banner for visitors due within 15 minutes. */
+.ealert{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;position:sticky;top:0;z-index:50}
+.ea{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:8px;border:2px solid #e3ac22;background:#fbf1cf;color:#1d1d1b;font-size:14px}
+.ea b{font-size:17px;font-weight:700}
+.ea-five{background:#e3ac22;border-color:#b88a10;animation:eaPulse 1.4s ease-in-out infinite}
+.ea-due,.ea-late{background:#b3261e;border-color:#7a1812;color:#fff;animation:eaPulse 1s ease-in-out infinite}
+@keyframes eaPulse{50%{box-shadow:0 0 0 6px rgba(179,38,30,.25)}}
+@media (prefers-reduced-motion:reduce){.ea{animation:none!important}}
