@@ -135,22 +135,22 @@ export default async function ExpRevAnalysis({ searchParams }) {
       <div className='card'>
         <h3>Month by month in numbers</h3>
         <div className='tablewrap'>
-          <table className='tx'>
+          <table className='tx an-tbl'>
             <thead><tr><th>Month</th><th className='r'>LHR</th><th className='r'>ISB</th><th className='r'>Total</th><th className='r'>LHR %</th><th className='r'>ISB %</th></tr></thead>
             <tbody>
               {MONTHS.map((n, i) => i < from - 1 || i >= to ? null : (
                 <tr key={n}>
                   <td className='c-title'>{n}</td>
-                  <td className='r nw c-meta'>{money(lhr[i])}</td>
-                  <td className='r nw c-meta'>{money(isb[i])}</td>
-                  <td className='r nw c-meta'><b>{money(lhr[i] + isb[i])}</b></td>
-                  <td className='r nw c-meta'>{pct(lhr[i], lhr[i] + isb[i])}</td>
-                  <td className='r nw c-meta'>{pct(isb[i], lhr[i] + isb[i])}</td>
+                  <td className='r nw c-meta'><span className='er-cl'>LHR</span>{money(lhr[i])}</td>
+                  <td className='r nw c-meta'><span className='er-cl'>ISB</span>{money(isb[i])}</td>
+                  <td className='r nw c-meta'><span className='er-cl'>Total</span><b>{money(lhr[i] + isb[i])}</b></td>
+                  <td className='r nw c-meta'><span className='er-cl'>LHR %</span>{pct(lhr[i], lhr[i] + isb[i])}</td>
+                  <td className='r nw c-meta'><span className='er-cl'>ISB %</span>{pct(isb[i], lhr[i] + isb[i])}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr><td>Total</td><td className='r nw'>{money(tL)}</td><td className='r nw'>{money(tI)}</td><td className='r nw'>{money(T)}</td><td className='r nw'>{pct(tL, T)}</td><td className='r nw'>{pct(tI, T)}</td></tr>
+              <tr><td>Total</td><td className='r nw'><span className='er-cl'>LHR</span>{money(tL)}</td><td className='r nw'><span className='er-cl'>ISB</span>{money(tI)}</td><td className='r nw'><span className='er-cl'>Total</span>{money(T)}</td><td className='r nw'><span className='er-cl'>LHR %</span>{pct(tL, T)}</td><td className='r nw'><span className='er-cl'>ISB %</span>{pct(tI, T)}</td></tr>
             </tfoot>
           </table>
         </div>

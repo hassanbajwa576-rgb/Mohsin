@@ -1276,3 +1276,12 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .an-num small.an-lhr{color:#BA7517}
 .an-row{grid-template-columns:minmax(120px,230px) minmax(0,1fr) minmax(190px,290px)}
 @media (max-width:720px){.an-row{grid-template-columns:1fr auto}.an-num{white-space:normal}}
+
+/* Phones: month table as cards, every figure labelled */
+@media (max-width:720px){
+  .tablewrap .an-tbl tr{display:flex!important;flex-wrap:wrap;gap:8px 6px;padding:10px!important}
+  .tablewrap .an-tbl td{display:block;border:0;padding:0;flex:1 1 28%;min-width:0;text-align:left;background:transparent;font-size:13.5px}
+  .tablewrap .an-tbl td::before{display:none!important;content:none!important}
+  .tablewrap .an-tbl td:first-child{flex:0 0 100%;font-weight:600;font-size:14px}
+  .tablewrap .an-tbl .er-cl{display:block;font-size:10px;font-weight:500;color:var(--mut);text-transform:none;letter-spacing:0;margin-bottom:1px}
+}
