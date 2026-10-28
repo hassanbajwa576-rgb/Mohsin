@@ -1241,3 +1241,10 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 /* Variance colours everywhere, phone cards included: positive green, negative red */
 .tablewrap .er-grid td.pos-t,.tablewrap .er-grid td.pos-t b{color:#1a7f37!important;font-weight:600}
 .tablewrap .er-grid td.neg-t,.tablewrap .er-grid td.neg-t b{color:#b3261e!important;font-weight:600}
+
+/* Dashboard on wide screens: month headings stay under the top bar while you scroll (the grid fits the width, so no scroll box) */
+@media (min-width:721px){
+  .tablewrap.er-xlwrap{overflow:visible}
+  .tablewrap .er-xl thead th{position:sticky;top:var(--navh,0px);z-index:5}
+  .tablewrap .er-xl thead th:first-child{background:var(--bg,#f7f6f3)}
+}

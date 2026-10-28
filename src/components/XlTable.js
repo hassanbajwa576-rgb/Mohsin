@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const rs = (n) => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-US');
 
@@ -10,6 +10,13 @@ const rs = (n) => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-US');
 // rows: [{ label, vals[12], cls, kids?: [{ label, vals[12] }] }]
 export default function XlTable({ months, hrefs, m, rows }) {
   const [open, setOpen] = useState(() => new Set());
+  // The month headings stay in view just under the top bar while the page scrolls.
+  useEffect(() => {
+    const set = () => { const n = document.querySelector('.nav'); document.documentElement.style.setProperty('--navh', (n ? n.offsetHeight : 0) + 'px'); };
+    set();
+    window.addEventListener('resize', set);
+    return () => window.removeEventListener('resize', set);
+  }, []);
   const toggle = (k) =>
     setOpen((s) => {
       const n = new Set(s);
