@@ -90,9 +90,10 @@ export async function budgetView(year) {
       kind: l.row_kind,
       rng: l.meta.rng || null,
       b: has ? v.b || zeros() : zeros(),
-      q: has ? v.q || zeros() : zeros(),
+      q: Array.isArray(v.q) && v.q.length ? v.q : zeros(),
       a: has ? v.a || zeros() : zeros(),
       ya: typeof v.ya === 'number' ? v.ya : null,
+      yq: typeof v.yq === 'number' ? v.yq : null,
       // The workbook's own outline: a row indented under a heading belongs to it.
       inside: Number(l.meta.lvl) >= 1,
     };
@@ -108,12 +109,16 @@ export async function budgetView(year) {
   const totals = rows.filter((r) => r.kind === 'total');
   // A total's year-to-date actual is the workbook's own figure when it has one; otherwise it is the sum of its lines.
   const ownYa = new Set(totals.filter((r) => r.ya !== null).map((r) => r.row));
+  // QuickBooks figures of a total row are the workbook's own when it has them.
+  const ownQ = new Set(totals.filter((r) => r.q.some((x) => x)).map((r) => r.row));
+  const ownYq = new Set(totals.filter((r) => r.yq !== null).map((r) => r.row));
   for (const t of totals) {
     for (const r of rows) {
       if ((t.members ? t.members.has(r.row) : r.row >= t.rng[0] && r.row <= t.rng[1]) && r.kind !== 'total') {
         r.inside = true;
         t.b = plus(t.b, r.b);
-        t.q = plus(t.q, r.q);
+        if (!ownQ.has(t.row)) t.q = plus(t.q, r.q);
+        if (!ownYq.has(t.row) && r.yq !== null) t.yq = (t.yq || 0) + r.yq;
         t.a = plus(t.a, r.a);
         if (!ownYa.has(t.row) && r.ya !== null) t.ya = (t.ya || 0) + r.ya;
       }
@@ -121,11 +126,14 @@ export async function budgetView(year) {
   }
   const grand = rows.find((r) => r.kind === 'grand');
   const grandOwn = !!grand && grand.ya !== null;
+  const grandOwnQ = !!grand && grand.q.some((x) => x);
+  const grandOwnYq = !!grand && grand.yq !== null;
   const finalYa = lines[0] && typeof lines[0].meta.finalYa === 'number' ? lines[0].meta.finalYa : null;
   for (const r of rows) {
     if (grand && r.row < grand.row && (r.kind === 'total' || (!r.inside && (r.kind === 'line' || r.kind === 'head')))) {
       grand.b = plus(grand.b, r.b);
-      grand.q = plus(grand.q, r.q);
+      if (!grandOwnQ) grand.q = plus(grand.q, r.q);
+      if (!grandOwnYq && r.yq !== null && r.yq !== undefined) grand.yq = (grand.yq || 0) + r.yq;
       grand.a = plus(grand.a, r.a);
       if (!grandOwn && r.ya !== null && r.ya !== undefined) grand.ya = (grand.ya || 0) + r.ya;
     }

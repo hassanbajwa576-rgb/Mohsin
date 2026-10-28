@@ -179,7 +179,7 @@ export async function readWorkbook(buf) {
           break;
         }
         grand = true;
-        lines.push({ row: r, label: 'Total Budgeted', kind: 'grand', b: [], q: [], ya: ytdCol ? num(rows, r, ytdCol + 1) : null });
+        lines.push({ row: r, label: 'Total Budgeted', kind: 'grand', b: [], q: Array.from({ length: 12 }, (_, m) => (blocks.has(m) ? num(rows, r, blocks.get(m) + 2) : 0)), ya: ytdCol ? num(rows, r, ytdCol + 1) : null, yq: ytdCol ? num(rows, r, ytdCol + 2) : null });
         continue;
       }
       const lvl = (rows.get(r) && rows.get(r).level) || 0;
@@ -205,9 +205,10 @@ export async function readWorkbook(buf) {
       const xa = [];
       for (let m = 0; m < 12; m++) xa.push(blocks.has(m) ? num(rows, r, blocks.get(m) + 1) : null);
       const ya = ytdCol ? num(rows, r, ytdCol + 1) : null;
-      if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q, xa, ya, lvl });
-      else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q: [], xa, ya, lvl });
-      else lines.push({ row: r, label, kind: 'head', b, q, xa, ya, lvl });
+      const yq = ytdCol ? num(rows, r, ytdCol + 2) : null;
+      if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q, xa, ya, yq, lvl });
+      else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q, xa, ya, yq, lvl });
+      else lines.push({ row: r, label, kind: 'head', b, q, xa, ya, yq, lvl });
     }
     // Closed months: the ones the workbook has worked out (the first Total Budgeted row has an actual for them, no gap).
     for (const l of lines) {

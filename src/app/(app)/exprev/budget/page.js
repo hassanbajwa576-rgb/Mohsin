@@ -101,7 +101,7 @@ export default async function ExpRevBudget({ searchParams }) {
               cls: r.kind === 'total' ? 'er-main' : r.kind === 'grand' || r.kind === 'grand2' ? 'er-grand' : r.kind === 'head' && !b && !a ? 'er-head' : r.inside ? 'er-sub' : 'er-main',
               bold: r.kind === 'total' || r.kind === 'grand' || r.kind === 'grand2',
               label: r.label,
-              cells: [{ t: money(b) }, { t: money(a) }, { t: flat ? '' : money(pick(r.q)) }, { t: r.kind === 'rest' || r.kind === 'restitem' ? '' : money(v), c: v < -0.5 ? 'neg-t' : v > 0.5 ? 'pos-t' : '' }],
+              cells: [{ t: money(b) }, { t: money(a) }, { t: r.kind === 'grand2' || r.kind === 'rest' || r.kind === 'restitem' ? '' : money(isYtd && typeof r.yq === 'number' ? r.yq : pick(r.q)) }, { t: r.kind === 'rest' || r.kind === 'restitem' ? '' : money(v), c: v < -0.5 ? 'neg-t' : v > 0.5 ? 'pos-t' : '' }],
             };
           }), ...sumRows]}
         />
