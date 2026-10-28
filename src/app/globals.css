@@ -685,6 +685,13 @@ td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.
   .modseg > .modwrap{flex:1}
   .modseg > .modwrap > a{flex:1;text-align:center;padding:8px 10px;font-size:13px}
 }
+/* Five modules must fit one phone row without pushing the page wider. */
+@media (max-width:700px){
+  .modseg{min-width:0;max-width:100%}
+  .modseg > .modwrap{min-width:0}
+  .modseg > .modwrap > a{min-width:0;padding:8px 3px;font-size:11.5px;justify-content:center}
+}
+@media (max-width:380px){.modseg > .modwrap > a{font-size:10.5px;padding:8px 2px}}
 
 /* Grouped tabs: one name opens several pages. Mouse: a dropdown on hover. Touch: a strip under the row. */
 .grpwrap{position:relative;display:inline-flex}
