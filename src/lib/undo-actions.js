@@ -15,6 +15,15 @@ export async function undoToday() {
   const p = await todayPlan(u.id);
   if (p.empty) redirect('/accounts/undo?err=' + encodeURIComponent('Nothing from today to undo'));
 
+  // 0. expenses deleted today come back, as they were, for the person who added them
+  for (const r of p.bring) {
+    const off = (await q('SELECT id FROM pc2_offices WHERE code = $1', [r.office]))[0];
+    if (!off) continue;
+    await q(
+      'INSERT INTO pc2_expenses (id, office_id, fund, category, description, amount, spent_on, status, submitted_by, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10::timestamptz, now())) ON CONFLICT (id) DO NOTHING',
+      [r.id, off.id, r.fund, r.category, r.description || '', Math.round(Number(r.amount)), r.spent_on, r.status === 'sent' ? 'approved' : r.status || 'submitted', r.creator_id, r.made_at || null]
+    );
+  }
   // 1. edits go back to their earlier values
   for (const r of p.restore) {
     const b = r.before;
@@ -46,8 +55,9 @@ export async function undoToday() {
     decidedIds.length ? decidedIds.length + ' decision(s) reversed' : '',
     createdIds.length ? createdIds.length + ' added expense(s) removed' : '',
     p.restore.length ? p.restore.length + ' edit(s) reverted' : '',
+    p.bring.length ? p.bring.length + ' deleted expense(s) brought back' : '',
   ].filter(Boolean).join(', ');
   // The audit entry keeps what was removed, so nothing is lost for good.
-  await logEvent(u, 'delete', 'expense', null, "Undid today's expense changes: " + summary, { batches: p.batches, removed: p.created, reversed: p.decided, edits: p.restore }, null);
+  await logEvent(u, 'delete', 'expense', null, "Undid today's expense changes: " + summary, { batches: p.batches, removed: p.created, reversed: p.decided, edits: p.restore, restored: p.bring.map((r) => r.id) }, null);
   redirect('/accounts?ok=' + encodeURIComponent("Today's expense changes were undone: " + summary));
 }

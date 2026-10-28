@@ -34,6 +34,7 @@ export default async function UndoTodayPage({ searchParams }) {
               {p.decided.length ? <li>{p.decided.length} expense(s) you approved or rejected today go back to Awaiting review.</li> : null}
               {p.created.length ? <li>{p.created.length} expense(s) you added today are removed.</li> : null}
               {p.restore.length ? <li>{p.restore.length} expense(s) you edited today go back to their earlier values.</li> : null}
+              {p.bring.length ? <li>{p.bring.length} expense(s) you deleted today come back, each under the name of the person who added it.</li> : null}
             </ul>
             <p className='muted'>The audit log keeps a copy of everything removed or changed. If a batch was already downloaded or sent on to the Accounts team, tell them it was withdrawn.</p>
             <form action={undoToday}>
@@ -74,6 +75,26 @@ export default async function UndoTodayPage({ searchParams }) {
                   <tbody>{p.created.map((r) => <tr key={r.id}><td className='c-meta'>{r.id}</td><td className='c-title'><b>{r.category}</b>{r.description ? <div className='muted'>{r.description}</div> : null}</td><td className='c-meta'>{STATE[r.status] || r.status}</td><td className='r nw c-amt'><b>{pkr(r.amount)}</b></td></tr>)}</tbody>
                 </table>
               </div>
+            </div>
+          ) : null}
+
+          {p.bring.length ? (
+            <div className='card'>
+              <h3>Deleted today (will come back)</h3>
+              <div className='tablewrap'>
+                <table className='tx'>
+                  <thead><tr><th>#</th><th>Expense</th><th>Added by</th><th>State</th><th className='r'>Amount</th></tr></thead>
+                  <tbody>{p.bring.map((r) => <tr key={r.id}><td className='c-meta'>{r.id}</td><td className='c-title'><b>{r.category}</b>{r.description ? <div className='muted'>{r.description}</div> : null}<div className='muted'>{r.spent_on}, {r.office}</div></td><td className='c-meta'>{r.creator}</td><td className='c-meta'>{STATE[r.status === 'sent' ? 'approved' : r.status] || r.status}</td><td className='r nw c-amt'><b>{pkr(r.amount)}</b></td></tr>)}</tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
+          {p.unknown.length ? (
+            <div className='card'>
+              <h3>Deleted today, cannot be brought back automatically</h3>
+              <p className='muted'>The audit log does not say who added these, so they are left out. Tell me and I will add them by hand.</p>
+              <ul>{p.unknown.map((r) => <li key={r.id}>#{r.id} {r.category} {pkr(r.amount)} on {r.spent_on}{r.description ? ' (' + r.description + ')' : ''}</li>)}</ul>
             </div>
           ) : null}
 
