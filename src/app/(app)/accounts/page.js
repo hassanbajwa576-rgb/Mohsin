@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { EXP_FROM, EXP_COLS } from '@/lib/queries';
@@ -23,6 +24,7 @@ export default async function AccountsPage({ searchParams }) {
           <h1>Accounts</h1>
           <p className='muted'>Expenses approved by the Sr. Ops Manager are submitted to the Accounts team in batches, by the Sr. Ops Manager or the Sr. Support Officer. Support Officers cannot submit to Accounts.</p>
         </div>
+        {isOM ? <Link href='/accounts/undo' className='btn ghost'>Undo today's changes</Link> : null}
       </div>
       <Flash sp={sp} />
 
