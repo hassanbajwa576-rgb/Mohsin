@@ -1324,3 +1324,11 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .pgs .pg-group>b{display:block;font-size:13px;margin-bottom:4px}
 .pgs .pg-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 14px}
 .pg-block{position:fixed;inset:0;z-index:200;background:var(--bg,#f7f6f3);display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:15px}
+/* Dashboard grid row colours beat the general every-second-row stripe of tables */
+.tablewrap .er-xl tbody tr.xl-a th,.tablewrap .er-xl tbody tr.xl-a td{background:#bdd0e0;color:#111}
+.tablewrap .er-xl tbody tr.xl-b th,.tablewrap .er-xl tbody tr.xl-b td{background:#e8e88e;color:#111}
+.tablewrap .er-xl tbody tr.xl-tot th,.tablewrap .er-xl tbody tr.xl-tot td{background:#ffc000;color:#111;font-weight:700}
+.tablewrap .er-xl tbody tr.xl-adv th,.tablewrap .er-xl tbody tr.xl-adv td{background:#00b0f0;color:#fff;font-weight:700}
+.tablewrap .er-xl tbody tr.xl-ven th,.tablewrap .er-xl tbody tr.xl-ven td{background:#fbe4a8;color:#111}
+.tablewrap .er-xl tbody tr.xl-grand th,.tablewrap .er-xl tbody tr.xl-grand td{background:#7030a0;color:#fff;font-weight:700}
+.tablewrap .er-xl tbody tr.xl-kid th,.tablewrap .er-xl tbody tr.xl-kid td{background:#f4f1e6;color:#111;font-weight:400}
