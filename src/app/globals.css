@@ -1190,3 +1190,24 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .tablewrap .er-xl tbody th{min-width:150px;width:150px}
   .tablewrap .er-xl thead th:first-child{min-width:150px}
 }
+
+/* Phones: entries list reads as compact cards, the entries come first */
+.m-only{display:none}
+@media (max-width:720px){
+  .m-only{display:block;color:var(--mut);font-size:12px;margin-top:2px}
+  .er-kpi2{display:none}
+  .er-months{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  .er-months .chip{flex:0 0 auto;padding:8px 12px}
+  .er-pager{margin-bottom:8px}
+  .tablewrap .er-tx tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:10px 12px;margin-bottom:8px}
+  .tablewrap .er-tx td{display:block;border:0;padding:0;text-align:left;min-width:0;background:transparent}
+  .tablewrap .er-tx td::before{display:none!important;content:none!important}
+  .tablewrap .er-tx td:empty{display:none}
+  .tablewrap .er-tx td:nth-child(1){grid-column:1;grid-row:1;font-size:12px;color:var(--mut)}
+  .tablewrap .er-tx td:nth-child(5){grid-column:2;grid-row:1;text-align:right;font-size:15px}
+  .tablewrap .er-tx td:nth-child(2){grid-column:1/-1;font-weight:600;font-size:13.5px}
+  .tablewrap .er-tx td:nth-child(3){grid-column:1/-1;font-size:12px;color:var(--mut)}
+  .tablewrap .er-tx td:nth-child(4){grid-column:1/-1;font-size:13px}
+  .tablewrap .er-tx td:nth-child(6),.tablewrap .er-tx td:nth-child(7),.tablewrap .er-tx td:nth-child(8){grid-column:1/-1;font-size:11.5px;color:var(--mut)}
+  .tablewrap .er-tx td.act{grid-column:1/-1;margin-top:4px}
+}

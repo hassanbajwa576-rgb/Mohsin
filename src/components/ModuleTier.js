@@ -145,7 +145,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
       </div>
       {opened ? (
         <nav className='subrow' aria-label={opened.label}>
-          {opened.items.map((it) => <Link key={it.href} href={it.href} className={on(it.href) ? 'on' : ''}>{it.label}{it.badge}</Link>)}
+          {opened.items.map((it) => <Link key={it.href} href={it.href} className={(on(it.href) ? 'on' : '') + (it.href === '/exprev/import' ? ' hide-m' : '')}>{it.label}{it.badge}</Link>)}
         </nav>
       ) : null}
       {om || sso ? (

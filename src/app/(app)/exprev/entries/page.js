@@ -130,15 +130,15 @@ export default async function ExpRevEntries({ searchParams }) {
       </Collapsible>
 
       <div className='kpis er-kpis'>
-        <div className='card kpi'><span>Total of these entries</span><b>{pkr(sum[0].total)}</b></div>
-        <div className='card kpi alt'><span>Entries</span><b>{sum[0].n.toLocaleString('en-US')}</b><small>Showing {lo.toLocaleString('en-US')} to {hi.toLocaleString('en-US')} · page {page} of {pages}</small></div>
+        <div className='card kpi'><span>Total of these entries</span><b>{pkr(sum[0].total)}</b><small className='m-only'>{sum[0].n.toLocaleString('en-US')} entries · page {page} of {pages}</small></div>
+        <div className='card kpi alt er-kpi2'><span>Entries</span><b>{sum[0].n.toLocaleString('en-US')}</b><small>Showing {lo.toLocaleString('en-US')} to {hi.toLocaleString('en-US')} · page {page} of {pages}</small></div>
       </div>
 
       {pager}
       <div className='card'>
         {rows.length ? (
           <div className='tablewrap'>
-            <table className='tx'>
+            <table className='tx er-tx'>
               <thead><tr><th>Date</th><th>Cost center</th><th>Expense type</th><th>Detail</th><th className='r'>Amount</th><th>Paid by</th><th>Office</th><th>Vendor / user</th><th></th></tr></thead>
               <tbody>
                 {rows.map((r) => (
