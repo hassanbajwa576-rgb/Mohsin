@@ -178,7 +178,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
       {alloc ? <p className='muted' style={{ margin: '0 0 12px', fontSize: 13 }}>{shared.filter((h) => !(noBB && isBB(h))).join(' and ')} {shared.length > 1 ? 'are' : 'is'} divided by employees: LHR {hc.LHR} ({pct(hc.LHR, hcTotal)}), ISB {hc.ISB} ({pct(hc.ISB, hcTotal)}). Headcount is the active staff in the Attendance list, today's number for every month.</p> : <p className='muted' style={{ margin: '0 0 12px', fontSize: 13 }}>Every cost is shown against the office written on its entry.</p>}
 
       <form method='get' className='er-range'>
-        <input type='hidden' name='y' value={y} />
+        <label>Year<select name='y' defaultValue={y} autoComplete='off'>{years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}</select></label>
         {sp.al === 'raw' ? <input type='hidden' name='al' value='raw' /> : null}
         {noBB ? <input type='hidden' name='bb' value='no' /> : null}
         <label>From month<select name='f' defaultValue={from} autoComplete='off'>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
@@ -340,7 +340,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
 
       <div className='card' id='compare-two'>
         <h3>Compare two years</h3>
-        <form method='get' className='er-range'>
+        <form method='get' action='/exprev/analysis#compare-two' className='er-range'>
           <input type='hidden' name='y' value={y} />
           <input type='hidden' name='f' value={from} />
           <input type='hidden' name='t' value={to} />

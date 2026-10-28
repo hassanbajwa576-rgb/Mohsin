@@ -1371,3 +1371,7 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .ob-in button{flex:0 0 auto}
 .ob-head .ob-x{flex:0 0 auto;width:34px;color:#fff}
 .ob-bub{overflow-wrap:anywhere}
+
+/* Analysis: shortcuts scroll smoothly and stop below the top bar */
+html:has(.an-filters){scroll-behavior:smooth}
+#year-by-year,#compare-two{scroll-margin-top:150px}
