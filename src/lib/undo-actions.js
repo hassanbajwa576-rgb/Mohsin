@@ -61,3 +61,27 @@ export async function undoToday() {
   await logEvent(u, 'delete', 'expense', null, "Undid today's expense changes: " + summary, { batches: p.batches, removed: p.created, reversed: p.decided, edits: p.restore, restored: p.bring.map((r) => r.id) }, null);
   redirect('/accounts?ok=' + encodeURIComponent("Today's expense changes were undone: " + summary));
 }
+
+// Sr. Ops Manager: join expenses that are ready for Accounts into one entry. Each keeps its own amount and advance; they are linked
+// so every screen shows them as a single expense.
+export async function mergeExpenses(fd) {
+  const u = await getUser();
+  if (!u) redirect('/login');
+  if (u.totp_required && !u.totp_enabled) redirect('/security');
+  if (u.role !== 'om' || u.impersonatedBy) redirect('/accounts');
+  const fail = (m) => redirect('/accounts?err=' + encodeURIComponent(m));
+  const ids = String(fd.get('ids') ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  if (ids.length < 2) fail('Tick at least two expenses to merge');
+  const rows = await q("SELECT id, fund, office_id, submitted_by, category, spent_on::text AS d, amount::float8 AS amount, split_group FROM pc2_expenses WHERE id = ANY($1::int[]) AND status = 'approved' AND batch_id IS NULL ORDER BY id", [ids]);
+  if (rows.length !== ids.length) fail('Only expenses that are ready for Accounts can be merged');
+  if (rows.some((r) => r.split_group)) fail('One of these is already part of a joined entry');
+  const same = (k) => rows.every((r) => r[k] === rows[0][k]);
+  if (!same('fund') || !same('office_id') || !same('submitted_by') || !same('category')) fail('Only expenses with the same person, office, fund and category can be merged');
+  const group = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  for (let k = 0; k < rows.length; k++) {
+    await q('UPDATE pc2_expenses SET split_group = $1, split_part = $2, split_total = $3 WHERE id = $4', [group, k + 1, rows.length, rows[k].id]);
+  }
+  const total = rows.reduce((a, r) => a + r.amount, 0);
+  await logEvent(u, 'edit', 'expense', null, 'Merged expenses #' + rows.map((r) => r.id).join(' + #') + ' into one entry of PKR ' + Math.round(total).toLocaleString('en-US'), null, { ids: rows.map((r) => r.id), total });
+  redirect('/accounts?ok=' + encodeURIComponent('Merged into one entry of PKR ' + Math.round(total).toLocaleString('en-US')));
+}

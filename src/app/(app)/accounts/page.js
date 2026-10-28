@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { EXP_FROM, EXP_COLS } from '@/lib/queries';
 import { submitToAccounts } from '@/lib/actions';
+import { mergeExpenses } from '@/lib/undo-actions';
 import { pkr, FUNDS, mergeSplits } from '@/lib/fmt';
 import ReadySubmit from '@/components/ReadySubmit';
 import ExpenseTable from '@/components/ExpenseTable';
@@ -33,6 +34,7 @@ export default async function AccountsPage({ searchParams }) {
         {ready.length === 0 ? <p className='muted'>Nothing to show yet.</p> : (
           <ReadySubmit
             action={submitToAccounts}
+            mergeAction={isOM ? mergeExpenses : null}
             rows={mergeSplits(ready).map((r) => ({ id: r.id, ids: r.ids || [r.id], spent_on: r.spent_on, office: r.office, fund: FUNDS[r.fund], category: r.category, description: r.description, submitter: r.submitter, amount: Number(r.amount) }))}
           />
         )}

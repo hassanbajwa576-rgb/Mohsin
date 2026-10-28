@@ -6,7 +6,7 @@ import OfficeTag from './OfficeTag';
 const pkr = (n) => 'PKR ' + Math.round(Number(n) || 0).toLocaleString('en-US');
 
 // Expenses ready for Accounts with a tick box on each, select all, and a live total of what is ticked.
-export default function ReadySubmit({ rows, action }) {
+export default function ReadySubmit({ rows, action, mergeAction = null }) {
   const [on, setOn] = useState(() => new Set(rows.map((r) => r.id)));
   const [term, setTerm] = useState('');
   // A number finds amounts that contain it (4200 or 4,200 finds PKR 4,200); words find the category, details, fund or person.
@@ -74,6 +74,7 @@ export default function ReadySubmit({ rows, action }) {
         {' '}
         <button type='button' className='btn ghost' onClick={() => setOn((s) => new Set([...s, ...shown.map((r) => r.id)]))}>Select all</button>
         <button type='button' className='btn ghost' onClick={() => setOn(new Set())}>Clear</button>
+        {mergeAction ? <button type='submit' formAction={mergeAction} className='btn' disabled={picked.length < 2} onClick={(e) => { if (!window.confirm('Join the ' + picked.length + ' ticked expenses into one entry?')) e.preventDefault(); }}>Merge ticked into one entry</button> : null}
       </p>
       <input type='hidden' name='ids' value={picked.flatMap((r) => r.ids || [r.id]).join(',')} />
       <div className='form'>
