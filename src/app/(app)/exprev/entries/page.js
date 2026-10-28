@@ -126,7 +126,7 @@ export default async function ExpRevEntries({ searchParams }) {
           <select name='cc' defaultValue={cc}><option value=''>All</option>{ccs.map((v) => <option key={v} value={v}>{v}</option>)}</select>
         </label>
         <label>Office
-          <select name='of' defaultValue={off} autoComplete='off'><option value=''>All</option><option value='LHR'>LHR (blank)</option><option value='ISB'>ISB</option></select>
+          <select name='of' defaultValue={off} autoComplete='off'><option value=''>All</option><option value='LHR'>LHR</option><option value='ISB'>ISB</option></select>
         </label>
         <label>Search<input name='q' defaultValue={text} placeholder='Detail, vendor, remarks' /></label>
         <label>Per page

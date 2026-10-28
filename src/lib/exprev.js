@@ -146,6 +146,11 @@ export async function budgetView(year) {
   return { rows, closed, hasData: lines.length > 0 };
 }
 
+// Spend of one year by month, office (a blank office means LHR) and cost center, for the Analysis page.
+export async function officeCosts(year) {
+  return q("SELECT extract(month from spent_on)::int AS m, (CASE WHEN upper(trim(office)) = 'ISB' THEN 'ISB' ELSE 'LHR' END) AS o, cost_center AS cc, SUM(amount)::float8 AS s FROM pc2_er_entries WHERE spent_on >= $1 AND spent_on <= $2 GROUP BY 1, 2, 3", [year + '-01-01', year + '-12-31']);
+}
+
 export async function budgetYear() {
   const r = await q("SELECT meta FROM pc2_er_sheet WHERE kind = 'bva' ORDER BY sort LIMIT 1");
   return r[0] ? Number(r[0].meta.year) || 0 : 0;

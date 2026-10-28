@@ -68,7 +68,7 @@ export default async function ExpRevDashboard({ searchParams }) {
       </div>
       <Flash sp={sp} />
       <div className='inline er-months'>
-        {[['', 'All offices'], ['LHR', 'LHR (blank)'], ['ISB', 'ISB']].map(([k, l]) => <Link key={k} href={qs(y, m, k)} className={'chip' + (of === k ? ' on' : '')}>{l}</Link>)}
+        {[['', 'All offices'], ['LHR', 'LHR'], ['ISB', 'ISB']].map(([k, l]) => <Link key={k} href={qs(y, m, k)} className={'chip' + (of === k ? ' on' : '')}>{l}</Link>)}
       </div>
 
       <div className='kpis er-kpis'>
@@ -117,7 +117,7 @@ export default async function ExpRevDashboard({ searchParams }) {
             ...d.extras.map((r, k) => ({ ...r, cls: k ? 'xl-ven' : 'xl-adv' })),
             { label: 'Grand total', vals: d.month, cls: 'xl-grand' },
             { label: 'gap2', gap: true },
-            { label: 'LHR office (blank)', vals: d.byOffice.LHR, cls: 'xl-ven' },
+            { label: 'LHR office', vals: d.byOffice.LHR, cls: 'xl-ven' },
             { label: 'ISB office', vals: d.byOffice.ISB, cls: 'xl-adv' },
           ]}
         />
