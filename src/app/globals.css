@@ -1075,3 +1075,28 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .er-tog{border:1px solid var(--slate);background:var(--card);color:var(--slate);border-radius:3px;font:700 14px/1 inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
 .er-tog:hover{background:var(--gold);border-color:var(--gold);color:#000}
 .er-tog:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* ExpRev dashboard, laid out like the workbook */
+.er-xl{border-collapse:separate;border-spacing:2px;width:100%;font-size:13px}
+.er-xl thead th{background:#111;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;padding:11px 8px;text-align:center;white-space:nowrap}
+.er-xl thead th a{color:#fff;text-decoration:none}
+.er-xl thead th:first-child{background:transparent}
+.er-xl tbody th{text-align:left;font-weight:700;padding:6px 10px;white-space:nowrap;position:sticky;left:0;z-index:1;color:#111}
+.er-xl td{padding:6px 8px;text-align:left;white-space:nowrap;color:#111}
+.er-xl .xl-a th,.er-xl .xl-a td{background:#bdd0e0}
+.er-xl .xl-b th,.er-xl .xl-b td{background:#e8e88e}
+.er-xl .xl-tot th,.er-xl .xl-tot td{background:#ffc000;font-weight:700}
+.er-xl .xl-adv th,.er-xl .xl-adv td{background:#00b0f0;color:#fff;font-weight:700}
+.er-xl .xl-ven th,.er-xl .xl-ven td{background:#fbe4a8}
+.er-xl .xl-grand th,.er-xl .xl-grand td{background:#7030a0;color:#fff;font-weight:700}
+.er-xl .xl-adv th,.er-xl .xl-grand th{color:#fff}
+.er-xl .xl-gap td{background:transparent;height:14px;padding:0}
+.er-xl td.xl-sel{box-shadow:inset 0 0 0 2px #111}
+
+/* ExpRev is the main head for the Sr. Ops Manager */
+.toplinks .top-er{font-weight:700;color:var(--ink);background:var(--gold);border-radius:3px;padding:6px 14px}
+.toplinks .top-er.on{box-shadow:inset 0 -3px 0 var(--slate)}
+
+.er-pager{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 14px}
+.er-pgs{display:inline-flex;gap:6px;align-items:center}
+.er-pager .off{opacity:.45;pointer-events:none}

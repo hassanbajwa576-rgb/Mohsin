@@ -2,10 +2,20 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { todayKey } from '@/lib/att';
 import { MONTHS, MON3, money, pkr, erYears, erStatus, dashboard } from '@/lib/exprev';
-import OutlineTable from '@/components/OutlineTable';
 import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
+
+const rs = (n) => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-US');
+function XlRow({ r, cls, m }) {
+  return (
+    <tr className={cls}>
+      <th scope='row'>{r.label}</th>
+      {r.vals.map((v, i) => <td key={i} className={i + 1 === m ? 'xl-sel' : ''}>{rs(v)}</td>)}
+      <td>{rs(r.vals.reduce((a, v) => a + v, 0))}</td>
+    </tr>
+  );
+}
 
 export default async function ExpRevDashboard({ searchParams }) {
   await requireUser(['om']);
@@ -39,7 +49,7 @@ export default async function ExpRevDashboard({ searchParams }) {
   }
   const max = Math.max(...d.month, 1);
   const qs = (yy, mm) => '/exprev?y=' + yy + '&m=' + mm;
-  const top = d.rows.filter((r) => r.level === 0 && r.vals[m - 1] > 0).sort((a, b) => b.vals[m - 1] - a.vals[m - 1]).slice(0, 6);
+  const top = d.main.filter((r) => r.vals[m - 1] > 0).sort((a, b) => b.vals[m - 1] - a.vals[m - 1]).slice(0, 6);
   const prev = m > 1 ? d.month[m - 2] : 0;
   const diff = prev ? ((d.month[m - 1] - prev) / prev) * 100 : null;
 
@@ -91,11 +101,24 @@ export default async function ExpRevDashboard({ searchParams }) {
 
       <div className='card'>
         <h3>All categories, {y}</h3>
-        <OutlineTable
-          head={[{ t: 'Category' }, ...MON3.map((n, i) => ({ t: n, r: true, sel: i + 1 === m, href: qs(y, i + 1) })), { t: 'Total', r: true }]}
-          rows={d.rows.map((r, i) => ({ k: r.label + i, level: r.level, cls: r.level ? 'er-sub' : 'er-main', bold: !r.level, label: r.label, cells: [...r.vals.map((v, j) => ({ t: money(v), c: j + 1 === m ? 'er-sel' : '' })), { t: money(r.vals.reduce((a, v) => a + v, 0)), bold: true }] }))}
-          tfoot={{ label: 'Total expenses', cells: [...d.month.map((v, j) => ({ t: money(v), c: j + 1 === m ? 'er-sel' : '' })), { t: money(d.year) }] }}
-        />
+        <div className='tablewrap'>
+          <table className='er-xl'>
+            <thead>
+              <tr>
+                <th />
+                {MONTHS.map((n, i) => <th key={n}><Link href={qs(y, i + 1)}>{n.toUpperCase()}</Link></th>)}
+                <th>TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.main.map((r, k) => <XlRow key={r.label} r={r} cls={k % 2 ? 'xl-b' : 'xl-a'} m={m} />)}
+              <XlRow r={{ label: 'Total Expenses', vals: d.mainTotal }} cls='xl-tot' m={m} />
+              <tr className='xl-gap'><td colSpan={14} /></tr>
+              {d.extras.map((r, k) => <XlRow key={r.label} r={r} cls={k ? 'xl-ven' : 'xl-adv'} m={m} />)}
+              <XlRow r={{ label: 'Total Expenses', vals: d.month }} cls='xl-grand' m={m} />
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );

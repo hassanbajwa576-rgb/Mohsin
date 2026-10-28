@@ -47,7 +47,7 @@ export async function importWorkbook(fd) {
   }
 
   const sheet = [];
-  w.dash.forEach((l, i) => sheet.push({ kind: 'dash', sort: i, label: l.label, row_kind: 'line', field: l.field, mval: l.match, meta: {}, vals: {} }));
+  w.dash.forEach((l, i) => sheet.push({ kind: 'dash', sort: i, label: l.label, row_kind: 'line', field: l.field, mval: l.match, meta: { grp: l.grp || 0 }, vals: {} }));
   if (w.bva) {
     w.bva.lines.forEach((l, i) =>
       sheet.push({ kind: 'bva', sort: i, label: l.label, row_kind: l.kind, field: l.field || '', mval: l.match || '', meta: { year: w.bva.year, row: l.row, rng: l.rng || null }, vals: { b: l.b, q: l.q } })

@@ -99,7 +99,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const all = (list) => list.flatMap((m) => (m.items ? m.items : [m]));
   const admin = [];
   if (!guard) {
-    if (om) admin.push(page('/approvals', 'Approvals'), page('/team', 'Team'), page('/logs', 'Audit log'));
+    if (om) admin.push(page('/exprev', 'ExpRev'), page('/approvals', 'Approvals'), page('/team', 'Team'), page('/logs', 'Audit log'));
     admin.push(page('/guide', 'Guide'));
   }
   const opened = menu.find((m) => m.items && m.label === open);
@@ -127,7 +127,6 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
           <Mod href='/visitors' label='Visitors' active={visit} items={vis} on={on} />
           {access.includes('fuel_use') ? <Mod href='/fuel' label='Fuel' active={fuel} items={fu} on={on} /> : null}
           {guard ? null : <Mod href='/support' label='Support' active={sup} items={su} on={on} />}
-          {om ? <Mod href='/exprev' label='ExpRev' active={exr} items={er} on={on} /> : null}
         </span>
         <span className='tier-sep' />
         <div className='tier-scroll'>

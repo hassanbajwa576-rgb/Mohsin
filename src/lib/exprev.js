@@ -47,14 +47,18 @@ const pick = (s, field, v) => (field === 'cc' ? s.cc : s.et).get(v) || zeros();
 const plus = (a, b) => a.map((x, i) => x + b[i]);
 const total = (a) => a.reduce((x, y) => x + y, 0);
 
-// The dashboard: each cost centre, with the expense types shown beneath it, by month.
+// The dashboard, laid out like the workbook: one row per cost center, a subtotal, then the advances and tax rows, then the final total.
+const EXTRA = /^(assets \/ security advances|vendor taxes payment)/i;
 export async function dashboard(year) {
-  const [lines, s] = await Promise.all([q("SELECT label, field, mval FROM pc2_er_sheet WHERE kind = 'dash' ORDER BY sort"), sums(year)]);
-  const rows = lines.map((l) => ({ label: l.label, level: l.field === 'cc' ? 0 : 1, vals: pick(s, l.field, l.mval) }));
-  const listed = rows.filter((r) => r.level === 0).reduce((a, r) => plus(a, r.vals), zeros());
+  const [lines, s] = await Promise.all([q("SELECT label, field, mval, meta FROM pc2_er_sheet WHERE kind = 'dash' ORDER BY sort"), sums(year)]);
+  const cc = lines.filter((l) => l.field === 'cc').map((l) => ({ label: l.label, extra: (l.meta && l.meta.grp === 1) || EXTRA.test(l.label), vals: pick(s, 'cc', l.mval) }));
+  const main = cc.filter((r) => !r.extra);
+  const extras = cc.filter((r) => r.extra);
+  const listed = cc.reduce((a, r) => plus(a, r.vals), zeros());
   const other = s.month.map((v, i) => v - listed[i]);
-  if (other.some((v) => Math.abs(v) > 0.5)) rows.push({ label: 'Other (not on the list above)', level: 0, vals: other });
-  return { rows, month: s.month, year: total(s.month) };
+  if (other.some((v) => Math.abs(v) > 0.5)) main.push({ label: 'Other (not on the list)', extra: false, vals: other });
+  const mainTotal = main.reduce((a, r) => plus(a, r.vals), zeros());
+  return { main, extras, mainTotal, month: s.month, year: total(s.month) };
 }
 
 // Budget against actual: budget and QBO come from the workbook; actual is worked out from the entries.

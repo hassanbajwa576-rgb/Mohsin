@@ -114,48 +114,16 @@ export async function readWorkbook(buf) {
     for (let c = 3; c <= 14 && !hit; c++) hit = fieldOf(da.get(r) && da.get(r).get(c) && da.get(r).get(c).f);
     if (!hit) continue;
     seen.add(label);
-    dash.push({ label, field: hit.field, match: hit.match });
+    dash.push({ label, field: hit.field, match: hit.match, grp: totals ? 1 : 0 });
   }
 
-  // ---- budget against actual (latest year)
-  let bva = null;
-  const bs = latest(byName(/^bh vs ah fy/));
-  if (bs) {
-    const rows = await open(bs);
-    const year = new Date(iso(num(rows, 1, 3) || 0)).getUTCFullYear() || yearOf(bs);
-    const lines = [];
-    let grand = false;
-    for (let r = 3; r <= 200; r++) {
-      const label = text(rows, r, 2).trim();
-      if (!label) continue;
-      if (/^total budgeted/i.test(label)) {
-        if (grand) break;
-        grand = true;
-        lines.push({ row: r, label: 'Total Budgeted', kind: 'grand', b: [], q: [] });
-        continue;
-      }
-      const cellD = rows.get(r) && rows.get(r).get(4);
-      const f = cellD && cellD.f;
-      const b = [];
-      const q = [];
-      for (let m = 0; m < 12; m++) {
-        b.push(num(rows, r, 3 + 4 * m));
-        q.push(num(rows, r, 5 + 4 * m));
-      }
-      const hit = fieldOf(f);
-      const sum = f && /^SUM\(D(\d+):D(\d+)\)$/.exec(f.replace(/\s+/g, ''));
-      if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q });
-      else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q: [] });
-      else lines.push({ row: r, label, kind: 'head', b, q });
-    }
-    bva = { year, lines };
-  }
-
-  // ---- consolidated profit and loss (latest year)
+  // ---- consolidated profit and loss (latest year): this is where the monthly budget lives
   let pnl = null;
+  let pRows = null;
   const ps = latest(byName(/^consl\. p&l fy-/));
   if (ps) {
-    const rows = await open(ps);
+    pRows = await open(ps);
+    const rows = pRows;
     const out = [];
     for (let r = 6; r <= 400; r++) {
       const raw = text(rows, r, 1);
@@ -171,8 +139,48 @@ export async function readWorkbook(buf) {
       }
       out.push({ label, level: Math.min(3, Math.floor((raw.length - raw.trimStart().length) / 3)), kind: /^(total |gross profit|net )/i.test(label) ? 'total' : any ? 'line' : 'head', vals });
     }
-    pnl = { year: yearOf(ps) || (bva && bva.year) || 0, title: [text(rows, 1, 1), text(rows, 2, 1), text(rows, 3, 1)].filter(Boolean), rows: out };
+    pnl = { year: yearOf(ps) || 0, title: [text(rows, 1, 1), text(rows, 2, 1), text(rows, 3, 1)].filter(Boolean), rows: out };
   }
+
+  // ---- budget against actual (latest year). Each month has a block of four columns (budget, actual, QuickBooks, variance)
+  // that is only filled up to the last closed month, so the budget for every month is read from the P&L row the first month points at.
+  let bva = null;
+  const bs = latest(byName(/^bh vs ah fy/));
+  if (bs) {
+    const rows = await open(bs);
+    const year = new Date(iso(num(rows, 1, 3) || 0)).getUTCFullYear() || yearOf(bs);
+    const BLOCKS = 9;
+    const lines = [];
+    let grand = false;
+    for (let r = 3; r <= 200; r++) {
+      const label = text(rows, r, 2).trim();
+      if (!label) continue;
+      if (/^total budgeted/i.test(label)) {
+        if (grand) break;
+        grand = true;
+        lines.push({ row: r, label: 'Total Budgeted', kind: 'grand', b: [], q: [] });
+        continue;
+      }
+      const cellD = rows.get(r) && rows.get(r).get(4);
+      const f = cellD && cellD.f;
+      const cellC = rows.get(r) && rows.get(r).get(3);
+      const ref = cellC && cellC.f && /P&L[^!]*'!\$?B\$?(\d+)$/.exec(cellC.f.trim());
+      const b = [];
+      const q = [];
+      for (let m = 0; m < 12; m++) {
+        const fromP = ref && pRows ? num(pRows, Number(ref[1]), 2 + m) : null;
+        b.push(fromP !== null ? fromP : m < BLOCKS ? num(rows, r, 3 + 4 * m) : 0);
+        q.push(m < BLOCKS ? num(rows, r, 5 + 4 * m) : 0);
+      }
+      const hit = fieldOf(f);
+      const sum = f && /^SUM\(D(\d+):D(\d+)\)$/.exec(f.replace(/\s+/g, ''));
+      if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q });
+      else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q: [] });
+      else lines.push({ row: r, label, kind: 'head', b, q });
+    }
+    bva = { year, lines };
+  }
+  if (pnl && !pnl.year && bva) pnl.year = bva.year;
 
   return { entries, dash, bva, pnl };
 }
