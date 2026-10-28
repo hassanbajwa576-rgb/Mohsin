@@ -1,6 +1,6 @@
 ﻿import 'server-only';
 import { q } from './db';
-import { todayKey, allOffices, dayBoard, stateOf } from './att';
+import { todayKey, allOffices, dayBoard, stateOf, LATE_AFTER, EARLY_BEFORE, fmtTime } from './att';
 import { can } from './perms';
 import { MONTHS, MON3, pkr, officeCosts, budgetByHead, erYears, headcount } from './exprev';
 import { fundSummary, soAccount } from './queries';
@@ -169,6 +169,29 @@ async function extraTopics(user, n, nowY, nowM, today) {
   const om = user.role === 'om';
   const sup = om || user.role === 'sso';
   const office = officeAsked(n, user);
+  // Attendance: who was late today, and one employee's stats for the chosen months
+  if (can(user, 'att_view') && !has(n, /visitor/)) {
+    if (has(n, /\blate\b/) && !has(n, /\bstats?\b/)) {
+      const { staff, by } = await dayBoard(today, office);
+      const lateL = [];
+      for (const s of staff) {
+        const ins = (by.get(s.id) || []).filter((e) => e.kind === 'in');
+        if (ins.length) {
+          const hm = fmtTime(ins[0].ms);
+          if (hm > LATE_AFTER) lateL.push(s.name + ' at ' + hm);
+        }
+      }
+      return lateL.length ? lines('Late check-ins today (after ' + LATE_AFTER + ')' + (office ? ' in ' + office : '') + ':', ...names(lateL)) : 'No late check-ins today.';
+    }
+    const staffRows = await q('SELECT s.id, s.name, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active');
+    const who = staffRows.find((s) => norm(s.name).split(' ').some((w) => w.length >= 3 && new RegExp('\\b' + w + '\\b').test(n)));
+    if (who && has(n, /attendance|\bstats?\b|statistics|late|early|present|days|check ?in|check ?out|breaks?|performance/)) {
+      const wA = when(n, nowY, nowM);
+      const [aF, aT] = range(wA);
+      const r = (await q("SELECT COUNT(DISTINCT (a.at AT TIME ZONE 'Asia/Karachi')::date) FILTER (WHERE a.kind = 'in')::int AS days, COUNT(*) FILTER (WHERE a.kind = 'in' AND to_char(a.at AT TIME ZONE 'Asia/Karachi', 'HH24:MI') > $3)::int AS late, COUNT(*) FILTER (WHERE a.kind = 'out' AND to_char(a.at AT TIME ZONE 'Asia/Karachi', 'HH24:MI') < $4)::int AS early, COUNT(*) FILTER (WHERE a.kind = 'break_out')::int AS breaks FROM pc2_attendance a WHERE a.staff_id = $1 AND a.at >= (($2::date)::timestamp AT TIME ZONE 'Asia/Karachi') AND a.at < (($5::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi')", [who.id, aF, LATE_AFTER, EARLY_BEFORE, aT]))[0];
+      return lines(who.name + ' (' + who.office + '), ' + wA.label + ':', '  Days checked in: ' + r.days, '  Late check-ins (after ' + LATE_AFTER + '): ' + r.late, '  Early check-outs (before ' + EARLY_BEFORE + '): ' + r.early, '  Breaks taken: ' + r.breaks);
+    }
+  }
   // Attendance: who is in
   if (has(n, /attendance|present|absent|on duty|on break|checked in|not in yet|who is in today|staff in|employees in/) && !has(n, /visitor/)) {
     if (!can(user, 'att_view')) return 'You do not have access to the attendance board, so I cannot answer that.';
