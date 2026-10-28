@@ -184,7 +184,7 @@ async function SoDashboard({ user, sp }) {
   const acct = await soAccount(user.id);
   const w = expWhere(user, {});
   const [pipeRows, recent] = await Promise.all([
-    q(`SELECT e.status, COUNT(*)::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ${EXP_FROM} ${w.where} GROUP BY e.status`, w.params),
+    q(`SELECT e.status, COUNT(DISTINCT COALESCE(e.split_group, e.id::text))::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ${EXP_FROM} ${w.where} GROUP BY e.status`, w.params),
     q(`SELECT ${EXP_COLS} ${EXP_FROM} ${w.where} ORDER BY e.spent_on DESC, e.id DESC LIMIT 10`, w.params),
   ]);
   const lowCash = acct.advances > 0 && acct.cash < 0.2 * acct.advances;
@@ -303,7 +303,7 @@ export default async function Dashboard({ searchParams }) {
   const todoWhere = (w.where ? w.where + ' AND ' : 'WHERE ') + 'e.status = ANY($' + (w.params.length + 1) + '::text[])';
 
   const [pipeRows, todo, funds, offSpent, waiting] = await Promise.all([
-    q(`SELECT e.status, COUNT(*)::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ${EXP_FROM} ${w.where} GROUP BY e.status`, w.params),
+    q(`SELECT e.status, COUNT(DISTINCT COALESCE(e.split_group, e.id::text))::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ${EXP_FROM} ${w.where} GROUP BY e.status`, w.params),
     q(`SELECT ${EXP_COLS} ${EXP_FROM} ${todoWhere} ORDER BY e.created_at LIMIT 25`, [...w.params, todoStatuses]),
     fundSummary({ from, to }),
     q(`SELECT o.code AS label, SUM(e.amount)::float8 AS value FROM pc2_expenses e JOIN pc2_offices o ON o.id = e.office_id WHERE e.status <> 'rejected' AND ($1::date IS NULL OR e.spent_on >= $1::date) AND ($2::date IS NULL OR e.spent_on <= $2::date) GROUP BY o.code`, [from || null, to || null]),

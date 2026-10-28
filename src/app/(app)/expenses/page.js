@@ -31,7 +31,7 @@ export default async function ExpensesPage({ searchParams }) {
     ? (await issueRows(user)).map((i) => ({ ...i, left: i.amount - i.returned - Number(i.spent) })).filter((i) => i.left > 0)
     : [];
   const dq = isSO
-    ? (await q(`SELECT COUNT(*)::int AS c, COALESCE(SUM(amount), 0)::float8 AS v FROM pc2_expenses WHERE submitted_by = $1 AND status = 'draft'`, [user.id]))[0]
+    ? (await q(`SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int AS c, COALESCE(SUM(amount), 0)::float8 AS v FROM pc2_expenses WHERE submitted_by = $1 AND status = 'draft'`, [user.id]))[0]
     : null;
 
   const showAll = sp.more === '1';
