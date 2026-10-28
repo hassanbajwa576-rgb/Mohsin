@@ -1,5 +1,6 @@
 import { editEntry } from '@/lib/att-actions';
 import { KIND_LABEL, fmtTime, dateKey } from '@/lib/att';
+import TimePick from '@/components/TimePick';
 
 // "Edit" button that opens a small form to change the type, date and time of one entry.
 export default function EntryEdit({ m, back = '/attendance' }) {
@@ -15,7 +16,7 @@ export default function EntryEdit({ m, back = '/attendance' }) {
           </select>
         </label>
         <label>Date<input type='date' name='date' defaultValue={dateKey(m.ms)} required /></label>
-        <label>Time<input type='time' name='time' defaultValue={fmtTime(m.ms)} required /></label>
+        <label>Time<TimePick name='time' defaultValue={fmtTime(m.ms)} required /></label>
         <button className='btn primary' type='submit'>Save</button>
       </form>
     </details>

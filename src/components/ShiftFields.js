@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import TimePick from '@/components/TimePick';
 
 const SHIFTS = [['', 'None'], ['morning', 'Morning'], ['evening', 'Evening'], ['night', 'Night']];
 
@@ -32,8 +33,8 @@ export default function ShiftFields({ shift = '', start = '', end = '', noneLabe
       </div>
       {sh ? (
         <div className='att-when'>
-          <label>Shift starts<input type='time' name='shift_start' value={a} onChange={(e) => setA(e.target.value)} required /></label>
-          <label>Shift ends<input type='time' name='shift_end' value={b} onChange={(e) => setB(e.target.value)} required /></label>
+          <label>Shift starts<TimePick name='shift_start' value={a} onChange={setA} required /></label>
+          <label>Shift ends<TimePick name='shift_end' value={b} onChange={setB} required /></label>
         </div>
       ) : null}
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import TimePick from '@/components/TimePick';
 
 const SCOPES = [['department', 'Departments'], ['employee', 'Specific employees'], ['everyone', 'Everyone']];
 
@@ -68,8 +69,8 @@ export default function TempHoursForm({ depts, staff, action, today }) {
 
       <label>From date<input type='date' name='from_date' defaultValue={today} required /></label>
       <label>To date (last day)<input type='date' name='to_date' defaultValue={today} required /></label>
-      <label>Starts<input type='time' name='shift_start' required /></label>
-      <label>Ends<input type='time' name='shift_end' required /></label>
+      <label>Starts<TimePick name='shift_start' required /></label>
+      <label>Ends<TimePick name='shift_end' required /></label>
       <label className='wide'>Note (optional)<input name='note' maxLength={80} placeholder='For example: Ramadan hours' /></label>
       <p className='muted wide'>Check in up to 30 minutes after the start is green, and check out from 5 minutes before the end is green. After the last date everyone is back on their normal shift automatically.</p>
       <button className='btn primary' type='submit'>

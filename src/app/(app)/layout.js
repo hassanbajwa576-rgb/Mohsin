@@ -10,6 +10,7 @@ import PushPrompt from '@/components/PushPrompt';
 import TextHelp from '@/components/TextHelp';
 import MotionKit from '@/components/MotionKit';
 import TitleGold from '@/components/TitleGold';
+import { NumpadProvider } from '@/components/TimePick';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,7 @@ export default async function AppLayout({ children }) {
       <TextHelp />
       <MotionKit />
       <TitleGold />
-      <main className='wrap'>{children}</main>
+      <NumpadProvider on={user.role === 'om'}><main className='wrap'>{children}</main></NumpadProvider>
       <footer className='foot'><b>OpsTrack</b> by AlphaBOLD | Powered by <b>Ops</b></footer>
     </>
   );

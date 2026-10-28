@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import TimePick from '@/components/TimePick';
 
 // [value, label, short explanation]
 const KINDS = [
@@ -343,7 +344,7 @@ export default function AttendanceEntryForm({ options, action, defaultOffice, wo
 
       <div className='att-when'>
         <label>Date<input type='date' name='date' value={date} onChange={(e) => setDate(e.target.value)} required /></label>
-        <label>Time<input type='time' name='time' value={time} onChange={(e) => setTime(e.target.value)} required /></label>
+        <label>Time<TimePick name='time' value={time} onChange={setTime} required /></label>
         <button type='button' className='btn ghost' onClick={fillNow}>Use current time</button>
       </div>
 

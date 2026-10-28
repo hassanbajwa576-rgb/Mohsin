@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react';
 import { previewImport, confirmImport, saveAppTimes, markReviewed } from '@/lib/att-actions';
+import TimePick from '@/components/TimePick';
 
 const CHOICES = [
   ['keep', 'Keep what is in the app'],
@@ -151,7 +152,7 @@ export default function ImportExcel({ from, to }) {
                               {c.entries.map((e) => (
                                 <label key={e.id} className='imppoprow'>
                                   <span>{KIND[e.kind]}{e.d !== c.date ? ' (next day)' : ''}</span>
-                                  <input type='time' value={edit.vals[e.id] || ''} onChange={(ev) => setEdit({ ...edit, err: '', vals: { ...edit.vals, [e.id]: ev.target.value } })} />
+                                  <TimePick value={edit.vals[e.id] || ''} onChange={(v) => setEdit({ ...edit, err: '', vals: { ...edit.vals, [e.id]: v } })} />
                                 </label>
                               ))}
                               <p className='muted' style={{ margin: '6px 0' }}>Excel says: {c.excel}</p>

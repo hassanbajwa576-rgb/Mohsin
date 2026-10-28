@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { saveDay, markReviewed, markReviewedMany } from '@/lib/att-actions';
+import TimePick from '@/components/TimePick';
 
 const KIND = { in: 'Check In', out: 'Check Out', break_out: 'Break Out', break_in: 'Break In' };
 const PK = 'Asia/Karachi';
@@ -149,7 +150,7 @@ export default function ReconcileView({ initial }) {
                   {Object.entries(KIND).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}
                 </select>
                 <input type='date' value={l.date} disabled={l.del} onChange={(e) => setLine(i, { date: e.target.value })} />
-                <input type='time' value={l.time} disabled={l.del} onChange={(e) => setLine(i, { time: e.target.value })} placeholder='Time' />
+                <TimePick value={l.time || ''} disabled={l.del} onChange={(v) => setLine(i, { time: v })} />
                 <button type='button' className='btn ghost' onClick={() => setLine(i, { del: !l.del })}>{l.del ? 'Undo' : 'Delete'}</button>
               </div>
             ))}

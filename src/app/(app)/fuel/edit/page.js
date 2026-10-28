@@ -7,6 +7,7 @@ import { dateKey, fmtTime } from '@/lib/att';
 import { cards, fuelScope, canEditFuel, seesBalance, TXN_COLS, TXN_FROM, FUEL_KINDS } from '@/lib/fuel';
 import { editFuel } from '@/lib/fuel-actions';
 import Flash from '@/components/Flash';
+import TimePick from '@/components/TimePick';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +46,7 @@ export default async function FuelEditPage({ searchParams }) {
           ) : null}
           <label>Amount (PKR)<input type='number' name='amount' min='0.01' step='0.01' inputMode='decimal' defaultValue={t.amount} required /></label>
           <label>Date<input type='date' name='date' defaultValue={dateKey(t.at_ms)} required /></label>
-          <label>Time<input type='time' name='time' defaultValue={fmtTime(t.at_ms)} required /></label>
+          <label>Time<TimePick name='time' defaultValue={fmtTime(t.at_ms)} required /></label>
           <label className='wide'>Note (optional)<input name='note' maxLength={120} defaultValue={t.note || ''} /></label>
           <button className='btn primary' type='submit'>Save changes</button>
           <Link href='/fuel/log' className='btn ghost'>Cancel</Link>
