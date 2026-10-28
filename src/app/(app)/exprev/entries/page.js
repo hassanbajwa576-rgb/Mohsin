@@ -38,11 +38,16 @@ export default async function ExpRevEntries({ searchParams }) {
   const size = SIZES.includes(Number(sp.size)) ? Number(sp.size) : 50;
   const cc = String(sp.cc || '');
   const text = String(sp.q || '').trim();
+  const off = sp.of === 'ISB' || sp.of === 'LHR' ? sp.of : '';
   const where = ['spent_on >= $1', 'spent_on <= $2'];
   const args = [from, to];
   if (cc) {
     args.push(cc);
     where.push('cost_center = $' + args.length);
+  }
+  if (off) {
+    args.push(off);
+    where.push("(CASE WHEN upper(trim(office)) = 'ISB' THEN 'ISB' ELSE 'LHR' END) = $" + args.length);
   }
   if (text) {
     args.push('%' + text + '%');
@@ -60,7 +65,7 @@ export default async function ExpRevEntries({ searchParams }) {
   ]);
   const of = (k) => lists.filter((x) => x.k === k && x.v).map((x) => x.v);
   const ccs = of('cc');
-  const keep = { ...(range ? { range } : custom ? { from, to } : {}), ...(cc ? { cc } : {}), ...(text ? { q: text } : {}), size: String(size) };
+  const keep = { ...(range ? { range } : custom ? { from, to } : {}), ...(cc ? { cc } : {}), ...(off ? { of: off } : {}), ...(text ? { q: text } : {}), size: String(size) };
   const link = (extra) => '/exprev/entries?' + new URLSearchParams({ ...keep, ...extra }).toString();
   const lo = count ? offset + 1 : 0;
   const hi = Math.min(count, offset + size);
@@ -110,7 +115,7 @@ export default async function ExpRevEntries({ searchParams }) {
       </details>
 
       <div className='inline er-months'>
-        {RANGES.map(([k, l]) => <Link key={k} href={'/exprev/entries?range=' + k + '&size=' + size} className={'chip' + ((range || (custom ? '' : 'month')) === k ? ' on' : '')}>{l}</Link>)}
+        {RANGES.map(([k, l]) => <Link key={k} href={'/exprev/entries?range=' + k + '&size=' + size + (off ? '&of=' + off : '') + (cc ? '&cc=' + encodeURIComponent(cc) : '')} className={'chip' + ((range || (custom ? '' : 'month')) === k ? ' on' : '')}>{l}</Link>)}
       </div>
 
       <Collapsible title='Filters'>
@@ -119,6 +124,9 @@ export default async function ExpRevEntries({ searchParams }) {
         <label>To<input type='date' name='to' defaultValue={to} /></label>
         <label>Cost center
           <select name='cc' defaultValue={cc}><option value=''>All</option>{ccs.map((v) => <option key={v} value={v}>{v}</option>)}</select>
+        </label>
+        <label>Office
+          <select name='of' defaultValue={off} autoComplete='off'><option value=''>All</option><option value='LHR'>LHR (blank)</option><option value='ISB'>ISB</option></select>
         </label>
         <label>Search<input name='q' defaultValue={text} placeholder='Detail, vendor, remarks' /></label>
         <label>Per page
@@ -149,7 +157,7 @@ export default async function ExpRevEntries({ searchParams }) {
                     <td className='c-meta'>{r.detail}{r.remarks ? <div className='muted'>{r.remarks}</div> : null}</td>
                     <td className='r nw c-meta'><b>{money(r.amount)}</b></td>
                     <td className='c-meta'>{r.pay_mode}</td>
-                    <td className='c-meta'>{r.office}</td>
+                    <td className='c-meta'>{r.office || 'LHR'}</td>
                     <td className='c-meta'>{r.vendor}</td>
                     <td className='act'>
                       <form action={deleteEntry} className='inline'>

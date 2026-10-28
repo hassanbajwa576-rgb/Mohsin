@@ -42,14 +42,15 @@ export default async function ExpRevDashboard({ searchParams }) {
   }
   const today = todayKey();
   const y = years.includes(Number(sp.y)) ? Number(sp.y) : years.includes(Number(today.slice(0, 4))) ? Number(today.slice(0, 4)) : years[0];
-  const d = await dashboard(y);
+  const of = sp.of === 'ISB' || sp.of === 'LHR' ? sp.of : '';
+  const d = await dashboard(y, of);
   let m = Number(sp.m);
   if (!(m >= 1 && m <= 12)) {
     const last = d.month.reduce((a, v, i) => (v ? i + 1 : a), 0);
     m = y === Number(today.slice(0, 4)) ? Number(today.slice(5, 7)) : last || 1;
   }
   const max = Math.max(...d.month, 1);
-  const qs = (yy, mm) => '/exprev?y=' + yy + '&m=' + mm;
+  const qs = (yy, mm, oo = of) => '/exprev?y=' + yy + '&m=' + mm + (oo ? '&of=' + oo : '');
   const top = d.main.filter((r) => r.vals[m - 1] > 0).sort((a, b) => b.vals[m - 1] - a.vals[m - 1]).slice(0, 6);
   const prev = m > 1 ? d.month[m - 2] : 0;
   const diff = prev ? ((d.month[m - 1] - prev) / prev) * 100 : null;
@@ -66,6 +67,9 @@ export default async function ExpRevDashboard({ searchParams }) {
         </div>
       </div>
       <Flash sp={sp} />
+      <div className='inline er-months'>
+        {[['', 'All offices'], ['LHR', 'LHR (blank)'], ['ISB', 'ISB']].map(([k, l]) => <Link key={k} href={qs(y, m, k)} className={'chip' + (of === k ? ' on' : '')}>{l}</Link>)}
+      </div>
 
       <div className='kpis er-kpis'>
         <div className='card kpi'><span>{MONTHS[m - 1]} {y}</span><b>{pkr(d.month[m - 1])}</b>{diff !== null ? <small>{diff >= 0 ? 'Up ' : 'Down '}{Math.abs(diff).toFixed(0)}% on {MONTHS[m - 2]}</small> : null}</div>
@@ -112,6 +116,9 @@ export default async function ExpRevDashboard({ searchParams }) {
             { label: 'gap', gap: true },
             ...d.extras.map((r, k) => ({ ...r, cls: k ? 'xl-ven' : 'xl-adv' })),
             { label: 'Grand total', vals: d.month, cls: 'xl-grand' },
+            { label: 'gap2', gap: true },
+            { label: 'LHR office (blank)', vals: d.byOffice.LHR, cls: 'xl-ven' },
+            { label: 'ISB office', vals: d.byOffice.ISB, cls: 'xl-adv' },
           ]}
         />
       </div>

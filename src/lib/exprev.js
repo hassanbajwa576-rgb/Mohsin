@@ -28,10 +28,11 @@ export async function erStatus() {
 }
 
 // Spend of one year by month, grouped by cost centre and by expense type.
-async function sums(year) {
+// An entry's office is ISB when the sheet says ISB; a blank office means LHR. office: '' (all), 'ISB' or 'LHR'.
+async function sums(year, office = '') {
   const rows = await q(
-    'SELECT extract(month from spent_on)::int AS m, cost_center AS cc, expense_type AS et, SUM(amount)::float8 AS s FROM pc2_er_entries WHERE spent_on >= $1 AND spent_on <= $2 GROUP BY 1, 2, 3',
-    [year + '-01-01', year + '-12-31']
+    'SELECT extract(month from spent_on)::int AS m, cost_center AS cc, expense_type AS et, SUM(amount)::float8 AS s FROM pc2_er_entries WHERE spent_on >= $1 AND spent_on <= $2 AND ($3 = \'\' OR (CASE WHEN upper(trim(office)) = \'ISB\' THEN \'ISB\' ELSE \'LHR\' END) = $3) GROUP BY 1, 2, 3',
+    [year + '-01-01', year + '-12-31', office]
   );
   const cc = new Map();
   const et = new Map();
@@ -50,8 +51,14 @@ const total = (a) => a.reduce((x, y) => x + y, 0);
 
 // The dashboard, laid out like the workbook: one row per cost center, a subtotal, then the advances and tax rows, then the final total.
 const EXTRA = /^(assets \/ security advances|vendor taxes payment)/i;
-export async function dashboard(year) {
-  const [lines, s] = await Promise.all([q("SELECT label, field, mval, meta FROM pc2_er_sheet WHERE kind = 'dash' ORDER BY sort"), sums(year)]);
+export async function dashboard(year, office = '') {
+  const [lines, s, offRows] = await Promise.all([
+    q("SELECT label, field, mval, meta FROM pc2_er_sheet WHERE kind = 'dash' ORDER BY sort"),
+    sums(year, office),
+    q("SELECT extract(month from spent_on)::int AS m, (CASE WHEN upper(trim(office)) = 'ISB' THEN 'ISB' ELSE 'LHR' END) AS o, SUM(amount)::float8 AS s FROM pc2_er_entries WHERE spent_on >= $1 AND spent_on <= $2 GROUP BY 1, 2", [year + '-01-01', year + '-12-31']),
+  ]);
+  const byOffice = { LHR: zeros(), ISB: zeros() };
+  for (const r of offRows) byOffice[r.o][r.m - 1] += r.s;
   // A cost center row, with the expense types listed beneath it in the workbook as its children (opened with the + button).
   const cc = [];
   for (const l of lines) {
@@ -66,7 +73,7 @@ export async function dashboard(year) {
   const other = s.month.map((v, i) => v - listed[i]);
   if (other.some((v) => Math.abs(v) > 0.5)) main.push({ label: 'Other (not on the list)', extra: false, vals: other, kids: [] });
   const mainTotal = main.reduce((a, r) => plus(a, r.vals), zeros());
-  return { main, extras, mainTotal, month: s.month, year: total(s.month) };
+  return { main, extras, mainTotal, month: s.month, year: total(s.month), byOffice };
 }
 
 // Budget against actual, as the workbook has it. Months the workbook has worked out (Jan to the closed month) show its own
