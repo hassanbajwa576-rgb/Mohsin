@@ -59,6 +59,7 @@ export default function ReadySubmit({ rows, action }) {
                 <td className='c-title'>
                   <OfficeTag o={r.office} /><b>{r.category}</b>
                   {r.description ? <div className='muted'>{r.description}</div> : null}
+                  {r.ids && r.ids.length > 1 ? <div className='muted'>One expense, recorded in {r.ids.length} parts</div> : null}
                 </td>
                 <td className='c-meta'>{r.fund}</td>
                 <td className='c-meta'>{r.submitter}</td>
@@ -74,7 +75,7 @@ export default function ReadySubmit({ rows, action }) {
         <button type='button' className='btn ghost' onClick={() => setOn((s) => new Set([...s, ...shown.map((r) => r.id)]))}>Select all</button>
         <button type='button' className='btn ghost' onClick={() => setOn(new Set())}>Clear</button>
       </p>
-      <input type='hidden' name='ids' value={picked.map((r) => r.id).join(',')} />
+      <input type='hidden' name='ids' value={picked.flatMap((r) => r.ids || [r.id]).join(',')} />
       <div className='form'>
         <label className='wide'>Note for Accounts<input name='note' placeholder='Optional, e.g. October petty cash settlement' /></label>
         <button className='btn primary' type='submit' disabled={picked.length === 0}>{'Submit ' + picked.length + ' to Accounts'}</button>

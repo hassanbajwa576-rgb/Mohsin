@@ -2,7 +2,7 @@ import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { EXP_FROM, EXP_COLS } from '@/lib/queries';
 import { submitToAccounts } from '@/lib/actions';
-import { pkr, FUNDS } from '@/lib/fmt';
+import { pkr, FUNDS, mergeSplits } from '@/lib/fmt';
 import ReadySubmit from '@/components/ReadySubmit';
 import ExpenseTable from '@/components/ExpenseTable';
 import Flash from '@/components/Flash';
@@ -15,7 +15,6 @@ export default async function AccountsPage({ searchParams }) {
     q(`SELECT ${EXP_COLS} ${EXP_FROM} WHERE e.status = 'approved' AND e.batch_id IS NULL ORDER BY e.spent_on, e.id`),
     q(`SELECT b.id, b.total, b.item_count, b.note, to_char(b.created_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD HH24:MI') AS created, u.name AS creator FROM pc2_batches b JOIN pc2_users u ON u.id = b.created_by ORDER BY b.id DESC LIMIT 100`),
   ]);
-  const total = ready.reduce((a, r) => a + Number(r.amount), 0);
 
   return (
     <>
@@ -32,7 +31,7 @@ export default async function AccountsPage({ searchParams }) {
         {ready.length === 0 ? <p className='muted'>Nothing to show yet.</p> : (
           <ReadySubmit
             action={submitToAccounts}
-            rows={ready.map((r) => ({ id: r.id, spent_on: r.spent_on, office: r.office, fund: FUNDS[r.fund], category: r.category, description: r.description, submitter: r.submitter, amount: Number(r.amount) }))}
+            rows={mergeSplits(ready).map((r) => ({ id: r.id, ids: r.ids || [r.id], spent_on: r.spent_on, office: r.office, fund: FUNDS[r.fund], category: r.category, description: r.description, submitter: r.submitter, amount: Number(r.amount) }))}
           />
         )}
       </div>
