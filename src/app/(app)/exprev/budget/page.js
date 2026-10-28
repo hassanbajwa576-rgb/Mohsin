@@ -43,7 +43,10 @@ export default async function ExpRevBudget({ searchParams }) {
   const g = d.rows.find((r) => r.kind === 'grand2') || d.rows.find((r) => r.kind === 'grand');
   const gb = g ? pick(g.b) : 0;
   const gbc = g ? pickC(g.b) : 0;
-  const ga = g ? pick(g.a) : 0;
+  // Exactly the workbook's year-to-date range (January to the last worked month): use the workbook's own YTD figure.
+  const isYtd = from === 1 && to === d.closed;
+  const act = (r) => (isYtd && typeof r.ya === 'number' ? r.ya : pick(r.a));
+  const ga = g ? act(g) : 0;
   const href = (mm) => '/exprev/budget?m=' + mm;
 
   return (
@@ -78,7 +81,7 @@ export default async function ExpRevBudget({ searchParams }) {
           head={[{ t: 'Expense' }, { t: 'Budgeted', r: true }, { t: 'Actual by Ops', r: true }, { t: 'In QuickBooks', r: true }, { t: 'Variance', r: true }]}
           rows={d.rows.map((r) => {
             const b = pick(r.b);
-            const a = pick(r.a);
+            const a = act(r);
             const v = pickC(r.b) - a;
             const flat = r.kind === 'total' || r.kind === 'grand' || r.kind === 'grand2' || r.kind === 'rest' || r.kind === 'restitem';
             return {

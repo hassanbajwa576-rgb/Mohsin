@@ -159,15 +159,22 @@ export async function readWorkbook(buf) {
     }
     let closed = 0;
     while (blocks.has(closed)) closed += 1;
+    // The workbook's own year-to-date block (headed "YTD" in row 1): actual by Ops is its second column.
+    let ytdCol = 0;
+    if (head1) for (const [col, cell] of head1) if (!ytdCol && col >= 3 && typeof cell.v === 'string' && /^ytd/i.test(cell.v.trim())) ytdCol = col;
     const lines = [];
     let grand = false;
+    let finalYa = null;
     for (let r = 3; r <= 200; r++) {
       const label = text(rows, r, 2).trim();
       if (!label) continue;
       if (/^total budgeted/i.test(label)) {
-        if (grand) break;
+        if (grand) {
+          finalYa = ytdCol ? num(rows, r, ytdCol + 1) : null;
+          break;
+        }
         grand = true;
-        lines.push({ row: r, label: 'Total Budgeted', kind: 'grand', b: [], q: [] });
+        lines.push({ row: r, label: 'Total Budgeted', kind: 'grand', b: [], q: [], ya: ytdCol ? num(rows, r, ytdCol + 1) : null });
         continue;
       }
       const cellD = rows.get(r) && rows.get(r).get(4);
@@ -191,9 +198,10 @@ export async function readWorkbook(buf) {
       // The workbook's own actual for every month (column 4 of each block); only the closed months are used later.
       const xa = [];
       for (let m = 0; m < 12; m++) xa.push(blocks.has(m) ? num(rows, r, blocks.get(m) + 1) : null);
-      if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q, xa });
-      else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q: [], xa });
-      else lines.push({ row: r, label, kind: 'head', b, q, xa });
+      const ya = ytdCol ? num(rows, r, ytdCol + 1) : null;
+      if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q, xa, ya });
+      else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q: [], xa, ya });
+      else lines.push({ row: r, label, kind: 'head', b, q, xa, ya });
     }
     // Closed months: the ones the workbook has worked out (the first Total Budgeted row has an actual for them, no gap).
     for (const l of lines) {
@@ -201,7 +209,7 @@ export async function readWorkbook(buf) {
       for (let m = closed; m < 12; m++) l.q && l.q[m] !== undefined && (l.q[m] = 0);
       delete l.xa;
     }
-    bva = { year, lines, closed };
+    bva = { year, lines, closed, finalYa };
   }
   if (pnl && !pnl.year && bva) pnl.year = bva.year;
 

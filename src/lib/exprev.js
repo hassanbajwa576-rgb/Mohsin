@@ -78,10 +78,22 @@ export async function budgetView(year) {
       b: has ? v.b || zeros() : zeros(),
       q: has ? v.q || zeros() : zeros(),
       a: has ? v.a || zeros() : zeros(),
+      ya: typeof v.ya === 'number' ? v.ya : null,
       inside: false,
     };
   });
+  // Every line between a heading and its total belongs to that total, even one the sheet's SUM leaves out (a line with no spend).
+  for (const t of rows.filter((r) => r.kind === 'total')) {
+    for (const r of rows) {
+      if (r.row >= t.rng[0] - 6 && r.row < t.rng[0] && r.kind === 'line') {
+        const prev = rows.filter((x) => x.row < r.row && x.row >= t.rng[0] - 6).some((x) => x.kind === 'total');
+        if (!prev) r.inside = true;
+      }
+    }
+  }
   const totals = rows.filter((r) => r.kind === 'total');
+  // A total's year-to-date actual is the workbook's own figure when it has one; otherwise it is the sum of its lines.
+  const ownYa = new Set(totals.filter((r) => r.ya !== null).map((r) => r.row));
   for (const t of totals) {
     for (const r of rows) {
       if (r.row >= t.rng[0] && r.row <= t.rng[1] && r.kind !== 'total') {
@@ -89,25 +101,30 @@ export async function budgetView(year) {
         t.b = plus(t.b, r.b);
         t.q = plus(t.q, r.q);
         t.a = plus(t.a, r.a);
+        if (!ownYa.has(t.row) && r.ya !== null) t.ya = (t.ya || 0) + r.ya;
       }
     }
   }
   const grand = rows.find((r) => r.kind === 'grand');
+  const grandOwn = !!grand && grand.ya !== null;
+  const finalYa = lines[0] && typeof lines[0].meta.finalYa === 'number' ? lines[0].meta.finalYa : null;
   for (const r of rows) {
     if (grand && r.row < grand.row && (r.kind === 'total' || (!r.inside && (r.kind === 'line' || r.kind === 'head')))) {
       grand.b = plus(grand.b, r.b);
       grand.q = plus(grand.q, r.q);
       grand.a = plus(grand.a, r.a);
+      if (!grandOwn && r.ya !== null && r.ya !== undefined) grand.ya = (grand.ya || 0) + r.ya;
     }
   }
   // Lines after the first Total Budgeted (contingency, vendor taxes) belong to a final total, as in the workbook.
   if (grand) {
-    const fin = { row: 9998, label: 'Total Budgeted', kind: 'grand2', b: grand.b, q: grand.q, a: grand.a, inside: false };
+    const fin = { row: 9998, label: 'Total Budgeted', kind: 'grand2', b: grand.b, q: grand.q, a: grand.a, ya: finalYa !== null ? finalYa : grand.ya === undefined ? null : grand.ya, inside: false };
     for (const r of rows) {
       if (r.row > grand.row && r.kind !== 'grand2' && !r.inside && (r.kind === 'line' || r.kind === 'head')) {
         fin.b = plus(fin.b, r.b);
         fin.q = plus(fin.q, r.q);
         fin.a = plus(fin.a, r.a);
+        if (finalYa === null && r.ya !== null && r.ya !== undefined) fin.ya = (fin.ya || 0) + r.ya;
       }
     }
     rows.push(fin);
