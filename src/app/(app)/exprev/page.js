@@ -67,7 +67,7 @@ export default async function ExpRevDashboard({ searchParams }) {
       </div>
       <Flash sp={sp} />
 
-      <div className='kpis'>
+      <div className='kpis er-kpis'>
         <div className='card kpi'><span>{MONTHS[m - 1]} {y}</span><b>{pkr(d.month[m - 1])}</b>{diff !== null ? <small>{diff >= 0 ? 'Up ' : 'Down '}{Math.abs(diff).toFixed(0)}% on {MONTHS[m - 2]}</small> : null}</div>
         <div className='card kpi alt'><span>Total for {y}</span><b>{pkr(d.year)}</b><small>All months with entries</small></div>
         <div className='card kpi alt'><span>Average a month</span><b>{pkr(d.year / Math.max(1, d.month.filter((v) => v).length))}</b><small>Months with entries</small></div>

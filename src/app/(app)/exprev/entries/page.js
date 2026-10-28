@@ -5,6 +5,7 @@ import { todayKey, validDate } from '@/lib/att';
 import { money, pkr } from '@/lib/exprev';
 import { addEntry, deleteEntry } from '@/lib/exprev-actions';
 import Flash from '@/components/Flash';
+import Collapsible from '@/components/Collapsible';
 import ConfirmButton from '@/components/ConfirmButton';
 
 export const dynamic = 'force-dynamic';
@@ -112,7 +113,8 @@ export default async function ExpRevEntries({ searchParams }) {
         {RANGES.map(([k, l]) => <Link key={k} href={'/exprev/entries?range=' + k + '&size=' + size} className={'chip' + ((range || (custom ? '' : 'month')) === k ? ' on' : '')}>{l}</Link>)}
       </div>
 
-      <form method='get' className='card filters'>
+      <Collapsible title='Filters'>
+      <form method='get' className='filters'>
         <label>From<input type='date' name='from' defaultValue={from} /></label>
         <label>To<input type='date' name='to' defaultValue={to} /></label>
         <label>Cost center
@@ -125,8 +127,9 @@ export default async function ExpRevEntries({ searchParams }) {
         <button className='btn' type='submit'>Apply</button>
         <Link href='/exprev/entries' className='btn ghost'>Reset</Link>
       </form>
+      </Collapsible>
 
-      <div className='kpis'>
+      <div className='kpis er-kpis'>
         <div className='card kpi'><span>Total of these entries</span><b>{pkr(sum[0].total)}</b></div>
         <div className='card kpi alt'><span>Entries</span><b>{sum[0].n.toLocaleString('en-US')}</b><small>Showing {lo.toLocaleString('en-US')} to {hi.toLocaleString('en-US')} · page {page} of {pages}</small></div>
       </div>

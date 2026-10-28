@@ -26,7 +26,7 @@ export default function XlTable({ months, hrefs, m, rows }) {
           <button type='button' className='btn ghost' onClick={() => setOpen(new Set())}>Collapse all</button>
         </div>
       ) : null}
-      <div className='tablewrap'>
+      <div className='tablewrap er-xlwrap'>
         <table className='er-xl'>
           <thead>
             <tr>

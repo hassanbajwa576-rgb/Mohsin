@@ -81,7 +81,7 @@ export default async function ExpRevBudget({ searchParams }) {
         <button className='btn' type='submit'>Show</button>
       </form>
 
-      <div className='kpis'>
+      <div className='kpis er-kpis'>
         <div className='card kpi'><span>Budgeted, {span}</span><b>{pkr(gb)}</b></div>
         <div className='card kpi alt'><span>Actual by Ops</span><b>{pkr(ga)}</b></div>
         <div className={'card kpi alt' + (gbc - ga < 0 ? ' neg' : ' pos')}><span>{gbc - ga < 0 ? 'Over budget by' : 'Under budget by'}</span><b>{pkr(Math.abs(gbc - ga))}</b></div>

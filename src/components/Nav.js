@@ -6,6 +6,7 @@ import Bell from './Bell';
 import LangToggle from './LangToggle';
 import ModuleTier from './ModuleTier';
 import TopLinks from './TopLinks';
+import MobileMenu from './MobileMenu';
 import { PERMS, can } from '@/lib/perms';
 
 // Two-tier header. Row 1: AlphaBOLD logo, OpsTrack, account. Row 2: module switch and menu.
@@ -33,6 +34,7 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approv
           {guard
             ? <span className='me'>{who}</span>
             : <Link href='/profile' className='me' title='My profile'>{who}</Link>}
+          {guard ? null : <MobileMenu role={user.role} approvals={approvals} />}
           <form action={logout}><button className='btn ghost' type='submit'>Sign out</button></form>
         </div>
       </div>
