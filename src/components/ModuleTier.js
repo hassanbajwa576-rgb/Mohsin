@@ -72,7 +72,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   if (access.includes('att_reports')) reports.push(page('/attendance/reports', 'Reports'), page('/attendance/analysis', 'Analysis'));
   const manage = [];
   if (access.includes('att_staff')) manage.push(page('/attendance/staff', 'Employees', mark));
-  manage.push(om || role === 'sso' ? page('/attendance/hk-roster', 'Roster') : page('/attendance/hk-roster/request', 'Time Off Request'));
+  if (!guard) manage.push(om || role === 'sso' ? page('/attendance/hk-roster', 'Roster') : page('/attendance/hk-roster/request', 'Time Off Request'));
   if (access.includes('att_import')) manage.push(page('/attendance/import', 'Import', mark));
   if (access.includes('att_reconcile')) manage.push(page('/attendance/reconcile', 'Reconciliation'));
 

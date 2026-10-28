@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 // Anyone can ask for time off for a support team member; the Sr. Ops Manager or the Sr. Support Officer approves it.
 export default async function RequestPage({ searchParams }) {
-  const user = await requireUser(ATT_ROLES);
+  const user = await requireUser(ATT_ROLES.filter((r) => r !== 'guard'));
   const sp = await searchParams;
   const today = todayKey();
   const team = await hkPeople({ office: allOffices(user) ? '' : user.office_code });

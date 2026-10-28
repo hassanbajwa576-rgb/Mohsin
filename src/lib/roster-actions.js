@@ -79,6 +79,7 @@ export async function addTimeOff(fd) {
 // Ask for time off (anyone). It waits for the Sr. Ops Manager to approve.
 export async function requestTimeOff(fd) {
   const u = await needAny();
+  if (u.role === 'guard') redirect('/');
   const here = ROOT + '/request';
   const a = await readTimeOff(fd, u, here);
   const r = await q(`INSERT INTO pc2_hk_off (hk_id, from_date, to_date, kind, note, created_by, hours, status, requested_by) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $6) RETURNING id`, [a.st.id, a.from, a.to, a.kind, a.note, u.id, a.hrs]);
