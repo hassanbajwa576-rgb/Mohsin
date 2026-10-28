@@ -1,4 +1,4 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, todayKey, fmtTime, fmt12, fmtDay, fmtDur, dateKey } from '@/lib/att';
 import { VTYPES, VLABEL, insideNow, visitorRows, hostNames, canEditVisitor, waitingQueue, laterQueue } from '@/lib/visitors';
@@ -166,7 +166,7 @@ export default async function VisitorsPage({ searchParams }) {
               </label>
             ) : null}
             <label>Date<input type='date' name='date' defaultValue={today} required /></label>
-            <label>Expected time<TimePick role={user.role} name='time' defaultValue={nowTime} required chips /></label>
+            <label>Expected time<TimePick role={user.role} name='time' defaultValue={nowTime} required /></label>
             <label className='wide'>Purpose / notes<input name='purpose' maxLength={200} placeholder='For example: interview for the Marketing role' autoComplete='off' /></label>
             <button className='btn primary' type='submit'>Add to queue</button>
           </form>
@@ -196,7 +196,7 @@ export default async function VisitorsPage({ searchParams }) {
             </label>
           ) : null}
           <label>Date in<input type='date' name='date' defaultValue={today} required /></label>
-          <label>Time in<TimePick role={user.role} name='time' defaultValue={nowTime} required chips /></label>
+          <label>Time in<TimePick role={user.role} name='time' defaultValue={nowTime} required /></label>
           <label className='wide'>Purpose / notes<input name='purpose' maxLength={200} placeholder='For example: interview for the Marketing role' autoComplete='off' /></label>
           <button className='btn primary' type='submit'>Record visitor in</button>
         </form>
