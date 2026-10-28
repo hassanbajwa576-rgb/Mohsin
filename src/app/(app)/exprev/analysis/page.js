@@ -28,12 +28,20 @@ export default async function ExpRevAnalysis({ searchParams }) {
   const rows = await officeCosts(y);
   const lastWith = rows.reduce((a, r) => Math.max(a, r.m), 0) || 1;
   const ytd = sp.p === 'ytd';
-  const to = ytd ? lastWith : 12;
+  // Months shown: the quick choice (all, or year to date), or a From and To month picked by hand.
+  let from = 1;
+  let to = ytd ? lastWith : 12;
+  if (sp.f !== undefined || sp.t !== undefined) {
+    from = Math.min(12, Math.max(1, Number(sp.f) || 1));
+    to = Math.min(12, Math.max(1, Number(sp.t) || 12));
+    if (from > to) [from, to] = [to, from];
+  }
+  const span = to - from + 1;
   const lhr = Array(12).fill(0);
   const isb = Array(12).fill(0);
   const heads = new Map();
   for (const r of rows) {
-    if (r.m > to) continue;
+    if (r.m < from || r.m > to) continue;
     (r.o === 'ISB' ? isb : lhr)[r.m - 1] += r.s;
     const k = r.cc || '(no cost center)';
     const h = heads.get(k) || { cc: k, lhr: 0, isb: 0 };
@@ -64,15 +72,22 @@ export default async function ExpRevAnalysis({ searchParams }) {
         </div>
       </div>
       <div className='inline er-months'>
-        <Link href={href(y, '')} className={'chip' + (!ytd ? ' on' : '')}>All months</Link>
-        <Link href={href(y, 'ytd')} className={'chip' + (ytd ? ' on' : '')}>Year to date ({MON3[lastWith - 1]})</Link>
+        <Link href={href(y, '')} className={'chip' + (!ytd && sp.f === undefined && sp.t === undefined ? ' on' : '')}>All months</Link>
+        <Link href={href(y, 'ytd')} className={'chip' + (ytd && sp.f === undefined && sp.t === undefined ? ' on' : '')}>Year to date ({MON3[lastWith - 1]})</Link>
       </div>
+
+      <form method='get' className='er-range'>
+        <input type='hidden' name='y' value={y} />
+        <label>From month<select name='f' defaultValue={from} autoComplete='off'>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
+        <label>To month<select name='t' defaultValue={to} autoComplete='off'>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
+        <button className='btn' type='submit'>Show</button>
+      </form>
 
       <div className='kpis er-kpis er-kpis4'>
         <div className='card kpi'><span>Total cost</span><b>{pkr(T)}</b><small>100%</small></div>
         <div className='card kpi alt'><span>LHR cost</span><b>{pkr(tL)}</b><small>{pct(tL, T)} of total</small></div>
         <div className='card kpi alt'><span>ISB cost</span><b>{pkr(tI)}</b><small>{pct(tI, T)} of total</small></div>
-        <div className='card kpi alt'><span>Average a month</span><b>{pkr(T / Math.max(1, to))}</b><small>ISB {pkr(tI / Math.max(1, to))}</small></div>
+        <div className='card kpi alt'><span>Average a month</span><b>{pkr(T / Math.max(1, span))}</b><small>ISB {pkr(tI / Math.max(1, span))}</small></div>
       </div>
 
       <div className='card'>
@@ -83,7 +98,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
             const x = 28 + i * (bw + gap);
             const hl = (lhr[i] / maxM) * 130;
             const hi = (isb[i] / maxM) * 130;
-            const on = i < to;
+            const on = i >= from - 1 && i < to;
             return (
               <g key={n} opacity={on ? 1 : 0.35}>
                 <rect x={x} y={150 - hl} width={bw} height={hl} rx='2' fill={LHR} />
@@ -111,7 +126,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
               <div style={{ width: (h.lhr / maxH) * 100 + '%', background: LHR }} />
               <div style={{ width: (h.isb / maxH) * 100 + '%', background: ISB }} />
             </div>
-            <span className='an-num'><b>{mil(h.tot)}</b> <small>{pct(h.tot, T)}</small><small className='an-isb'> ISB {pct(h.isb, h.tot)}</small></span>
+            <span className='an-num'><b>{mil(h.tot)}</b> <small>{pct(h.tot, T)}</small><small className='an-lhr'> LHR {pct(h.lhr, h.tot)}</small><small className='an-isb'> ISB {pct(h.isb, h.tot)}</small></span>
           </div>
         ))}
         {list.length > topN.length ? <p className='muted' style={{ margin: '6px 0 0', fontSize: 12 }}>The {list.length - topN.length} smaller heads are not shown.</p> : null}
@@ -121,20 +136,21 @@ export default async function ExpRevAnalysis({ searchParams }) {
         <h3>Month by month in numbers</h3>
         <div className='tablewrap'>
           <table className='tx'>
-            <thead><tr><th>Month</th><th className='r'>LHR</th><th className='r'>ISB</th><th className='r'>Total</th><th className='r'>ISB share</th></tr></thead>
+            <thead><tr><th>Month</th><th className='r'>LHR</th><th className='r'>ISB</th><th className='r'>Total</th><th className='r'>LHR %</th><th className='r'>ISB %</th></tr></thead>
             <tbody>
-              {MONTHS.slice(0, to).map((n, i) => (
+              {MONTHS.map((n, i) => i < from - 1 || i >= to ? null : (
                 <tr key={n}>
                   <td className='c-title'>{n}</td>
                   <td className='r nw c-meta'>{money(lhr[i])}</td>
                   <td className='r nw c-meta'>{money(isb[i])}</td>
                   <td className='r nw c-meta'><b>{money(lhr[i] + isb[i])}</b></td>
+                  <td className='r nw c-meta'>{pct(lhr[i], lhr[i] + isb[i])}</td>
                   <td className='r nw c-meta'>{pct(isb[i], lhr[i] + isb[i])}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr><td>Total</td><td className='r nw'>{money(tL)}</td><td className='r nw'>{money(tI)}</td><td className='r nw'>{money(T)}</td><td className='r nw'>{pct(tI, T)}</td></tr>
+              <tr><td>Total</td><td className='r nw'>{money(tL)}</td><td className='r nw'>{money(tI)}</td><td className='r nw'>{money(T)}</td><td className='r nw'>{pct(tL, T)}</td><td className='r nw'>{pct(tI, T)}</td></tr>
             </tfoot>
           </table>
         </div>
