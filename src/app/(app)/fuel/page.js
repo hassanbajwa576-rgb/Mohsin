@@ -8,7 +8,6 @@ import { addFuel, requestRefill } from '@/lib/fuel-actions';
 import { q } from '@/lib/db';
 import Flash from '@/components/Flash';
 import CountUp from '@/components/CountUp';
-import TimePick from '@/components/TimePick';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,7 +94,6 @@ export default async function FuelPage({ searchParams }) {
           ) : <input type='hidden' name='kind' value='fill' />}
           <label>{user.role === 'om' ? 'Amount (PKR)' : 'Amount paid for fuel (PKR)'}<input type='number' name='amount' min='1' step='0.01' inputMode='decimal' required /></label>
           <label>Date<input type='date' name='date' defaultValue={todayKey()} required /></label>
-          <label>Time<TimePick name='time' defaultValue={fmtTime(now)} required /></label>
           <label className='wide'>Note (optional)<input name='note' maxLength={120} placeholder='For example: filled at the PSO pump' /></label>
           <button className='btn primary' type='submit'>{user.role === 'om' ? 'Save' : 'Save fuel refilled'}</button>
         </form>

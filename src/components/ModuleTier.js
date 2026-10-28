@@ -119,11 +119,11 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
     <div className={'tier' + (om || sso ? ' tier-om' : '')} ref={bar}>
       <div className='tier-in'>
         <span className='modseg' translate='no'>
-          {guard ? null : <Mod href='/' label='PettyTrack' active={!attend && !visit && !fuel && !sup} items={petty} on={on} />}
-          <Mod href='/attendance' label='AttendTrack' active={attend} items={all(att)} on={on} />
-          <Mod href='/visitors' label='VisitTrack' active={visit} items={vis} on={on} />
-          {access.includes('fuel_use') ? <Mod href='/fuel' label='FuelTrack' active={fuel} items={fu} on={on} /> : null}
-          {guard ? null : <Mod href='/support' label='SupportTrack' active={sup} items={su} on={on} />}
+          {guard ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup} items={petty} on={on} />}
+          <Mod href='/attendance' label='Attendance' active={attend} items={all(att)} on={on} />
+          <Mod href='/visitors' label='Visitors' active={visit} items={vis} on={on} />
+          {access.includes('fuel_use') ? <Mod href='/fuel' label='Fuel' active={fuel} items={fu} on={on} /> : null}
+          {guard ? null : <Mod href='/support' label='Support' active={sup} items={su} on={on} />}
         </span>
         <span className='tier-sep' />
         <div className='tier-scroll'>

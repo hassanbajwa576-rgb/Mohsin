@@ -953,3 +953,23 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .tp-time{gap:2px;padding:0 4px}
   .tp-ap button{padding:0 12px}
 }
+
+/* Desktop: give the time boxes room and match the height of the other fields. */
+.tp{min-width:240px}
+.tp.sm{min-width:200px}
+.tp-row{align-items:center;gap:8px}
+.tp-time{height:42px;padding:0 8px;flex:1 1 150px}
+.tp-time input{height:34px;padding:0;font-size:20px;max-width:none;min-width:0}
+.tp-time b{font-size:20px;line-height:1}
+.tp-ap button{min-height:42px}
+@media (max-width:700px){
+  .tp,.tp.sm{min-width:0}
+  .tp-time{flex:1 1 0;min-width:0}
+}
+
+/* Narrow grid columns (Fuel, visitor forms): the time boxes wrap AM/PM underneath instead of overflowing. */
+.tp,.tp.sm{min-width:0;max-width:100%}
+.tp-row{flex-wrap:wrap}
+.tp-time{flex:1 1 128px;min-width:128px}
+.tp-ap{flex:0 0 auto}
+@media (max-width:700px){.tp-time{min-width:0;flex:1 1 0}.tp-row{flex-wrap:nowrap}}

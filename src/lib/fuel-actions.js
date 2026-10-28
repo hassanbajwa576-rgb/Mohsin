@@ -6,7 +6,7 @@ import { getUser } from './auth';
 import { logEvent } from './audit';
 import { can } from './perms';
 import { notifyRoles, notifyUser } from './notify';
-import { validDate, validTime } from './att';
+import { validDate, validTime, fmtTime } from './att';
 import { FKIND, fuelScope, canEditFuel, seesBalance } from './fuel';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
@@ -44,7 +44,7 @@ export async function addFuel(fd) {
   const litres = s(fd, 'litres') ? Number(s(fd, 'litres')) : null;
   const reading = s(fd, 'reading') ? Number(s(fd, 'reading')) : null;
   const date = s(fd, 'date');
-  const time = s(fd, 'time');
+  const time = s(fd, 'time') || fmtTime(Date.now());
   if (!FKIND[kind]) back(here, 'Choose what you are recording');
   if (!(amount > 0)) back(here, 'Enter the amount in rupees');
   if (litres !== null && !(litres > 0)) back(here, 'Litres must be more than 0');
