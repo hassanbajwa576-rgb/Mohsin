@@ -1012,3 +1012,14 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .splash-bar i{display:block;width:40%;height:100%;background:var(--gold,#e3ac22);animation:splashRun 1s ease-in-out infinite}
 @keyframes splashRun{from{transform:translateX(-100%)}to{transform:translateX(280%)}}
 @media (prefers-reduced-motion:reduce){.splash-bar i{animation:none;width:100%}}
+
+/* Page-change skeleton. */
+.skel{display:flex;flex-direction:column;gap:14px;padding-top:6px}
+.skel-bar{background:linear-gradient(90deg,#eeeeea 25%,#f7f7f4 50%,#eeeeea 75%);background-size:200% 100%;animation:skelRun 1.2s linear infinite;border-radius:8px}
+.skel-title{height:34px;width:46%}
+.skel-sub{height:14px;width:68%}
+.skel-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.skel-card{height:92px}
+.skel-block{height:220px}
+@keyframes skelRun{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel-bar{animation:none}}
