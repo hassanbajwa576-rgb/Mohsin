@@ -24,8 +24,7 @@ export default async function ExpRevBudget({ searchParams }) {
   const today = todayKey();
   const d = await budgetView(year);
   // Default is year to date: January up to the last month that has spend, like the workbook's YTD block.
-  let ytdTo = 12;
-  while (ytdTo > 1 && !d.month[ytdTo - 1]) ytdTo -= 1;
+  const ytdTo = Math.max(1, d.closed || 1);
   let m = sp.m === undefined || sp.m === 'ytd' ? -2 : Number(sp.m);
   if (!(m >= 0 && m <= 12) && m !== -2) m = 0;
   // A range of months: from=..&to=.. (either way round); a single month or the full year is the same thing with both ends set.
@@ -38,9 +37,12 @@ export default async function ExpRevBudget({ searchParams }) {
     m = from === to ? from : from === 1 && to === 12 ? 0 : -1;
   }
   const pick = (a) => a.slice(from - 1, to).reduce((x, y) => x + y, 0);
+  // Months after the closed one have a budget only, so the variance looks at the closed months of the range.
+  const pickC = (a) => a.slice(from - 1, Math.min(to, d.closed)).reduce((x, y) => x + y, 0);
   const span = from === to ? MONTHS[from - 1] : from === 1 && to === 12 ? 'full year' : m === -2 ? 'year to date (' + MON3[to - 1] + ')' : MONTHS[from - 1] + ' to ' + MONTHS[to - 1];
   const g = d.rows.find((r) => r.kind === 'grand2') || d.rows.find((r) => r.kind === 'grand');
   const gb = g ? pick(g.b) : 0;
+  const gbc = g ? pickC(g.b) : 0;
   const ga = g ? pick(g.a) : 0;
   const href = (mm) => '/exprev/budget?m=' + mm;
 
@@ -49,7 +51,7 @@ export default async function ExpRevBudget({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Budget vs Actual</h1>
-          <p className='muted'>{year}: what was budgeted, what Ops spent (worked out from the entries), and what is in QuickBooks. Variance is budget minus actual, so red means over budget.</p>
+          <p className='muted'>{year}: as in the workbook. Up to {MONTHS[Math.max(1, d.closed) - 1]} the budget, actual by Ops and QuickBooks figures are the workbook's own; the months after show the budget only (what is still provided for). Variance is budget minus actual, so red means over budget.</p>
         </div>
       </div>
 
@@ -68,7 +70,7 @@ export default async function ExpRevBudget({ searchParams }) {
       <div className='kpis'>
         <div className='card kpi'><span>Budgeted, {span}</span><b>{pkr(gb)}</b></div>
         <div className='card kpi alt'><span>Actual by Ops</span><b>{pkr(ga)}</b></div>
-        <div className={'card kpi alt' + (gb - ga < 0 ? ' neg' : ' pos')}><span>{gb - ga < 0 ? 'Over budget by' : 'Under budget by'}</span><b>{pkr(Math.abs(gb - ga))}</b></div>
+        <div className={'card kpi alt' + (gbc - ga < 0 ? ' neg' : ' pos')}><span>{gbc - ga < 0 ? 'Over budget by' : 'Under budget by'}</span><b>{pkr(Math.abs(gbc - ga))}</b></div>
       </div>
 
       <div className='card'>
@@ -77,7 +79,7 @@ export default async function ExpRevBudget({ searchParams }) {
           rows={d.rows.map((r) => {
             const b = pick(r.b);
             const a = pick(r.a);
-            const v = b - a;
+            const v = pickC(r.b) - a;
             const flat = r.kind === 'total' || r.kind === 'grand' || r.kind === 'grand2' || r.kind === 'rest' || r.kind === 'restitem';
             return {
               k: String(r.row),

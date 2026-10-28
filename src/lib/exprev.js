@@ -62,37 +62,24 @@ export async function dashboard(year) {
   return { main, extras, mainTotal, month: s.month, year: total(s.month) };
 }
 
-// Budget against actual: budget and QBO come from the workbook; actual is worked out from the entries.
+// Budget against actual, as the workbook has it. Months the workbook has worked out (Jan to the closed month) show its own
+// budget, actual by Ops, QuickBooks figures; later months show the consolidated budget only (nothing is spent against them yet).
 export async function budgetView(year) {
-  const [lines, s] = await Promise.all([q("SELECT sort, label, row_kind, field, mval, meta, vals FROM pc2_er_sheet WHERE kind = 'bva' ORDER BY sort"), sums(year)]);
-  // Budget lines whose workbook formula could not be read (headings used by hand): the spend is matched by the 4-digit
-  // code in the line's name against the cost center or type, most specific (type) first. 9210 takes the Assets / Security Advances spend.
-  const claimed = new Set();
-  const byHead = new Map();
-  const heads = lines.filter((l) => l.row_kind === 'head' && !l.field).map((l) => ({ l, code: (/^(\d{4})\b/.exec(l.label) || [])[1] }));
-  const claim = (h, test) => {
-    const a = zeros();
-    for (const p of s.pairs) if (!claimed.has(p) && test(p)) { claimed.add(p); a[p.m] += p.s; }
-    byHead.set(h.l.meta.row, plus(byHead.get(h.l.meta.row) || zeros(), a));
-  };
-  for (const h of heads) if (h.code === '9210') claim(h, (p) => /^assets \/ security advances/i.test(p.cc || ''));
-  for (const h of heads) if (h.code && h.code !== '9210') claim(h, (p) => (p.et || '').endsWith('- ' + h.code));
-  for (const h of heads) if (h.code && h.code !== '9210') claim(h, (p) => (p.cc || '').endsWith('- ' + h.code));
-  const byRow = new Map();
+  const lines = await q("SELECT sort, label, row_kind, field, mval, meta, vals FROM pc2_er_sheet WHERE kind = 'bva' ORDER BY sort");
+  const closed = lines[0] ? Number(lines[0].meta.closed) || 0 : 0;
   const rows = lines.map((l) => {
     const v = l.vals || {};
-    const r = {
+    const has = l.row_kind === 'line' || l.row_kind === 'head';
+    return {
       row: l.meta.row,
       label: l.label,
       kind: l.row_kind,
       rng: l.meta.rng || null,
-      b: l.row_kind === 'line' || l.row_kind === 'head' ? v.b || zeros() : zeros(),
-      q: l.row_kind === 'line' || l.row_kind === 'head' ? v.q || zeros() : zeros(),
-      a: l.row_kind === 'line' ? pick(s, l.field, l.mval) : byHead.get(l.meta.row) || zeros(),
+      b: has ? v.b || zeros() : zeros(),
+      q: has ? v.q || zeros() : zeros(),
+      a: has ? v.a || zeros() : zeros(),
       inside: false,
     };
-    byRow.set(r.row, r);
-    return r;
   });
   const totals = rows.filter((r) => r.kind === 'total');
   for (const t of totals) {
@@ -106,9 +93,7 @@ export async function budgetView(year) {
     }
   }
   const grand = rows.find((r) => r.kind === 'grand');
-  const mapped = zeros();
   for (const r of rows) {
-    if (r.kind === 'line' || r.kind === 'head') for (let i = 0; i < 12; i++) mapped[i] += r.a[i];
     if (grand && r.row < grand.row && (r.kind === 'total' || (!r.inside && (r.kind === 'line' || r.kind === 'head')))) {
       grand.b = plus(grand.b, r.b);
       grand.q = plus(grand.q, r.q);
@@ -127,25 +112,7 @@ export async function budgetView(year) {
     }
     rows.push(fin);
   }
-  const rest = s.month.map((v, i) => v - mapped[i]);
-  if (rest.some((v) => Math.abs(v) > 0.5)) {
-    rows.push({ row: 9999, label: 'Spend not on any line above', kind: 'rest', b: zeros(), q: zeros(), a: rest, inside: false });
-    // Which cost centers and types it is made of: entries whose cost center and type are on no budget line.
-    const ccOn = new Set(lines.filter((l) => l.row_kind === 'line' && l.field === 'cc').map((l) => l.mval));
-    const etOn = new Set(lines.filter((l) => l.row_kind === 'line' && l.field === 'et').map((l) => l.mval));
-    const left = new Map();
-    for (const p of s.pairs) {
-      if (ccOn.has(p.cc) || etOn.has(p.et) || claimed.has(p)) continue;
-      const k = (p.cc || '(no cost center)') + (p.et ? ' / ' + p.et : '');
-      if (!left.has(k)) left.set(k, zeros());
-      left.get(k)[p.m] += p.s;
-    }
-    let n = 0;
-    for (const [k, v] of [...left.entries()].sort((x, y) => total(y[1]) - total(x[1]))) {
-      rows.push({ row: 10000 + n++, label: k, kind: 'restitem', b: zeros(), q: zeros(), a: v, inside: true });
-    }
-  }
-  return { rows, month: s.month, hasData: lines.length > 0 };
+  return { rows, closed, hasData: lines.length > 0 };
 }
 
 export async function budgetYear() {

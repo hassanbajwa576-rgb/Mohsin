@@ -149,7 +149,16 @@ export async function readWorkbook(buf) {
   if (bs) {
     const rows = await open(bs);
     const year = new Date(iso(num(rows, 1, 3) || 0)).getUTCFullYear() || yearOf(bs);
-    const BLOCKS = 9;
+    // Each worked month has a block of four columns (budget, actual by Ops, QuickBooks, variance) headed by a date in row 1.
+    // A month the workbook has not worked out yet has no block, so this follows the sheet as months are added.
+    const blocks = new Map();
+    const head1 = rows.get(1);
+    if (head1) for (const [col, cell] of head1) if (col >= 3 && typeof cell.v === 'number' && cell.v > 40000 && cell.v < 80000) {
+      const d = new Date(iso(cell.v));
+      if (d.getUTCFullYear() === year) blocks.set(d.getUTCMonth(), col);
+    }
+    let closed = 0;
+    while (blocks.has(closed)) closed += 1;
     const lines = [];
     let grand = false;
     for (let r = 3; r <= 200; r++) {
@@ -169,8 +178,8 @@ export async function readWorkbook(buf) {
       const q = [];
       for (let m = 0; m < 12; m++) {
         const fromP = ref && pRows ? num(pRows, Number(ref[1]), 2 + m) : null;
-        b.push(fromP !== null ? fromP : m < BLOCKS ? num(rows, r, 3 + 4 * m) : 0);
-        q.push(m < BLOCKS ? num(rows, r, 5 + 4 * m) : 0);
+        b.push(fromP !== null ? fromP : blocks.has(m) ? num(rows, r, blocks.get(m)) : 0);
+        q.push(blocks.has(m) ? num(rows, r, blocks.get(m) + 2) : 0);
       }
       // Rows that only started to be used later in the year have their formula in a later month's block.
       let hit = fieldOf(f);
@@ -179,11 +188,20 @@ export async function readWorkbook(buf) {
         if (cm && cm.f) hit = fieldOf(cm.f);
       }
       const sum = f && /^SUM\(D(\d+):D(\d+)\)$/.exec(f.replace(/\s+/g, ''));
-      if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q });
-      else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q: [] });
-      else lines.push({ row: r, label, kind: 'head', b, q });
+      // The workbook's own actual for every month (column 4 of each block); only the closed months are used later.
+      const xa = [];
+      for (let m = 0; m < 12; m++) xa.push(blocks.has(m) ? num(rows, r, blocks.get(m) + 1) : null);
+      if (hit) lines.push({ row: r, label, kind: 'line', field: hit.field, match: hit.match, b, q, xa });
+      else if (sum) lines.push({ row: r, label, kind: 'total', rng: [Number(sum[1]), Number(sum[2])], b: [], q: [], xa });
+      else lines.push({ row: r, label, kind: 'head', b, q, xa });
     }
-    bva = { year, lines };
+    // Closed months: the ones the workbook has worked out (the first Total Budgeted row has an actual for them, no gap).
+    for (const l of lines) {
+      l.a = Array.from({ length: 12 }, (_, m) => (m < closed && l.xa && l.xa[m] !== null ? l.xa[m] : 0));
+      for (let m = closed; m < 12; m++) l.q && l.q[m] !== undefined && (l.q[m] = 0);
+      delete l.xa;
+    }
+    bva = { year, lines, closed };
   }
   if (pnl && !pnl.year && bva) pnl.year = bva.year;
 
