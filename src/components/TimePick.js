@@ -137,10 +137,10 @@ function Pad({ name, defaultValue, value, onChange, required, disabled, classNam
           <input ref={hRef} type='text' inputMode='numeric' autoComplete='off' placeholder='HH' maxLength={2} value={hh} required={required} disabled={disabled} aria-label='Hour' onFocus={pick} onChange={onHour} />
           <b aria-hidden='true'>:</b>
           <input ref={mRef} type='text' inputMode='numeric' autoComplete='off' placeholder='MM' maxLength={2} value={mm} disabled={disabled} aria-label='Minutes' onFocus={pick} onChange={onMin} onKeyDown={backFromMin} onBlur={() => { if (hh && mm.length === 1) { touch(); setMm('0' + mm); } }} />
-        </span>
-        <span className='tp-ap' role='group' aria-label='AM or PM'>
-          <button type='button' disabled={disabled} className={effPm ? '' : 'on'} onClick={() => ampm(false)}>AM</button>
-          <button type='button' disabled={disabled} className={effPm ? 'on' : ''} onClick={() => ampm(true)}>PM</button>
+          <span className='tp-ap' role='group' aria-label='AM or PM'>
+            <button type='button' disabled={disabled} className={effPm ? '' : 'on'} onClick={() => ampm(false)}>AM</button>
+            <button type='button' disabled={disabled} className={effPm ? 'on' : ''} onClick={() => ampm(true)}>PM</button>
+          </span>
         </span>
       </span>
       {chips ? (

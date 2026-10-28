@@ -41,6 +41,7 @@ export default function AttendanceEntryForm({ options, action, defaultOffice, wo
   const [sheet, setSheet] = useState(false);
   const [vp, setVp] = useState({ h: 0, t: 0 });
   const recRef = useRef(null);
+  const edited = useRef(false);
   const sheetIn = useRef(null);
 
   useEffect(() => {
@@ -53,6 +54,21 @@ export default function AttendanceEntryForm({ options, action, defaultOffice, wo
     const touchFirst = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
     const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') || !!(navigator.userAgentData && navigator.userAgentData.mobile);
     setCanListen(supported && (mobileUa || touchFirst));
+    // A phone keeps the page open for hours: when it comes back to the front, show today's date and time again unless they were changed by hand.
+    const fresh = () => {
+      if (document.visibilityState === 'hidden' || edited.current) return;
+      const p = nowPk();
+      setDate(p.date);
+      setTime(p.time);
+    };
+    document.addEventListener('visibilitychange', fresh);
+    window.addEventListener('pageshow', fresh);
+    window.addEventListener('focus', fresh);
+    return () => {
+      document.removeEventListener('visibilitychange', fresh);
+      window.removeEventListener('pageshow', fresh);
+      window.removeEventListener('focus', fresh);
+    };
   }, []);
 
   // Employees of the chosen office, narrowed by what has been typed.
@@ -343,8 +359,8 @@ export default function AttendanceEntryForm({ options, action, defaultOffice, wo
       ) : null}
 
       <div className='att-when'>
-        <label>Date<input type='date' name='date' value={date} onChange={(e) => setDate(e.target.value)} required /></label>
-        <label>Time<TimePick name='time' value={time} onChange={setTime} required /></label>
+        <label>Date<input type='date' name='date' value={date} onChange={(e) => { edited.current = true; setDate(e.target.value); }} required /></label>
+        <label>Time<TimePick name='time' value={time} onChange={(v) => { edited.current = true; setTime(v); }} required /></label>
         <button type='button' className='btn ghost' onClick={fillNow}>Use current time</button>
       </div>
 

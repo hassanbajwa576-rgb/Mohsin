@@ -973,3 +973,21 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .tp-time{flex:1 1 128px;min-width:128px}
 .tp-ap{flex:0 0 auto}
 @media (max-width:700px){.tp-time{min-width:0;flex:1 1 0}.tp-row{flex-wrap:nowrap}}
+
+/* One compact time control: hour, minute and AM/PM in a single box, as tall as the other fields. */
+.tp,.tp.sm{min-width:0;max-width:100%}
+.tp-row{display:block}
+.tp-time{display:inline-flex;align-items:center;gap:0;height:38px;min-width:0;width:auto;max-width:100%;flex:none;padding:0 0 0 10px;border:1px solid var(--line);border-radius:6px;background:#fff;overflow:hidden}
+.tp-time input{flex:none;width:34px;max-width:none;height:34px;padding:0;font-size:16px;font-weight:700;text-align:center;letter-spacing:0}
+.tp-time b{font-size:16px;font-weight:700;padding:0 1px}
+.tp-time .tp-ap{margin-left:8px;height:100%;border:0;border-left:1px solid var(--line);border-radius:0}
+.tp-time .tp-ap button{min-height:0;height:100%;padding:0 10px;font-size:12px;border-radius:0}
+.att-when{grid-template-columns:minmax(150px,200px) auto auto;justify-content:start}
+@media (max-width:700px){
+  .tp-time{display:flex;height:46px;padding-left:12px}
+  .tp-time input{width:48px;height:40px;font-size:22px}
+  .tp-time b{font-size:22px}
+  .tp-time .tp-ap{margin-left:auto}
+  .tp-time .tp-ap button{padding:0 16px;font-size:14px}
+  .att-when{grid-template-columns:1fr 1fr;justify-content:stretch}
+}
