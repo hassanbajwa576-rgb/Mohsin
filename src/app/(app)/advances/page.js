@@ -9,6 +9,7 @@ import Flash from '@/components/Flash';
 import ScrollTo from '@/components/ScrollTo';
 import FundCard from '@/components/FundCard';
 import ConfirmButton from '@/components/ConfirmButton';
+import FundTypes from '@/components/FundTypes';
 
 export default async function AdvancesPage({ searchParams }) {
   const user = await requireUser();
@@ -124,6 +125,7 @@ export default async function AdvancesPage({ searchParams }) {
         </div>
       </div>
       <Flash sp={sp} />
+      {isOM && !user.impersonatedBy ? <FundTypes /> : null}
 
       {funds ? (
         <>

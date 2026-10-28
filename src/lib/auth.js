@@ -4,6 +4,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { q } from './db';
+import { loadFunds } from './fund-types';
 
 const COOKIE = 'pc_session';
 const IMP = 'pc_imp';
@@ -42,6 +43,7 @@ export const getUser = cache(async function getUser() {
     [uid]
   );
   if (!rows[0]) return null;
+  await loadFunds();
   const real = { ...rows[0], perms: String(rows[0].perms || '').split(',').filter(Boolean) };
   // Sr. Ops Manager viewing as someone else (30 minutes): every page and action runs as that person.
   const imp = jar.get(IMP)?.value;
