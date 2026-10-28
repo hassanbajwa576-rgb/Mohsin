@@ -1315,3 +1315,6 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 @media (max-width:720px){.er-kpis5{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.er-kpis5 .kpi:first-child{grid-column:1/-1}}
 .an-over{color:#b3261e;font-weight:600}
 .an-left{color:#1a7f37;font-weight:600}
+/* Over budget red, budget left green (beats the grey label style of the summary boxes) */
+.kpi small .an-over,.kpi .an-over{color:#b3261e!important;font-weight:700!important;font-size:inherit!important}
+.kpi small .an-left,.kpi .an-left{color:#1a7f37!important;font-weight:700!important;font-size:inherit!important}
