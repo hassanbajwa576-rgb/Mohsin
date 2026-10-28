@@ -910,3 +910,11 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .botbar a.on svg{stroke:var(--gold-text,#b88a10)}
   body:has(.botbar){padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
 }
+@media (max-width:700px){
+  .botbar{border-top:2px solid #e6e6e0}
+  .botbar a{position:relative;color:#4a4a46}
+  .botbar a svg{width:44px;height:28px;padding:3px 11px;border-radius:14px;box-sizing:border-box;transition:background-color .2s ease}
+  .botbar a.on{color:#000;font-weight:700}
+  .botbar a.on svg{stroke:#000;background:var(--gold,#e3ac22)}
+  .botbar a.on::before{content:'';position:absolute;top:-8px;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--gold,#e3ac22)}
+}
