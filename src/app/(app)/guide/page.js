@@ -348,6 +348,20 @@ export default async function GuidePage() {
         </details>
       ) : null}
 
+      {user.role !== 'guard' ? (
+        <details className='card'>
+          <summary>OpsBot (chat)</summary>
+          <Table
+            head={['Feature', 'What it means']}
+            rows={[
+              ['Chat button', 'The round gold button at the bottom right opens OpsBot. Type a question or tap one of the suggestions.'],
+              isOM ? ['What it can answer', 'Spending by office, head and month, the budget against what was spent, year against year, the biggest heads, cash in hand and who holds it, advances outstanding, expenses waiting, and visitors. Name a period, a head or an office, for example "Travel in August for ISB" or "compare with last year".'] : ['What it can answer', 'Your own cash in hand, advances, expenses and visitors.'],
+              ['Where answers come from', 'Only the data inside OpsTrack, and only what you are allowed to open. It does not use the internet or an outside service, so it understands set kinds of questions and tells you when it does not.'],
+            ]}
+          />
+        </details>
+      ) : null}
+
       <details className='card'>
         <summary>On your phone</summary>
         <Table head={['Feature', 'What it means']} rows={isOM ? [...PHONE, ...TEAM_PAGES] : PHONE} />

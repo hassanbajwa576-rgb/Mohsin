@@ -159,6 +159,9 @@ export default async function ExpRevAnalysis({ searchParams }) {
           <Link href={alHref('')} className={'chip' + (alloc ? ' on' : '')} title='Shared heads are divided between the offices by employees'>Split by headcount</Link>
           <Link href={alHref('raw')} className={'chip' + (!alloc ? ' on' : '')} title='Each cost stays with the office written on its entry'>As booked</Link>
         </div>
+        <div className='inline er-months'>
+          <a href='#year-by-year' className='chip'>Year by year ↓</a>
+        </div>
       </div>
       {noBB ? <p className='muted' style={{ margin: '0 0 6px', fontSize: 13 }}>BOLDBelief is left out of every figure below.</p> : null}
       {alloc ? <p className='muted' style={{ margin: '0 0 12px', fontSize: 13 }}>{shared.filter((h) => !(noBB && isBB(h))).join(' and ')} {shared.length > 1 ? 'are' : 'is'} divided by employees: LHR {hc.LHR} ({pct(hc.LHR, hcTotal)}), ISB {hc.ISB} ({pct(hc.ISB, hcTotal)}). Headcount is the active staff in the Attendance list, today's number for every month.</p> : <p className='muted' style={{ margin: '0 0 12px', fontSize: 13 }}>Every cost is shown against the office written on its entry.</p>}
@@ -257,7 +260,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
       </div>
 
       {YR.length > 1 ? (
-        <div className='card'>
+        <div className='card' id='year-by-year'>
           <h3>Year by year: {MONTHS[from - 1]} to {MONTHS[to - 1]}</h3>
           <p className='muted' style={{ margin: '0 0 8px', fontSize: 12.5 }}>The same months in each year, with the same switches as above. Red means spending went up on the year before, green means it went down.</p>
           <div className='tablewrap'>
@@ -317,7 +320,12 @@ export default async function ExpRevAnalysis({ searchParams }) {
             </table>
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className='card' id='year-by-year'>
+          <h3>Year by year</h3>
+          <p className='muted'>There are no entries in {MONTHS[from - 1]} to {MONTHS[to - 1]} for a second year to compare with.</p>
+        </div>
+      )}
 
       <details className='card'>
         <summary><b>Shared heads</b> <span className='muted'>({shared.length}): costs split between the offices by headcount</span></summary>
