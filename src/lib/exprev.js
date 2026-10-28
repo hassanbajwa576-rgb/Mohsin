@@ -151,6 +151,27 @@ export async function officeCosts(year) {
   return q("SELECT extract(month from spent_on)::int AS m, (CASE WHEN upper(trim(office)) = 'ISB' THEN 'ISB' ELSE 'LHR' END) AS o, cost_center AS cc, SUM(amount)::float8 AS s FROM pc2_er_entries WHERE spent_on >= $1 AND spent_on <= $2 GROUP BY 1, 2, 3", [year + '-01-01', year + '-12-31']);
 }
 
+// Heads whose cost is shared between the offices by headcount instead of by the office on each entry.
+const SHARED_DEFAULT = ['BOLDBelief - 6310', 'Bank Fees - 6400'];
+export async function sharedHeads() {
+  const r = await q("SELECT value FROM pc2_meta WHERE key = 'er_shared_heads'");
+  if (!r[0]) return SHARED_DEFAULT;
+  try {
+    const v = JSON.parse(r[0].value);
+    return Array.isArray(v) ? v : SHARED_DEFAULT;
+  } catch {
+    return SHARED_DEFAULT;
+  }
+}
+
+// Active employees per office, from the Attendance staff list.
+export async function headcount() {
+  const r = await q('SELECT o.code AS o, COUNT(*)::int AS n FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active GROUP BY 1');
+  const out = { LHR: 0, ISB: 0 };
+  for (const x of r) if (x.o in out) out[x.o] = x.n;
+  return out;
+}
+
 export async function budgetYear() {
   const r = await q("SELECT meta FROM pc2_er_sheet WHERE kind = 'bva' ORDER BY sort LIMIT 1");
   return r[0] ? Number(r[0].meta.year) || 0 : 0;

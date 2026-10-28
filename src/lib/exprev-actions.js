@@ -69,6 +69,15 @@ export async function importWorkbook(fd) {
   back('/exprev', 'Loaded ' + w.entries.length + ' expenditure rows from ' + file.name, true);
 }
 
+// Sr. Ops Manager: which heads are split between the offices by headcount.
+export async function saveSharedHeads(fd) {
+  const u = await needOm();
+  const list = [...new Set(fd.getAll('h').map((v) => String(v).trim()).filter(Boolean))];
+  await q("INSERT INTO pc2_meta (key, value) VALUES ('er_shared_heads', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [JSON.stringify(list)]);
+  await logEvent(u, 'edit', 'exprev', null, 'Shared heads set to: ' + (list.join(', ') || 'none'), null, { list });
+  back('/exprev/analysis', 'Saved: ' + (list.length ? list.join(', ') : 'no head is shared'), true);
+}
+
 export async function addEntry(fd) {
   const u = await needOm();
   const here = '/exprev/entries';

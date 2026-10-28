@@ -1,7 +1,9 @@
 ﻿import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { todayKey } from '@/lib/att';
-import { MONTHS, MON3, money, pkr, erYears, officeCosts } from '@/lib/exprev';
+import { MONTHS, MON3, money, pkr, erYears, officeCosts, sharedHeads, headcount } from '@/lib/exprev';
+import { saveSharedHeads } from '@/lib/exprev-actions';
+import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +32,17 @@ export default async function ExpRevAnalysis({ searchParams }) {
   }
   const today = todayKey();
   const y = years.includes(Number(sp.y)) ? Number(sp.y) : years.includes(Number(today.slice(0, 4))) ? Number(today.slice(0, 4)) : years[0];
-  const rows = await officeCosts(y);
+  const [rows, shared, hc] = await Promise.all([officeCosts(y), sharedHeads(), headcount()]);
+  // Shared heads (BOLDBelief, Bank Fees) are divided by headcount: each office carries its share of the employees.
+  const sharedSet = new Set(shared);
+  const hcTotal = hc.LHR + hc.ISB;
+  // BOLDBelief is not an operating cost: this switch leaves it out of every figure on the page.
+  const noBB = sp.bb === 'no';
+  const isBB = (cc) => /^boldbelief/i.test(String(cc || '').trim());
+  const alloc = sp.al !== 'raw' && hcTotal > 0 && shared.length > 0;
+  const wL = hcTotal ? hc.LHR / hcTotal : 0;
+  const wI = hcTotal ? hc.ISB / hcTotal : 0;
+  const allHeads = [...new Set(rows.map((r) => r.cc).filter(Boolean))].sort();
   const lastWith = rows.reduce((a, r) => Math.max(a, r.m), 0) || 1;
   const ytd = sp.p === 'ytd';
   // Months shown: the quick choice (all, or year to date), or a From and To month picked by hand.
@@ -47,10 +59,18 @@ export default async function ExpRevAnalysis({ searchParams }) {
   const heads = new Map();
   for (const r of rows) {
     if (r.m < from || r.m > to) continue;
-    (r.o === 'ISB' ? isb : lhr)[r.m - 1] += r.s;
+    if (noBB && isBB(r.cc)) continue;
     const k = r.cc || '(no cost center)';
     const h = heads.get(k) || { cc: k, lhr: 0, isb: 0 };
-    h[r.o === 'ISB' ? 'isb' : 'lhr'] += r.s;
+    if (alloc && sharedSet.has(r.cc)) {
+      lhr[r.m - 1] += r.s * wL;
+      isb[r.m - 1] += r.s * wI;
+      h.lhr += r.s * wL;
+      h.isb += r.s * wI;
+    } else {
+      (r.o === 'ISB' ? isb : lhr)[r.m - 1] += r.s;
+      h[r.o === 'ISB' ? 'isb' : 'lhr'] += r.s;
+    }
     heads.set(k, h);
   }
   const sum = (a) => a.reduce((x, v) => x + v, 0);
@@ -61,7 +81,9 @@ export default async function ExpRevAnalysis({ searchParams }) {
   const topN = list;
   const maxM = Math.max(1, ...lhr.map((v, i) => v + isb[i]));
   const maxH = Math.max(1, ...topN.map((h) => h.tot));
-  const href = (yy, p) => '/exprev/analysis?y=' + yy + (p ? '&p=' + p : '');
+  const href = (yy, p) => '/exprev/analysis?' + new URLSearchParams({ y: String(yy), ...(p ? { p } : {}), ...(sp.al === 'raw' ? { al: 'raw' } : {}), ...(noBB ? { bb: 'no' } : {}) }).toString();
+  const alHref = (al) => '/exprev/analysis?' + new URLSearchParams({ y: String(y), ...(sp.p ? { p: sp.p } : {}), ...(sp.f ? { f: sp.f } : {}), ...(sp.t ? { t: sp.t } : {}), ...(al ? { al } : {}), ...(noBB ? { bb: 'no' } : {}) }).toString();
+  const bbHref = (bb) => '/exprev/analysis?' + new URLSearchParams({ y: String(y), ...(sp.p ? { p: sp.p } : {}), ...(sp.f ? { f: sp.f } : {}), ...(sp.t ? { t: sp.t } : {}), ...(sp.al === 'raw' ? { al: 'raw' } : {}), ...(bb ? { bb } : {}) }).toString();
   const bw = 34;
   const gap = 14;
 
@@ -81,8 +103,22 @@ export default async function ExpRevAnalysis({ searchParams }) {
         <Link href={href(y, 'ytd')} className={'chip' + (ytd && sp.f === undefined && sp.t === undefined ? ' on' : '')}>Year to date ({MON3[lastWith - 1]})</Link>
       </div>
 
+      <Flash sp={sp} />
+      <div className='inline er-months'>
+        <Link href={bbHref('')} className={'chip' + (!noBB ? ' on' : '')}>With BOLDBelief</Link>
+        <Link href={bbHref('no')} className={'chip' + (noBB ? ' on' : '')}>Without BOLDBelief (operational cost)</Link>
+      </div>
+      <div className='inline er-months'>
+        <Link href={alHref('')} className={'chip' + (alloc ? ' on' : '')}>Shared costs split by headcount</Link>
+        <Link href={alHref('raw')} className={'chip' + (!alloc ? ' on' : '')}>As booked</Link>
+      </div>
+      {noBB ? <p className='muted' style={{ margin: '0 0 6px', fontSize: 13 }}>BOLDBelief is left out of every figure below.</p> : null}
+      {alloc ? <p className='muted' style={{ margin: '0 0 12px', fontSize: 13 }}>{shared.filter((h) => !(noBB && isBB(h))).join(' and ')} {shared.length > 1 ? 'are' : 'is'} divided by employees: LHR {hc.LHR} ({pct(hc.LHR, hcTotal)}), ISB {hc.ISB} ({pct(hc.ISB, hcTotal)}). Headcount is the active staff in the Attendance list, today's number for every month.</p> : <p className='muted' style={{ margin: '0 0 12px', fontSize: 13 }}>Every cost is shown against the office written on its entry.</p>}
+
       <form method='get' className='er-range'>
         <input type='hidden' name='y' value={y} />
+        {sp.al === 'raw' ? <input type='hidden' name='al' value='raw' /> : null}
+        {noBB ? <input type='hidden' name='bb' value='no' /> : null}
         <label>From month<select name='f' defaultValue={from} autoComplete='off'>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
         <label>To month<select name='t' defaultValue={to} autoComplete='off'>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
         <button className='btn' type='submit'>Show</button>
@@ -170,6 +206,16 @@ export default async function ExpRevAnalysis({ searchParams }) {
           </table>
         </div>
       </div>
+
+      <details className='card'>
+        <summary><b>Shared heads</b> <span className='muted'>({shared.length}): costs split between the offices by headcount</span></summary>
+        <form action={saveSharedHeads} className='form' style={{ marginTop: 10 }}>
+          <div className='wide an-checks'>
+            {allHeads.map((h) => <label key={h} className='an-check'><input type='checkbox' name='h' value={h} defaultChecked={sharedSet.has(h)} />{h}</label>)}
+          </div>
+          <button className='btn primary' type='submit'>Save shared heads</button>
+        </form>
+      </details>
     </>
   );
 }

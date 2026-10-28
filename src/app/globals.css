@@ -1302,3 +1302,6 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .an-n{text-align:left;font-size:12.5px}
   .an-n .er-cl{display:block;font-size:9.5px;color:var(--mut);font-weight:500}
 }
+.an-checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px 14px}
+.an-check{display:flex;align-items:center;gap:8px;font-size:13px}
+.an-check input{min-height:0;width:auto}
