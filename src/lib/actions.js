@@ -143,7 +143,7 @@ export async function addExpense(fd) {
   } else {
     if (!FUNDS[fund]) back('/expenses', 'Pick a fund');
     status = u.role === 'om' ? 'approved' : 'submitted';
-    if (u.role === 'om') {
+    if (u.role === 'om' || u.role === 'sso') {
       const o = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
       if (o) { officeId = o.id; officeCode = o.code; }
     }
@@ -761,8 +761,9 @@ export async function addExpensesBulk(fd) {
     const category = String((r && r.c) || '');
     const description = String((r && r.d) || '').trim().slice(0, 200);
     const on = r && r.on && !badDate(String(r.on)) ? String(r.on) : spentOn;
+    const off = String((r && r.o) || '').trim().toUpperCase();
     if (!(amount > 0) || !CATEGORIES.includes(category)) back('/expenses', 'Every row needs an amount above zero and a category. Check the preview.');
-    clean.push({ amount, category, description, on });
+    clean.push({ amount, category, description, on, off });
   }
   const total = clean.reduce((a, r) => a + r.amount, 0);
 
@@ -792,7 +793,7 @@ export async function addExpensesBulk(fd) {
   } else {
     if (!FUNDS[fund]) back('/expenses', 'Pick a fund');
     status = u.role === 'om' ? 'approved' : 'submitted';
-    if (u.role === 'om') {
+    if (u.role === 'om' || u.role === 'sso') {
       const o = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
       if (o) {
         officeId = o.id;
@@ -800,6 +801,10 @@ export async function addExpensesBulk(fd) {
       }
     }
   }
+  // A row can name its own office (the Office column pasted from Excel); the rest use the office picked above.
+  const offIds = {};
+  if (u.role !== 'so') for (const o of await q('SELECT id, code FROM pc2_offices')) offIds[o.code] = o.id;
+  const used = new Set();
 
   const decided = u.role === 'om';
   const when = decided ? new Date().toISOString() : null;
@@ -810,14 +815,16 @@ export async function addExpensesBulk(fd) {
     const group = r.parts.length > 1 ? newGroup() : null;
     r.parts.forEach((p, k) => {
       const b = params.length;
-      params.push(officeId, fund, r.category, r.description, p.amount, r.on, status, u.id, p.issueId, decided ? u.id : null, when, group, group ? k + 1 : null, group ? r.parts.length : null);
+      const oid = r.off && offIds[r.off] ? offIds[r.off] : officeId;
+      used.add(r.off && offIds[r.off] ? r.off : officeCode);
+      params.push(oid, fund, r.category, r.description, p.amount, r.on, status, u.id, p.issueId, decided ? u.id : null, when, group, group ? k + 1 : null, group ? r.parts.length : null);
       vals.push('(' + Array.from({ length: 14 }, (_, n) => '$' + (b + n + 1)).join(',') + ')');
       count += 1;
     });
   }
   await q(`INSERT INTO pc2_expenses (office_id, fund, category, description, amount, spent_on, status, submitted_by, issue_id, decided_by, decided_at, split_group, split_part, split_total) VALUES ${vals.join(',')}`, params);
-  await logEvent(u, 'create', 'expense', null, 'Added ' + clean.length + ' expenses from Excel totalling ' + pkr(total) + ' (' + officeCode + ', ' + FUNDS[fund] + ')' + (count > clean.length ? ', some split across advances' : ''), null,
-    { count: clean.length, total, office: officeCode, fund, status });
+  await logEvent(u, 'create', 'expense', null, 'Added ' + clean.length + ' expenses from Excel totalling ' + pkr(total) + ' (' + [...used].join(' + ') + ', ' + FUNDS[fund] + ')' + (count > clean.length ? ', some split across advances' : ''), null,
+    { count: clean.length, total, office: [...used].join(' + '), fund, status });
 
   const msg = u.name + ' added ' + clean.length + ' expenses from Excel totalling ' + pkr(total);
   if (u.role === 'so') await notifyRoles(['om', 'sso'], msg + ' (kept with them until submitted)', '/expenses?status=draft', u.id);

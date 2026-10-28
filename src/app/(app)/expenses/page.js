@@ -85,7 +85,7 @@ export default async function ExpensesPage({ searchParams }) {
             <label>Paid from fund
               <select name='fund' defaultValue='petty'>{Object.entries(FUNDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
             </label>
-            {isOM ? (
+            {!isSO ? (
               <label>Office
                 <select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select>
               </label>

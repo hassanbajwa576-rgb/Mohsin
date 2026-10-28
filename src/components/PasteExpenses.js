@@ -59,6 +59,18 @@ function parse(text) {
       }
     }
     if (amount == null && /detail|amount|description|expense/i.test(line) && cells.length <= 3) continue;
+    // Office and payment-mode cells (as copied from the Ops Expenses sheet) are picked out first.
+    let o = '';
+    cells = cells.filter((c) => {
+      if (/^(isb|lhr)$/i.test(c)) { o = c.toUpperCase(); return false; }
+      return !/^(petty cash|bank|cash|cheque|online)$/i.test(c);
+    });
+    // Sheet layout: Cost center - 7120 | Expense type | Detail. The detail is the third cell, the type helps the category guess.
+    let type = '';
+    if (cells.length >= 3 && /\s-\s\d{4}$/.test(cells[0])) {
+      type = cells[1];
+      cells = [cells[2]];
+    }
     let on = '';
     let detail = '';
     for (const c of cells) {
@@ -66,7 +78,7 @@ function parse(text) {
       if (d && !on) on = d;
       else if (!detail && !/^(rs\.?|pkr)$/i.test(c)) detail = c;
     }
-    out.push({ d: detail, a: amount == null ? '' : amount, c: guess(detail), on });
+    out.push({ d: detail, a: amount == null ? '' : amount, c: guess(type + ' ' + detail), on, o });
   }
   return out.slice(0, 200);
 }
@@ -94,7 +106,7 @@ export default function PasteExpenses({ action, isSO, isOM, officeCode, advances
         }
       }}
     >
-      <p className='muted'>In Excel select the Expense Detail and Amount cells, copy them (Ctrl+C), click the box below and paste (Ctrl+V). The "Rs" column is ignored.</p>
+      <p className='muted'>In Excel select your rows (the full sheet columns Cost Center to Office also work), copy (Ctrl+C), click the box below and paste (Ctrl+V). An Office column (ISB / LHR) is picked up per row; "Rs" and payment mode are ignored.</p>
       <textarea
         rows={5}
         value={text}
@@ -118,8 +130,8 @@ export default function PasteExpenses({ action, isSO, isOM, officeCode, advances
             <select name='fund' defaultValue='petty'>{funds.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
           </label>
         )}
-        {isOM ? (
-          <label>Office
+        {!isSO ? (
+          <label>Office (for rows without one)
             <select name='office' defaultValue={officeCode}><option>LHR</option><option>ISB</option></select>
           </label>
         ) : null}
@@ -128,7 +140,7 @@ export default function PasteExpenses({ action, isSO, isOM, officeCode, advances
       {rows.length > 0 ? (
         <div className='tablewrap'>
           <table>
-            <thead><tr><th>#</th><th>Expense detail</th><th>Category</th><th>Date</th><th className='r'>Amount</th><th></th></tr></thead>
+            <thead><tr><th>#</th><th>Expense detail</th><th>Category</th><th>Date</th><th>Office</th><th className='r'>Amount</th><th></th></tr></thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i} className={Number(r.a) > 0 ? '' : 'conflict'}>
@@ -140,6 +152,7 @@ export default function PasteExpenses({ action, isSO, isOM, officeCode, advances
                     </select>
                   </td>
                   <td className='nw'>{r.on || 'as above'}</td>
+                  <td>{isSO ? 'yours' : <select value={r.o} onChange={(e) => set(i, { o: e.target.value })}><option value=''>as above</option><option>LHR</option><option>ISB</option></select>}</td>
                   <td className='r'><input type='number' min='1' step='1' value={r.a} onChange={(e) => set(i, { a: e.target.value })} className='sm' /></td>
                   <td><button type='button' className='btn ghost' onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>Remove</button></td>
                 </tr>
@@ -149,7 +162,7 @@ export default function PasteExpenses({ action, isSO, isOM, officeCode, advances
         </div>
       ) : null}
 
-      <input type='hidden' name='rows' value={JSON.stringify(rows.map((r) => ({ d: r.d, a: Number(r.a), c: r.c, on: r.on })))} />
+      <input type='hidden' name='rows' value={JSON.stringify(rows.map((r) => ({ d: r.d, a: Number(r.a), c: r.c, on: r.on, o: r.o })))} />
       {err ? <p className='att-err'>{err}</p> : null}
       <p className='totals'>{rows.length} row(s) - total PKR {total.toLocaleString('en-US')}{bad ? ' - ' + bad + ' row(s) need an amount' : ''}</p>
       <button className='btn primary' type='submit' disabled={rows.length === 0}>{'Add ' + (rows.length || '') + ' expenses'}</button>
