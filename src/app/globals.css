@@ -930,3 +930,7 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .tp-ap button{border:0;background:#fff;padding:0 14px;font-size:14px;font-weight:600;color:var(--slate);cursor:pointer;min-height:40px;width:auto;border-radius:0}
 .tp-ap button.on{background:var(--gold);color:#000}
 .tp-err{color:#b3261e;font-size:12.5px;font-weight:500}
+.tp-time{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid var(--line);border-radius:6px;background:#fff;padding:0 6px}
+.tp-time input{flex:0 0 auto;width:64px;min-width:0;text-align:center;font-size:24px;font-weight:700;letter-spacing:.02em;border:2px solid transparent;border-radius:6px;background:transparent;padding:6px 0;box-shadow:none}
+.tp-time input:focus{border-color:var(--gold);background:#fbf1cf;outline:none;box-shadow:0 0 0 3px rgba(227,172,34,.35)}
+.tp-time b{font-size:24px;font-weight:700;color:var(--slate)}
