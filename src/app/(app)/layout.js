@@ -31,7 +31,7 @@ export default async function AppLayout({ children }) {
       : 0,
   ]);
   const ROLE = { om: 'Sr. Ops Manager', sso: 'Sr. Support Officer', so: 'Support Officer', guard: 'Guard' };
-  const roleLine = (ROLE[user.role] || '') + (user.office_code ? ' | ' + user.office_code : '');
+  const roleLine = (ROLE[user.role] || '') + (user.role === 'om' ? ' | PK' : user.office_code ? ' | ' + user.office_code : '');
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: "try{if(sessionStorage.getItem('ot-welcome'))document.documentElement.classList.add('ot-seen')}catch(e){}" }} />

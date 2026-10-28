@@ -16,7 +16,7 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approv
   const who = (
     <>
       <b>{user.name}</b>
-      <small>{ROLE_LABEL[user.role]} - {user.office_code}</small>
+      <small>{ROLE_LABEL[user.role]} - {user.role === 'om' ? 'PK' : user.office_code}</small>
     </>
   );
   return (
