@@ -1211,3 +1211,16 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .tablewrap .er-tx td:nth-child(6),.tablewrap .er-tx td:nth-child(7),.tablewrap .er-tx td:nth-child(8){grid-column:1/-1;font-size:11.5px;color:var(--mut)}
   .tablewrap .er-tx td.act{grid-column:1/-1;margin-top:4px}
 }
+
+/* Phones: Budget vs Actual cards, two figures per line, title across the top */
+@media (max-width:720px){
+  .er-range{margin-top:12px}
+  .tablewrap .er-grid tr{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:8px 12px!important}
+  .tablewrap .er-grid td:nth-child(1){grid-column:1 / -1!important;grid-row:auto!important}
+  .tablewrap .er-grid td:nth-child(n+2){grid-column:auto!important;grid-row:auto!important}
+  .tablewrap .er-grid .er-tog-sp{display:none}
+  .tablewrap .er-grid .er-lab{display:flex;align-items:center;gap:8px;padding-left:0!important}
+  .tablewrap .er-grid td.r{font-size:15px;white-space:normal}
+  .tablewrap .er-grid .er-cl{font-size:10px;margin-bottom:2px;white-space:nowrap}
+  .tablewrap .er-grid tr.er-sub{margin-left:12px}
+}

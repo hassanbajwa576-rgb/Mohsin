@@ -76,8 +76,8 @@ export default async function ExpRevBudget({ searchParams }) {
       </div>
 
       <form method='get' className='er-range'>
-        <label>From<select name='from' defaultValue={from}>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
-        <label>To<select name='to' defaultValue={to}>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
+        <label>From<select name='from' defaultValue={from} autoComplete='off'>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
+        <label>To<select name='to' defaultValue={to} autoComplete='off'>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
         <button className='btn' type='submit'>Show</button>
       </form>
 

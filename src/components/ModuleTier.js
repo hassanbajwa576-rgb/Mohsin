@@ -133,7 +133,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
         <nav className='tier-menu'>
           {menu.map((m) => (m.items
             ? <Group key={m.label} label={m.label} items={m.items} on={on} badge={m.badge} open={open === m.label} toggle={toggle} />
-            : <Link key={m.href} href={m.href} className={on(m.href) ? 'on' : ''}>{m.label}{m.badge}</Link>))}
+            : <Link key={m.href} href={m.href} className={(on(m.href) ? 'on' : '') + (m.href === '/exprev/import' ? ' hide-m' : '')}>{m.label}{m.badge}</Link>))}
         </nav>
         <span className='tier-sp' />
         <nav className='tier-menu admin'>
