@@ -126,7 +126,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
               <div style={{ width: (h.lhr / maxH) * 100 + '%', background: LHR }} />
               <div style={{ width: (h.isb / maxH) * 100 + '%', background: ISB }} />
             </div>
-            <span className='an-num'><b>{mil(h.tot)}</b> <small>{pct(h.tot, T)}</small><small className='an-lhr'> LHR {pct(h.lhr, h.tot)}</small><small className='an-isb'> ISB {pct(h.isb, h.tot)}</small></span>
+            <span className='an-num'><b>{money(h.tot)}</b> <small>{pct(h.tot, T)}</small><small className='an-lhr'> LHR {pct(h.lhr, h.tot)}</small><small className='an-isb'> ISB {pct(h.isb, h.tot)}</small></span>
           </div>
         ))}
         {list.length > topN.length ? <p className='muted' style={{ margin: '6px 0 0', fontSize: 12 }}>The {list.length - topN.length} smaller heads are not shown.</p> : null}
