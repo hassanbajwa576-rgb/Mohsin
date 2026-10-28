@@ -4,6 +4,7 @@ import { todayKey } from '@/lib/att';
 import { MONTHS, MON3, money, pkr, erYears, officeCosts, sharedHeads, headcount, budgetByHead } from '@/lib/exprev';
 import { saveSharedHeads } from '@/lib/exprev-actions';
 import Flash from '@/components/Flash';
+import JumpTo from '@/components/JumpTo';
 
 export const dynamic = 'force-dynamic';
 
@@ -344,6 +345,7 @@ export default async function ExpRevAnalysis({ searchParams }) {
         </div>
       )}
 
+      <JumpTo id='compare-two' when={sp.ya !== undefined || sp.yb !== undefined} />
       <div className='card' id='compare-two'>
         <h3>Compare two years</h3>
         <form method='get' action='/exprev/analysis#compare-two' className='er-range'>
