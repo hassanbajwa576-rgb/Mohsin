@@ -10,6 +10,7 @@ import PushPrompt from '@/components/PushPrompt';
 import TextHelp from '@/components/TextHelp';
 import MotionKit from '@/components/MotionKit';
 import TitleGold from '@/components/TitleGold';
+import Welcome from '@/components/Welcome';
 import { NumpadProvider } from '@/components/TimePick';
 
 export const dynamic = 'force-dynamic';
@@ -35,8 +36,11 @@ export default async function AppLayout({ children }) {
       approvals = 0;
     }
   }
+  const ROLE = { om: 'Sr. Ops Manager', sso: 'Sr. Support Officer', so: 'Support Officer', guard: 'Guard' };
+  const roleLine = (ROLE[user.role] || '') + (user.office_code ? ' | ' + user.office_code : '');
   return (
     <>
+      <script dangerouslySetInnerHTML={{ __html: "try{if(sessionStorage.getItem('ot-welcome'))document.documentElement.classList.add('ot-seen')}catch(e){}" }} />
       {user.impersonatedBy ? (
         <div className='impbar'>
           <span>Viewing as <b>{user.name}</b>. Everything you do is recorded as {user.name} (by {user.impersonatedBy.name}). Ends after 30 minutes.</span>
@@ -50,6 +54,7 @@ export default async function AppLayout({ children }) {
       <MotionKit />
       <TitleGold />
       <NumpadProvider on><main className='wrap'>{children}</main></NumpadProvider>
+      <Welcome name={user.name} role={roleLine} />
       <footer className='foot'><b>OpsTrack</b> by AlphaBOLD | Powered by <b>Ops</b></footer>
     </>
   );
