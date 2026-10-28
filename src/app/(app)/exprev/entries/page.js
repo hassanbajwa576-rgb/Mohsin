@@ -37,6 +37,7 @@ export default async function ExpRevEntries({ searchParams }) {
   if (from > to) from = to;
   const size = SIZES.includes(Number(sp.size)) ? Number(sp.size) : 50;
   const cc = String(sp.cc || '');
+  const et = String(sp.et || '');
   const text = String(sp.q || '').trim();
   const off = sp.of === 'ISB' || sp.of === 'LHR' ? sp.of : '';
   const where = ['spent_on >= $1', 'spent_on <= $2'];
@@ -44,6 +45,10 @@ export default async function ExpRevEntries({ searchParams }) {
   if (cc) {
     args.push(cc);
     where.push('cost_center = $' + args.length);
+  }
+  if (et) {
+    args.push(et);
+    where.push('expense_type = $' + args.length);
   }
   if (off) {
     args.push(off);
@@ -65,7 +70,8 @@ export default async function ExpRevEntries({ searchParams }) {
   ]);
   const of = (k) => lists.filter((x) => x.k === k && x.v).map((x) => x.v);
   const ccs = of('cc');
-  const keep = { ...(range ? { range } : custom ? { from, to } : {}), ...(cc ? { cc } : {}), ...(off ? { of: off } : {}), ...(text ? { q: text } : {}), size: String(size) };
+  const ets = of('et');
+  const keep = { ...(range ? { range } : custom ? { from, to } : {}), ...(cc ? { cc } : {}), ...(et ? { et } : {}), ...(off ? { of: off } : {}), ...(text ? { q: text } : {}), size: String(size) };
   const link = (extra) => '/exprev/entries?' + new URLSearchParams({ ...keep, ...extra }).toString();
   const lo = count ? offset + 1 : 0;
   const hi = Math.min(count, offset + size);
@@ -124,6 +130,9 @@ export default async function ExpRevEntries({ searchParams }) {
         <label>To<input type='date' name='to' defaultValue={to} /></label>
         <label>Cost center
           <select name='cc' defaultValue={cc}><option value=''>All</option>{ccs.map((v) => <option key={v} value={v}>{v}</option>)}</select>
+        </label>
+        <label>Expense type
+          <select name='et' defaultValue={et} autoComplete='off'><option value=''>All</option>{ets.map((v) => <option key={v} value={v}>{v}</option>)}</select>
         </label>
         <label>Office
           <select name='of' defaultValue={off} autoComplete='off'><option value=''>All</option><option value='LHR'>LHR</option><option value='ISB'>ISB</option></select>

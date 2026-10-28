@@ -1,7 +1,8 @@
 ﻿import 'server-only';
 import { q } from './db';
-import { todayKey, allOffices } from './att';
-import { MONTHS, MON3, pkr, officeCosts, budgetByHead, erYears } from './exprev';
+import { todayKey, allOffices, dayBoard, stateOf } from './att';
+import { can } from './perms';
+import { MONTHS, MON3, pkr, officeCosts, budgetByHead, erYears, headcount } from './exprev';
 import { fundSummary, soAccount } from './queries';
 import { visitorRows, insideNow, VLABEL } from './visitors';
 
@@ -13,8 +14,8 @@ const has = (n, re) => re.test(n);
 const pc = (a, b) => (b ? ((a / b) * 100).toFixed(1) + '%' : '-');
 const MONWORDS = MONTHS.flatMap((m, i) => [[m.toLowerCase(), i + 1], [m.slice(0, 3).toLowerCase(), i + 1]]).concat([['sept', 9]]);
 const monthOf = (w) => (MONWORDS.find(([k]) => k === w) || [])[1] || 0;
-const SUGGEST_OM = ['How much did we spend this year?', 'ISB spend by month', 'Top heads this year', 'Compare with last year', 'Budget vs actual year to date', 'Who holds the cash?'];
-const SUGGEST_OTHER = ['What is my cash in hand?', 'How many expenses are waiting?', 'Visitors today', 'Advances outstanding'];
+const SUGGEST_OM = ['How much did we spend this year?', 'ISB spend by month', 'Top heads this year', 'Compare with last year', 'Budget vs actual year to date', 'Who holds the cash?', 'Who is on duty today?', 'How many employees in ISB?', 'Open complaints', 'Find 18376'];
+const SUGGEST_OTHER = ['What is my cash in hand?', 'How many expenses are waiting?', 'Visitors today', 'Advances outstanding', 'Open complaints'];
 
 // The period asked for: a year plus a range of months.
 function when(n, nowY, nowM) {
@@ -154,6 +155,94 @@ async function visitorsAnswer(user, n, nowY, nowM, today) {
   );
 }
 
+// More topics: attendance, headcount, complaints, time off, fuel, the team, a person's expenses, and finding an amount.
+const STATUS_WORDS = [[/not yet submitted|draft/, 'draft', 'not yet submitted'], [/rejected/, 'rejected', 'rejected'], [/sent to accounts|submitted to accounts/, 'sent', 'sent to Accounts'], [/ready for accounts|approved/, 'approved', 'approved (ready for Accounts)'], [/awaiting|pending|submitted/, 'submitted', 'awaiting review']];
+const officeAsked = (n, user) => (allOffices(user) ? (has(n, /\bisb\b|islamabad/) && !has(n, /\blhr\b|lahore/) ? 'ISB' : has(n, /\blhr\b|lahore/) && !has(n, /\bisb\b|islamabad/) ? 'LHR' : '') : user.office_code);
+const names = (list, max = 15) => list.slice(0, max).map((x) => '  ' + x).join('\n') + (list.length > max ? '\n  and ' + (list.length - max) + ' more' : '');
+const range = (w) => [w.year + '-' + String(w.from).padStart(2, '0') + '-01', w.year + '-' + String(w.to).padStart(2, '0') + '-' + String(new Date(Date.UTC(w.year, w.to, 0)).getUTCDate()).padStart(2, '0')];
+
+async function extraTopics(user, n, nowY, nowM, today) {
+  const om = user.role === 'om';
+  const sup = om || user.role === 'sso';
+  const office = officeAsked(n, user);
+  // Attendance: who is in
+  if (has(n, /attendance|present|absent|on duty|on break|checked in|not in yet|who is in today|staff in|employees in/) && !has(n, /visitor/)) {
+    if (!can(user, 'att_view')) return 'You do not have access to the attendance board, so I cannot answer that.';
+    const { staff, by } = await dayBoard(today, office);
+    const on = [];
+    const brk = [];
+    const out = [];
+    const none = [];
+    for (const s of staff) {
+      const evs = by.get(s.id) || [];
+      if (!evs.length) none.push(s.name);
+      else {
+        const st = stateOf(evs).state;
+        (st === 'on' ? on : st === 'break' ? brk : out).push(s.name);
+      }
+    }
+    const wantList = has(n, /\bwho\b|list|names/);
+    return lines('Attendance today' + (office ? ' in ' + office : '') + ' (' + staff.length + ' active employees):', '  On duty: ' + on.length, '  On break: ' + brk.length, '  Checked out: ' + out.length, '  No entry yet: ' + none.length, wantList && on.length ? 'On duty:\n' + names(on) : '', wantList && none.length && has(n, /absent|not in|no entry/) ? 'No entry yet:\n' + names(none) : '');
+  }
+  if (has(n, /how many (employees|staff|people)|headcount|strength|number of (employees|staff)/)) {
+    if (!sup && !can(user, 'att_view')) return 'Headcount is available to managers.';
+    const h = await headcount();
+    return lines('Active employees in the Attendance list: ' + (h.LHR + h.ISB) + '.', '  LHR: ' + h.LHR + ' (' + pc(h.LHR, h.LHR + h.ISB) + ')', '  ISB: ' + h.ISB + ' (' + pc(h.ISB, h.LHR + h.ISB) + ')');
+  }
+  if (has(n, /complaint|ticket/)) {
+    const where = office ? "AND o.code = '" + office + "'" : '';
+    const r = (await q("SELECT COUNT(*) FILTER (WHERE c.status = 'open')::int AS open, COUNT(*) FILTER (WHERE c.status = 'open' AND c.due_on < $1::date)::int AS late, COUNT(*)::int AS total FROM pc2_complaints c JOIN pc2_offices o ON o.id = c.office_id WHERE true " + where, [today]))[0];
+    return lines('Complaints' + (office ? ' in ' + office : '') + ': ' + r.total + ' in total.', '  Open: ' + r.open, '  Open and past the due date: ' + r.late);
+  }
+  if (has(n, /time off|leave|pto|off request/)) {
+    if (!sup) return 'Time off numbers are available to the Sr. Ops Manager and the Sr. Support Officer.';
+    const r = (await q("SELECT COUNT(*)::int AS n FROM pc2_hk_off WHERE status = 'pending'"))[0];
+    return 'Time off requests waiting for a decision: ' + r.n + '.';
+  }
+  if (has(n, /fuel|refill|top up/)) {
+    if (!can(user, 'fuel_use')) return 'You do not have access to FuelTrack.';
+    const r = (await q("SELECT COUNT(*)::int AS n FROM pc2_fuel_refill WHERE status = 'open'"))[0];
+    return 'Fuel refill requests still open: ' + r.n + '.';
+  }
+  const us = await q('SELECT u.id, u.name, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.active');
+  const person = us.find((x) => norm(x.name).split(' ').some((w) => w.length >= 3 && new RegExp('\\b' + w + '\\b').test(n)));
+  const ROLE = { om: 'Sr. Ops Manager', sso: 'Sr. Support Officer', so: 'Support Officer', guard: 'Security Guard' };
+  if (has(n, /^who is\b|^who are\b|\bteam\b|list (of )?(users|people|members)/) && !has(n, /cash|holding|holds/)) {
+    if (!om) return 'The team list is available to the Sr. Ops Manager.';
+    if (person && has(n, /^who is\b/)) return person.name + ' is a ' + ROLE[person.role] + ' in ' + person.office + '.';
+    return lines('Team (' + us.length + ' active):', ...Object.keys(ROLE).map((r) => (us.filter((x) => x.role === r).length ? '  ' + ROLE[r] + ': ' + us.filter((x) => x.role === r).map((x) => x.name + ' (' + x.office + ')').join(', ') : '')));
+  }
+  // Find an amount
+  const num = /\b(\d{1,3}(?:,\d{3})+|\d{3,9})\b/.exec(String(n).replace(/(\d),(\d{3})/g, '$1,$2'));
+  if (has(n, /find|search|look up|lookup|entry of|amount of|which entry/) && num && om) {
+    const v = Number(num[1].replace(/,/g, ''));
+    const er = await q("SELECT spent_on::text AS d, cost_center, detail, amount::float8 AS a, office FROM pc2_er_entries WHERE amount = $1 ORDER BY spent_on DESC LIMIT 6", [v]);
+    const pe = await q("SELECT to_char(e.spent_on, 'YYYY-MM-DD') AS d, e.category, e.description, e.status, u.name FROM pc2_expenses e JOIN pc2_users u ON u.id = e.submitted_by WHERE e.amount = $1 ORDER BY e.spent_on DESC LIMIT 6", [v]);
+    if (!er.length && !pe.length) return 'I found no entry of ' + pkr(v) + '.';
+    return lines('Entries of ' + pkr(v) + ':', ...er.map((r) => '  ExpRev ' + r.d + ': ' + r.cost_center + (r.detail ? ' - ' + r.detail : '') + (r.office ? ' (' + r.office + ')' : '')), ...pe.map((r) => '  Petty ' + r.d + ': ' + r.category + (r.description ? ' - ' + r.description : '') + ' (' + r.name + ', ' + r.status + ')'));
+  }
+  // A person's expenses, or expenses in a stage
+  const stat = STATUS_WORDS.find(([re]) => re.test(n));
+  if ((person && has(n, /expens|spent|spend|advance|issued/)) || (stat && has(n, /expens/) && !has(n, /spend|budget/))) {
+    const self = user.role === 'so';
+    const [from, to] = range(when(n, nowY, nowM));
+    const w = when(n, nowY, nowM);
+    const args = [from, to];
+    let sql = "FROM pc2_expenses e JOIN pc2_users u ON u.id = e.submitted_by JOIN pc2_offices o ON o.id = e.office_id WHERE e.spent_on >= $1 AND e.spent_on <= $2";
+    if (self) { args.push(user.id); sql += ' AND e.submitted_by = $' + args.length; } else if (person && has(n, /expens|spent|spend/)) { args.push(person.id); sql += ' AND e.submitted_by = $' + args.length; }
+    if (stat) { args.push(stat[1]); sql += ' AND e.status = $' + args.length; } else sql += " AND e.status <> 'rejected'";
+    if (office && !self) { args.push(office); sql += ' AND o.code = $' + args.length; }
+    const r = (await q('SELECT COUNT(DISTINCT COALESCE(e.split_group, e.id::text))::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v ' + sql, args))[0];
+    const last = await q("SELECT to_char(e.spent_on, 'YYYY-MM-DD') AS d, e.category, e.amount::float8 AS a, u.name " + sql + ' ORDER BY e.spent_on DESC, e.id DESC LIMIT 5', args);
+    if (person && has(n, /advance|issued/) && !has(n, /expens|spent|spend/)) {
+      const adv = (await q('SELECT COALESCE(SUM(i.amount), 0)::float8 AS v, COUNT(*)::int AS c FROM pc2_issues i WHERE i.issued_to = $1 AND i.issued_on >= $2 AND i.issued_on <= $3', [person.id, from, to]))[0];
+      return 'Advances issued to ' + person.name + ' ' + w.label + ': ' + pkr(adv.v) + ' (' + adv.c + ' advance(s)).';
+    }
+    return lines((person && !self ? person.name + ': ' : '') + r.c + ' expense(s)' + (stat ? ' ' + stat[2] : '') + ', ' + w.label + ': ' + pkr(r.v) + '.', last.length ? 'Latest:' : '', ...last.map((x) => '  ' + x.d + '  ' + x.category + '  ' + pkr(x.a) + (person && !self ? '' : '  (' + x.name + ')')));
+  }
+  return null;
+}
+
 export async function opsbotAnswer(user, text) {
   const n = norm(text);
   const today = todayKey();
@@ -163,8 +252,10 @@ export async function opsbotAnswer(user, text) {
   const sugg = om ? SUGGEST_OM : SUGGEST_OTHER;
   if (!n) return { reply: 'Ask me something about the app.', suggestions: sugg };
   if (has(n, /^(hi|hello|hey|salam|help)\b|what can you|who are you|how do i ask/)) {
-    return { reply: om ? 'I am OpsBot. I answer from the data in OpsTrack. Ask about spending by office, head or month, the budget, year against year, cash in hand, advances, expenses waiting for approval, or visitors. Name a month, a year or a head (for example "Travel in August for ISB"). I only know what is in the app.' : 'I am OpsBot. I answer from the data in OpsTrack that you can open: your cash in hand, advances, expenses and visitors.', suggestions: sugg };
+    return { reply: om ? 'I am OpsBot. I answer from the data in OpsTrack. Ask about spending by office, head or month, the budget, year against year, cash in hand, advances, the expenses of one person ("Zubair expenses this month"), expenses in a stage ("rejected expenses"), attendance ("who is on duty today"), headcount, complaints, time off requests, fuel refills, the team, visitors, or find an amount ("find 18376"). Name a month, a year, an office or a head. I only know what is in the app.' : 'I am OpsBot. I answer from the data in OpsTrack that you can open: your cash in hand, advances, expenses and visitors.', suggestions: sugg };
   }
+  const extra = await extraTopics(user, n, nowY, nowM, today);
+  if (extra) return { reply: extra, suggestions: [] };
   if (has(n, /visitor|inside now|who is in\b|who is inside/)) return { reply: await visitorsAnswer(user, n, nowY, nowM, today), suggestions: [] };
   const money = has(n, /spend|spent|cost|expens|paid|how much|total|budget|variance|compare|versus|\bvs\b|head|office|isb|lhr|travel|rent|month|share|percent|top|biggest/);
   const pettyTopic = has(n, /cash in hand|cih|holding|who has|who holds|advance|outstanding|ready for accounts|awaiting|pending|waiting|approval|my cash|my expenses/);
