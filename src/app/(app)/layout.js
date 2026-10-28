@@ -49,7 +49,7 @@ export default async function AppLayout({ children }) {
       <TextHelp />
       <MotionKit />
       <TitleGold />
-      <NumpadProvider on={user.role === 'om'}><main className='wrap'>{children}</main></NumpadProvider>
+      <NumpadProvider on><main className='wrap'>{children}</main></NumpadProvider>
       <footer className='foot'><b>OpsTrack</b> by AlphaBOLD | Powered by <b>Ops</b></footer>
     </>
   );
