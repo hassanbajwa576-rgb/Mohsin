@@ -1,6 +1,7 @@
 ﻿import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, todayKey, fmtTime, fmt12, fmtDay, fmtDur, dateKey } from '@/lib/att';
+import { TagNote, TagForm } from '@/components/VisitorTag';
 import { VTYPES, VLABEL, insideNow, visitorRows, hostNames, canEditVisitor, waitingQueue, laterQueue } from '@/lib/visitors';
 import { addVisitor, checkOutVisitor, addExpected, markArrived, markNoShow, cancelExpected } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
@@ -50,12 +51,13 @@ export default async function VisitorsPage({ searchParams }) {
               <tbody>
                 {inside.map((v) => (
                   <tr key={v.id}>
-                    <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.company ? <div className='muted'>{v.company}</div> : null}{v.remarks ? <div className='muted'>{v.remarks}</div> : null}</td>
+                    <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.company ? <div className='muted'>{v.company}</div> : null}{v.remarks ? <div className='muted'>{v.remarks}</div> : null}<TagNote v={v} /></td>
                     <td className='c-meta'>{VLABEL[v.vtype]}</td>
                     <td className='c-meta'>{v.host || '-'}</td>
                     <td className='nw c-meta'>{(dateKey(v.in_ms) === today ? '' : fmtDay(v.in_ms) + ', ') + fmt12(v.in_ms)}</td>
                     <td className='nw c-meta'>{fmtDur(now - Number(v.in_ms))}</td>
                     <td className='act'>
+                      {user.role === 'om' ? <TagForm v={v} to='/visitors' /> : null}
                       {canEditVisitor(user, v) ? <Link className='btn ghost' href={'/visitors/edit?id=' + v.id}>Edit</Link> : null}
                       <form action={checkOutVisitor} className='inline'>
                         <input type='hidden' name='id' value={v.id} />

@@ -54,6 +54,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const visit = path === '/visitors' || path.indexOf('/visitors/') === 0;
   const fuel = path === '/fuel' || path.indexOf('/fuel/') === 0;
   const sup = path === '/support' || path.indexOf('/support/') === 0;
+  const exr = path === '/exprev' || path.indexOf('/exprev/') === 0;
   const guard = role === 'guard';
   const om = role === 'om';
   const sso = role === 'sso';
@@ -92,7 +93,8 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   if (om) fu.push(page('/fuel/setup', 'Setup'));
   const su = [page('/support', 'Dashboard'), page('/support/new', 'Record Complaint'), page('/support/list', 'All Complaints')];
   if (om || role === 'sso') su.push(page('/support/people', 'By Person'));
-  const menu = sup ? su : fuel ? fu : visit ? vis : guard || attend ? att : petty;
+  const er = [page('/exprev', 'Dashboard'), page('/exprev/entries', 'Expenditures'), page('/exprev/budget', 'Budget vs Actual'), page('/exprev/pnl', 'Profit & Loss'), page('/exprev/import', 'Load workbook')];
+  const menu = exr ? er : sup ? su : fuel ? fu : visit ? vis : guard || attend ? att : petty;
   // Every page of a module, for the dropdown under its name.
   const all = (list) => list.flatMap((m) => (m.items ? m.items : [m]));
   const admin = [];
@@ -103,27 +105,29 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const opened = menu.find((m) => m.items && m.label === open);
 
   // Exact match for the section home pages, prefix match for everything else.
-  const on = (href) => (href === '/' || href === '/attendance' || href === '/visitors' || href === '/fuel' || href === '/support' ? path === href : path === href || path.indexOf(href + '/') === 0);
+  const on = (href) => (href === '/' || href === '/attendance' || href === '/visitors' || href === '/fuel' || href === '/support' || href === '/exprev' ? path === href : path === href || path.indexOf(href + '/') === 0);
 
   // Phone only, Sr. Ops Manager only: the module switch moves to a bottom bar with icons.
   const ic = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', width: 22, height: 22, viewBox: '0 0 24 24', 'aria-hidden': true };
   const bots = [
-    { href: '/', label: 'Petty', active: !attend && !visit && !fuel && !sup, d: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12M16 14h2' },
+    { href: '/', label: 'Petty', active: !attend && !visit && !fuel && !sup && !exr, d: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12M16 14h2' },
     { href: '/attendance', label: 'Attendance', active: attend, d: 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' },
     { href: '/visitors', label: 'Visitors', active: visit, d: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 3-5 6-5s6 2 6 5M16 5a3 3 0 0 1 0 6M18 15c2 .5 3 2.5 3 5' },
   ];
   if (access.includes('fuel_use')) bots.push({ href: '/fuel', label: 'Fuel', active: fuel, d: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z' });
   bots.push({ href: '/support', label: 'Support', active: sup, d: 'M4 5h16v11H9l-5 4zM8 10h8' });
+  if (om) bots.push({ href: '/exprev', label: 'ExpRev', active: exr, d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' });
 
   return (
     <div className={'tier' + (om || sso ? ' tier-om' : '')} ref={bar}>
       <div className='tier-in'>
         <span className='modseg' translate='no'>
-          {guard ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup} items={petty} on={on} />}
+          {guard ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup && !exr} items={petty} on={on} />}
           <Mod href='/attendance' label='Attendance' active={attend} items={all(att)} on={on} />
           <Mod href='/visitors' label='Visitors' active={visit} items={vis} on={on} />
           {access.includes('fuel_use') ? <Mod href='/fuel' label='Fuel' active={fuel} items={fu} on={on} /> : null}
           {guard ? null : <Mod href='/support' label='Support' active={sup} items={su} on={on} />}
+          {om ? <Mod href='/exprev' label='ExpRev' active={exr} items={er} on={on} /> : null}
         </span>
         <span className='tier-sep' />
         <div className='tier-scroll'>

@@ -13,9 +13,15 @@ export const VTYPES = [
   ['guest', 'Guest'],
   ['other', 'Other'],
 ];
+// Tags the Sr. Ops Manager can put on a visitor record, as support for the guard.
+export const OM_TAGS = [
+  ['hr_missed', 'HR did not inform in the WhatsApp group'],
+  ['cleared', 'Cleared by Mohsin'],
+];
+export const OM_TAG_LABEL = Object.fromEntries(OM_TAGS);
 export const VLABEL = Object.fromEntries(VTYPES);
 
-export const V_COLS = `v.id, v.name, v.phone, v.company, v.vtype, v.host, v.purpose, v.remarks, v.badge, v.entered_by, v.out_by, o.code AS office, v.office_id,
+export const V_COLS = `v.id, v.name, v.phone, v.company, v.vtype, v.host, v.purpose, v.remarks, v.om_tag, v.om_note, v.badge, v.entered_by, v.out_by, o.code AS office, v.office_id,
   (extract(epoch from v.in_at) * 1000)::float8 AS in_ms, (extract(epoch from v.out_at) * 1000)::float8 AS out_ms, u.name AS by_name, v.del_req_by, v.del_reason, (SELECT r.name FROM pc2_users r WHERE r.id = v.del_req_by) AS req_name, (v.created_at > now() - interval '36 hours') AS fresh`;
 
 // Who may change a visitor record: the Sr. Ops Manager, anyone with the visitor log access, and whoever checked the visitor in (for 36 hours).

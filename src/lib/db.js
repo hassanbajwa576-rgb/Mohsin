@@ -114,6 +114,13 @@ const DDL = [
   // Temporary hours for a date range (one row per department, employee or everyone); they end by themselves.
   `CREATE TABLE IF NOT EXISTS pc2_shift_periods (id SERIAL PRIMARY KEY, scope TEXT NOT NULL CHECK (scope IN ('everyone','department','employee')), dept TEXT NOT NULL DEFAULT '', staff_id INTEGER REFERENCES pc2_staff(id) ON DELETE CASCADE, shift_start TEXT NOT NULL, shift_end TEXT NOT NULL, from_date DATE NOT NULL, to_date DATE NOT NULL, note TEXT NOT NULL DEFAULT '', created_by INTEGER REFERENCES pc2_users(id), created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE TABLE IF NOT EXISTS pc2_dept_shifts (dept TEXT PRIMARY KEY, shift TEXT NOT NULL, shift_start TEXT NOT NULL, shift_end TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  // A tag and a remark the Sr. Ops Manager can put on a visitor record (for example when HR did not announce the visit in the WhatsApp group).
+  `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS om_tag TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE pc2_visitors ADD COLUMN IF NOT EXISTS om_note TEXT NOT NULL DEFAULT ''`,
+  // ExpRev: the expenditure list, plus the dashboard, budget and profit-and-loss layouts read from the Ops Expenses Dashboard workbook.
+  `CREATE TABLE IF NOT EXISTS pc2_er_entries (id SERIAL PRIMARY KEY, spent_on DATE NOT NULL, cost_center TEXT NOT NULL DEFAULT '', expense_type TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '', amount NUMERIC(14,2) NOT NULL, pay_mode TEXT NOT NULL DEFAULT '', office TEXT NOT NULL DEFAULT '', vendor TEXT NOT NULL DEFAULT '', remarks TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS pc2_er_entries_on ON pc2_er_entries (spent_on)`,
+  `CREATE TABLE IF NOT EXISTS pc2_er_sheet (id SERIAL PRIMARY KEY, kind TEXT NOT NULL, sort INTEGER NOT NULL, label TEXT NOT NULL, row_kind TEXT NOT NULL DEFAULT 'line', field TEXT NOT NULL DEFAULT '', mval TEXT NOT NULL DEFAULT '', meta JSONB NOT NULL DEFAULT '{}'::jsonb, vals JSONB NOT NULL DEFAULT '{}'::jsonb)`,
 ];
 
 let sql;
@@ -121,7 +128,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-28-1';
+const SCHEMA_VERSION = '2026-10-29-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

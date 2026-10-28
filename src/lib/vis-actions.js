@@ -7,7 +7,7 @@ import { logEvent } from './audit';
 import { ATT_ROLES, allOffices, validDate, validTime } from './att';
 import { can } from './perms';
 import { notifyRoles, notifyUser } from './notify';
-import { VLABEL, canEditVisitor, V_COLS, V_FROM } from './visitors';
+import { VLABEL, OM_TAG_LABEL, canEditVisitor, V_COLS, V_FROM } from './visitors';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 
@@ -95,7 +95,7 @@ export async function editVisitor(fd) {
   if (hasOut && inD + inT > outD + outT) back(here, 'The check out is before the check in');
   await q(
     `UPDATE pc2_visitors SET office_id = $1, name = $2, phone = $3, company = $4, vtype = $5, host = $6, purpose = $7, badge = $8,
-       in_at = ($9::date + $10::time) AT TIME ZONE 'Asia/Karachi', out_at = ${hasOut ? "($11::date + $12::time) AT TIME ZONE 'Asia/Karachi'" : 'NULL'} WHERE id = $13`,
+       in_at = ($9::date + $10::time) AT TIME ZONE 'Asia/Karachi', out_at = ($11::date + $12::time) AT TIME ZONE 'Asia/Karachi' WHERE id = $13`,
     [off.id, name, s(fd, 'phone').slice(0, 30), s(fd, 'company').slice(0, 80), vtype, s(fd, 'host').slice(0, 200), s(fd, 'purpose').slice(0, 200), s(fd, 'badge').slice(0, 20), inD, inT, outD || null, outT || null, id]
   );
   await logEvent(u, 'edit', 'visitor', id, 'Edited visitor record: ' + name, null, { vtype });
@@ -224,4 +224,17 @@ export async function cancelExpected(fd) {
   await q('DELETE FROM pc2_expected WHERE id = $1', [e.id]);
   await logEvent(u, 'delete', 'visitor', e.id, 'Removed expected visitor: ' + e.name, null, null);
   back('/visitors', e.name + ' removed from the queue', true);
+}
+
+// Sr. Ops Manager: tag a visitor record and add a remark (supporting note for the guards).
+export async function tagVisitor(fd) {
+  const u = await needOm();
+  const id = Number(s(fd, 'id'));
+  const to = s(fd, 'to') === '/visitors/log' ? '/visitors/log' : '/visitors';
+  const tag = OM_TAG_LABEL[s(fd, 'tag')] ? s(fd, 'tag') : '';
+  const note = s(fd, 'note').slice(0, 200);
+  const r = Number.isInteger(id) ? await q('UPDATE pc2_visitors SET om_tag = $1, om_note = $2 WHERE id = $3 RETURNING name', [tag, note, id]) : [];
+  if (!r[0]) back(to, 'Visitor not found');
+  await logEvent(u, 'edit', 'visitor', id, 'Tagged visitor record of ' + r[0].name + (tag ? ': ' + OM_TAG_LABEL[tag] : ': tag cleared') + (note ? ' (' + note + ')' : ''), null, { tag, note });
+  back(to, tag || note ? 'Tag saved' : 'Tag cleared', true);
 }

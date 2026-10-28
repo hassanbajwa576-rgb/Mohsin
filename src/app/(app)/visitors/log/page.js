@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey, validDate, fmt12, fmtDay, fmtDur } from '@/lib/att';
 import { addDay } from '@/lib/att-import';
+import { TagNote, TagForm } from '@/components/VisitorTag';
 import { VTYPES, VLABEL, visitorRows, pendingDeletes, noShows } from '@/lib/visitors';
 import { deleteVisitor, decideVisitorDelete } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
@@ -115,8 +116,9 @@ export default async function VisitorLogPage({ searchParams }) {
                     <td className='nw c-meta'>{fmt12(v.in_ms)}</td>
                     <td className='nw c-meta'>{v.out_ms ? fmt12(v.out_ms) : <span className='muted'>inside</span>}</td>
                     <td className='nw c-meta'>{v.out_ms ? fmtDur(Number(v.out_ms) - Number(v.in_ms)) : '-'}</td>
-                    <td className='c-meta'>{v.purpose || ''}{v.remarks ? <div className='muted'>Remarks: {v.remarks}</div> : null}{v.badge ? <div className='muted'>Badge {v.badge}</div> : null}</td>
+                    <td className='c-meta'>{v.purpose || ''}{v.remarks ? <div className='muted'>Remarks: {v.remarks}</div> : null}{v.badge ? <div className='muted'>Badge {v.badge}</div> : null}<TagNote v={v} /></td>
                     <td className='act'>
+                      {user.role === 'om' ? <TagForm v={v} to='/visitors/log' /> : null}
                       <Link className='btn' href={'/visitors/edit?id=' + v.id}>Edit</Link>
                       {user.role === 'om' ? (
                         <form action={deleteVisitor} className='inline'>

@@ -1023,3 +1023,37 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
 .skel-block{height:220px}
 @keyframes skelRun{from{background-position:200% 0}to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.skel-bar{animation:none}}
+
+/* Visitor tag */
+.vtag{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+.vtag-note{font-size:12.5px;color:var(--ink)}
+.badge.vtag-hr_missed{background:var(--warnbg);color:var(--warn)}
+.badge.vtag-cleared{background:var(--okbg);color:var(--ok)}
+.vtag-edit{display:inline-block;vertical-align:top}
+.vtag-edit summary{list-style:none;cursor:pointer}
+.vtag-edit summary::-webkit-details-marker{display:none}
+.vtag-form{display:flex;flex-direction:column;gap:6px;margin-top:6px;min-width:240px}
+/* ExpRev */
+.er-bars{display:flex;align-items:flex-end;gap:6px;height:150px}
+.er-bar{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;text-decoration:none;color:var(--mut)}
+.er-bar .er-fill{display:block;width:100%;background:var(--line);border-radius:3px 3px 0 0;transition:background-color .2s}
+.er-bar:hover .er-fill{background:var(--slate)}
+.er-bar.on .er-fill{background:var(--gold)}
+.er-bar i{font-style:normal;font-size:11px;font-weight:600}
+.er-bar.on i{color:var(--ink)}
+.er-top{display:flex;flex-direction:column;gap:9px}
+.er-toprow{display:grid;grid-template-columns:minmax(120px,240px) 1fr auto;gap:12px;align-items:center;font-size:14px}
+.er-track{height:8px;background:var(--surface);border-radius:4px;overflow:hidden}
+.er-track span{display:block;height:100%;background:var(--gold)}
+.er-grid .er-sub td{color:var(--mut)}
+.er-grid .er-ind{padding-left:14px}
+.er-grid .er-head td{background:var(--surface)!important;font-weight:600}
+.er-grid .er-grand td{background:#fbf1cf!important;border-top:2px solid var(--gold);font-weight:700}
+.er-grid .er-main td:first-child{white-space:nowrap}
+.er-sel{background:#fdf1c4!important}
+.er-grid thead th a{color:inherit;text-decoration:none}
+.er-months{margin-bottom:14px;flex-wrap:wrap}
+.er-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:12px;align-items:end}
+.er-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500}
+.er-form .wide{grid-column:1/-1}
+@media(max-width:640px){.er-toprow{grid-template-columns:1fr auto}.er-toprow .er-track{grid-column:1/-1;order:3}}
