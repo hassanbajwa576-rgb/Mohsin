@@ -1395,3 +1395,9 @@ html:has(.an-filters){scroll-behavior:smooth}
   .subrow{overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-padding-right:12px}
   .subrow a{flex:0 0 auto}
 }
+/* Analysis cards on phones (final): title on its own line, every figure and label on one line */
+@media (max-width:720px){
+  .tablewrap .an-tbl tr{display:flex!important;flex-wrap:wrap!important;align-items:flex-start!important;gap:8px 6px!important;padding:12px!important}
+  .tablewrap .an-tbl td{flex:1 1 0!important;width:auto!important;min-width:0!important;max-width:none!important;display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;font-size:12.5px!important}
+  .tablewrap .an-tbl td:first-child{flex:0 0 100%!important;white-space:normal!important;overflow:visible!important}
+}
