@@ -286,6 +286,37 @@ async function extraTopics(user, n, nowY, nowM, today) {
     const r = await q("SELECT id, total::float8 AS total, item_count, to_char(created_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD') AS d FROM pc2_batches ORDER BY id DESC LIMIT 4");
     return r.length ? lines('Latest batches sent to Accounts:', ...r.map((x) => '  #' + x.id + '  ' + x.d + '  ' + x.item_count + ' expenses  ' + pkr(x.total))) : 'No batch has been sent to Accounts yet.';
   }
+﻿  // Heads over budget in the chosen months (Sr. Ops Manager)
+  if (has(n, /over budget|overspent|over spent|exceeded|above budget/) && om) {
+    const exB = has(n, /without boldbelief|operational/);
+    const bud = await budgetByHead(wP.year);
+    const acts = agg(await officeCosts(wP.year), { from: wP.from, to: wP.to, office: 'ALL', head: null, exBB: exB }).byHead;
+    const over = [];
+    for (const [cc, arr] of Object.entries(bud)) {
+      if (exB && /^boldbelief/i.test(cc)) continue;
+      const B = arr.slice(wP.from - 1, wP.to).reduce((x, y) => x + y, 0);
+      const A = acts.get(cc) || 0;
+      if (B > 0 && A > B) over.push([cc, A - B, B, A]);
+    }
+    over.sort((x, y) => y[1] - x[1]);
+    return over.length ? lines('Heads over budget ' + wP.label + ':', ...over.slice(0, 10).map(([k, d, B, A]) => '  ' + k + ': over by ' + pkr(d) + ' (budget ' + pkr(B) + ', spent ' + pkr(A) + ')')) : 'No head is over budget ' + wP.label + '.';
+  }
+  // Expenses added in the last 7 days (Sr. Ops Manager, Sr. SO)
+  if (has(n, /this week|last 7 days|past week|last week/) && has(n, /expens/) && sup) {
+    const r = (await q("SELECT COUNT(DISTINCT COALESCE(e.split_group, e.id::text))::int AS c, COALESCE(SUM(e.amount), 0)::float8 AS v FROM pc2_expenses e WHERE e.status <> 'rejected' AND e.created_at >= (($1::date - 6)::timestamp AT TIME ZONE 'Asia/Karachi')", [today]))[0];
+    return 'Expenses added in the last 7 days: ' + r.c + ', ' + pkr(r.v) + '.';
+  }
+  // Advances issued in the chosen months (Sr. Ops Manager)
+  if (has(n, /advances? issued|cash issued|issued to support/) && om) {
+    const r = (await q('SELECT COALESCE(SUM(i.amount), 0)::float8 AS v, COUNT(*)::int AS c FROM pc2_issues i WHERE i.issued_on >= $1 AND i.issued_on <= $2', [pFrom, pTo]))[0];
+    return 'Advances issued ' + wP.label + ': ' + pkr(r.v) + ' in ' + r.c + ' advance(s).';
+  }
+  // Average visit time for visitors who checked out
+  if (has(n, /average (visit|visitor)|avg visit|how long (do|did) visitors|visitor duration|time spent by visitors/)) {
+    const scope = allOffices(user) ? '' : user.office_code;
+    const r = (await q("SELECT COUNT(*)::int AS c, COALESCE(AVG(EXTRACT(EPOCH FROM (v.out_at - v.in_at))) / 60, 0)::float8 AS m FROM pc2_visitors v JOIN pc2_offices o ON o.id = v.office_id WHERE v.out_at IS NOT NULL AND v.in_at >= (($1::date)::timestamp AT TIME ZONE 'Asia/Karachi') AND v.in_at < (($2::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi') AND ($3 = '' OR o.code = $3)", [pFrom, pTo, scope]))[0];
+    return r.c ? 'Average visit ' + wP.label + ': about ' + Math.round(r.m) + ' minutes, from ' + r.c + ' visitor(s) who checked out.' : 'No visitor checked out ' + wP.label + '.';
+  }
   const us = await q('SELECT u.id, u.name, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.active');
   const person = us.find((x) => norm(x.name).split(' ').some((w) => w.length >= 3 && new RegExp('\\b' + w + '\\b').test(n)));
   const ROLE = { om: 'Sr. Ops Manager', sso: 'Sr. Support Officer', so: 'Support Officer', guard: 'Security Guard' };
