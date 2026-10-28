@@ -36,12 +36,13 @@ async function sums(year) {
   const cc = new Map();
   const et = new Map();
   const month = zeros();
+  const pairs = rows.map((r) => ({ m: r.m - 1, cc: r.cc, et: r.et, s: r.s }));
   for (const r of rows) {
     add(cc, r.cc, r.m - 1, r.s);
     add(et, r.et, r.m - 1, r.s);
     month[r.m - 1] += r.s;
   }
-  return { cc, et, month };
+  return { cc, et, month, pairs };
 }
 const pick = (s, field, v) => (field === 'cc' ? s.cc : s.et).get(v) || zeros();
 const plus = (a, b) => a.map((x, i) => x + b[i]);
@@ -101,8 +102,36 @@ export async function budgetView(year) {
       grand.a = plus(grand.a, r.a);
     }
   }
+  // Lines after the first Total Budgeted (contingency, vendor taxes) belong to a final total, as in the workbook.
+  if (grand) {
+    const fin = { row: 9998, label: 'Total Budgeted', kind: 'grand2', b: grand.b, q: grand.q, a: grand.a, inside: false };
+    for (const r of rows) {
+      if (r.row > grand.row && r.kind !== 'grand2' && !r.inside && (r.kind === 'line' || r.kind === 'head')) {
+        fin.b = plus(fin.b, r.b);
+        fin.q = plus(fin.q, r.q);
+        fin.a = plus(fin.a, r.a);
+      }
+    }
+    rows.push(fin);
+  }
   const rest = s.month.map((v, i) => v - mapped[i]);
-  if (rest.some((v) => Math.abs(v) > 0.5)) rows.push({ row: 9999, label: 'Spend not on any line above', kind: 'rest', b: zeros(), q: zeros(), a: rest, inside: false });
+  if (rest.some((v) => Math.abs(v) > 0.5)) {
+    rows.push({ row: 9999, label: 'Spend not on any line above', kind: 'rest', b: zeros(), q: zeros(), a: rest, inside: false });
+    // Which cost centers and types it is made of: entries whose cost center and type are on no budget line.
+    const ccOn = new Set(lines.filter((l) => l.row_kind === 'line' && l.field === 'cc').map((l) => l.mval));
+    const etOn = new Set(lines.filter((l) => l.row_kind === 'line' && l.field === 'et').map((l) => l.mval));
+    const left = new Map();
+    for (const p of s.pairs) {
+      if (ccOn.has(p.cc) || etOn.has(p.et)) continue;
+      const k = (p.cc || '(no cost center)') + (p.et ? ' / ' + p.et : '');
+      if (!left.has(k)) left.set(k, zeros());
+      left.get(k)[p.m] += p.s;
+    }
+    let n = 0;
+    for (const [k, v] of [...left.entries()].sort((x, y) => total(y[1]) - total(x[1]))) {
+      rows.push({ row: 10000 + n++, label: k, kind: 'restitem', b: zeros(), q: zeros(), a: v, inside: true });
+    }
+  }
   return { rows, month: s.month, hasData: lines.length > 0 };
 }
 

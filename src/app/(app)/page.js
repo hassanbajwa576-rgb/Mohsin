@@ -113,7 +113,7 @@ function AdjustedPosition({ rows, waiting }) {
     review: data.reduce((a, r) => a + r.review, 0),
     ready: data.reduce((a, r) => a + r.ready, 0),
     net: data.reduce((a, r) => a + r.net, 0),
-    cashWho: sumArr('cashWho'), capWho: sumArr('capWho'), draftsWho: sumArr('draftsWho'), reviewWho: sumArr('reviewWho'), readyWho: sumArr('readyWho'), totWho: sumArr('totWho'),
+    cashWho: sumArr('cashWho'), capWho: [0, 1, 2].map((i) => data.reduce((a, r) => a + (Number(r.cashWho[i]) > 0 ? Number(r.capWho[i]) : 0), 0)), draftsWho: sumArr('draftsWho'), reviewWho: sumArr('reviewWho'), readyWho: sumArr('readyWho'), totWho: sumArr('totWho'),
   };
   const Row = ({ r, bold, label }) => {
     const roles = rolesOf(r);

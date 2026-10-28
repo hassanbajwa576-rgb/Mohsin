@@ -101,7 +101,7 @@ export default async function ExpRevDashboard({ searchParams }) {
 
       <div className='card'>
         <h3>All categories, {y}</h3>
-        <div className='tablewrap er-xlwrap'>
+        <div className='tablewrap'>
           <table className='er-xl'>
             <thead>
               <tr>

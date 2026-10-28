@@ -23,11 +23,14 @@ export default async function ExpRevBudget({ searchParams }) {
   }
   const today = todayKey();
   const d = await budgetView(year);
-  let m = sp.m === undefined ? (Number(today.slice(0, 4)) === year ? Number(today.slice(5, 7)) : 0) : Number(sp.m);
-  if (!(m >= 0 && m <= 12)) m = 0;
+  // Default is year to date: January up to the last month that has spend, like the workbook's YTD block.
+  let ytdTo = 12;
+  while (ytdTo > 1 && !d.month[ytdTo - 1]) ytdTo -= 1;
+  let m = sp.m === undefined || sp.m === 'ytd' ? -2 : Number(sp.m);
+  if (!(m >= 0 && m <= 12) && m !== -2) m = 0;
   // A range of months: from=..&to=.. (either way round); a single month or the full year is the same thing with both ends set.
-  let from = m || 1;
-  let to = m || 12;
+  let from = m > 0 ? m : 1;
+  let to = m > 0 ? m : m === -2 ? ytdTo : 12;
   if (sp.from !== undefined || sp.to !== undefined) {
     from = Math.min(12, Math.max(1, Number(sp.from) || 1));
     to = Math.min(12, Math.max(1, Number(sp.to) || 12));
@@ -35,8 +38,8 @@ export default async function ExpRevBudget({ searchParams }) {
     m = from === to ? from : from === 1 && to === 12 ? 0 : -1;
   }
   const pick = (a) => a.slice(from - 1, to).reduce((x, y) => x + y, 0);
-  const span = from === to ? MONTHS[from - 1] : from === 1 && to === 12 ? 'full year' : MONTHS[from - 1] + ' to ' + MONTHS[to - 1];
-  const g = d.rows.find((r) => r.kind === 'grand');
+  const span = from === to ? MONTHS[from - 1] : from === 1 && to === 12 ? 'full year' : m === -2 ? 'year to date (' + MON3[to - 1] + ')' : MONTHS[from - 1] + ' to ' + MONTHS[to - 1];
+  const g = d.rows.find((r) => r.kind === 'grand2') || d.rows.find((r) => r.kind === 'grand');
   const gb = g ? pick(g.b) : 0;
   const ga = g ? pick(g.a) : 0;
   const href = (mm) => '/exprev/budget?m=' + mm;
@@ -51,6 +54,7 @@ export default async function ExpRevBudget({ searchParams }) {
       </div>
 
       <div className='inline er-months'>
+        <Link href={href('ytd')} className={'chip' + (m === -2 ? ' on' : '')}>YTD</Link>
         <Link href={href(0)} className={'chip' + (m === 0 ? ' on' : '')}>Full year</Link>
         {MON3.map((n, i) => <Link key={n} href={href(i + 1)} className={'chip' + (m === i + 1 ? ' on' : '')}>{n}</Link>)}
       </div>
@@ -74,14 +78,14 @@ export default async function ExpRevBudget({ searchParams }) {
             const b = pick(r.b);
             const a = pick(r.a);
             const v = b - a;
-            const flat = r.kind === 'total' || r.kind === 'grand' || r.kind === 'rest';
+            const flat = r.kind === 'total' || r.kind === 'grand' || r.kind === 'grand2' || r.kind === 'rest' || r.kind === 'restitem';
             return {
               k: String(r.row),
               level: r.inside ? 1 : 0,
-              cls: r.kind === 'total' ? 'er-main' : r.kind === 'grand' ? 'er-grand' : r.kind === 'head' && !b && !a ? 'er-head' : r.inside ? 'er-sub' : 'er-main',
-              bold: r.kind === 'total' || r.kind === 'grand',
+              cls: r.kind === 'total' ? 'er-main' : r.kind === 'grand' || r.kind === 'grand2' ? 'er-grand' : r.kind === 'head' && !b && !a ? 'er-head' : r.inside ? 'er-sub' : 'er-main',
+              bold: r.kind === 'total' || r.kind === 'grand' || r.kind === 'grand2',
               label: r.label,
-              cells: [{ t: money(b) }, { t: money(a) }, { t: flat ? '' : money(pick(r.q)) }, { t: r.kind === 'rest' ? '' : money(v), c: v < -0.5 ? 'neg-t' : v > 0.5 ? 'pos-t' : '' }],
+              cells: [{ t: money(b) }, { t: money(a) }, { t: flat ? '' : money(pick(r.q)) }, { t: r.kind === 'rest' || r.kind === 'restitem' ? '' : money(v), c: v < -0.5 ? 'neg-t' : v > 0.5 ? 'pos-t' : '' }],
             };
           })}
         />
