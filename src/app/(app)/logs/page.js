@@ -69,8 +69,8 @@ export default async function LogsPage({ searchParams }) {
       <div className='card'>
         {rows.length === 0 ? <p className='muted'>No changes recorded yet.</p> : (
           <div className='tablewrap'>
-            <table>
-              <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Area</th><th>What happened</th><th></th></tr></thead>
+            <table className='log-tbl'>
+              <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Area</th><th>What happened</th><th className='act'></th></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>

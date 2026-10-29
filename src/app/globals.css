@@ -60,6 +60,9 @@ details.card summary{cursor:pointer;font-weight:600;color:var(--ink)}
 .bars{display:flex;flex-direction:column;gap:12px}
 .bar-top{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:4px}
 .tablewrap{overflow-x:auto}
+/* Audit log: the Remove button stays pinned at the visible right edge instead of requiring a scroll to the far end of a long row */
+.log-tbl td.act,.log-tbl th.act{position:sticky;right:0;z-index:1;background:var(--card);box-shadow:-6px 0 8px -6px rgba(0,0,0,.12)}
+.log-tbl tbody tr:nth-child(even) td.act{background:#fdf8e7}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;color:var(--mut);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:8px;border-bottom:2px solid var(--line);white-space:nowrap}
 td{padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:top}
