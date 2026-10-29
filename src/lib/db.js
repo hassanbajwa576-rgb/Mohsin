@@ -126,6 +126,9 @@ const DDL = [
   `INSERT INTO pc2_fund_types (key, label, sort) VALUES ('petty','Petty Cash',1),('brc','BRC',2),('other','Others',3) ON CONFLICT (key) DO NOTHING`,
   `DO $$ DECLARE r record; BEGIN FOR r IN SELECT conrelid::regclass AS t, conname FROM pg_constraint WHERE contype = 'c' AND conrelid::regclass::text LIKE 'pc2\_%' AND pg_get_constraintdef(oid) LIKE '%fund%' AND pg_get_constraintdef(oid) LIKE '%petty%' LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.t, r.conname); END LOOP; END $$`,
   `CREATE TABLE IF NOT EXISTS pc2_er_sheet (id SERIAL PRIMARY KEY, kind TEXT NOT NULL, sort INTEGER NOT NULL, label TEXT NOT NULL, row_kind TEXT NOT NULL DEFAULT 'line', field TEXT NOT NULL DEFAULT '', mval TEXT NOT NULL DEFAULT '', meta JSONB NOT NULL DEFAULT '{}'::jsonb, vals JSONB NOT NULL DEFAULT '{}'::jsonb)`,
+  // One-time cleanup: older "updated your profile: pages: ..." notifications dumped the full raw list of page paths.
+  // Replace just that segment with a short summary; newer notifications (which never contain a "/") are left alone.
+  `UPDATE pc2_notifications SET message = regexp_replace(message, 'pages: [^;]*/[^;]*', 'pages: updated', 'g') WHERE message ~ 'pages: [^;]*/'`,
 ];
 
 let sql;
@@ -133,7 +136,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-30-2';
+const SCHEMA_VERSION = '2026-10-30-3';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

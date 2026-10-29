@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { ROLE_LABEL, FUNDS } from '@/lib/fmt';
+import { deleteAuditEntry } from '@/lib/actions';
+import ConfirmButton from '@/components/ConfirmButton';
+import Flash from '@/components/Flash';
 
 // Show fund keys (petty, brc, other) as their proper names in the raw details.
 const fundNames = (k, v) => (k === 'fund' && FUNDS[v] ? FUNDS[v] : v);
@@ -12,6 +15,7 @@ const ENTITIES = {
   advance: 'Advances to SO',
   batch: 'Accounts batches',
   user: 'Team and accounts',
+  audit: 'Audit log',
 };
 
 export default async function LogsPage({ searchParams }) {
@@ -42,6 +46,7 @@ export default async function LogsPage({ searchParams }) {
           <p className='muted'>Every change made in OpsTrack - who did it, when, and what changed (times in Pakistan time)</p>
         </div>
       </div>
+      <Flash sp={sp} />
 
       <form method='get' className='card filters'>
         <label>Area
@@ -65,7 +70,7 @@ export default async function LogsPage({ searchParams }) {
         {rows.length === 0 ? <p className='muted'>No changes recorded yet.</p> : (
           <div className='tablewrap'>
             <table>
-              <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Area</th><th>What happened</th></tr></thead>
+              <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Area</th><th>What happened</th><th></th></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
@@ -82,6 +87,12 @@ export default async function LogsPage({ searchParams }) {
                           {r.after ? <pre className='json'>After: {JSON.stringify(r.after, fundNames)}</pre> : null}
                         </details>
                       ) : null}
+                    </td>
+                    <td className='act'>
+                      <form action={deleteAuditEntry} className='inline'>
+                        <input type='hidden' name='id' value={r.id} />
+                        <ConfirmButton className='btn ghost' message='Remove this log entry for good? Removing it is itself recorded in the log.'>Remove</ConfirmButton>
+                      </form>
                     </td>
                   </tr>
                 ))}

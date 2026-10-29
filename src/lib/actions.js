@@ -688,6 +688,18 @@ export async function resetTotp(fd) {
   back('/team/edit?id=' + id, 'Authenticator reset for ' + t.name, true);
 }
 
+// Sr. Ops Manager: remove one audit log entry. Deleting is itself logged (actor, time and what was removed), so a trace
+// that something was cleared always stays, even though the original detail is gone.
+export async function deleteAuditEntry(fd) {
+  const u = await need(['om']);
+  const id = Number(s(fd, 'id'));
+  const row = (await q('SELECT id, actor_name, action, entity, entity_id, summary FROM pc2_audit WHERE id = $1', [Number.isInteger(id) ? id : 0]))[0];
+  if (!row) back('/logs', 'That log entry was not found');
+  await q('DELETE FROM pc2_audit WHERE id = $1', [id]);
+  await logEvent(u, 'delete', 'audit', id, 'Removed audit log entry #' + id + ' (' + row.actor_name + ', ' + row.action + ' ' + row.entity + (row.entity_id ? ' #' + row.entity_id : '') + ': ' + String(row.summary).slice(0, 120) + ')');
+  back('/logs', 'Log entry removed', true);
+}
+
 // Login page "Forgot password?": nobody resets their own password, so this only asks the Sr. Ops Manager.
 export async function requestReset(fd) {
   const email = (s(fd, 'username') || s(fd, 'email')).toLowerCase();
