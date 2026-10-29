@@ -74,8 +74,8 @@ export default async function VisitorsPage({ searchParams }) {
         ) : <p className='muted'>Nobody is inside right now.</p>}
       </div>
 
-      <div className='card'>
-        <h3 style={{ marginTop: 0 }}>Expected visitors ({queue.length})</h3>
+      <div className='card v-focus'>
+        <h3 style={{ marginTop: 0 }}>Expected Visitors Today{queue.length ? <span className='v-count'>{queue.length}</span> : null}</h3>
         <p className='muted' style={{ marginTop: 0 }}>{planner ? 'Add a visitor here before they come. The guard marks them as arrived or no show.' : 'When a visitor arrives, tap Arrived. If they do not come, tap No show.'}</p>
         {queue.length ? (
           <div className='tablewrap'>
