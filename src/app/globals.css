@@ -1404,3 +1404,4 @@ html:has(.an-filters){scroll-behavior:smooth}
 /* OpsBot: smaller text so each reply line fits on one row */
 .ob-bub{font-size:12.5px!important;line-height:1.45!important;white-space:pre-wrap}
 .ob-row{max-width:96%}
+.fund-empty{margin:-6px 0 16px;font-size:13px}

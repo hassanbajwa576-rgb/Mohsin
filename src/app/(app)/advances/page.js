@@ -131,10 +131,13 @@ export default async function AdvancesPage({ searchParams }) {
         <>
           <h2 style={{ marginTop: 0 }}>Received from Accounts</h2>
           <div className='funds'>
-            {funds.rows.map((f) => (
+            {funds.rows.filter((f) => f.received || f.spent || f.sent || f.returned || f.outstanding || f.remaining).map((f) => (
               <FundCard key={f.key} f={f} />
             ))}
           </div>
+          {funds.rows.some((f) => !(f.received || f.spent || f.sent || f.returned || f.outstanding || f.remaining)) ? (
+            <p className='muted fund-empty'>{funds.rows.filter((f) => !(f.received || f.spent || f.sent || f.returned || f.outstanding || f.remaining)).map((f) => f.label).join(', ')}: nothing recorded yet (all PKR 0)</p>
+          ) : null}
 
           <FundMatrix title='Received from Accounts by fund - PKR' cols={['Amount']} rows={buildMatrix(recvByFund, 'office', ['All'])} />
 

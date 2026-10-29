@@ -36,13 +36,22 @@ const LABELS = {
   role: 'Role',
   perms: 'Extra access',
   authenticator: 'Authenticator',
+  pages: 'Pages',
 };
 
 // Human-readable list of what changed between two snapshots.
 export function diff(before, after) {
   const out = [];
   for (const k of Object.keys(after)) {
-    const nice = (v) => (k === 'fund' && FUNDS[v] ? FUNDS[v] : String(v ?? ''));
+    const nice = (v) => {
+      if (k === 'fund' && FUNDS[v]) return FUNDS[v];
+      // A list of page paths is not useful to read raw; summarise it instead.
+      if (k === 'pages') {
+        const list = String(v ?? '').split(',').filter(Boolean);
+        return list.length ? list.length + ' page(s) chosen' : 'role default';
+      }
+      return String(v ?? '');
+    };
     const a = nice(before[k]);
     const b = nice(after[k]);
     if (a !== b) out.push((LABELS[k] || k) + ': ' + (a || '-') + ' -> ' + (b || '-'));
