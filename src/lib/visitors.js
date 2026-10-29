@@ -65,7 +65,7 @@ export async function hostNames(office) {
   return [...new Set([...a, ...b].map((x) => x.name))].sort((x, y) => x.localeCompare(y));
 }
 
-export const E_COLS = `e.id, e.name, e.phone, e.company, e.vtype, e.host, e.purpose, e.remarks, e.status, e.visitor_id, o.code AS office, e.office_id,
+export const E_COLS = `e.id, e.name, e.phone, e.company, e.vtype, e.host, e.purpose, e.remarks, e.status, e.visitor_id, e.reschedule_of, o.code AS office, e.office_id,
   (extract(epoch from e.due_at) * 1000)::float8 AS due_ms, (extract(epoch from e.marked_at) * 1000)::float8 AS marked_ms,
   (SELECT c.name FROM pc2_users c WHERE c.id = e.created_by) AS by_name, (SELECT m.name FROM pc2_users m WHERE m.id = e.marked_by) AS marked_name`;
 const E_FROM = 'FROM pc2_expected e JOIN pc2_offices o ON o.id = e.office_id';
@@ -85,4 +85,50 @@ export async function noShows({ from, to, office }) {
   const params = [from, to];
   if (office) params.push(office);
   return q(`SELECT ${E_COLS} ${E_FROM} WHERE e.status = 'noshow' AND e.due_at >= (($1::date)::timestamp AT TIME ZONE '${TZ}') AND e.due_at < (($2::date + 1)::timestamp AT TIME ZONE '${TZ}') ${office ? 'AND o.code = $3' : ''} ORDER BY e.due_at DESC LIMIT 500`, params);
+}
+
+/** Whether a no-show already has a later reschedule waiting (so it is not rescheduled twice). */
+export async function alreadyRescheduled(ids) {
+  if (!ids.length) return new Set();
+  const r = await q('SELECT DISTINCT reschedule_of FROM pc2_expected WHERE reschedule_of = ANY($1::int[])', [ids]);
+  return new Set(r.map((x) => x.reschedule_of));
+}
+
+/**
+ * The full trail for one expected-visitor entry: every time it was scheduled, no-showed and rescheduled, in order,
+ * plus the actual visit (in/out time) if the latest entry in the chain led to an arrival.
+ */
+export async function visitHistory(id) {
+  const up = await q(
+    `WITH RECURSIVE up AS (
+       SELECT id, reschedule_of, 0 AS d FROM pc2_expected WHERE id = $1
+       UNION ALL
+       SELECT e.id, e.reschedule_of, up.d + 1 FROM pc2_expected e JOIN up ON e.id = up.reschedule_of
+     ) SELECT id FROM up ORDER BY d DESC LIMIT 1`,
+    [id]
+  );
+  const root = up[0] ? up[0].id : id;
+  const chain = await q(
+    `WITH RECURSIVE down AS (
+       SELECT e.id, e.reschedule_of, e.status, e.visitor_id, (extract(epoch from e.due_at) * 1000)::float8 AS due_ms,
+         (extract(epoch from e.marked_at) * 1000)::float8 AS marked_ms, e.remarks,
+         (SELECT m.name FROM pc2_users m WHERE m.id = e.marked_by) AS marked_name
+       FROM pc2_expected e WHERE e.id = $1
+       UNION ALL
+       SELECT e.id, e.reschedule_of, e.status, e.visitor_id, (extract(epoch from e.due_at) * 1000)::float8,
+         (extract(epoch from e.marked_at) * 1000)::float8, e.remarks,
+         (SELECT m.name FROM pc2_users m WHERE m.id = e.marked_by)
+       FROM pc2_expected e JOIN down ON e.reschedule_of = down.id
+     ) SELECT * FROM down ORDER BY due_ms`,
+    [root]
+  );
+  const visitorIds = chain.filter((c) => c.visitor_id).map((c) => c.visitor_id);
+  const visits = visitorIds.length
+    ? await q(
+        `SELECT id, (extract(epoch from in_at) * 1000)::float8 AS in_ms, (extract(epoch from out_at) * 1000)::float8 AS out_ms FROM pc2_visitors WHERE id = ANY($1::int[])`,
+        [visitorIds]
+      )
+    : [];
+  const byVisitor = new Map(visits.map((v) => [v.id, v]));
+  return chain.map((c) => ({ ...c, visit: c.visitor_id ? byVisitor.get(c.visitor_id) : null }));
 }

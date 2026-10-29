@@ -242,6 +242,29 @@ export async function markNoShow(fd) {
   back('/visitors', e.name + ' marked as no show', true);
 }
 
+// A no-show visitor is given a new date and time. The new entry points back at the no-show it replaces, so the Visitor Log
+// can show the whole trail: scheduled -> no show -> rescheduled -> arrived (or no show again).
+export async function rescheduleExpected(fd) {
+  const u = await need();
+  if (u.role === 'guard') redirect('/visitors');
+  const id = Number(s(fd, 'id'));
+  const e = (await q("SELECT * FROM pc2_expected WHERE id = $1 AND status = 'noshow'", [Number.isInteger(id) ? id : 0]))[0];
+  if (!e) back('/visitors/log', 'That no-show entry was not found');
+  if (!allOffices(u) && u.office_id !== e.office_id) back('/visitors/log', 'That visitor is in the other office');
+  const dup = (await q('SELECT id FROM pc2_expected WHERE reschedule_of = $1', [e.id]))[0];
+  if (dup) back('/visitors/log', e.name + ' was already rescheduled');
+  const date = s(fd, 'date');
+  const time = s(fd, 'time');
+  if (!validDate(date) || !validTime(time)) back('/visitors/log', 'Choose a valid date and time');
+  const r = await q(
+    `INSERT INTO pc2_expected (office_id, name, phone, company, vtype, host, purpose, due_at, created_by, reschedule_of) VALUES ($1,$2,$3,$4,$5,$6,$7, ($8::date + $9::time) AT TIME ZONE 'Asia/Karachi', $10, $11) RETURNING id`,
+    [e.office_id, e.name, e.phone, e.company, e.vtype, e.host, e.purpose, date, time, u.id, e.id]
+  );
+  await logEvent(u, 'create', 'visitor', r[0].id, 'Visitor rescheduled: ' + e.name + ' (no show before) -> ' + date + ' ' + time, null, { name: e.name, reschedule_of: e.id });
+  if (e.created_by && e.created_by !== u.id) await notifyUser(e.created_by, e.name + ' was rescheduled to ' + date + ' ' + time, '/visitors');
+  back('/visitors', e.name + ' rescheduled for ' + date + ' ' + time, true);
+}
+
 // Whoever announced a visitor (or the Sr. Ops Manager / Sr. Support Officer) can take it out of the queue.
 export async function cancelExpected(fd) {
   const u = await need();

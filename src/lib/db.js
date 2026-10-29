@@ -129,6 +129,9 @@ const DDL = [
   // One-time cleanup: older "updated your profile: pages: ..." notifications dumped the full raw list of page paths.
   // Replace just that segment with a short summary; newer notifications (which never contain a "/") are left alone.
   `UPDATE pc2_notifications SET message = regexp_replace(message, 'pages: [^;]*/[^;]*', 'pages: updated', 'g') WHERE message ~ 'pages: [^;]*/'`,
+  // A no-show can be rescheduled: the new expected entry points back at the one it replaces, so the whole
+  // history (scheduled -> no show -> rescheduled -> arrived or no show again...) can be read back as a chain.
+  `ALTER TABLE pc2_expected ADD COLUMN IF NOT EXISTS reschedule_of INTEGER REFERENCES pc2_expected(id)`,
 ];
 
 let sql;

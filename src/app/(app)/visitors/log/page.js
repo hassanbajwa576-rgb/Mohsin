@@ -2,14 +2,15 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
-import { ATT_ROLES, allOffices, todayKey, validDate, fmt12, fmtDay, fmtDur } from '@/lib/att';
+import { ATT_ROLES, allOffices, todayKey, validDate, fmt12, fmtDay, fmtDur, fmtTime } from '@/lib/att';
 import { addDay } from '@/lib/att-import';
 import { TagNote, TagForm } from '@/components/VisitorTag';
-import { VTYPES, VLABEL, visitorRows, pendingDeletes, noShows } from '@/lib/visitors';
-import { deleteVisitor, decideVisitorDelete } from '@/lib/vis-actions';
+import { VTYPES, VLABEL, visitorRows, pendingDeletes, noShows, alreadyRescheduled, visitHistory } from '@/lib/visitors';
+import { deleteVisitor, decideVisitorDelete, rescheduleExpected } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import ConfirmButton from '@/components/ConfirmButton';
+import TimePick from '@/components/TimePick';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,8 +28,12 @@ export default async function VisitorLogPage({ searchParams }) {
   const rows = await visitorRows({ from, to, office, vtype, text });
   const pending = user.role === 'om' ? await pendingDeletes() : [];
   const missed = await noShows({ from, to, office });
+  const rescheduled = await alreadyRescheduled(missed.map((v) => v.id));
+  const histories = Object.fromEntries(await Promise.all(missed.map(async (v) => [v.id, await visitHistory(v.id)])));
   const done = rows.filter((v) => v.out_ms);
   const avg = done.length ? done.reduce((a, v) => a + (Number(v.out_ms) - Number(v.in_ms)), 0) / done.length : 0;
+  const nowTime = fmtTime(Date.now());
+  const STATUS_LABEL = { waiting: 'Scheduled', arrived: 'Arrived', noshow: 'No show' };
   const qs = new URLSearchParams({ from, to, ...(office ? { office } : {}), ...(vtype ? { vtype } : {}), ...(text ? { q: text } : {}) }).toString();
   const quick = (label, f, t) => <Link className={'chip' + (from === f && to === t ? ' on' : '')} href={'/visitors/log?' + new URLSearchParams({ from: f, to: t, ...(office ? { office } : {}), ...(vtype ? { vtype } : {}), ...(text ? { q: text } : {}) }).toString()}>{label}</Link>;
 
@@ -140,19 +145,50 @@ export default async function VisitorLogPage({ searchParams }) {
           <h3 style={{ marginTop: 0 }}>No shows ({missed.length})</h3>
           <div className='tablewrap'>
             <table className='tx'>
-              <thead><tr><th>Expected</th><th>Visitor</th><th>Type</th><th>Meeting with</th><th>Added by</th><th>Marked by</th><th>Remarks</th></tr></thead>
+              <thead><tr><th>Expected</th><th>Visitor</th><th>Type</th><th>Meeting with</th><th>Added by</th><th>Marked by</th><th>Remarks</th><th>History</th><th></th></tr></thead>
               <tbody>
-                {missed.map((v) => (
-                  <tr key={v.id}>
-                    <td className='nw c-meta'>{fmtDay(v.due_ms)}, {fmt12(v.due_ms)}</td>
-                    <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.company ? <div className='muted'>{v.company}</div> : null}{v.phone ? <div className='muted'>{v.phone}</div> : null}</td>
-                    <td className='c-meta'>{VLABEL[v.vtype]}</td>
-                    <td className='c-meta'>{v.host || '-'}</td>
-                    <td className='c-meta'>{v.by_name || '-'}</td>
-                    <td className='c-meta'>{v.marked_name || '-'}</td>
-                    <td className='c-meta'>{v.remarks || '-'}</td>
-                  </tr>
-                ))}
+                {missed.map((v) => {
+                  const chain = histories[v.id] || [];
+                  return (
+                    <tr key={v.id}>
+                      <td className='nw c-meta'>{fmtDay(v.due_ms)}, {fmt12(v.due_ms)}</td>
+                      <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.company ? <div className='muted'>{v.company}</div> : null}{v.phone ? <div className='muted'>{v.phone}</div> : null}</td>
+                      <td className='c-meta'>{VLABEL[v.vtype]}</td>
+                      <td className='c-meta'>{v.host || '-'}</td>
+                      <td className='c-meta'>{v.by_name || '-'}</td>
+                      <td className='c-meta'>{v.marked_name || '-'}</td>
+                      <td className='c-meta'>{v.remarks || '-'}</td>
+                      <td className='c-meta'>
+                        {chain.length > 1 ? (
+                          <div className='v-hist'>
+                            {chain.map((c, i) => (
+                              <span key={c.id} className={'v-hist-step v-' + c.status}>
+                                {i ? ' -> ' : ''}
+                                {fmtDay(c.due_ms)} {fmt12(c.due_ms)}: {STATUS_LABEL[c.status]}
+                                {c.status === 'arrived' && c.visit ? ' (in at ' + fmt12(c.visit.in_ms) + (c.visit.out_ms ? ', out ' + fmt12(c.visit.out_ms) : ', still inside') + ')' : ''}
+                              </span>
+                            ))}
+                          </div>
+                        ) : <span className='muted'>First time scheduled</span>}
+                      </td>
+                      <td className='act'>
+                        {rescheduled.has(v.id) ? (
+                          <span className='muted'>Rescheduled</span>
+                        ) : (
+                          <details className='mark'>
+                            <summary className='btn'>Reschedule</summary>
+                            <form action={rescheduleExpected} className='markform'>
+                              <input type='hidden' name='id' value={v.id} />
+                              <label>New date<input type='date' name='date' defaultValue={today} required /></label>
+                              <label>New time<TimePick role={user.role} name='time' defaultValue={nowTime} required /></label>
+                              <button className='btn primary' type='submit'>Add to queue</button>
+                            </form>
+                          </details>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

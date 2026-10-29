@@ -84,7 +84,7 @@ export default async function VisitorsPage({ searchParams }) {
               <tbody>
                 {queue.map((v) => (
                   <tr key={v.id}>
-                    <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.company ? <div className='muted'>{v.company}</div> : null}{v.phone ? <div className='muted'>{v.phone}</div> : null}{v.purpose ? <div className='muted'>{v.purpose}</div> : null}</td>
+                    <td className='c-title'><OfficeTag o={v.office} /><b>{v.name}</b>{v.reschedule_of ? <div className='muted'>Rescheduled after a no show</div> : null}{v.company ? <div className='muted'>{v.company}</div> : null}{v.phone ? <div className='muted'>{v.phone}</div> : null}{v.purpose ? <div className='muted'>{v.purpose}</div> : null}</td>
                     <td className='c-meta'>{VLABEL[v.vtype]}</td>
                     <td className='c-meta'>{v.host || '-'}</td>
                     <td className='nw c-meta'>{when(v.due_ms)}</td>
