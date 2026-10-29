@@ -139,7 +139,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-30-3';
+const SCHEMA_VERSION = '2026-10-30-4';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
