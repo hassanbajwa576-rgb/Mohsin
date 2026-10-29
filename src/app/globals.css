@@ -791,8 +791,17 @@ details.mark .markform{display:grid;grid-template-columns:repeat(auto-fit,minmax
 details.mark .markform label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--mut)}
 details.mark .markform .wide{grid-column:1/-1}
 /* Expected Visitors Today: the card that needs attention gets a gold accent and a count badge next to its title */
-.v-focus{border-left:3px solid var(--gold);background:linear-gradient(180deg,rgba(227,173,33,.06),transparent 90px)}
+.v-focus{border-left:3px solid var(--gold)}
 .v-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;margin-left:8px;border-radius:11px;background:var(--gold);color:var(--ink);font-size:12.5px;font-weight:700;vertical-align:middle}
+/* The visitors due today sit in their own warm box so they read as more urgent than "Coming on later days" below */
+.v-today-box{background:#fdf6e3;border:1px solid #f0dfa0;border-radius:6px;padding:10px;margin-bottom:4px}
+.v-today-box .tablewrap table thead th{background:transparent;color:var(--mut)}
+.v-today-box table.tx tbody tr{background:#fff}
+@media (max-width:720px){
+  .v-today-box{padding:10px 10px 2px;border-radius:8px}
+  .v-today-box tr{background:#fffdf5;border-color:#f0dfa0}
+  .v-today-box td::before{color:#8a6d16}
+}
 /* Visitor history trail on the No Shows table: scheduled -> no show -> rescheduled -> arrived or no show again */
 .v-hist{display:flex;flex-wrap:wrap;gap:2px 4px;font-size:12px;max-width:260px}
 .v-hist-step{white-space:nowrap}

@@ -78,6 +78,7 @@ export default async function VisitorsPage({ searchParams }) {
         <h3 style={{ marginTop: 0 }}>Expected Visitors Today{queue.length ? <span className='v-count'>{queue.length}</span> : null}</h3>
         <p className='muted' style={{ marginTop: 0 }}>{planner ? 'Add a visitor here before they come. The guard marks them as arrived or no show.' : 'When a visitor arrives, tap Arrived. If they do not come, tap No show.'}</p>
         {queue.length ? (
+          <div className='v-today-box'>
           <div className='tablewrap'>
             <table className='tx'>
               <thead><tr><th>Visitor</th><th>Type</th><th>Meeting with</th><th>Expected</th><th>Added by</th><th></th></tr></thead>
@@ -121,6 +122,7 @@ export default async function VisitorsPage({ searchParams }) {
                 ))}
               </tbody>
             </table>
+          </div>
           </div>
         ) : <p className='muted'>Nobody is expected right now.</p>}
         {later.length ? (
