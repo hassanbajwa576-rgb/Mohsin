@@ -4,7 +4,9 @@ import { q } from '@/lib/db';
 import { addUser, resetPassword, toggleUser, viewAs } from '@/lib/actions';
 import { ROLE_LABEL } from '@/lib/fmt';
 import { PERM_SHORT } from '@/lib/perms';
+import { payeeRows } from '@/lib/queries';
 import Flash from '@/components/Flash';
+import Payees from '@/components/Payees';
 
 export default async function TeamPage({ searchParams }) {
   const me = await requireUser(['om']);
@@ -12,6 +14,7 @@ export default async function TeamPage({ searchParams }) {
   const users = await q(
     `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.pages, u.totp_enabled, u.totp_required, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
   );
+  const payees = await payeeRows();
 
   const reqs = await q("SELECT DISTINCT message FROM pc2_notifications WHERE is_read = FALSE AND message LIKE 'Password reset requested by %' AND created_at > now() - interval '7 days'");
 
@@ -102,6 +105,8 @@ export default async function TeamPage({ searchParams }) {
           </table>
         </div>
       </div>
+
+      <Payees payees={payees} />
     </>
   );
 }

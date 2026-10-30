@@ -132,6 +132,11 @@ const DDL = [
   // A no-show can be rescheduled: the new expected entry points back at the one it replaces, so the whole
   // history (scheduled -> no show -> rescheduled -> arrived or no show again...) can be read back as a chain.
   `ALTER TABLE pc2_expected ADD COLUMN IF NOT EXISTS reschedule_of INTEGER REFERENCES pc2_expected(id)`,
+  // People who are issued advances but never sign in to the app (a driver, a courier, a one-off helper).
+  // The Sr. Ops Manager adds them from the Team page; an advance can then be issued to the person instead of a user.
+  `CREATE TABLE IF NOT EXISTS pc2_payees (id SERIAL PRIMARY KEY, name TEXT NOT NULL, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), phone TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', active BOOLEAN NOT NULL DEFAULT TRUE, created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `ALTER TABLE pc2_issues ALTER COLUMN issued_to DROP NOT NULL`,
+  `ALTER TABLE pc2_issues ADD COLUMN IF NOT EXISTS payee_id INTEGER REFERENCES pc2_payees(id)`,
 ];
 
 let sql;
@@ -139,7 +144,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-30-4';
+const SCHEMA_VERSION = '2026-10-30-5';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

@@ -17,7 +17,8 @@ export default async function EditAdvancePage({ searchParams }) {
     row = (await q(`SELECT id, fund, amount, reference, note, to_char(received_on, 'YYYY-MM-DD') AS received_on FROM pc2_advances WHERE id = $1`, [id]))[0];
   } else {
     row = (await q(
-      `SELECT i.id, i.fund, i.amount, i.returned, i.note, to_char(i.issued_on, 'YYYY-MM-DD') AS issued_on, u.name AS holder, COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0)::float8 AS spent FROM pc2_issues i JOIN pc2_users u ON u.id = i.issued_to WHERE i.id = $1`,
+      `SELECT i.id, i.fund, i.amount, i.returned, i.note, to_char(i.issued_on, 'YYYY-MM-DD') AS issued_on, COALESCE(u.name, p.name) AS holder, COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0)::float8 AS spent
+       FROM pc2_issues i LEFT JOIN pc2_users u ON u.id = i.issued_to LEFT JOIN pc2_payees p ON p.id = i.payee_id WHERE i.id = $1`,
       [id]
     ))[0];
   }

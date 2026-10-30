@@ -285,7 +285,8 @@ export async function deleteIssue(fd) {
   const u = await need(['om']);
   const id = Number(s(fd, 'id'));
   const before = (await q(
-    `SELECT i.id, i.fund, i.amount, i.returned, i.issued_to, u.name AS holder, (SELECT COUNT(*)::int FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected') AS live FROM pc2_issues i JOIN pc2_users u ON u.id = i.issued_to WHERE i.id = $1`,
+    `SELECT i.id, i.fund, i.amount, i.returned, i.issued_to, COALESCE(u.name, p.name) AS holder, (SELECT COUNT(*)::int FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected') AS live
+     FROM pc2_issues i LEFT JOIN pc2_users u ON u.id = i.issued_to LEFT JOIN pc2_payees p ON p.id = i.payee_id WHERE i.id = $1`,
     [id]
   ))[0];
   if (!before) back('/advances', 'Advance not found');
@@ -293,7 +294,7 @@ export async function deleteIssue(fd) {
   await q(`DELETE FROM pc2_expenses WHERE issue_id = $1 AND status = 'rejected'`, [id]);
   await q('DELETE FROM pc2_issues WHERE id = $1', [id]);
   await logEvent(u, 'delete', 'advance', id, 'Deleted advance #' + id + ' of ' + pkr(before.amount) + ' (' + FUNDS[before.fund] + ') issued to ' + before.holder, { fund: before.fund, amount: before.amount, holder: before.holder }, null);
-  await notifyUser(before.issued_to, u.name + ' removed advance #' + id + ' (' + pkr(before.amount) + ')', '/advances');
+  if (before.issued_to) await notifyUser(before.issued_to, u.name + ' removed advance #' + id + ' (' + pkr(before.amount) + ')', '/advances');
   back('/advances', 'Advance #' + id + ' deleted', true);
 }
 
@@ -346,24 +347,41 @@ export async function deleteAdvance(fd) {
   back('/advances', 'Entry removed', true);
 }
 
-// Sr. SO issues cash from a petty fund to a Support Officer.
+// Sr. SO issues cash from a petty fund to a Support Officer, the Sr. SO, or a payee (someone with no app account).
 export async function issueAdvance(fd) {
   const u = await need(['sso', 'om']);
-  const holderId = Number(s(fd, 'issued_to'));
+  // "u-<id>" for a real team member, "p-<id>" for a payee who does not sign in.
+  const recip = s(fd, 'recipient');
+  const [kind, idStr] = recip.split('-');
+  const recipId = Number(idStr);
   const fund = s(fd, 'fund');
   const amount = amt(fd);
   const on = s(fd, 'issued_on');
   if (!(amount > 0) || !FUNDS[fund]) back('/advances', 'Enter a valid fund and amount');
   if (badDate(on)) back('/advances', 'Pick a valid date');
-  // The Sr. Ops Manager can issue to the Sr. SO or an SO; the Sr. SO can issue to an SO from cash they hold.
-  const allowed = u.role === 'om' ? ['so', 'sso'] : ['so'];
-  const holder = (await q(`SELECT id, name, role FROM pc2_users WHERE id = $1 AND role = ANY($2::text[]) AND active`, [holderId, allowed]))[0];
-  if (!holder) back('/advances', 'Pick a team member to issue to');
-  // Both the Sr. Ops Manager and the Sr. SO can issue to a Support Officer: the Sr. SO draws on
-  // the cash they hold first, then on the shared pool.
   const row = (await fundSummary()).rows.find((r) => r.key === fund);
   const mine = u.role === 'sso' ? Math.max(0, await custodyFor(u.id, fund)) : 0;
   if (amount > row.pool + mine) back('/advances', 'Not enough in ' + FUNDS[fund] + ' (available ' + pkr(row.pool + mine) + ')');
+
+  if (kind === 'p') {
+    const payee = (await q('SELECT id, name FROM pc2_payees WHERE id = $1 AND active', [recipId]))[0];
+    if (!payee) back('/advances', 'Pick a team member to issue to');
+    const r = await q(
+      `INSERT INTO pc2_issues (fund, amount, payee_id, issued_by, issued_on, note) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+      [fund, amount, payee.id, u.id, on, s(fd, 'note')]
+    );
+    await logEvent(u, 'create', 'advance', r[0].id, 'Issued advance #' + r[0].id + ' of ' + pkr(amount) + ' (' + FUNDS[fund] + ') to ' + payee.name + ' (no app account)', null,
+      { fund, amount, issued_on: on, note: s(fd, 'note'), holder: payee.name });
+    await notifyRoles(['om'], u.name + ' issued ' + pkr(amount) + ' (' + FUNDS[fund] + ') to ' + payee.name, '/advances', u.id);
+    back('/advances', 'Advance issued to ' + payee.name, true);
+  }
+
+  // The Sr. Ops Manager can issue to the Sr. SO or an SO; the Sr. SO can issue to an SO from cash they hold.
+  const allowed = u.role === 'om' ? ['so', 'sso'] : ['so'];
+  const holder = (await q(`SELECT id, name, role FROM pc2_users WHERE id = $1 AND role = ANY($2::text[]) AND active`, [recipId, allowed]))[0];
+  if (!holder) back('/advances', 'Pick a team member to issue to');
+  // Both the Sr. Ops Manager and the Sr. SO can issue to a Support Officer: the Sr. SO draws on
+  // the cash they hold first, then on the shared pool.
   const r = await q(
     `INSERT INTO pc2_issues (fund, amount, issued_to, issued_by, issued_on, note) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
     [fund, amount, holder.id, u.id, on, s(fd, 'note')]
@@ -401,7 +419,7 @@ export async function editIssue(fd) {
   if (!changes.length) back('/advances', 'No changes were made', true);
   await q('UPDATE pc2_issues SET amount = $1, issued_on = $2, note = $3 WHERE id = $4', [amount, on, after.note, id]);
   await logEvent(u, 'edit', 'advance', id, 'Edited advance #' + id + ' - ' + changes.join('; '), old, after);
-  await notifyUser(before.issued_to, u.name + ' updated your advance #' + id + ': ' + changes.join('; '), '/advances');
+  if (before.issued_to) await notifyUser(before.issued_to, u.name + ' updated your advance #' + id + ': ' + changes.join('; '), '/advances');
   back('/advances', 'Advance #' + id + ' updated', true);
 }
 

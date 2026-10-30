@@ -1,7 +1,7 @@
 import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
-import { fundSummary, issueRows, receivedByFund } from '@/lib/queries';
+import { fundSummary, issueRows, receivedByFund, payeeRows } from '@/lib/queries';
 import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
 import { addAdvance, deleteAdvance, deleteIssue, issueAdvance, recordReturn, returnToAccounts, deleteReturn } from '@/lib/actions';
 import { pkr, today, FUNDS } from '@/lib/fmt';
@@ -17,7 +17,7 @@ export default async function AdvancesPage({ searchParams }) {
   const isOM = user.role === 'om';
   const manage = user.role !== 'so';
 
-  const [issuesRaw, funds, received, officers, returns] = await Promise.all([
+  const [issuesRaw, funds, received, officers, payeesAll, returns] = await Promise.all([
     issueRows(user),
     manage ? fundSummary() : Promise.resolve(null),
     manage
@@ -26,12 +26,14 @@ export default async function AdvancesPage({ searchParams }) {
     manage
       ? q(`SELECT u.id, u.name, u.role, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.role = ANY($1::text[]) AND u.active ORDER BY u.role DESC, u.name`, [isOM ? ['so', 'sso'] : ['so']])
       : Promise.resolve([]),
+    manage ? payeeRows() : Promise.resolve([]),
     manage
       ? q(`SELECT r.id, r.fund, r.amount, r.reference, r.note, to_char(r.returned_on, 'YYYY-MM-DD') AS returned_on, u.name AS by_name FROM pc2_returns r LEFT JOIN pc2_users u ON u.id = r.returned_by ORDER BY r.returned_on DESC, r.id DESC LIMIT 100`)
       : Promise.resolve([]),
   ]);
 
   const recvByFund = manage ? await receivedByFund() : [];
+  const activePayees = payeesAll.filter((p) => p.active);
 
   // The Sr. SO does not pick an advance when spending, so what they spent, passed on to Support
   // Officers or returned to Accounts is applied to their advances and receipts oldest first.
@@ -69,16 +71,18 @@ export default async function AdvancesPage({ searchParams }) {
     issues = issuesRaw.map((i) => (allocBy['I' + i.id] ? { ...i, spent: allocBy['I' + i.id].spent, returned: i.returned + allocBy['I' + i.id].ret } : i));
   }
 
-  // Filters for the list of advances issued to the team.
+  // Filters for the list of advances issued to the team. A row issued to a payee (no app account) has no issued_to,
+  // so every person - real team member or payee - is identified by this key instead.
+  const recipKey = (i) => (i.issued_to ? 'u' + i.issued_to : 'p' + i.payee_id);
   const fTo = sp.to || '';
   const fBy = ['om', 'sso', 'accounts'].includes(sp.by) ? sp.by : '';
   const fFund = FUNDS[sp.fund] ? sp.fund : '';
   const fMonth = /^\d{4}-\d{2}$/.test(sp.month || '') ? sp.month : '';
   const fStatus = ['left', 'spent', 'returned'].includes(sp.status) ? sp.status : '';
-  const holders = [...new Map(issues.map((i) => [i.issued_to, i.holder])).entries()];
+  const holders = [...new Map(issues.map((i) => [recipKey(i), i.holder])).entries()];
   const shown = issues.filter((i) => {
     const left = i.amount - i.returned - Number(i.spent);
-    if (fTo === 'me' ? i.issued_to !== user.id : fTo && String(i.issued_to) !== fTo) return false;
+    if (fTo === 'me' ? i.issued_to !== user.id : fTo && recipKey(i) !== fTo) return false;
     if (fBy && i.issuer_role !== fBy) return false;
     if (fFund && i.fund !== fFund) return false;
     if (fMonth && i.issued_on.slice(0, 7) !== fMonth) return false;
@@ -91,8 +95,9 @@ export default async function AdvancesPage({ searchParams }) {
   const given = {};
   const kept = {};
   issues.forEach((i) => {
-    given[i.issued_to] = (given[i.issued_to] || 0) + i.amount;
-    kept[i.issued_to] = (kept[i.issued_to] || 0) + (i.amount - i.returned - Number(i.spent));
+    const k = recipKey(i);
+    given[k] = (given[k] || 0) + i.amount;
+    kept[k] = (kept[k] || 0) + (i.amount - i.returned - Number(i.spent));
   });
   const lowCash = (who) => given[who] > 0 && kept[who] < 0.2 * given[who];
   const goodCash = (who) => given[who] > 0 && kept[who] >= 0.2 * given[who];
@@ -105,7 +110,7 @@ export default async function AdvancesPage({ searchParams }) {
     .filter((r) => r.by_role === 'sso')
     .map((r) => ({ kind: 'accounts', id: r.id, fund: r.fund, amount: r.amount, issued_on: r.received_on, holder: r.by_name, issued_to: r.created_by, office: r.by_office, note: r.reference || r.note || '', spent: (allocBy['A' + r.id] || {}).spent || 0, returned: (allocBy['A' + r.id] || {}).ret || 0 }));
   const direct = fStatus ? [] : directAll.filter((r) => {
-    if (fTo === 'me' ? r.issued_to !== user.id : fTo && String(r.issued_to) !== fTo) return false;
+    if (fTo === 'me' ? r.issued_to !== user.id : fTo && 'u' + r.issued_to !== fTo) return false;
     if (fBy && fBy !== 'accounts') return false;
     if (fFund && r.fund !== fFund) return false;
     if (fMonth && r.issued_on.slice(0, 7) !== fMonth) return false;
@@ -241,13 +246,22 @@ export default async function AdvancesPage({ searchParams }) {
       {manage ? (
         <details className='card' open>
           <summary>Issue an advance</summary>
-          {officers.length === 0 ? (
+          {officers.length === 0 && activePayees.length === 0 ? (
             <p className='muted'>There is no active team member to issue to yet. The Sr. Ops Manager can add one from the Team page.</p>
           ) : (
             <form action={issueAdvance} className='form'>
               <label>Issue to
-                <select name='issued_to' required>
-                  {officers.map((o) => <option key={o.id} value={o.id}>{o.name + ' (' + (o.role === 'sso' ? 'Sr. SO' : 'SO') + ', ' + o.office + ')'}</option>)}
+                <select name='recipient' required>
+                  {officers.length ? (
+                    <optgroup label='Team members'>
+                      {officers.map((o) => <option key={'u' + o.id} value={'u-' + o.id}>{o.name + ' (' + (o.role === 'sso' ? 'Sr. SO' : 'SO') + ', ' + o.office + ')'}</option>)}
+                    </optgroup>
+                  ) : null}
+                  {activePayees.length ? (
+                    <optgroup label='Advance-only team members (no app account)'>
+                      {activePayees.map((p) => <option key={'p' + p.id} value={'p-' + p.id}>{p.name + ' (' + p.office + ')'}</option>)}
+                    </optgroup>
+                  ) : null}
                 </select>
               </label>
               <label>From fund
@@ -269,7 +283,7 @@ export default async function AdvancesPage({ searchParams }) {
             <select name='to' defaultValue={fTo}>
               <option value=''>Everyone</option>
               {!isOM ? <option value='me'>Me</option> : null}
-              {holders.filter(([id]) => id !== user.id).map(([id, name]) => <option key={id} value={String(id)}>{name}</option>)}
+              {holders.filter(([k]) => k !== 'u' + user.id).map(([k, name]) => <option key={k} value={k}>{name}</option>)}
             </select>
           </label>
         ) : null}
@@ -345,7 +359,7 @@ export default async function AdvancesPage({ searchParams }) {
                       <td className='r nw'>{pkr(i.amount)}</td>
                       <td className='r nw'>{pkr(i.spent)}</td>
                       <td className='r nw'>{pkr(i.returned)}</td>
-                      <td className='r nw'><b style={lowCash(i.issued_to) ? { color: 'var(--bad, #b3261e)', background: '#fbd3d3', padding: '1px 7px', borderRadius: 3, display: 'inline-block' } : goodCash(i.issued_to) ? { color: '#1b6e34', background: '#d9f1df', padding: '1px 7px', borderRadius: 3, display: 'inline-block' } : undefined}>{pkr(left)}</b></td>
+                      <td className='r nw'><b style={lowCash(recipKey(i)) ? { color: 'var(--bad, #b3261e)', background: '#fbd3d3', padding: '1px 7px', borderRadius: 3, display: 'inline-block' } : goodCash(recipKey(i)) ? { color: '#1b6e34', background: '#d9f1df', padding: '1px 7px', borderRadius: 3, display: 'inline-block' } : undefined}>{pkr(left)}</b></td>
                       {manage ? (
                         <td className='act'>
                           {isOM ? (

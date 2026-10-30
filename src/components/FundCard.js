@@ -14,7 +14,7 @@ export default function FundCard({ f }) {
         <div><dt>Advances Outstanding</dt><dd>{pkr(f.outstanding)}</dd></div>
         <div className={'total' + (f.remaining < 0 ? ' neg' : '')}><dt>CIH</dt><dd>{pkr(f.remaining)}</dd></div>
       </dl>
-      <CashSplit pool={f.pool} sso={f.ssoCash} so={f.soCash} />
+      <CashSplit pool={f.pool} sso={f.ssoCash} so={f.soCash} payee={f.payeeCash} />
     </div>
   );
 }
