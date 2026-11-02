@@ -323,7 +323,7 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 /* adjusted position */
 .adjpos thead th{background:var(--gold);color:var(--slate);border-bottom:0}
 .adjpos tbody tr:nth-child(even) td{background:#fdf8e7}
-.adjpos tfoot td{background:#c9e9d2;border-top:2px solid var(--gold);border-bottom:0}
+.adjpos tfoot td{background:#d6e6f5;border-top:2px solid var(--gold);border-bottom:0}
 
 /* adjusted position text */
 .adjpos thead th{font-size:13px;font-weight:700;letter-spacing:.04em}
@@ -372,7 +372,7 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
   .tablewrap table tbody tr.conflict{background:var(--badbg)}
   .tablewrap table tbody tr.conflict td{background:transparent}
   .tablewrap table tfoot,.adjpos tfoot{display:block;width:100%}
-  .tablewrap table tfoot tr,.adjpos tfoot tr{display:block;width:100%;background:#c9e9d2;border:1px solid var(--line);border-top:2px solid var(--gold);border-radius:4px;padding:4px 12px;margin-bottom:10px}
+  .tablewrap table tfoot tr,.adjpos tfoot tr{display:block;width:100%;background:#d6e6f5;border:1px solid var(--line);border-top:2px solid var(--gold);border-radius:4px;padding:4px 12px;margin-bottom:10px}
   .tablewrap table tfoot td,.adjpos tfoot td{background:transparent;border-top:0;border-bottom:1px solid rgba(203,147,40,.3);font-weight:700}
   .tablewrap table tfoot td:last-child,.adjpos tfoot td:last-child{border-bottom:0}
   td[data-label='']::before{display:none}
@@ -388,7 +388,7 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
   .adjcards{display:block}
   .adjcard{border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:10px;background:#fff}
   .adjcard h4{margin:0 0 8px;font-size:16px;font-weight:700;color:var(--ink)}
-  .adjcard.tot{background:#c9e9d2;border-top:2px solid var(--gold)}
+  .adjcard.tot{background:#d6e6f5;border-top:2px solid var(--gold)}
   .adjgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
   .adjtile{background:var(--surface);border-radius:6px;padding:8px 10px;min-width:0}
   .adjcard.tot .adjtile{background:#fff}
@@ -1429,4 +1429,4 @@ html:has(.an-filters){scroll-behavior:smooth}
 .filters label.wide{flex:1 1 100%}
 .seg4{background:#3f8f86}
 
-.tablewrap table.adjpos tfoot td,.tablewrap table.adjpos tfoot tr{background:#c9e9d2}
+.tablewrap table.adjpos tfoot td,.tablewrap table.adjpos tfoot tr{background:#d6e6f5}
