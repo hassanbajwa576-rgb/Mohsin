@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
@@ -12,7 +12,7 @@ export default function MobileMenu({ role, approvals = 0, allowed = null }) {
     if (ref.current) ref.current.open = false;
   }, [path]);
   const items = [];
-  if (role === 'om') items.push(['/approvals', 'Approvals'], ['/team', 'Team'], ['/logs', 'Audit log']);
+  if (role === 'om') items.push(['/approvals', 'Approvals'], ['/team', 'Team'], ['/roles', 'Roles'], ['/logs', 'Audit log']);
   items.push(['/guide', 'Guide']);
   const shown = allowed ? items.filter(([href]) => allowed.includes(href)) : items;
   if (!shown.length) return null;

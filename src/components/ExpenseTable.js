@@ -2,13 +2,16 @@ import { decideExpense, deleteExpense } from '@/lib/actions';
 import { pkr, FUNDS, STATUS_LABEL, mergeSplits } from '@/lib/fmt';
 import ConfirmButton from './ConfirmButton';
 import OfficeTag from './OfficeTag';
+import { can } from '@/lib/perms';
 
 export default function ExpenseTable({ rows: raw, user, back = '/expenses', actions = true, selectable = false }) {
   const rows = mergeSplits(raw);
   if (!rows.length) return <p className='muted'>Nothing to show yet.</p>;
   const isOM = user.role === 'om';
   const isSSO = user.role === 'sso';
-  const pick = selectable && (isOM || user.role === 'so');
+  const canApprove = can(user, 'exp_approve');
+  const canDel = can(user, 'exp_delete');
+  const pick = selectable && (canApprove || canDel || user.role === 'so');
   return (
     <div className='tablewrap'>
       <table className='tx'>
@@ -20,9 +23,9 @@ export default function ExpenseTable({ rows: raw, user, back = '/expenses', acti
         </thead>
         <tbody>
           {rows.map((r) => {
-            const canDecide = actions && isOM && ['submitted', 'verified'].includes(r.status);
+            const canDecide = actions && canApprove && ['submitted', 'verified'].includes(r.status);
             const canEdit = actions && isOM && r.status !== 'sent' && !r.split_group;
-            const canDelete = actions && (isOM || (user.role === 'so' && ['draft', 'submitted'].includes(r.status) && r.submitted_by === user.id));
+            const canDelete = actions && ((canDel && (isOM || r.status !== 'sent')) || (user.role === 'so' && ['draft', 'submitted'].includes(r.status) && r.submitted_by === user.id));
             return (
               <tr key={r.id}>
                 {pick ? (

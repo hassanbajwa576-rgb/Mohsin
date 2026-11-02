@@ -12,9 +12,10 @@ export default async function TeamPage({ searchParams }) {
   const me = await requireUser(['om']);
   const sp = await searchParams;
   const users = await q(
-    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.pages, u.totp_enabled, u.totp_required, u.active, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
+    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.pages, u.totp_enabled, u.totp_required, u.active, u.role_id, o.code AS office, r.name AS role_name, r.sys_key AS role_sys FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id LEFT JOIN pc2_roles r ON r.id = u.role_id ORDER BY CASE u.role WHEN 'om' THEN 0 WHEN 'sso' THEN 1 WHEN 'so' THEN 2 ELSE 3 END, u.name`
   );
   const payees = await payeeRows();
+  const roles = await q("SELECT id, name, sys_key FROM pc2_roles WHERE active AND sys_key IS DISTINCT FROM 'om' ORDER BY (sys_key IS NULL), CASE sys_key WHEN 'sso' THEN 0 WHEN 'so' THEN 1 WHEN 'guard' THEN 2 ELSE 3 END, name");
 
   const reqs = await q("SELECT DISTINCT message FROM pc2_notifications WHERE is_read = FALSE AND message LIKE 'Password reset requested by %' AND created_at > now() - interval '7 days'");
 
@@ -42,10 +43,8 @@ export default async function TeamPage({ searchParams }) {
           <label>Username<input name='username' placeholder='e.g. so2' pattern='[A-Za-z0-9._-]{3,20}' required autoComplete='off' /></label>
           <label>Email<input name='email' type='email' required /></label>
           <label>Role
-            <select name='role' defaultValue='so'>
-              <option value='sso'>{ROLE_LABEL.sso}</option>
-              <option value='so'>{ROLE_LABEL.so}</option>
-              <option value='guard'>{ROLE_LABEL.guard} (attendance only)</option>
+            <select name='role' defaultValue={'r-' + ((roles.find((r) => r.sys_key === 'so') || {}).id || '')}>
+              {roles.map((r) => <option key={r.id} value={'r-' + r.id}>{r.name}</option>)}
             </select>
           </label>
           <label>Office
@@ -70,7 +69,7 @@ export default async function TeamPage({ searchParams }) {
                   <td><b>{u.name}</b></td>
                   <td><code>{u.username || '-'}</code></td>
                   <td>
-                    {ROLE_LABEL[u.role]}{u.shift ? ' - ' + (u.shift === 'morning' ? 'Morning' : 'Evening') : ''}
+                    {u.role_name && !u.role_sys ? u.role_name : ROLE_LABEL[u.role]}{u.shift ? ' - ' + (u.shift === 'morning' ? 'Morning' : 'Evening') : ''}
                     {u.pages ? <div className='muted'>Pages picked: {u.pages.split(',').length}</div> : null}
                     {u.perms ? <div className='muted'>+ {u.perms.split(',').map((k) => PERM_SHORT[k] || k).join(', ')}</div> : null}
                     {u.totp_enabled ? <div className='muted'>Authenticator on</div> : u.totp_required ? <div className='muted'>Authenticator required</div> : null}

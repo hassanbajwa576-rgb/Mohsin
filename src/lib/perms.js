@@ -12,6 +12,32 @@ export const PERMS = [
   ['att_reconcile', 'Reconciliation', 'Run the check for long shifts, missing check outs and entries that do not fit, and mark them reviewed.'],
 ];
 
+// Money and approval actions. Only the Sr. Ops Manager can do these by default; a role can be given any of them.
+export const ACTION_PERMS = [
+  ['exp_approve', 'Approve or reject expenses', 'Approve all, approve selected, and reject. Needs a role that sees both offices.'],
+  ['exp_delete', 'Delete expenses', 'Delete any expense that has not been sent to Accounts, one by one or in bulk.'],
+  ['adv_issue', 'Issue advances', 'Issue cash to team members and to advance-only team members.'],
+  ['adv_return', 'Record cash returned on an advance', 'Record unspent cash handed back by the person the advance was issued to.'],
+  ['adv_manage', 'Edit, move and delete advances', 'Correct the amount or date of an advance, move it to someone else, or remove it.'],
+  ['acct_submit', 'Accounts: submit, receive and return', 'Send approved expenses to Accounts, record funds received from Accounts and cash returned to Accounts.'],
+];
+
+// What each built-in role can do today, so the built-in roles start out exactly as the app always worked.
+export const DEFAULT_ACTIONS = {
+  om: ['exp_approve', 'exp_delete', 'adv_issue', 'adv_return', 'adv_manage', 'acct_submit'],
+  sso: ['adv_issue', 'adv_return', 'acct_submit'],
+  so: [],
+  guard: [],
+};
+export const ALL_PERMS = [...PERMS, ...ACTION_PERMS];
+
+// What a new role can be based on: it behaves like this built-in role, then the checklist adds to it.
+export const BASES = [
+  ['sso', 'Sr. Support Officer - sees both offices, can add expenses and issue to Support Officers'],
+  ['so', 'Support Officer - works from advances issued to them and sees only their own entries'],
+  ['guard', 'Guard - attendance only'],
+];
+
 export const PERM_SHORT = {
   att_own: 'own entries',
   att_view: 'all times',
@@ -23,6 +49,12 @@ export const PERM_SHORT = {
   vis_log: 'visitor log',
   fuel_use: 'fuel cards',
   roster_edit: 'Support roster',
+  exp_approve: 'approve expenses',
+  exp_delete: 'delete expenses',
+  adv_issue: 'issue advances',
+  adv_return: 'record returns',
+  adv_manage: 'edit advances',
+  acct_submit: 'Accounts',
 };
 
 // What each role has without any extra grant.
@@ -33,8 +65,14 @@ export const ROLE_PERMS = {
   guard: [],
 };
 
+// The permissions a role carries without any extra grant: the built-in role's own plus, for a created role, its checklist.
+export function basePerms(role, rolePerms = []) {
+  return [...(ROLE_PERMS[role] || []), ...rolePerms];
+}
+
 export function can(user, key) {
   if (!user) return false;
+  if (user.role === 'om') return true;
   if ((ROLE_PERMS[user.role] || []).includes(key)) return true;
   return Array.isArray(user.perms) && user.perms.includes(key);
 }

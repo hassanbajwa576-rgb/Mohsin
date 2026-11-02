@@ -10,7 +10,7 @@ import { FUNDS, CATEGORIES, pkr } from './fmt';
 import { fundSummary, custodyFor } from './queries';
 import { notifyRoles, notifyUser } from './notify';
 import { logEvent, diff } from './audit';
-import { PERMS, ROLE_PERMS } from './perms';
+import { PERMS, ALL_PERMS, ROLE_PERMS, can } from './perms';
 import { ALL_PAGES, PAGE_NEEDS, defaultPages } from './pages';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
@@ -18,14 +18,27 @@ const amt = (fd) => Math.round(Number(s(fd, 'amount').replace(/,/g, '')));
 const badDate = (d) => d.length !== 10 || Number.isNaN(Date.parse(d));
 const dest = (v, d) => (['/', '/expenses', '/advances', '/accounts', '/approvals'].includes(v) ? v : d);
 
-async function need(roles) {
+// roles: the built-in roles allowed. perm: when given, the permission on the role's checklist decides instead.
+async function need(roles, perm) {
   const u = await getUser();
   if (!u) redirect('/login');
   if (u.totp_required && !u.totp_enabled) redirect('/security');
   // Guards may only use the attendance actions (lib/att-actions.js), never the petty cash ones.
   if (u.role === 'guard') redirect('/attendance');
-  if (roles && !roles.includes(u.role)) redirect('/');
+  if (perm) {
+    if (!can(u, perm)) redirect('/');
+  } else if (roles && !roles.includes(u.role)) redirect('/');
   return u;
+}
+
+// A role picked on the Team page: a built-in role, or 'r-<id>' for one the Sr. Ops Manager created.
+async function pickRole(v) {
+  if (['sso', 'so', 'guard'].includes(v)) return { role: v, roleId: null, label: v.toUpperCase(), perms: [] };
+  if (/^r-\d+$/.test(v)) {
+    const r = (await q('SELECT id, name, base, perms FROM pc2_roles WHERE id = $1 AND active', [Number(v.slice(2))]))[0];
+    if (r) return { role: r.base, roleId: r.id, label: r.name, perms: String(r.perms || '').split(',').filter(Boolean) };
+  }
+  return null;
 }
 
 function back(path, msg, ok) {
@@ -233,7 +246,7 @@ export async function editExpense(fd) {
 
 // The Sr. Ops Manager is the only reviewer: submitted expenses are approved or rejected here.
 export async function decideExpense(fd) {
-  const u = await need(['om']);
+  const u = await need(null, 'exp_approve');
   const id = Number(s(fd, 'id'));
   const approve = s(fd, 'decision') === 'approve';
   const note = s(fd, 'note');
@@ -291,7 +304,7 @@ async function removeExpense(u, id) {
     const group = g && g.split_group
       ? await q('SELECT e.id, e.amount, e.category, e.status, e.submitted_by, e.batch_id FROM pc2_expenses e WHERE e.split_group = $1 ORDER BY e.id', [g.split_group])
       : [];
-    const mine = (r) => u.role === 'om' || (u.role === 'so' && ['draft', 'submitted'].includes(r.status) && r.submitted_by === u.id);
+    const mine = (r) => (can(u, 'exp_delete') && (u.role === 'om' || r.status !== 'sent')) || (u.role === 'so' && ['draft', 'submitted'].includes(r.status) && r.submitted_by === u.id);
     const targets = group.length ? group.filter(mine) : (mine(before) ? [{ id, amount: before.amount, category: before.category, status: before.status, submitted_by: before.submitted_by, batch_id: (await q('SELECT batch_id FROM pc2_expenses WHERE id = $1', [id]))[0]?.batch_id }] : []);
     for (const r of targets) {
       removed++;
@@ -310,7 +323,7 @@ async function removeExpense(u, id) {
 }
 // Sr. Ops Manager removes an advance issued to a team member (only if nothing was spent on it).
 export async function deleteIssue(fd) {
-  const u = await need(['om']);
+  const u = await need(null, 'adv_manage');
   const id = Number(s(fd, 'id'));
   const before = (await q(
     `SELECT i.id, i.fund, i.amount, i.returned, i.issued_to, COALESCE(u.name, p.name) AS holder, (SELECT COUNT(*)::int FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected') AS live
@@ -328,7 +341,7 @@ export async function deleteIssue(fd) {
 
 // Funds received from the Accounts team (Petty, BRC, Others) - Sr. Ops Manager only.
 export async function addAdvance(fd) {
-  const u = await need(['om', 'sso']);
+  const u = await need(null, 'acct_submit');
   const amount = amt(fd);
   const fund = s(fd, 'fund');
   const on = s(fd, 'received_on');
@@ -345,7 +358,7 @@ export async function addAdvance(fd) {
 }
 
 export async function editAdvance(fd) {
-  const u = await need(['om']);
+  const u = await need(null, 'adv_manage');
   const id = Number(s(fd, 'id'));
   const here = '/advances/edit?type=received&id=' + id;
   const before = (await q(`SELECT id, fund, amount, reference, note, to_char(received_on, 'YYYY-MM-DD') AS received_on FROM pc2_advances WHERE id = $1`, [id]))[0];
@@ -365,7 +378,7 @@ export async function editAdvance(fd) {
 }
 
 export async function deleteAdvance(fd) {
-  const u = await need(['om']);
+  const u = await need(null, 'adv_manage');
   const id = Number(s(fd, 'id'));
   const before = (await q(`SELECT fund, amount, reference, note, to_char(received_on, 'YYYY-MM-DD') AS received_on FROM pc2_advances WHERE id = $1`, [id]))[0];
   if (before) {
@@ -377,7 +390,7 @@ export async function deleteAdvance(fd) {
 
 // Sr. SO issues cash from a petty fund to a Support Officer, the Sr. SO, or a payee (someone with no app account).
 export async function issueAdvance(fd) {
-  const u = await need(['sso', 'om']);
+  const u = await need(null, 'adv_issue');
   // "u-<id>" for a real team member, "p-<id>" for a payee who does not sign in.
   const recip = s(fd, 'recipient');
   const [kind, idStr] = recip.split('-');
@@ -423,7 +436,7 @@ export async function issueAdvance(fd) {
 
 // Sr. Ops Manager corrects an advance issued to a Support Officer.
 export async function editIssue(fd) {
-  const u = await need(['om']);
+  const u = await need(null, 'adv_manage');
   const id = Number(s(fd, 'id'));
   const here = '/advances/edit?type=issue&id=' + id;
   const before = (await q(
@@ -475,7 +488,7 @@ export async function editIssue(fd) {
 
 // Unspent cash handed back by a Support Officer.
 export async function recordReturn(fd) {
-  const u = await need(['sso', 'om']);
+  const u = await need(null, 'adv_return');
   const id = Number(s(fd, 'issue_id'));
   const amount = amt(fd);
   const i = (await q(
@@ -504,7 +517,7 @@ export async function submitDrafts() {
 // Only the Sr. Ops Manager or the Sr. Support Officer can submit to Accounts.
 // Support Officers can never do this.
 export async function submitToAccounts(fd) {
-  const u = await need(['om', 'sso']);
+  const u = await need(null, 'acct_submit');
   // Only the ticked expenses when a selection is sent, otherwise everything that is ready.
   const picked = fd.has('ids');
   const ids = fd.getAll('ids').join(',').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
@@ -530,8 +543,9 @@ export async function addUser(fd) {
   const email = s(fd, 'email').toLowerCase();
   const username = s(fd, 'username').toLowerCase();
   const pw = s(fd, 'password');
-  const role = s(fd, 'role');
-  if (!name || !email.includes('@') || pw.length < 8 || !['sso', 'so', 'guard'].includes(role)) back('/team', 'Enter name, valid email, role and a password of at least 8 characters');
+  const picked = await pickRole(s(fd, 'role'));
+  if (!name || !email.includes('@') || pw.length < 8 || !picked) back('/team', 'Enter name, valid email, role and a password of at least 8 characters');
+  const role = picked.role;
   if (!/^[a-z0-9._-]{3,20}$/.test(username)) back('/team', 'Username must be 3 to 20 letters, numbers, dot, dash or underscore, with no spaces');
   const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
   if (!off) back('/team', 'Pick an office');
@@ -540,13 +554,13 @@ export async function addUser(fd) {
   let failed = false;
   let newId = null;
   try {
-    const r = await q(`INSERT INTO pc2_users (name, email, password_hash, role, office_id, phone, shift, username) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, [name, email, bcrypt.hashSync(pw, 10), role, off.id, phone, shift, username]);
+    const r = await q(`INSERT INTO pc2_users (name, email, password_hash, role, office_id, phone, shift, username, role_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, [name, email, bcrypt.hashSync(pw, 10), role, off.id, phone, shift, username, picked.roleId]);
     newId = r[0].id;
   } catch {
     failed = true;
   }
   if (failed) back('/team', 'That email or username is already in use');
-  await logEvent(u, 'create', 'user', newId, 'Added user ' + name + ' (' + role.toUpperCase() + ', ' + off.code + ') - ' + email, null, { name, email, role, office: off.code });
+  await logEvent(u, 'create', 'user', newId, 'Added user ' + name + ' (' + picked.label + ', ' + off.code + ') - ' + email, null, { name, email, role: picked.label, office: off.code });
   back('/team', 'User added', true);
 }
 
@@ -628,7 +642,7 @@ export async function editUser(fd) {
   const id = Number(s(fd, 'id'));
   const here = '/team/edit?id=' + id;
   const before = (await q(
-    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.pages, u.totp_required, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
+    `SELECT u.id, u.name, u.email, u.username, u.role, u.role_id, u.phone, u.shift, u.perms, u.pages, u.totp_required, o.code AS office, r.name AS role_name FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id LEFT JOIN pc2_roles r ON r.id = u.role_id WHERE u.id = $1`,
     [id]
   ))[0];
   if (!before) back('/team', 'Team member not found');
@@ -638,16 +652,23 @@ export async function editUser(fd) {
   if (!name || !email.includes('@')) back(here, 'Enter a name and a valid email');
   if (!/^[a-z0-9._-]{3,20}$/.test(username)) back(here, 'Username must be 3 to 20 letters, numbers, dot, dash or underscore, with no spaces');
   let role = before.role;
+  let roleId = null;
+  let roleLabel = before.role_name || before.role;
+  let rolePerms = [];
   if (before.role !== 'om') {
-    role = s(fd, 'role');
-    if (!['sso', 'so', 'guard'].includes(role)) back(here, 'Pick a role');
+    const picked = await pickRole(s(fd, 'role'));
+    if (!picked) back(here, 'Pick a role');
+    role = picked.role;
+    roleId = picked.roleId;
+    roleLabel = picked.label;
+    rolePerms = picked.perms;
   }
   const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [s(fd, 'office')]))[0];
   if (!off) back(here, 'Pick an office');
   const phone = s(fd, 'phone');
   const shift = role === 'guard' && ['morning', 'evening'].includes(s(fd, 'shift')) ? s(fd, 'shift') : '';
   // Extra attendance access ticked on the form (what the role already includes is not stored).
-  const roleBase = ROLE_PERMS[role] || [];
+  const roleBase = [...(ROLE_PERMS[role] || []), ...rolePerms];
   const permList = PERMS.map(([k]) => k).filter((k) => fd.get('perm_' + k) === 'on' && !roleBase.includes(k));
   // Pages ticked in "Pages this person can open": a page that needs a permission switches that permission on.
   const ticked = fd.getAll('pg').map(String).filter((h) => ALL_PAGES.includes(h));
@@ -659,14 +680,14 @@ export async function editUser(fd) {
   const dflt = defaultPages(role, permList, ROLE_PERMS);
   const sameAsDefault = ticked.length === 0 || (ticked.length === dflt.length && dflt.every((h) => ticked.includes(h)));
   const pagesStr = fd.get('pages_form') === '1' && role !== 'om' && !sameAsDefault ? ticked.join(',') : '';
-  const old = { name: before.name, email: before.email, username: before.username || '', role: before.role, office: before.office, phone: before.phone, shift: before.shift, perms: before.perms || '', pages: before.pages || '', authenticator: before.totp_required ? 'required' : 'optional' };
+  const old = { name: before.name, email: before.email, username: before.username || '', role: before.role_name || before.role, office: before.office, phone: before.phone, shift: before.shift, perms: before.perms || '', pages: before.pages || '', authenticator: before.totp_required ? 'required' : 'optional' };
   const reqTotp = role !== 'om' && fd.get('require_totp') === 'on';
-  const after = { name, email, username, role, office: off.code, phone, shift, perms: permsStr, pages: pagesStr, authenticator: reqTotp ? 'required' : 'optional' };
+  const after = { name, email, username, role: roleLabel, office: off.code, phone, shift, perms: permsStr, pages: pagesStr, authenticator: reqTotp ? 'required' : 'optional' };
   const changes = diff(old, after);
   if (!changes.length) back('/team', 'No changes were made', true);
   let failed = false;
   try {
-    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4, phone = $5, shift = $6, perms = $7, totp_required = $8, username = $9, pages = $10 WHERE id = $11', [name, email, role, off.id, phone, shift, permsStr, reqTotp, username, pagesStr, id]);
+    await q('UPDATE pc2_users SET name = $1, email = $2, role = $3, office_id = $4, phone = $5, shift = $6, perms = $7, totp_required = $8, username = $9, pages = $10, role_id = $11 WHERE id = $12', [name, email, role, off.id, phone, shift, permsStr, reqTotp, username, pagesStr, roleId, id]);
   } catch {
     failed = true;
   }
@@ -808,7 +829,7 @@ export async function stopViewAs() {
 
 // Cash handed back to Accounts. The Sr. OM returns from the pool, the Sr. SO from the cash they hold.
 export async function returnToAccounts(fd) {
-  const u = await need(['om', 'sso']);
+  const u = await need(null, 'acct_submit');
   const fund = s(fd, 'fund');
   const amount = amt(fd);
   const on = s(fd, 'returned_on');
@@ -826,7 +847,7 @@ export async function returnToAccounts(fd) {
 }
 
 export async function deleteReturn(fd) {
-  const u = await need(['om']);
+  const u = await need(null, 'adv_manage');
   const id = Number(s(fd, 'id'));
   const r = (await q('DELETE FROM pc2_returns WHERE id = $1 RETURNING fund, amount, returned_on', [Number.isInteger(id) ? id : 0]))[0];
   if (r) await logEvent(u, 'delete', 'return', id, 'Removed return of ' + pkr(r.amount) + ' (' + FUNDS[r.fund] + ') to Accounts', { fund: r.fund, amount: r.amount }, null);
@@ -924,7 +945,7 @@ export async function addExpensesBulk(fd) {
 }
 // Sr. Ops Manager approves every expense in the list currently shown (only those awaiting review).
 export async function approveAll(fd) {
-  const u = await need(['om']);
+  const u = await need(null, 'exp_approve');
   const ids = fd.getAll('ids').join(',').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 300);
   if (!ids.length) back('/expenses', 'Nothing to approve');
   const done = await q(

@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { EXP_FROM, EXP_COLS } from '@/lib/queries';
@@ -10,7 +12,8 @@ import ExpenseTable from '@/components/ExpenseTable';
 import Flash from '@/components/Flash';
 
 export default async function AccountsPage({ searchParams }) {
-  const user = await requireUser(['om', 'sso']);
+  const user = await requireUser(['om', 'sso', 'so']);
+  if (!can(user, 'acct_submit')) redirect('/');
   const sp = await searchParams;
   const isOM = user.role === 'om';
   const [ready, batches] = await Promise.all([

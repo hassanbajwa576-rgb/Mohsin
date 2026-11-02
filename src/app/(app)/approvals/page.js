@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { can } from '@/lib/perms';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { EXP_COLS, EXP_FROM } from '@/lib/queries';
@@ -21,7 +22,7 @@ const span = (e) => e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_dat
 // Everything waiting for the Sr. Ops Manager's decision, in one place.
 export default async function ApprovalsPage({ searchParams }) {
   const user = await requireUser(['om', 'sso', 'so', 'guard']);
-  if (user.role !== 'om') redirect('/');
+  if (!can(user, 'exp_approve')) redirect('/');
   const sp = await searchParams;
   const expenses = await q(`SELECT ${EXP_COLS} ${EXP_FROM} WHERE e.status IN ('submitted', 'verified') ORDER BY e.spent_on DESC, e.id DESC LIMIT 200`);
   const visitors = await pendingDeletes();

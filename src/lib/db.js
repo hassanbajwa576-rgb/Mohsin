@@ -137,6 +137,13 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS pc2_payees (id SERIAL PRIMARY KEY, name TEXT NOT NULL, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), phone TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', active BOOLEAN NOT NULL DEFAULT TRUE, created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `ALTER TABLE pc2_issues ALTER COLUMN issued_to DROP NOT NULL`,
   `ALTER TABLE pc2_issues ADD COLUMN IF NOT EXISTS payee_id INTEGER REFERENCES pc2_payees(id)`,
+  // Roles the Sr. Ops Manager creates: a name, which built-in role it works like (base), and a checklist of permissions and pages.
+  `CREATE TABLE IF NOT EXISTS pc2_roles (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, base TEXT NOT NULL DEFAULT 'so', perms TEXT NOT NULL DEFAULT '', pages TEXT NOT NULL DEFAULT '', active BOOLEAN NOT NULL DEFAULT TRUE, created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES pc2_roles(id)`,
+  `ALTER TABLE pc2_roles ADD COLUMN IF NOT EXISTS sys_key TEXT UNIQUE`,
+  // The four built-in roles, filled in with what each can do today. Everyone already in the app is attached to theirs.
+  `INSERT INTO pc2_roles (name, base, perms, sys_key) VALUES ('Sr. Ops Manager', 'om', 'exp_approve,exp_delete,adv_issue,adv_return,adv_manage,acct_submit', 'om'), ('Sr. Support Officer', 'sso', 'adv_issue,adv_return,acct_submit', 'sso'), ('Support Officer', 'so', '', 'so'), ('Guard', 'guard', '', 'guard') ON CONFLICT DO NOTHING`,
+  `UPDATE pc2_users u SET role_id = r.id FROM pc2_roles r WHERE u.role_id IS NULL AND r.sys_key = u.role`,
 ];
 
 let sql;
@@ -144,7 +151,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-10-30-5';
+const SCHEMA_VERSION = '2026-11-03-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

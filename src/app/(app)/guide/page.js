@@ -226,7 +226,7 @@ export default async function GuidePage() {
       </details>
 
       <div className='card guide-you'>
-        <h3>Your role: {ROLE_LABEL[user.role]}</h3>
+        <h3>Your role: {(user.roleName || ROLE_LABEL[user.role])}</h3>
         <p>{YOU[user.role]}</p>
       </div>
 

@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { q } from './db';
 import { loadFunds } from './fund-types';
+import { DEFAULT_ACTIONS } from './perms';
 
 const COOKIE = 'pc_session';
 const IMP = 'pc_imp';
@@ -26,6 +27,17 @@ export async function endSession() {
   jar.delete(IMP);
 }
 
+// One user row with the role the Sr. Ops Manager created for them (if any): the role's permissions and pages are added to their own.
+const USER_SQL = `SELECT u.id, u.name, u.email, u.role, u.perms, u.pages, u.totp_enabled, u.totp_required, u.office_id, o.code AS office_code, u.role_id, r.name AS role_name, r.sys_key AS role_sys, r.perms AS role_perms, r.pages AS role_pages FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id LEFT JOIN pc2_roles r ON r.id = u.role_id AND r.active WHERE u.id = $1 AND u.active`;
+const csv = (v) => String(v || '').split(',').filter(Boolean);
+function shape(row) {
+  const own = csv(row.perms);
+  const own_pages = csv(row.pages);
+  // Someone not yet attached to a role gets what their built-in role always had.
+  const fromRole = row.role_id ? csv(row.role_perms) : DEFAULT_ACTIONS[row.role] || [];
+  return { ...row, perms: [...new Set([...own, ...fromRole])], pagesList: own_pages.length ? own_pages : csv(row.role_pages), roleName: row.role_name && !row.role_sys ? row.role_name : null };
+}
+
 // Memoised per request: the layout and the page share one database lookup.
 export const getUser = cache(async function getUser() {
   const jar = await cookies();
@@ -38,25 +50,19 @@ export const getUser = cache(async function getUser() {
   } catch {
     return null;
   }
-  const rows = await q(
-    `SELECT u.id, u.name, u.email, u.role, u.perms, u.pages, u.totp_enabled, u.totp_required, u.office_id, o.code AS office_code FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1 AND u.active`,
-    [uid]
-  );
+  const rows = await q(USER_SQL, [uid]);
   if (!rows[0]) return null;
   await loadFunds();
-  const real = { ...rows[0], perms: String(rows[0].perms || '').split(',').filter(Boolean), pagesList: String(rows[0].pages || '').split(',').filter(Boolean) };
+  const real = shape(rows[0]);
   // Sr. Ops Manager viewing as someone else (30 minutes): every page and action runs as that person.
   const imp = jar.get(IMP)?.value;
   if (imp && real.role === 'om') {
     try {
       const { payload } = await jwtVerify(imp, key());
       if (payload.k === 'imp' && Number(payload.by) === real.id) {
-        const t = await q(
-          `SELECT u.id, u.name, u.email, u.role, u.perms, u.pages, u.totp_enabled, u.totp_required, u.office_id, o.code AS office_code FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1 AND u.active`,
-          [payload.uid]
-        );
+        const t = await q(USER_SQL, [payload.uid]);
         if (t[0] && t[0].role !== 'om') {
-          return { ...t[0], totp_required: false, perms: String(t[0].perms || '').split(',').filter(Boolean), pagesList: String(t[0].pages || '').split(',').filter(Boolean), impersonatedBy: { id: real.id, name: real.name } };
+          return { ...shape(t[0]), totp_required: false, impersonatedBy: { id: real.id, name: real.name } };
         }
       }
     } catch {

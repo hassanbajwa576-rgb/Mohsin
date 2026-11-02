@@ -12,12 +12,15 @@ import { mergeSplits } from '@/lib/fmt';
 import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
 import ExpenseInsights from '@/components/ExpenseInsights';
 import Flash from '@/components/Flash';
+import { can } from '@/lib/perms';
 
 export default async function ExpensesPage({ searchParams }) {
   const user = await requireUser();
   const sp = await searchParams;
   const isOM = user.role === 'om';
   const isSO = user.role === 'so';
+  const canApprove = can(user, 'exp_approve');
+  const canDel = can(user, 'exp_delete');
   const f = {
     office: isSO ? user.office_code : sp.office || 'all',
     status: sp.status || 'all',
@@ -44,7 +47,7 @@ export default async function ExpensesPage({ searchParams }) {
   for (const k of ['office', 'status', 'fund', 'month', 'q']) if (sp[k]) mp.set(k, sp[k]);
   if (!showAll) mp.set('more', '1');
   const moreHref = '/expenses' + (mp.toString() ? '?' + mp.toString() : '');
-  const waiting = isOM ? shown.filter((r) => ['submitted', 'verified'].includes(r.status)) : [];
+  const waiting = canApprove ? shown.filter((r) => ['submitted', 'verified'].includes(r.status)) : [];
 
   return (
     <>
@@ -161,8 +164,8 @@ export default async function ExpensesPage({ searchParams }) {
       ) : null}
 
       <div className='card'>
-        {(isOM && shown.some((r) => r.status !== 'sent')) || (isSO && shown.some((r) => ['draft', 'submitted'].includes(r.status))) ? (
-          <BulkApprove approveAction={approveAll} deleteAction={deleteExpensesBulk} canApprove={isOM} />
+        {((canApprove || canDel) && shown.some((r) => r.status !== 'sent')) || (isSO && shown.some((r) => ['draft', 'submitted'].includes(r.status))) ? (
+          <BulkApprove approveAction={approveAll} deleteAction={deleteExpensesBulk} canApprove={canApprove} />
         ) : null}
         <ExpenseTable rows={shown} user={user} back='/expenses' selectable />
         {rows.length > 10 ? (

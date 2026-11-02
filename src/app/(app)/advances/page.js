@@ -5,6 +5,7 @@ import { fundSummary, issueRows, receivedByFund, payeeRows } from '@/lib/queries
 import FundMatrix, { buildMatrix } from '@/components/FundMatrix';
 import { addAdvance, deleteAdvance, deleteIssue, issueAdvance, recordReturn, returnToAccounts, deleteReturn } from '@/lib/actions';
 import { pkr, today, FUNDS } from '@/lib/fmt';
+import { can } from '@/lib/perms';
 import Flash from '@/components/Flash';
 import ScrollTo from '@/components/ScrollTo';
 import FundCard from '@/components/FundCard';
@@ -16,6 +17,10 @@ export default async function AdvancesPage({ searchParams }) {
   const sp = await searchParams;
   const isOM = user.role === 'om';
   const manage = user.role !== 'so';
+  const canManage = can(user, 'adv_manage');
+  const canIssue = can(user, 'adv_issue');
+  const canReturn = can(user, 'adv_return');
+  const canAcct = can(user, 'acct_submit');
 
   const [issuesRaw, funds, received, officers, payeesAll, returns] = await Promise.all([
     issueRows(user),
@@ -146,7 +151,7 @@ export default async function AdvancesPage({ searchParams }) {
 
           <FundMatrix title='Received from Accounts by fund - PKR' cols={['Amount']} rows={buildMatrix(recvByFund, 'office', ['All'])} />
 
-          {manage ? (
+          {manage && canAcct ? (
             <details className='card'>
               <summary>Record funds received from Accounts</summary>
               <form action={addAdvance} className='form'>
@@ -167,7 +172,7 @@ export default async function AdvancesPage({ searchParams }) {
             {received.length === 0 ? <p className='muted'>No funds recorded from Accounts yet.</p> : (
               <div className='tablewrap'>
                 <table className='tx'>
-                  <thead><tr><th>Date</th><th>Fund</th><th>Reference</th><th>Note</th><th>Recorded by</th><th className='r'>Amount</th>{isOM ? <th></th> : null}</tr></thead>
+                  <thead><tr><th>Date</th><th>Fund</th><th>Reference</th><th>Note</th><th>Recorded by</th><th className='r'>Amount</th>{canManage ? <th></th> : null}</tr></thead>
                   <tbody>
                     {received.map((a) => (
                       <tr key={a.id}>
@@ -177,7 +182,7 @@ export default async function AdvancesPage({ searchParams }) {
                         <td className='c-meta'>{a.note}</td>
                         <td className='c-meta'>{a.by_name || '-'}</td>
                         <td className='r nw c-amt'><b>{pkr(a.amount)}</b></td>
-                        {isOM ? (
+                        {canManage ? (
                           <td className='act'>
                             <a href={'/advances/edit?type=received&id=' + a.id} className='btn'>Edit</a>
                             <form action={deleteAdvance} className='inline'>
@@ -193,6 +198,7 @@ export default async function AdvancesPage({ searchParams }) {
               </div>
             )}
           </div>
+          {canAcct ? (
           <details className='card'>
             <summary>Return cash to Accounts</summary>
             <form action={returnToAccounts} className='form'>
@@ -207,13 +213,14 @@ export default async function AdvancesPage({ searchParams }) {
             </form>
             <p className='muted'>{isOM ? 'Taken from the cash held by the Sr. Ops Manager.' : 'Taken from the cash you hold.'} It lowers Advances Outstanding and CIH.</p>
           </details>
+          ) : null}
 
           {returns.length > 0 ? (
             <div className='card'>
               <h3>Returned to Accounts</h3>
               <div className='tablewrap'>
                 <table className='tx'>
-                  <thead><tr><th>Date</th><th>Fund</th><th>By</th><th>Reference</th><th>Note</th><th className='r'>Amount</th>{isOM ? <th></th> : null}</tr></thead>
+                  <thead><tr><th>Date</th><th>Fund</th><th>By</th><th>Reference</th><th>Note</th><th className='r'>Amount</th>{canManage ? <th></th> : null}</tr></thead>
                   <tbody>
                     {returns.map((r) => (
                       <tr key={r.id}>
@@ -223,7 +230,7 @@ export default async function AdvancesPage({ searchParams }) {
                         <td className='c-meta'>{r.reference}</td>
                         <td className='c-meta'>{r.note}</td>
                         <td className='r nw c-amt'><b>{pkr(r.amount)}</b></td>
-                        {isOM ? (
+                        {canManage ? (
                           <td className='act'>
                             <form action={deleteReturn} className='inline'>
                               <input type='hidden' name='id' value={r.id} />
@@ -243,7 +250,7 @@ export default async function AdvancesPage({ searchParams }) {
 
       <h2>{manage ? 'Advances issued to the team' : 'My advances'}</h2>
 
-      {manage ? (
+      {manage && canIssue ? (
         <details className='card' open>
           <summary>Issue an advance</summary>
           {officers.length === 0 && activePayees.length === 0 ? (
@@ -362,7 +369,7 @@ export default async function AdvancesPage({ searchParams }) {
                       <td className='r nw'><b style={lowCash(recipKey(i)) ? { color: 'var(--bad, #b3261e)', background: '#fbd3d3', padding: '1px 7px', borderRadius: 3, display: 'inline-block' } : goodCash(recipKey(i)) ? { color: '#1b6e34', background: '#d9f1df', padding: '1px 7px', borderRadius: 3, display: 'inline-block' } : undefined}>{pkr(left)}</b></td>
                       {manage ? (
                         <td className='act'>
-                          {isOM ? (
+                          {canManage ? (
                             <div className='inline'>
                               <a href={'/advances/edit?type=issue&id=' + i.id} className='btn'>Edit</a>
                               <form action={deleteIssue} className='inline'>
@@ -371,7 +378,7 @@ export default async function AdvancesPage({ searchParams }) {
                               </form>
                             </div>
                           ) : null}
-                          {left > 0 ? (
+                          {left > 0 && canReturn ? (
                             <form action={recordReturn} className='inline'>
                               <input type='hidden' name='issue_id' value={i.id} />
                               <input name='amount' type='number' min='1' max={left} step='1' placeholder='Cash returned' className='sm' required />

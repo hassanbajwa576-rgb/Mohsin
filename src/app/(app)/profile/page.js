@@ -12,7 +12,7 @@ export default async function ProfilePage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>My profile</h1>
-          <p className='muted'>{ROLE_LABEL[user.role]} - {user.office_code} office</p>
+          <p className='muted'>{(user.roleName || ROLE_LABEL[user.role])} - {user.office_code} office</p>
         </div>
       </div>
       <Flash sp={sp} />
@@ -22,7 +22,7 @@ export default async function ProfilePage({ searchParams }) {
         <form action={updateProfile} className='form'>
           <label>Full name<input name='name' defaultValue={user.name} required readOnly={locked} /></label>
           <label>Email (your login ID)<input name='email' type='email' defaultValue={user.email} required readOnly={locked} /></label>
-          <label>Role<input value={ROLE_LABEL[user.role]} disabled readOnly /></label>
+          <label>Role<input value={(user.roleName || ROLE_LABEL[user.role])} disabled readOnly /></label>
           <label>Office<input value={user.office_code} disabled readOnly /></label>
           {locked ? null : <button className='btn primary' type='submit'>Save details</button>}
         </form>

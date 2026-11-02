@@ -108,7 +108,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const all = (list) => list.flatMap((m) => (m.items ? m.items : [m]));
   const admin = [];
   if (!guard) {
-    if (om) admin.push(page('/exprev', 'ExpRev'), page('/approvals', 'Approvals'), page('/team', 'Team'), page('/logs', 'Audit log'));
+    if (om) admin.push(page('/exprev', 'ExpRev'), page('/approvals', 'Approvals'), page('/team', 'Team'), page('/roles', 'Roles'), page('/logs', 'Audit log'));
     admin.push(page('/guide', 'Guide'));
   }
   const adminK = admin.filter((m) => ok(m.href));

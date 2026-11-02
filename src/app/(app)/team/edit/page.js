@@ -14,13 +14,16 @@ export default async function EditUserPage({ searchParams }) {
   const sp = await searchParams;
   const id = Number(sp.id);
   const t = (await q(
-    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.pages, u.totp_enabled, u.totp_required, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
+    `SELECT u.id, u.name, u.email, u.username, u.role, u.phone, u.shift, u.perms, u.pages, u.totp_enabled, u.totp_required, u.role_id, o.code AS office FROM pc2_users u JOIN pc2_offices o ON o.id = u.office_id WHERE u.id = $1`,
     [Number.isInteger(id) ? id : 0]
   ))[0];
   if (!t) redirect('/team');
+  const roles = await q("SELECT id, name, base, perms, sys_key FROM pc2_roles WHERE (active OR id = $1) AND sys_key IS DISTINCT FROM 'om' ORDER BY (sys_key IS NULL), CASE sys_key WHEN 'sso' THEN 0 WHEN 'so' THEN 1 WHEN 'guard' THEN 2 ELSE 3 END, name", [t.role_id || 0]);
+  const myRole = roles.find((r) => r.id === t.role_id) || roles.find((r) => r.sys_key === t.role);
+  const roleExtra = myRole ? String(myRole.perms || '').split(',').filter(Boolean) : [];
   // Pages picked for this person; none picked means the role's own pages (what is ticked below when nothing was ever saved).
   const picked = String(t.pages || '').split(',').filter(Boolean);
-  const effective = picked.length ? picked : defaultPages(t.role, String(t.perms || '').split(',').filter(Boolean), ROLE_PERMS);
+  const effective = picked.length ? picked : defaultPages(t.role, [...String(t.perms || '').split(',').filter(Boolean), ...roleExtra], ROLE_PERMS);
 
   return (
     <>
@@ -41,10 +44,8 @@ export default async function EditUserPage({ searchParams }) {
             <label>Role<input value={ROLE_LABEL.om} disabled readOnly /></label>
           ) : (
             <label>Role
-              <select name='role' defaultValue={t.role}>
-                <option value='sso'>{ROLE_LABEL.sso}</option>
-                <option value='so'>{ROLE_LABEL.so}</option>
-                <option value='guard'>{ROLE_LABEL.guard} (attendance only)</option>
+              <select name='role' defaultValue={myRole ? 'r-' + myRole.id : ''}>
+                {roles.map((r) => <option key={r.id} value={'r-' + r.id}>{r.name}</option>)}
               </select>
             </label>
           )}
@@ -60,7 +61,7 @@ export default async function EditUserPage({ searchParams }) {
               <legend>Attendance access</legend>
               <p className='muted'>Tick what this person may do in AttendTrack, on top of what their role already includes.</p>
               {PERMS.map(([key, label, hint]) => {
-                const base = (ROLE_PERMS[t.role] || []).includes(key);
+                const base = (ROLE_PERMS[t.role] || []).includes(key) || roleExtra.includes(key);
                 const on = base || String(t.perms || '').split(',').includes(key);
                 return (
                   <label key={key} className='perm'>
