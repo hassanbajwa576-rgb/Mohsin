@@ -77,11 +77,12 @@ export default async function FuelLogPage({ searchParams }) {
               <tbody>
                 {rows.map((t) => (
                   <tr key={t.id}>
-                    <td className='nw c-meta'>{fmtDay(t.at_ms)}, {fmt12(t.at_ms)}</td>
-                    <td className='c-title'><b>{t.asset}</b></td>
-                    <td className='c-meta'>{FKIND[t.kind]}{t.note ? <div className='muted'>{t.note}</div> : null}</td>
-                    <td className='r nw c-meta'>{t.kind === 'fill' ? '- ' : '+ '}{pkr(t.amount)}</td>
-                    <td className='c-meta'>{t.by_name || '-'}</td>
+                    <td className='nw c-meta hide-m'>{fmtDay(t.at_ms)}, {fmt12(t.at_ms)}</td>
+                    <td className='c-title'><b>{t.asset}</b>{t.note ? <div className='muted'>{t.note}</div> : null}</td>
+                    <td className='c-meta hide-m'>{FKIND[t.kind]}</td>
+                    <td className='r nw c-amt'><b>{t.kind === 'fill' ? '- ' : '+ '}{pkr(t.amount)}</b></td>
+                    <td className='c-meta hide-m'>{t.by_name || '-'}</td>
+                    <td className='show-m'><div>{fmtDay(t.at_ms)}, {fmt12(t.at_ms)}</div><div className='sub'>{FKIND[t.kind]} &middot; {t.by_name || '-'}</div></td>
                     <td className='act'>
                       {canEditFuel(user, t) ? <Link className='btn' href={'/fuel/edit?id=' + t.id}>Edit</Link> : null}
                       {user.role === 'om' ? (
