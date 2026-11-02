@@ -113,7 +113,7 @@ export async function addExpense(fd) {
   const amount = amt(fd);
   const category = s(fd, 'category');
   const spentOn = s(fd, 'spent_on');
-  const description = s(fd, 'description');
+  let description = s(fd, 'description');
   if (!(amount > 0)) back('/expenses', 'Enter a valid amount');
   if (!CATEGORIES.includes(category)) back('/expenses', 'Pick a category');
   if (badDate(spentOn)) back('/expenses', 'Pick a valid date');
@@ -142,6 +142,20 @@ export async function addExpense(fd) {
     }
     status = 'draft';
   } else {
+    // Receipts handed in by an advance-only team member (no app account) are recorded here on their behalf
+    // and charged to their advance; the money then comes out of that advance, not out of the recorder's cash.
+    const onBehalf = Number(s(fd, 'issue_id'));
+    if (onBehalf > 0) {
+      const i = (await q(
+        `SELECT i.id, i.fund, i.amount - i.returned - COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0) AS remaining, p.name AS payee FROM pc2_issues i JOIN pc2_payees p ON p.id = i.payee_id WHERE i.id = $1`,
+        [onBehalf]
+      ))[0];
+      if (!i) back('/expenses', 'Pick an advance issued to an advance-only team member');
+      if (amount > Number(i.remaining)) back('/expenses', 'Amount exceeds the cash left on ' + i.payee + "'s advance (" + pkr(i.remaining) + ')');
+      fund = i.fund;
+      parts = [{ issueId: i.id, amount }];
+      description = (description ? description + ' ' : '') + '(spent by ' + i.payee + ')';
+    }
     if (!FUNDS[fund]) back('/expenses', 'Pick a fund');
     status = u.role === 'om' ? 'approved' : 'submitted';
     if (u.role === 'om' || u.role === 'sso') {

@@ -31,6 +31,9 @@ export default async function ExpensesPage({ searchParams }) {
   const open = isSO
     ? (await issueRows(user)).map((i) => ({ ...i, left: i.amount - i.returned - Number(i.spent) })).filter((i) => i.left > 0)
     : [];
+  const payeeAdvances = isSO
+    ? []
+    : (await issueRows(user)).filter((i) => i.payee_id).map((i) => ({ ...i, left: i.amount - i.returned - Number(i.spent) })).filter((i) => i.left > 0);
   const dq = isSO
     ? (await q(`SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int AS c, COALESCE(SUM(amount), 0)::float8 AS v FROM pc2_expenses WHERE submitted_by = $1 AND status = 'draft'`, [user.id]))[0]
     : null;
@@ -82,6 +85,14 @@ export default async function ExpensesPage({ searchParams }) {
             <label>Category
               <select name='category' required>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
             </label>
+            {payeeAdvances.length ? (
+              <label className='wide'>Spent by an advance-only team member?
+                <select name='issue_id' defaultValue=''>
+                  <option value=''>No - this is my own expense (pick the fund below)</option>
+                  {payeeAdvances.map((i) => <option key={i.id} value={i.id}>{i.holder + ' - ' + FUNDS[i.fund] + ' advance #' + i.id + ' (left ' + pkr(i.left) + ')'}</option>)}
+                </select>
+              </label>
+            ) : null}
             <label>Paid from fund
               <select name='fund' defaultValue='petty'>{Object.entries(FUNDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
             </label>
