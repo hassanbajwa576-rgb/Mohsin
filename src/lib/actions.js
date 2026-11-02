@@ -460,6 +460,10 @@ export async function editIssue(fd) {
   const old = { amount: before.amount, issued_on: before.issued_on, note: before.note, holder: before.holder };
   const after = { amount, issued_on: on, note: s(fd, 'note'), holder: newName };
   const changes = diff(old, after);
+  // Two profiles can share a name, so compare the holder by id as well.
+  if (newUser !== before.issued_to || newPayee !== before.payee_id) {
+    if (!changes.some((c) => /holder/i.test(c))) changes.push('Holder: ' + before.holder + (before.payee_id ? ' (no login)' : '') + ' -> ' + newName + (newPayee ? ' (no login)' : ''));
+  }
   if (!changes.length) back('/advances', 'No changes were made', true);
   await q('UPDATE pc2_issues SET amount = $1, issued_on = $2, note = $3, issued_to = $4, payee_id = $5 WHERE id = $6', [amount, on, after.note, newUser, newPayee, id]);
   await logEvent(u, 'edit', 'advance', id, 'Edited advance #' + id + ' - ' + changes.join('; '), old, after);
