@@ -3,16 +3,18 @@ import { pkr, FUNDS, STATUS_LABEL, mergeSplits } from '@/lib/fmt';
 import ConfirmButton from './ConfirmButton';
 import OfficeTag from './OfficeTag';
 
-export default function ExpenseTable({ rows: raw, user, back = '/expenses', actions = true }) {
+export default function ExpenseTable({ rows: raw, user, back = '/expenses', actions = true, selectable = false }) {
   const rows = mergeSplits(raw);
   if (!rows.length) return <p className='muted'>Nothing to show yet.</p>;
   const isOM = user.role === 'om';
   const isSSO = user.role === 'sso';
+  const pick = selectable && (isOM || user.role === 'so');
   return (
     <div className='tablewrap'>
       <table className='tx'>
         <thead>
           <tr>
+            {pick ? <th className='pick'><input type='checkbox' data-bulk-all aria-label='Select all waiting expenses' /></th> : null}
             <th>Date</th><th>Details</th><th>Fund</th><th>By</th><th className='r'>Amount</th><th>Stage</th><th></th>
           </tr>
         </thead>
@@ -23,6 +25,11 @@ export default function ExpenseTable({ rows: raw, user, back = '/expenses', acti
             const canDelete = actions && (isOM || (user.role === 'so' && ['draft', 'submitted'].includes(r.status) && r.submitted_by === user.id));
             return (
               <tr key={r.id}>
+                {pick ? (
+                  <td className='pick'>
+                    {canDecide || (canDelete && r.status !== 'sent') ? <input type='checkbox' form='bulk-approve' name='ids' value={(r.ids || [r.id]).join(',')} data-bulk-row data-amount={r.amount} data-approvable={canDecide ? '1' : '0'} aria-label={'Select ' + r.category + ' ' + pkr(r.amount)} /> : null}
+                  </td>
+                ) : null}
                 <td className='nw c-meta'>{r.spent_on}</td>
                 <td className='c-title'>
                   <OfficeTag o={r.office} /><b>{r.category}</b>

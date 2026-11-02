@@ -15,6 +15,13 @@ export function expWhere(user, f = {}) {
   if (f.status && f.status !== 'all') add('e.status = ?', f.status);
   if (f.fund && f.fund !== 'all') add('e.fund = ?', f.fund);
   if (f.month) add(`to_char(e.spent_on, 'YYYY-MM') = ?`, f.month);
+  const term = (f.q || '').trim().slice(0, 60);
+  if (term) {
+    const like = '%' + term.replace(/[\\%_]/g, '\\$&') + '%';
+    p.push(like);
+    const n = '$' + p.length;
+    c.push(`(e.description ILIKE ${n} OR e.category ILIKE ${n} OR u.name ILIKE ${n} OR e.amount::text ILIKE ${n})`);
+  }
   if (f.from) add('e.spent_on >= ?', f.from);
   if (f.to) add('e.spent_on <= ?', f.to);
   return { where: c.length ? 'WHERE ' + c.join(' AND ') : '', params: p };

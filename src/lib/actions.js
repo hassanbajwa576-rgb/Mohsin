@@ -254,7 +254,20 @@ export async function decideExpense(fd) {
 // others can only delete their own expense while it is still awaiting verification.
 export async function deleteExpense(fd) {
   const u = await need();
-  const id = Number(s(fd, 'id'));
+  await removeExpense(u, Number(s(fd, 'id')));
+  redirect(dest(s(fd, 'back'), '/expenses'));
+}
+// Delete the ticked expenses in one go; each one follows the same permission rules as a single delete.
+export async function deleteExpensesBulk(fd) {
+  const u = await need();
+  const ids = [...new Set(fd.getAll('ids').join(',').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 300);
+  if (!ids.length) back('/expenses', 'Nothing selected');
+  let n = 0;
+  for (const id of ids) n += await removeExpense(u, id);
+  back('/expenses', n ? n + ' expense(s) deleted' : 'Nothing was deleted - you cannot delete the selected expenses', !!n);
+}
+async function removeExpense(u, id) {
+  let removed = 0;
   const before = await expSnap(id);
   if (before) {
     // Delete is a manager action: only the Sr. Ops Manager, or a Support Officer retracting their
@@ -267,6 +280,7 @@ export async function deleteExpense(fd) {
     const mine = (r) => u.role === 'om' || (u.role === 'so' && ['draft', 'submitted'].includes(r.status) && r.submitted_by === u.id);
     const targets = group.length ? group.filter(mine) : (mine(before) ? [{ id, amount: before.amount, category: before.category, status: before.status, submitted_by: before.submitted_by, batch_id: (await q('SELECT batch_id FROM pc2_expenses WHERE id = $1', [id]))[0]?.batch_id }] : []);
     for (const r of targets) {
+      removed++;
       await q('DELETE FROM pc2_expenses WHERE id = $1', [r.id]);
       if (r.batch_id) {
         await q('UPDATE pc2_batches SET total = GREATEST(total - $1, 0), item_count = GREATEST(item_count - 1, 0) WHERE id = $2', [r.amount, r.batch_id]);
@@ -278,7 +292,7 @@ export async function deleteExpense(fd) {
       await notifyUser(before.submitted_by, u.name + ' deleted your expense #' + targets.map((r) => r.id).join(' + #') + ' (' + pkr(sumAmt) + ' - ' + before.category + ')', '/expenses');
     }
   }
-  redirect(dest(s(fd, 'back'), '/expenses'));
+  return removed;
 }
 // Sr. Ops Manager removes an advance issued to a team member (only if nothing was spent on it).
 export async function deleteIssue(fd) {
@@ -457,7 +471,7 @@ export async function submitToAccounts(fd) {
   const u = await need(['om', 'sso']);
   // Only the ticked expenses when a selection is sent, otherwise everything that is ready.
   const picked = fd.has('ids');
-  const ids = s(fd, 'ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  const ids = fd.getAll('ids').join(',').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
   if (picked && ids.length === 0) back('/accounts', 'Select at least one expense to submit');
   const rows = picked
     ? await q("SELECT id, amount FROM pc2_expenses WHERE status = 'approved' AND batch_id IS NULL AND id = ANY($1::int[])", [ids])
@@ -875,7 +889,7 @@ export async function addExpensesBulk(fd) {
 // Sr. Ops Manager approves every expense in the list currently shown (only those awaiting review).
 export async function approveAll(fd) {
   const u = await need(['om']);
-  const ids = s(fd, 'ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 300);
+  const ids = fd.getAll('ids').join(',').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 300);
   if (!ids.length) back('/expenses', 'Nothing to approve');
   const done = await q(
     `UPDATE pc2_expenses SET status = 'approved', decided_by = $1, decided_at = now() WHERE id = ANY($2::int[]) AND status IN ('submitted', 'verified') RETURNING id, amount, submitted_by`,

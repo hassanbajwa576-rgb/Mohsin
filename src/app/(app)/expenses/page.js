@@ -2,8 +2,8 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { expWhere, issueRows, EXP_FROM, EXP_COLS } from '@/lib/queries';
-import { addExpense, addExpensesBulk, approveAll, submitDrafts } from '@/lib/actions';
-import ConfirmButton from '@/components/ConfirmButton';
+import { addExpense, addExpensesBulk, approveAll, deleteExpensesBulk, submitDrafts } from '@/lib/actions';
+import BulkApprove from '@/components/BulkApprove';
 import { pkr, today, FUNDS, CATEGORIES, STATUS_LABEL } from '@/lib/fmt';
 import ExpenseTable from '@/components/ExpenseTable';
 import PasteExpenses from '@/components/PasteExpenses';
@@ -23,6 +23,7 @@ export default async function ExpensesPage({ searchParams }) {
     status: sp.status || 'all',
     fund: sp.fund || 'all',
     month: sp.month || '',
+    q: (sp.q || '').trim().slice(0, 60),
   };
   const w = expWhere(user, f);
   const rows = mergeSplits(await q(`SELECT ${EXP_COLS} ${EXP_FROM} ${w.where} ORDER BY e.spent_on DESC, e.id DESC LIMIT 300`, w.params));
@@ -34,14 +35,13 @@ export default async function ExpensesPage({ searchParams }) {
     ? (await q(`SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int AS c, COALESCE(SUM(amount), 0)::float8 AS v FROM pc2_expenses WHERE submitted_by = $1 AND status = 'draft'`, [user.id]))[0]
     : null;
 
-  const showAll = sp.more === '1';
+  const showAll = sp.more === '1' || !!f.q;
   const shown = showAll ? rows : rows.slice(0, 10);
   const mp = new URLSearchParams();
-  for (const k of ['office', 'status', 'fund', 'month']) if (sp[k]) mp.set(k, sp[k]);
+  for (const k of ['office', 'status', 'fund', 'month', 'q']) if (sp[k]) mp.set(k, sp[k]);
   if (!showAll) mp.set('more', '1');
   const moreHref = '/expenses' + (mp.toString() ? '?' + mp.toString() : '');
-  const waiting = isOM ? rows.filter((r) => ['submitted', 'verified'].includes(r.status)) : [];
-  const waitingTotal = waiting.reduce((a, r) => a + Number(r.amount), 0);
+  const waiting = isOM ? shown.filter((r) => ['submitted', 'verified'].includes(r.status)) : [];
 
   return (
     <>
@@ -115,6 +115,9 @@ export default async function ExpensesPage({ searchParams }) {
       )}
 
       <form method='get' className='card filters'>
+        <label className='wide'>Search
+          <input type='search' name='q' defaultValue={f.q} placeholder='Description, category, amount or person' maxLength={60} />
+        </label>
         {!isSO ? (
           <label>Office
             <select name='office' defaultValue={f.office}><option value='all'>Both</option><option>LHR</option><option>ISB</option></select>
@@ -142,22 +145,15 @@ export default async function ExpensesPage({ searchParams }) {
           title='Expenses in this list by fund and office - PKR'
           cols={['LHR', 'ISB']}
           rows={buildMatrix(rows.filter((r) => r.status !== 'rejected'), 'office', ['LHR', 'ISB'])}
-          note='Follows the filters above (rejected expenses are left out).'
+          note='Follows the search and filters above (rejected expenses are left out).'
         />
       ) : null}
 
       <div className='card'>
-        {waiting.length > 0 ? (
-          <form action={approveAll} className='submitbar'>
-            <input type='hidden' name='ids' value={waiting.flatMap((r) => r.ids || [r.id]).join(',')} />
-            <div>
-              <b>{waiting.length} expense(s) - {pkr(waitingTotal)}</b> waiting for your approval in this list
-              <div className='muted'>Approve all moves them to Accounts, ready to submit. Use Reject on a row first for any you do not accept.</div>
-            </div>
-            <ConfirmButton className='btn primary' message={'Approve all ' + waiting.length + ' expenses (' + pkr(waitingTotal) + ')?'}>Approve all</ConfirmButton>
-          </form>
+        {(isOM && shown.some((r) => r.status !== 'sent')) || (isSO && shown.some((r) => ['draft', 'submitted'].includes(r.status))) ? (
+          <BulkApprove approveAction={approveAll} deleteAction={deleteExpensesBulk} canApprove={isOM} />
         ) : null}
-        <ExpenseTable rows={shown} user={user} back='/expenses' />
+        <ExpenseTable rows={shown} user={user} back='/expenses' selectable />
         {rows.length > 10 ? (
           <p className='totals'>{showAll ? 'Showing all ' + rows.length : 'Showing the latest 10 of ' + rows.length} - <Link href={moreHref}>{showAll ? 'Show fewer' : 'See more'}</Link></p>
         ) : null}
