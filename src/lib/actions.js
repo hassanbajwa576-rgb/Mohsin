@@ -427,7 +427,7 @@ export async function editIssue(fd) {
   const id = Number(s(fd, 'id'));
   const here = '/advances/edit?type=issue&id=' + id;
   const before = (await q(
-    `SELECT i.id, i.fund, i.amount, i.returned, i.note, i.issued_to, to_char(i.issued_on, 'YYYY-MM-DD') AS issued_on, COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0)::float8 AS spent FROM pc2_issues i WHERE i.id = $1`,
+    `SELECT i.id, i.fund, i.amount, i.returned, i.note, i.issued_to, i.payee_id, COALESCE(hu.name, hp.name) AS holder, to_char(i.issued_on, 'YYYY-MM-DD') AS issued_on, COALESCE((SELECT SUM(e.amount) FROM pc2_expenses e WHERE e.issue_id = i.id AND e.status <> 'rejected'), 0)::float8 AS spent FROM pc2_issues i LEFT JOIN pc2_users hu ON hu.id = i.issued_to LEFT JOIN pc2_payees hp ON hp.id = i.payee_id WHERE i.id = $1`,
     [id]
   ))[0];
   if (!before) back('/advances', 'Advance not found');
@@ -441,13 +441,31 @@ export async function editIssue(fd) {
     const row = (await fundSummary()).rows.find((r) => r.key === before.fund);
     if (amount - before.amount > row.pool) back(here, 'Not enough in ' + FUNDS[before.fund] + ' (available ' + pkr(row.pool) + ')');
   }
-  const old = { amount: before.amount, issued_on: before.issued_on, note: before.note };
-  const after = { amount, issued_on: on, note: s(fd, 'note') };
+  // Change holder: move the advance (with its expenses) to another team member, or to an advance-only team member with no login.
+  let newUser = before.issued_to;
+  let newPayee = before.payee_id;
+  let newName = before.holder;
+  const curKey = before.issued_to ? 'u-' + before.issued_to : 'p-' + before.payee_id;
+  const pick = s(fd, 'holder');
+  if (pick && pick !== curKey) {
+    const [kind, hid] = pick.split('-');
+    const target = kind === 'p'
+      ? (await q('SELECT id, name FROM pc2_payees WHERE id = $1 AND active', [Number(hid)]))[0]
+      : (await q("SELECT id, name FROM pc2_users WHERE id = $1 AND role IN ('so', 'sso') AND active", [Number(hid)]))[0];
+    if (!target) back(here, 'Pick an active team member to move this advance to');
+    newUser = kind === 'p' ? null : target.id;
+    newPayee = kind === 'p' ? target.id : null;
+    newName = target.name;
+  }
+  const old = { amount: before.amount, issued_on: before.issued_on, note: before.note, holder: before.holder };
+  const after = { amount, issued_on: on, note: s(fd, 'note'), holder: newName };
   const changes = diff(old, after);
   if (!changes.length) back('/advances', 'No changes were made', true);
-  await q('UPDATE pc2_issues SET amount = $1, issued_on = $2, note = $3 WHERE id = $4', [amount, on, after.note, id]);
+  await q('UPDATE pc2_issues SET amount = $1, issued_on = $2, note = $3, issued_to = $4, payee_id = $5 WHERE id = $6', [amount, on, after.note, newUser, newPayee, id]);
   await logEvent(u, 'edit', 'advance', id, 'Edited advance #' + id + ' - ' + changes.join('; '), old, after);
-  if (before.issued_to) await notifyUser(before.issued_to, u.name + ' updated your advance #' + id + ': ' + changes.join('; '), '/advances');
+  if (before.issued_to && before.issued_to !== newUser) await notifyUser(before.issued_to, u.name + ' moved advance #' + id + ' to ' + newName, '/advances');
+  else if (before.issued_to) await notifyUser(before.issued_to, u.name + ' updated your advance #' + id + ': ' + changes.join('; '), '/advances');
+  if (newUser && newUser !== before.issued_to) await notifyUser(newUser, u.name + ' moved advance #' + id + ' to you', '/advances');
   back('/advances', 'Advance #' + id + ' updated', true);
 }
 
