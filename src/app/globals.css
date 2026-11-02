@@ -1,4 +1,4 @@
-:root{--gold:#e3ad21;--gold-d:#cb9328;--ink:#1a1a1a;--text:#0f0f0f;--slate:#2c3138;--mut:#6b7280;--line:#e6e6e6;--bg:#fff;--surface:#f7f7f5;--card:#fff;--ok:#067647;--okbg:#ecfdf3;--warn:#8a5a00;--warnbg:#fff7e0;--bad:#b42318;--badbg:#fef3f2;--info:#1d4ed8;--infobg:#eff4ff}
+﻿:root{--gold:#e3ad21;--gold-d:#cb9328;--ink:#1a1a1a;--text:#0f0f0f;--slate:#2c3138;--mut:#6b7280;--line:#e6e6e6;--bg:#fff;--surface:#f7f7f5;--card:#fff;--ok:#067647;--okbg:#ecfdf3;--warn:#8a5a00;--warnbg:#fff7e0;--bad:#b42318;--badbg:#fef3f2;--info:#1d4ed8;--infobg:#eff4ff}
 *{box-sizing:border-box}
 body{margin:0;background:var(--surface);color:var(--text);font-size:14.5px;line-height:1.55}
 h1{font-size:26px;font-weight:600;color:var(--ink);margin:0}
@@ -1427,3 +1427,5 @@ html:has(.an-filters){scroll-behavior:smooth}
 .ob-row{max-width:96%}
 .fund-empty{margin:-6px 0 16px;font-size:13px}
 .filters label.wide{flex:1 1 100%}
+.seg4{background:#3f8f86}
+
