@@ -10,7 +10,9 @@ export const PHOTO_KINDS = [
   ['cnic_back', 'CNIC back'],
   ['card', 'Company guard card front'],
   ['card_back', 'Company guard card back'],
+  ['other', 'Other'],
 ];
+export const MAX_PICTURES = 10;
 
 // Photos are kept for 90 days after a temporary guard's last duty, then deleted to keep the database small and the ID photos short-lived.
 export async function prunePhotos() {
@@ -19,11 +21,13 @@ export async function prunePhotos() {
   );
 }
 
-const PHOTOS = `ARRAY(SELECT p.kind FROM pc2_guard_photos p WHERE p.guard_id = g.id ORDER BY p.kind)`;
+// Every picture on file for a guard, as [{ id, kind }], oldest first.
+const PHOTOS = `COALESCE((SELECT json_agg(json_build_object('id', p.id, 'kind', p.kind) ORDER BY p.id)::text FROM pc2_guard_photos p WHERE p.guard_id = g.id), '[]')`;
+const withPhotos = (rows) => rows.map((r) => ({ ...r, photos: JSON.parse(r.photos || '[]') }));
 
 // One row per temporary guard with the days and shifts they have worked (matched by CNIC).
 export async function guardSummary() {
-  return q(
+  return withPhotos(await q(
     `SELECT g.id, g.name, g.mobile, g.cnic, g.card_no,
        COUNT(d.id)::int AS entries,
        COALESCE(SUM(d.duty_to - d.duty_from + 1), 0)::int AS days,
@@ -31,7 +35,7 @@ export async function guardSummary() {
        to_char(MIN(d.duty_from), 'YYYY-MM-DD') AS first_on, to_char(MAX(d.duty_to), 'YYYY-MM-DD') AS last_on,
        ${PHOTOS} AS photos
      FROM pc2_relief_guards g LEFT JOIN pc2_guard_duty d ON d.guard_id = g.id
-     GROUP BY g.id ORDER BY MAX(d.duty_to) DESC NULLS LAST, g.name`
+     GROUP BY g.id ORDER BY MAX(d.duty_to) DESC NULLS LAST, g.name`)
   );
 }
 
@@ -40,13 +44,13 @@ const DUTY_COLS = `d.id, d.guard_id, g.name, g.mobile, g.cnic, g.card_no, d.shif
   u.name AS entered_by, ${PHOTOS} AS photos`;
 
 export async function dutyRows(limit = 100) {
-  return q(
-    `SELECT ${DUTY_COLS} FROM pc2_guard_duty d JOIN pc2_relief_guards g ON g.id = d.guard_id LEFT JOIN pc2_users u ON u.id = d.created_by ORDER BY d.duty_from DESC, d.id DESC LIMIT ${Number(limit) || 100}`
+  return withPhotos(await q(
+    `SELECT ${DUTY_COLS} FROM pc2_guard_duty d JOIN pc2_relief_guards g ON g.id = d.guard_id LEFT JOIN pc2_users u ON u.id = d.created_by ORDER BY d.duty_from DESC, d.id DESC LIMIT ${Number(limit) || 100}`)
   );
 }
 
 export async function dutyOne(id) {
-  return (await q(`SELECT ${DUTY_COLS} FROM pc2_guard_duty d JOIN pc2_relief_guards g ON g.id = d.guard_id LEFT JOIN pc2_users u ON u.id = d.created_by WHERE d.id = $1`, [id]))[0];
+  return withPhotos(await q(`SELECT ${DUTY_COLS} FROM pc2_guard_duty d JOIN pc2_relief_guards g ON g.id = d.guard_id LEFT JOIN pc2_users u ON u.id = d.created_by WHERE d.id = $1`, [id]))[0];
 }
 
 // The regular guards (people with a login), offered as suggestions for who the temporary guard is replacing.

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import GuardPhoto from '@/components/GuardPhoto';
+import GuardAttachments from '@/components/GuardAttachments';
 import { SHIFTS, PHOTO_KINDS } from '@/lib/guards';
 
 // Add or correct a temporary guard's duty: who he is, who he is replacing and until when. The same form is used for both.
@@ -23,12 +23,8 @@ export default function GuardDutyForm({ action, duty, names, today, label = 'Sav
         <select name='shift' defaultValue={d.shift || 'morning'}>{Object.entries(SHIFTS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
       </label>
       <label className='wide'>Note<input name='note' defaultValue={d.note || ''} maxLength={200} placeholder='Optional' autoComplete='off' /></label>
-      <div className='wide gphotos'>
-        {PHOTO_KINDS.map(([kind, title]) => (
-          <GuardPhoto key={kind} kind={kind} label={title} saved={have.includes(kind)} />
-        ))}
-      </div>
-      <p className='muted wide'>Pictures are optional and are deleted 90 days after the guard's last duty.</p>
+      <GuardAttachments kinds={PHOTO_KINDS} saved={have} />
+      <p className='muted wide'>Pictures are deleted 90 days after the guard's last duty.</p>
       <button className='btn primary' type='submit'>{label}</button>
       {duty ? <Link href='/visitors/guards' className='btn ghost'>Cancel</Link> : null}
     </form>

@@ -1446,3 +1446,9 @@ table.tx td.c-amt .sub{color:#2c3138}
 .gphoto input[type=file]{font-size:13px;max-width:100%}
 .gpreview{max-width:180px;max-height:140px;border-radius:6px;border:1px solid var(--line);object-fit:cover}
 .gbtns{display:flex;flex-wrap:wrap;gap:8px}
+.gattach{display:flex;flex-direction:column;gap:8px;min-width:0}
+.glist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.glist li{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.gthumb{width:56px;height:56px;object-fit:cover;border-radius:5px;border:1px solid var(--line)}
+.glist select{flex:1 1 150px;min-width:0}
+.glist .gname{flex:1 1 150px;font-weight:600}

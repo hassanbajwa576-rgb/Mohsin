@@ -6,7 +6,7 @@ import { getUser } from './auth';
 import { can } from './perms';
 import { logEvent } from './audit';
 import { notifyRoles } from './notify';
-import { SHIFTS, PHOTO_KINDS } from './guards';
+import { SHIFTS, PHOTO_KINDS, MAX_PICTURES } from './guards';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const badDate = (d) => d.length !== 10 || Number.isNaN(Date.parse(d));
@@ -26,16 +26,13 @@ function back(path, msg, ok) {
 
 // A photo arrives already shrunk to a small JPEG by the phone; anything else is ignored.
 const JPEG = 'data:image/jpeg;base64,';
-function photoOf(fd, key) {
-  const v = String(fd.get(key) ?? '');
-  return v.startsWith(JPEG) && v.length <= 260000 ? v.slice(JPEG.length) : '';
+function photoOf(v) {
+  const x = String(v ?? '');
+  return x.startsWith(JPEG) && x.length <= 260000 ? x.slice(JPEG.length) : '';
 }
 
 async function savePhoto(guardId, kind, b64, uid) {
-  await q(
-    `INSERT INTO pc2_guard_photos (guard_id, kind, mime, data, created_by) VALUES ($1,$2,'image/jpeg',$3,$4) ON CONFLICT (guard_id, kind) DO UPDATE SET mime = 'image/jpeg', data = EXCLUDED.data, created_by = EXCLUDED.created_by, created_at = now()`,
-    [guardId, kind, b64, uid]
-  );
+  await q("INSERT INTO pc2_guard_photos (guard_id, kind, mime, data, created_by) VALUES ($1,$2,'image/jpeg',$3,$4)", [guardId, kind, b64, uid]);
 }
 
 function read(fd, here) {
@@ -87,10 +84,17 @@ export async function saveGuardDuty(fd) {
     ))[0].id;
     id = (await q("INSERT INTO pc2_guard_duty (guard_id, duty_from, duty_to, shift, handed_over_to, taken_over_from, note, created_by) VALUES ($1,$2,$3,$4,'',$5,$6,$7) RETURNING id", [guardId, r.from, r.to, r.shift, r.inPlaceOf, r.note, u.id]))[0].id;
   }
-  for (const [kind] of PHOTO_KINDS) {
-    const b64 = photoOf(fd, 'photo_' + kind);
-    if (b64) await savePhoto(guardId, kind, b64, u.id);
-    else if (s(fd, 'remove_' + kind) === 'on') await q('DELETE FROM pc2_guard_photos WHERE guard_id = $1 AND kind = $2', [guardId, kind]);
+  // Pictures: take off the ones removed from the list, then add the new ones (up to MAX_PICTURES in all).
+  const drop = fd.getAll('remove_att').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  if (drop.length) await q('DELETE FROM pc2_guard_photos WHERE guard_id = $1 AND id = ANY($2::int[])', [guardId, drop]);
+  let room = MAX_PICTURES - (await q('SELECT COUNT(*)::int AS n FROM pc2_guard_photos WHERE guard_id = $1', [guardId]))[0].n;
+  const datas = fd.getAll('att_data');
+  const kinds = fd.getAll('att_kind');
+  for (let i = 0; i < datas.length && room > 0; i++) {
+    const b64 = photoOf(datas[i]);
+    if (!b64) continue;
+    await savePhoto(guardId, PHOTO_KINDS.some(([k]) => k === kinds[i]) ? kinds[i] : 'other', b64, u.id);
+    room -= 1;
   }
   const what = r.name + ' in place of ' + r.inPlaceOf + ' - ' + (r.from === r.to ? r.from : r.from + ' to ' + r.to) + ', ' + SHIFTS[r.shift].toLowerCase();
   await logEvent(u, editing ? 'edit' : 'create', 'guard_duty', id, (editing ? 'Edited' : 'Added') + ' temporary guard duty: ' + what);

@@ -11,8 +11,9 @@ import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
 
-const photoLinks = (id, kinds) => PHOTO_KINDS.filter(([k]) => (kinds || []).includes(k)).map(([k, title]) => (
-  <a key={k} href={'/visitors/guards/photo?id=' + id + '&kind=' + k} target='_blank' rel='noreferrer' className='btn'>{title}</a>
+const KIND = Object.fromEntries(PHOTO_KINDS);
+const photoLinks = (photos) => (photos || []).map((p) => (
+  <a key={p.id} href={'/visitors/guards/photo?pid=' + p.id} target='_blank' rel='noreferrer' className='btn'>{KIND[p.kind] || 'Picture'}</a>
 ));
 const span = (a, b) => (a === b ? a : a + ' to ' + b);
 
@@ -58,7 +59,7 @@ export default async function GuardDutyPage({ searchParams }) {
                       <div>{g.mobile}{g.card_no ? ' · Card ' + g.card_no : ''}</div>
                       <div className='sub'>CNIC {g.cnic}{g.first_on ? ' · ' + span(g.first_on, g.last_on) : ''}</div>
                     </td>
-                    <td className='act'>{photoLinks(g.id, g.photos)}</td>
+                    <td className='act'>{photoLinks(g.photos)}</td>
                   </tr>
                 ))}
               </tbody>

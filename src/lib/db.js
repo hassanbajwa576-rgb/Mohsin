@@ -145,6 +145,8 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS pc2_relief_guards (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mobile TEXT NOT NULL DEFAULT '', cnic TEXT NOT NULL UNIQUE, card_no TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE TABLE IF NOT EXISTS pc2_guard_duty (id SERIAL PRIMARY KEY, guard_id INTEGER NOT NULL REFERENCES pc2_relief_guards(id), duty_from DATE NOT NULL, duty_to DATE NOT NULL, shift TEXT NOT NULL DEFAULT 'morning', handed_over_to TEXT NOT NULL DEFAULT '', taken_over_from TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_by INTEGER, updated_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE TABLE IF NOT EXISTS pc2_guard_photos (id SERIAL PRIMARY KEY, guard_id INTEGER NOT NULL REFERENCES pc2_relief_guards(id) ON DELETE CASCADE, kind TEXT NOT NULL, mime TEXT NOT NULL, data TEXT NOT NULL, created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE (guard_id, kind))`,
+  // Any number of pictures per guard (own picture, CNIC and company card, front and back, and more).
+  `ALTER TABLE pc2_guard_photos DROP CONSTRAINT IF EXISTS pc2_guard_photos_guard_id_kind_key`,
   // The Sr. SO and the guards get the Guard Duty page even when their pages were picked by hand before it existed.
   `UPDATE pc2_users SET pages = pages || ',/visitors/guards' WHERE role IN ('sso', 'guard') AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/guards,%'`,
   `UPDATE pc2_roles SET pages = pages || ',/visitors/guards' WHERE sys_key IN ('sso', 'guard') AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/guards,%'`,
@@ -158,7 +160,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-04-2';
+const SCHEMA_VERSION = '2026-11-04-3';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
