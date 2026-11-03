@@ -62,7 +62,7 @@ function read(fd, here) {
   };
 }
 
-// Add a duty (a new relief guard, or another stretch for one already on file) or correct an existing one.
+// Add a duty (a new temporary guard, or another stretch for one already on file) or correct an existing one.
 export async function saveGuardDuty(fd) {
   const u = await need();
   let id = Number(s(fd, 'id')) || 0;
@@ -76,7 +76,7 @@ export async function saveGuardDuty(fd) {
     try {
       await q('UPDATE pc2_relief_guards SET name = $1, mobile = $2, cnic = $3, card_no = $4 WHERE id = $5', [r.name, r.mobile, r.cnic, r.card, guardId]);
     } catch {
-      back(here, 'That CNIC belongs to another relief guard');
+      back(here, 'That CNIC belongs to another temporary guard');
     }
     await q('UPDATE pc2_guard_duty SET duty_from = $1, duty_to = $2, shift = $3, handed_over_to = $4, taken_over_from = $5, note = $6, updated_by = $7 WHERE id = $8', [r.from, r.to, r.shift, r.hand, r.take, r.note, u.id, id]);
   } else {
@@ -92,8 +92,8 @@ export async function saveGuardDuty(fd) {
     else if (s(fd, 'remove_' + kind) === 'on') await q('DELETE FROM pc2_guard_photos WHERE guard_id = $1 AND kind = $2', [guardId, kind]);
   }
   const what = r.name + ' - ' + (r.from === r.to ? r.from : r.from + ' to ' + r.to) + ', ' + SHIFTS[r.shift].toLowerCase();
-  await logEvent(u, s(fd, 'id') ? 'edit' : 'create', 'guard_duty', id, (s(fd, 'id') ? 'Edited' : 'Added') + ' relief guard duty: ' + what);
-  if (u.role !== 'om') await notifyRoles(['om'], u.name + (s(fd, 'id') ? ' updated' : ' added') + ' a relief guard duty: ' + what, PAGE, u.id);
+  await logEvent(u, s(fd, 'id') ? 'edit' : 'create', 'guard_duty', id, (s(fd, 'id') ? 'Edited' : 'Added') + ' temporary guard duty: ' + what);
+  if (u.role !== 'om') await notifyRoles(['om'], u.name + (s(fd, 'id') ? ' updated' : ' added') + ' a temporary guard duty: ' + what, PAGE, u.id);
   back(PAGE, 'Duty saved: ' + what, true);
 }
 
@@ -104,6 +104,6 @@ export async function deleteGuardDuty(fd) {
   if (u.role !== 'om') redirect('/');
   const id = Number(s(fd, 'id'));
   const r = (await q('DELETE FROM pc2_guard_duty WHERE id = $1 RETURNING id', [id]))[0];
-  if (r) await logEvent(u, 'delete', 'guard_duty', id, 'Deleted relief guard duty entry #' + id);
+  if (r) await logEvent(u, 'delete', 'guard_duty', id, 'Deleted temporary guard duty entry #' + id);
   back(PAGE, r ? 'Duty entry removed' : 'Entry not found', !!r);
 }

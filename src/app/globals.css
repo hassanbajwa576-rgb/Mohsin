@@ -1445,3 +1445,4 @@ table.tx td.c-amt .sub{color:#2c3138}
 .gphoto{display:flex;flex-direction:column;gap:6px;min-width:0}
 .gphoto input[type=file]{font-size:13px;max-width:100%}
 .gpreview{max-width:180px;max-height:140px;border-radius:6px;border:1px solid var(--line);object-fit:cover}
+.gbtns{display:flex;flex-wrap:wrap;gap:8px}

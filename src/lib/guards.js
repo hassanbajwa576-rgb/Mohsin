@@ -3,14 +3,14 @@ import { q } from './db';
 export const SHIFTS = { morning: 'Morning', evening: 'Evening', both: 'Morning and evening' };
 export const PHOTO_KEEP_DAYS = 90;
 
-// Photos are kept for 90 days after a relief guard's last duty, then deleted to keep the database small and the ID photos short-lived.
+// Photos are kept for 90 days after a temporary guard's last duty, then deleted to keep the database small and the ID photos short-lived.
 export async function prunePhotos() {
   await q(
     `DELETE FROM pc2_guard_photos p WHERE NOT EXISTS (SELECT 1 FROM pc2_guard_duty d WHERE d.guard_id = p.guard_id AND d.duty_to >= (now()::date - ${PHOTO_KEEP_DAYS}))`
   );
 }
 
-// One row per relief guard with the days and shifts they have worked (matched by CNIC).
+// One row per temporary guard with the days and shifts they have worked (matched by CNIC).
 export async function guardSummary() {
   return q(
     `SELECT g.id, g.name, g.mobile, g.cnic, g.card_no,

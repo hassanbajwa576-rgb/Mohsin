@@ -26,19 +26,19 @@ export default async function GuardDutyPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Guard Duty</h1>
-          <p className='muted'>When a different guard covers a day or two, add their details here. It keeps a record of who was on duty, who handed over to whom, and how many days each relief guard has worked.</p>
+          <p className='muted'>When a different guard covers a day or two, add their details here. It keeps a record of who was on duty, who handed over to whom, and how many days each temporary guard has worked.</p>
         </div>
       </div>
       <Flash sp={sp} />
 
       <details className='card' open>
-        <summary>Add a relief guard duty</summary>
+        <summary>Add a temporary guard duty</summary>
         <GuardDutyForm action={saveGuardDuty} names={names} today={todayKey()} />
         <p className='muted'>Someone already on file is recognised by their CNIC, so their days are added to the same record.</p>
       </details>
 
       <div className='card'>
-        <h3 style={{ marginTop: 0 }}>Relief guards</h3>
+        <h3 style={{ marginTop: 0 }}>Temporary guards</h3>
         {people.length ? (
           <div className='tablewrap'>
             <table className='tx'>
@@ -62,8 +62,8 @@ export default async function GuardDutyPage({ searchParams }) {
               </tbody>
             </table>
           </div>
-        ) : <p className='muted'>No relief guards recorded yet.</p>}
-        <p className='muted'>Photos are deleted automatically {PHOTO_KEEP_DAYS} days after a relief guard's last duty. The name, CNIC and duty history stay.</p>
+        ) : <p className='muted'>No temporary guards recorded yet.</p>}
+        <p className='muted'>Photos are deleted automatically {PHOTO_KEEP_DAYS} days after a temporary guard's last duty. The name, CNIC and duty history stay.</p>
       </div>
 
       <div className='card'>

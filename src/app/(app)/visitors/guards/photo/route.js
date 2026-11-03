@@ -4,7 +4,7 @@ import { q } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// A relief guard's CNIC or guard photo, shown only to people who may use the guard duty page.
+// A temporary guard's CNIC or guard photo, shown only to people who may use the guard duty page.
 export async function GET(req) {
   const user = await getUser();
   if (!user || !can(user, 'guard_duty')) return new Response('Not allowed', { status: 403 });

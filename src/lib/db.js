@@ -141,10 +141,13 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS pc2_roles (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, base TEXT NOT NULL DEFAULT 'so', perms TEXT NOT NULL DEFAULT '', pages TEXT NOT NULL DEFAULT '', active BOOLEAN NOT NULL DEFAULT TRUE, created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `ALTER TABLE pc2_users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES pc2_roles(id)`,
   `ALTER TABLE pc2_roles ADD COLUMN IF NOT EXISTS sys_key TEXT UNIQUE`,
-  // Relief guards (a guard who covers a day or two): who they are, the duty they covered, and optional photos.
+  // Temporary guards (a guard who covers a day or two): who they are, the duty they covered, and optional photos.
   `CREATE TABLE IF NOT EXISTS pc2_relief_guards (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mobile TEXT NOT NULL DEFAULT '', cnic TEXT NOT NULL UNIQUE, card_no TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE TABLE IF NOT EXISTS pc2_guard_duty (id SERIAL PRIMARY KEY, guard_id INTEGER NOT NULL REFERENCES pc2_relief_guards(id), duty_from DATE NOT NULL, duty_to DATE NOT NULL, shift TEXT NOT NULL DEFAULT 'morning', handed_over_to TEXT NOT NULL DEFAULT '', taken_over_from TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_by INTEGER, updated_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE TABLE IF NOT EXISTS pc2_guard_photos (id SERIAL PRIMARY KEY, guard_id INTEGER NOT NULL REFERENCES pc2_relief_guards(id) ON DELETE CASCADE, kind TEXT NOT NULL, mime TEXT NOT NULL, data TEXT NOT NULL, created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE (guard_id, kind))`,
+  // The Sr. SO and the guards get the Guard Duty page even when their pages were picked by hand before it existed.
+  `UPDATE pc2_users SET pages = pages || ',/visitors/guards' WHERE role IN ('sso', 'guard') AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/guards,%'`,
+  `UPDATE pc2_roles SET pages = pages || ',/visitors/guards' WHERE sys_key IN ('sso', 'guard') AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/guards,%'`,
   // The four built-in roles, filled in with what each can do today. Everyone already in the app is attached to theirs.
   `INSERT INTO pc2_roles (name, base, perms, sys_key) VALUES ('Sr. Ops Manager', 'om', 'exp_approve,exp_delete,adv_issue,adv_return,adv_manage,acct_submit', 'om'), ('Sr. Support Officer', 'sso', 'adv_issue,adv_return,acct_submit', 'sso'), ('Support Officer', 'so', '', 'so'), ('Guard', 'guard', '', 'guard') ON CONFLICT DO NOTHING`,
   `UPDATE pc2_users u SET role_id = r.id FROM pc2_roles r WHERE u.role_id IS NULL AND r.sys_key = u.role`,
@@ -155,7 +158,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-04-1';
+const SCHEMA_VERSION = '2026-11-04-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

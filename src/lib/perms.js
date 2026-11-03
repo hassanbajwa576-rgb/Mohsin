@@ -10,7 +10,7 @@ export const PERMS = [
   ['fuel_use', 'FuelTrack: record fuel and top-ups', 'Shows FuelTrack. Mohsin and Imran see every card; for anyone else, which cards they see is set on the Fuel Setup page.'],
   ['vis_log', 'Visitor log and Excel download', 'See all visitors, filter them and download the visitor log (everyone can check visitors in and out).'],
   ['att_reconcile', 'Reconciliation', 'Run the check for long shifts, missing check outs and entries that do not fit, and mark them reviewed.'],
-  ['guard_duty', 'Guard duty log', 'Record relief guards (name, mobile, CNIC, card number, duty dates, handover) and see the guard duty list.'],
+  ['guard_duty', 'Guard duty log', 'Record temporary guards (name, mobile, CNIC, card number, duty dates, handover) and see the guard duty list.'],
 ];
 
 // Money and approval actions. Only the Sr. Ops Manager can do these by default; a role can be given any of them.

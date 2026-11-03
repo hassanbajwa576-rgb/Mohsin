@@ -21,7 +21,7 @@ export default async function EditGuardDutyPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Edit guard duty</h1>
-          <p className='muted'>Changes to the name, mobile, CNIC or card number apply to this relief guard everywhere. Every change is recorded in the Logs.</p>
+          <p className='muted'>Changes to the name, mobile, CNIC or card number apply to this temporary guard everywhere. Every change is recorded in the Logs.</p>
         </div>
       </div>
       <Flash sp={sp} />

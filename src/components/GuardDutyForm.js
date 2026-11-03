@@ -2,7 +2,7 @@ import Link from 'next/link';
 import GuardPhoto from '@/components/GuardPhoto';
 import { SHIFTS } from '@/lib/guards';
 
-// Add or correct a relief guard's duty. The same form is used for both.
+// Add or correct a temporary guard's duty. The same form is used for both.
 export default function GuardDutyForm({ action, duty, names, today, label = 'Save duty' }) {
   const d = duty || {};
   return (
