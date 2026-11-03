@@ -1452,3 +1452,5 @@ table.tx td.c-amt .sub{color:#2c3138}
 .gthumb{width:56px;height:56px;object-fit:cover;border-radius:5px;border:1px solid var(--line)}
 .glist select{flex:1 1 150px;min-width:0}
 .glist .gname{flex:1 1 150px;font-weight:600}
+.gmenu{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.gmenu .btn{width:100%;text-align:left}

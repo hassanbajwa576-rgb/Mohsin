@@ -36,14 +36,16 @@ async function shrink(file) {
 
 const MAX = 10;
 
-// One "Attach" button. It opens the phone's own chooser (camera, gallery or files); every picture picked is added to the list below,
+// One "Attach" button that opens a small menu: take a photo with the camera, or choose from the gallery or files. Every picture picked is added to the list below,
 // and the button can be used again to add more. Each picture gets a label (the next unused one is suggested) that can be changed.
 export default function GuardAttachments({ kinds, saved = [] }) {
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [gone, setGone] = useState([]);
-  const input = useRef(null);
+  const [menu, setMenu] = useState(false);
+  const camera = useRef(null);
+  const gallery = useRef(null);
   const label = Object.fromEntries(kinds);
   const keep = saved.filter((s) => !gone.includes(s.id));
 
@@ -79,11 +81,18 @@ export default function GuardAttachments({ kinds, saved = [] }) {
   return (
     <div className='gattach wide'>
       <b>Pictures <span className='muted'>(optional)</span></b>
-      <small className='muted'>The guard's own picture, CNIC front and back, and the company guard card front and back. Tap the button to take a photo or choose from the gallery or files. You can add more one after another.</small>
+      <small className='muted'>The guard's own picture, CNIC front and back, and the company guard card front and back. Tap the button, then take a photo or choose from the gallery or files. You can add more one after another.</small>
       <div className='gbtns'>
-        <button type='button' className='btn primary' onClick={() => input.current && input.current.click()} disabled={busy}>{busy ? 'Preparing...' : items.length + keep.length ? 'Attach more pictures' : 'Attach pictures'}</button>
+        <button type='button' className='btn primary' onClick={() => setMenu((m) => !m)} disabled={busy}>{busy ? 'Preparing...' : items.length + keep.length ? 'Attach more pictures' : 'Attach pictures'}</button>
       </div>
-      <input ref={input} type='file' accept='image/*' multiple hidden onChange={onFiles} />
+      {menu ? (
+        <div className='gmenu'>
+          <button type='button' className='btn' onClick={() => { setMenu(false); camera.current && camera.current.click(); }}>Take photo with camera</button>
+          <button type='button' className='btn' onClick={() => { setMenu(false); gallery.current && gallery.current.click(); }}>Choose from gallery or files</button>
+        </div>
+      ) : null}
+      <input ref={camera} type='file' accept='image/*' capture='environment' hidden onChange={onFiles} />
+      <input ref={gallery} type='file' accept='image/*' multiple hidden onChange={onFiles} />
       {err ? <small className='badline'>{err}</small> : null}
 
       {keep.length || items.length ? (
