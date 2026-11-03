@@ -12,6 +12,10 @@ import { submitDrafts } from '@/lib/actions';
 
 const PIPE = ['draft', 'submitted', 'approved', 'sent'];
 
+// Cash in hand turns red below 20% of what was issued, green otherwise (Support Officer dashboard).
+const LOWBOX = { color: 'var(--bad, #b3261e)', background: '#fbd3d3', padding: '1px 7px', borderRadius: 3, display: 'inline-block' };
+const GOODBOX = { color: '#1b6e34', background: '#d9f1df', padding: '1px 7px', borderRadius: 3, display: 'inline-block' };
+
 const byStatus = (rows) => Object.fromEntries(rows.map((r) => [r.status, { c: Number(r.c), v: Number(r.v) }]));
 
 function Pipeline({ pipe, hot }) {
