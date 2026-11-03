@@ -16,6 +16,9 @@ const ENTITIES = {
   batch: 'Accounts batches',
   user: 'Team and accounts',
   audit: 'Audit log',
+  payee: 'Advance-only team',
+  role: 'Roles',
+  guard_duty: 'Guard duty',
 };
 
 export default async function LogsPage({ searchParams }) {

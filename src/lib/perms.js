@@ -10,6 +10,7 @@ export const PERMS = [
   ['fuel_use', 'FuelTrack: record fuel and top-ups', 'Shows FuelTrack. Mohsin and Imran see every card; for anyone else, which cards they see is set on the Fuel Setup page.'],
   ['vis_log', 'Visitor log and Excel download', 'See all visitors, filter them and download the visitor log (everyone can check visitors in and out).'],
   ['att_reconcile', 'Reconciliation', 'Run the check for long shifts, missing check outs and entries that do not fit, and mark them reviewed.'],
+  ['guard_duty', 'Guard duty log', 'Record relief guards (name, mobile, CNIC, card number, duty dates, handover) and see the guard duty list.'],
 ];
 
 // Money and approval actions. Only the Sr. Ops Manager can do these by default; a role can be given any of them.
@@ -47,6 +48,7 @@ export const PERM_SHORT = {
   att_import: 'import',
   att_reconcile: 'reconciliation',
   vis_log: 'visitor log',
+  guard_duty: 'guard duty',
   fuel_use: 'fuel cards',
   roster_edit: 'Support roster',
   exp_approve: 'approve expenses',
@@ -59,10 +61,10 @@ export const PERM_SHORT = {
 
 // What each role has without any extra grant.
 export const ROLE_PERMS = {
-  om: ['att_own', 'att_view', 'att_reports', 'att_logs', 'att_staff', 'att_import', 'att_reconcile', 'vis_log', 'roster_edit', 'fuel_use'],
-  sso: ['att_own', 'att_view', 'att_reports', 'vis_log', 'roster_edit', 'fuel_use'],
+  om: ['att_own', 'att_view', 'att_reports', 'att_logs', 'att_staff', 'att_import', 'att_reconcile', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty'],
+  sso: ['att_own', 'att_view', 'att_reports', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty'],
   so: [],
-  guard: [],
+  guard: ['guard_duty'],
 };
 
 // The permissions a role carries without any extra grant: the built-in role's own plus, for a created role, its checklist.

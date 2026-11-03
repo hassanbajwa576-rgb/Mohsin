@@ -88,6 +88,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
 
   const vis = [page('/visitors', 'Visitor Entry')];
   if (access.includes('vis_log')) vis.push(page('/visitors/log', 'Visitor Log'));
+  if (access.includes('guard_duty')) vis.push(page('/visitors/guards', 'Guard Duty'));
 
   const fu = [page('/fuel', 'Fuel Entry'), page('/fuel/log', 'Fuel Log')];
   if (om) fu.push(page('/fuel/setup', 'Setup'));
