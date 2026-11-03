@@ -23,7 +23,7 @@ async function shrink(file) {
       c.getContext('2d').drawImage(img, 0, 0, w, h);
       for (const q of [0.7, 0.6, 0.5, 0.4]) {
         const out = c.toDataURL('image/jpeg', q);
-        if (out.length <= 190000) return out;
+        if (out.length <= 130000) return out;
       }
       w = Math.round(w * 0.8);
       h = Math.round(h * 0.8);
@@ -34,9 +34,9 @@ async function shrink(file) {
   }
 }
 
-// One optional photo: take it with the camera or choose it from the phone's files or gallery,
+// One optional photo (for example CNIC front): take it with the camera or choose it from the phone's files or gallery,
 // see a preview, and (when one is already saved) tick to remove it.
-export default function GuardPhoto({ name, label, saved, hint }) {
+export default function GuardPhoto({ kind, label, saved, hint }) {
   const [val, setVal] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -70,13 +70,13 @@ export default function GuardPhoto({ name, label, saved, hint }) {
       </div>
       <input ref={camera} type='file' accept='image/*' capture='environment' hidden onChange={pick} />
       <input ref={files} type='file' accept='image/*' hidden onChange={pick} />
-      <input type='hidden' name={name} value={val} />
+      <input type='hidden' name={'photo_' + kind} value={val} />
       {busy ? <small className='muted'>Preparing the photo...</small> : null}
       {err ? <small className='badline'>{err}</small> : null}
       {val ? <img src={val} alt='' className='gpreview' /> : null}
       {saved && !val ? (
         <label className='perm'>
-          <input type='checkbox' name={'remove_' + (name === 'photo_cnic' ? 'cnic' : 'guard')} />
+          <input type='checkbox' name={'remove_' + kind} />
           <span>A photo is saved. Tick to remove it, or take or choose a new one to replace it.</span>
         </label>
       ) : null}

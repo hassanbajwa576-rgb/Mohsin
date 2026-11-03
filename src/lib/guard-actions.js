@@ -6,7 +6,7 @@ import { getUser } from './auth';
 import { can } from './perms';
 import { logEvent } from './audit';
 import { notifyRoles } from './notify';
-import { SHIFTS } from './guards';
+import { SHIFTS, PHOTO_KINDS } from './guards';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const badDate = (d) => d.length !== 10 || Number.isNaN(Date.parse(d));
@@ -46,18 +46,18 @@ function read(fd, here) {
   const from = s(fd, 'duty_from');
   const to = s(fd, 'duty_to');
   const shift = s(fd, 'shift');
+  const inPlaceOf = s(fd, 'in_place_of').slice(0, 80);
   if (!name) back(here, 'Enter the guard\'s full name');
+  if (!inPlaceOf) back(here, 'Enter who the guard is replacing');
   if (mobile.replace(/\D/g, '').length < 10) back(here, 'Enter a valid mobile number');
   if (digits.length !== 13) back(here, 'The CNIC must have 13 digits');
   if (badDate(from) || badDate(to)) back(here, 'Pick the duty dates');
-  if (to < from) back(here, 'Duty to cannot be before duty from');
+  if (to < from) back(here, 'The last duty day cannot be before the first');
   if ((Date.parse(to) - Date.parse(from)) / 86400000 > 30) back(here, 'A single entry can cover up to 31 days');
   if (!SHIFTS[shift]) back(here, 'Pick the shift');
   return {
-    name, mobile, card, from, to, shift,
+    name, mobile, card, from, to, shift, inPlaceOf,
     cnic: digits.slice(0, 5) + '-' + digits.slice(5, 12) + '-' + digits.slice(12),
-    hand: s(fd, 'handed_over_to').slice(0, 80),
-    take: s(fd, 'taken_over_from').slice(0, 80),
     note: s(fd, 'note').slice(0, 200),
   };
 }
@@ -66,10 +66,11 @@ function read(fd, here) {
 export async function saveGuardDuty(fd) {
   const u = await need();
   let id = Number(s(fd, 'id')) || 0;
-  const here = id ? PAGE + '/edit?id=' + id : PAGE;
+  const editing = id > 0;
+  const here = editing ? PAGE + '/edit?id=' + id : PAGE;
   const r = read(fd, here);
   let guardId;
-  if (id) {
+  if (editing) {
     const cur = (await q('SELECT id, guard_id FROM pc2_guard_duty WHERE id = $1', [id]))[0];
     if (!cur) back(PAGE, 'Entry not found');
     guardId = cur.guard_id;
@@ -78,22 +79,22 @@ export async function saveGuardDuty(fd) {
     } catch {
       back(here, 'That CNIC belongs to another temporary guard');
     }
-    await q('UPDATE pc2_guard_duty SET duty_from = $1, duty_to = $2, shift = $3, handed_over_to = $4, taken_over_from = $5, note = $6, updated_by = $7 WHERE id = $8', [r.from, r.to, r.shift, r.hand, r.take, r.note, u.id, id]);
+    await q("UPDATE pc2_guard_duty SET duty_from = $1, duty_to = $2, shift = $3, handed_over_to = '', taken_over_from = $4, note = $5, updated_by = $6 WHERE id = $7", [r.from, r.to, r.shift, r.inPlaceOf, r.note, u.id, id]);
   } else {
     guardId = (await q(
       `INSERT INTO pc2_relief_guards (name, mobile, cnic, card_no, created_by) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (cnic) DO UPDATE SET name = EXCLUDED.name, mobile = EXCLUDED.mobile, card_no = EXCLUDED.card_no RETURNING id`,
       [r.name, r.mobile, r.cnic, r.card, u.id]
     ))[0].id;
-    id = (await q('INSERT INTO pc2_guard_duty (guard_id, duty_from, duty_to, shift, handed_over_to, taken_over_from, note, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id', [guardId, r.from, r.to, r.shift, r.hand, r.take, r.note, u.id]))[0].id;
+    id = (await q("INSERT INTO pc2_guard_duty (guard_id, duty_from, duty_to, shift, handed_over_to, taken_over_from, note, created_by) VALUES ($1,$2,$3,$4,'',$5,$6,$7) RETURNING id", [guardId, r.from, r.to, r.shift, r.inPlaceOf, r.note, u.id]))[0].id;
   }
-  for (const [kind, key] of [['cnic', 'photo_cnic'], ['guard', 'photo_guard']]) {
-    const b64 = photoOf(fd, key);
+  for (const [kind] of PHOTO_KINDS) {
+    const b64 = photoOf(fd, 'photo_' + kind);
     if (b64) await savePhoto(guardId, kind, b64, u.id);
     else if (s(fd, 'remove_' + kind) === 'on') await q('DELETE FROM pc2_guard_photos WHERE guard_id = $1 AND kind = $2', [guardId, kind]);
   }
-  const what = r.name + ' - ' + (r.from === r.to ? r.from : r.from + ' to ' + r.to) + ', ' + SHIFTS[r.shift].toLowerCase();
-  await logEvent(u, s(fd, 'id') ? 'edit' : 'create', 'guard_duty', id, (s(fd, 'id') ? 'Edited' : 'Added') + ' temporary guard duty: ' + what);
-  if (u.role !== 'om') await notifyRoles(['om'], u.name + (s(fd, 'id') ? ' updated' : ' added') + ' a temporary guard duty: ' + what, PAGE, u.id);
+  const what = r.name + ' in place of ' + r.inPlaceOf + ' - ' + (r.from === r.to ? r.from : r.from + ' to ' + r.to) + ', ' + SHIFTS[r.shift].toLowerCase();
+  await logEvent(u, editing ? 'edit' : 'create', 'guard_duty', id, (editing ? 'Edited' : 'Added') + ' temporary guard duty: ' + what);
+  if (u.role !== 'om') await notifyRoles(['om'], u.name + (editing ? ' updated' : ' added') + ' a temporary guard duty: ' + what, PAGE, u.id);
   back(PAGE, 'Duty saved: ' + what, true);
 }
 
