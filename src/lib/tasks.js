@@ -18,7 +18,10 @@ export async function taskPeople(user) {
   );
 }
 
-const COLS = `t.id, t.title, t.details, t.priority, t.status, t.source, t.domain, t.user_id, t.created_by, ou.name AS owner_name, cu.name AS creator_name,
+export const REPEAT = { '': 'Does not repeat', daily: 'Every day', weekly: 'Every week', monthly: 'Every month', friday: 'Every Friday', m15: 'On the 15th of every month', mend: 'Last working day of every month' };
+export const REPEAT_SHORT = { daily: 'daily', weekly: 'weekly', monthly: 'monthly', friday: 'every Friday', m15: 'on the 15th', mend: 'on the last working day' };
+
+const COLS = `t.id, t.title, t.details, t.priority, t.status, t.source, t.domain, t.user_id, t.created_by, t.repeat_every, ou.name AS owner_name, cu.name AS creator_name,
   to_char(t.due_on, 'YYYY-MM-DD') AS due_on, to_char(t.done_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD') AS done_on`;
 const FROM = `FROM pc2_tasks t JOIN pc2_users ou ON ou.id = t.user_id LEFT JOIN pc2_users cu ON cu.id = t.created_by`;
 

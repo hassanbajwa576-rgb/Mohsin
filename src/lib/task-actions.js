@@ -5,7 +5,9 @@ import { q } from './db';
 import { getUser } from './auth';
 import { can } from './perms';
 import { notifyUser } from './notify';
-import { PRIORITY, DOMAIN, taskPeople } from './tasks';
+import { PRIORITY, DOMAIN, REPEAT, taskPeople } from './tasks';
+import { todayKey } from './att';
+import { FIXED_KINDS, fixedOnOrAfter, fixedNext } from './task-repeat';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const badDate = (d) => d.length !== 10 || Number.isNaN(Date.parse(d));
@@ -29,7 +31,7 @@ function back(fd, msg, ok) {
   redirect('/tasks?' + p.toString());
 }
 
-function read(fd) {
+async function read(fd) {
   const title = s(fd, 'title').slice(0, 200);
   const details = s(fd, 'details').slice(0, 1000);
   const due = s(fd, 'due_on');
@@ -37,7 +39,10 @@ function read(fd) {
   const domain = DOMAIN[s(fd, 'domain')] ? s(fd, 'domain') : 'operations';
   if (!title) back(fd, 'Write the task');
   if (due && badDate(due)) back(fd, 'Pick a valid due date');
-  return { title, details, due: due || null, priority, domain };
+  const repeat = REPEAT[s(fd, 'repeat_every')] && s(fd, 'repeat_every') ? s(fd, 'repeat_every') : '';
+  // A task that repeats on a fixed day starts on the first such day when no date was given.
+  const first = !due && FIXED_KINDS.includes(repeat) ? await fixedOnOrAfter(repeat, todayKey()) : null;
+  return { title, details, due: due || first || null, priority, domain, repeat };
 }
 
 // Who the task is for: the person asking, or someone they are allowed to give tasks to.
@@ -45,6 +50,29 @@ const ownerOf = (u, people, fd) => {
   const want = Number(s(fd, 'assign_to'));
   return want && want !== u.id && people.some((p) => p.id === want) ? want : u.id;
 };
+
+// The next date of a repeating task: one step after its due date, and never in the past.
+function nextDate(from, kind, today) {
+  const step = (d) => {
+    const x = new Date(d + 'T00:00:00Z');
+    if (kind === 'daily') x.setUTCDate(x.getUTCDate() + 1);
+    else if (kind === 'weekly') x.setUTCDate(x.getUTCDate() + 7);
+    else x.setUTCMonth(x.getUTCMonth() + 1);
+    return x.toISOString().slice(0, 10);
+  };
+  let d = step(from || today);
+  for (let i = 0; i < 400 && d <= today; i++) d = step(d);
+  return d;
+}
+
+// Finishing a repeating task opens the next one (once).
+async function openNext(r) {
+  if (!r.repeat_every) return;
+  const due = FIXED_KINDS.includes(r.repeat_every) ? await fixedNext(r.repeat_every, r.due_on, todayKey()) : nextDate(r.due_on, r.repeat_every, todayKey());
+  const dup = await q(`SELECT 1 FROM pc2_tasks WHERE user_id = $1 AND title = $2 AND repeat_every = $3 AND status = 'open' AND due_on = $4::date LIMIT 1`, [r.user_id, r.title, r.repeat_every, due]);
+  if (dup.length) return;
+  await q(`INSERT INTO pc2_tasks (user_id, created_by, title, details, due_on, priority, domain, repeat_every) VALUES ($1,$2,$3,$4,$5::date,$6,$7,$8)`, [r.user_id, r.created_by || r.user_id, r.title, r.details, due, r.priority, r.domain, r.repeat_every]);
+}
 
 // A finished task is reported to the person who gave it AND the person it is for (never to the person who just finished it).
 async function tellDone(u, task) {
@@ -56,9 +84,9 @@ async function tellDone(u, task) {
 
 export async function addTask(fd) {
   const { u, people } = await need();
-  const t = read(fd);
+  const t = await read(fd);
   const owner = ownerOf(u, people, fd);
-  await q('INSERT INTO pc2_tasks (user_id, created_by, title, details, due_on, priority, domain) VALUES ($1,$2,$3,$4,$5,$6,$7)', [owner, u.id, t.title, t.details, t.due, t.priority, t.domain]);
+  await q('INSERT INTO pc2_tasks (user_id, created_by, title, details, due_on, priority, domain, repeat_every) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', [owner, u.id, t.title, t.details, t.due, t.priority, t.domain, t.repeat]);
   if (owner !== u.id) await notifyUser(owner, u.name + ' gave you a task: ' + t.title + (t.due ? ' (due ' + t.due + ')' : ''), '/tasks');
   const who = owner === u.id ? '' : people.find((p) => p.id === owner).name + ' - ';
   back(fd, 'Task added: ' + who + DOMAIN[t.domain], true);
@@ -67,17 +95,20 @@ export async function addTask(fd) {
 export async function saveTask(fd) {
   const { u, people, mine } = await need();
   const id = Number(s(fd, 'id'));
-  const t = read(fd);
+  const t = await read(fd);
   const status = s(fd, 'status') === 'done' ? 'done' : 'open';
   const before = (await q('SELECT user_id, created_by, status FROM pc2_tasks WHERE id = $1 AND user_id = ANY($2::int[])', [id, mine]))[0];
   if (!before) back(fd, 'Task not found');
   const owner = s(fd, 'assign_to') ? ownerOf(u, people, fd) : before.user_id;
   await q(
-    `UPDATE pc2_tasks SET title = $1, details = $2, due_on = $3, priority = $4, domain = $5, status = $6, user_id = $7, done_at = CASE WHEN $6 = 'done' THEN COALESCE(done_at, now()) ELSE NULL END WHERE id = $8`,
-    [t.title, t.details, t.due, t.priority, t.domain, status, owner, id]
+    `UPDATE pc2_tasks SET title = $1, details = $2, due_on = $3, priority = $4, domain = $5, status = $6, user_id = $7, repeat_every = $9, done_at = CASE WHEN $6 = 'done' THEN COALESCE(done_at, now()) ELSE NULL END WHERE id = $8`,
+    [t.title, t.details, t.due, t.priority, t.domain, status, owner, id, t.repeat]
   );
   if (owner !== before.user_id && owner !== u.id) await notifyUser(owner, u.name + ' gave you a task: ' + t.title, '/tasks');
-  if (status === 'done' && before.status !== 'done') await tellDone(u, { title: t.title, created_by: before.created_by, user_id: owner });
+  if (status === 'done' && before.status !== 'done') {
+    await tellDone(u, { title: t.title, created_by: before.created_by, user_id: owner });
+    await openNext({ ...t, due_on: t.due, repeat_every: t.repeat, user_id: owner, created_by: before.created_by });
+  }
   back(fd, 'Task updated', true);
 }
 
@@ -86,11 +117,14 @@ export async function toggleTask(fd) {
   const id = Number(s(fd, 'id'));
   const r = (await q(
     `UPDATE pc2_tasks SET status = CASE WHEN status = 'open' THEN 'done' ELSE 'open' END, done_at = CASE WHEN status = 'open' THEN now() ELSE NULL END
-     WHERE id = $1 AND user_id = ANY($2::int[]) RETURNING title, status, user_id, created_by`,
+     WHERE id = $1 AND user_id = ANY($2::int[]) RETURNING title, details, priority, domain, repeat_every, to_char(due_on, 'YYYY-MM-DD') AS due_on, status, user_id, created_by`,
     [id, mine]
   ))[0];
   // Tell the giver and the person it is for (except whoever just finished it).
-  if (r && r.status === 'done') await tellDone(u, r);
+  if (r && r.status === 'done') {
+    await tellDone(u, r);
+    await openNext(r);
+  }
   back(fd, r ? 'Task updated' : 'Task not found', !!r);
 }
 

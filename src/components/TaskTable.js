@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import ConfirmButton from '@/components/ConfirmButton';
 import { toggleTask, deleteTask } from '@/lib/task-actions';
-import { PRIORITY, SOURCE, DOMAIN, dueLabel } from '@/lib/tasks';
+import { PRIORITY, SOURCE, DOMAIN, REPEAT_SHORT, dueLabel } from '@/lib/tasks';
 
 const short = (n) => String(n || '').trim().split(/\s+/).slice(-1)[0];
 
@@ -32,7 +32,7 @@ export default function TaskTable({ rows, today, me, view = '', show = '', who =
             const d = dueLabel(t, today);
             return (
               <tr key={t.id} className={t.status === 'done' ? 'tk-row-done' : ''}>
-                <td className='c-title'><b>{t.title}</b><Owner t={t} me={me} />{t.details ? <div className='muted'>{t.details}</div> : null}</td>
+                <td className='c-title'><b>{t.title}</b><Owner t={t} me={me} />{t.repeat_every ? <span className='tk-own tk-rep'>Repeats {REPEAT_SHORT[t.repeat_every]}</span> : null}{t.details ? <div className='muted'>{t.details}</div> : null}</td>
                 <td className='c-meta hide-m'><span className='tk-dom'>{DOMAIN[t.domain] || t.domain}</span></td>
                 <td className='c-meta hide-m'><span className={'tk-pri tk-' + t.priority}>{PRIORITY[t.priority]}</span></td>
                 <td className={'r nw c-amt ' + d.cls}><b>{d.text}</b></td>

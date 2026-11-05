@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { PRIORITY, DOMAINS } from '@/lib/tasks';
+import { PRIORITY, DOMAINS, REPEAT } from '@/lib/tasks';
 
 // Add or edit one task. The same form is used for both. view/show/who remember what the list was showing.
 // people: who the task can be given to besides the person using the form (empty when nobody).
@@ -26,6 +26,9 @@ export default function TaskForm({ action, task, view = '', show = '', who = '',
       <label>Due date<input type='date' name='due_on' defaultValue={t.due_on || ''} /></label>
       <label>Priority
         <select name='priority' defaultValue={t.priority || 'medium'}>{Object.entries(PRIORITY).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+      </label>
+      <label>Repeat
+        <select name='repeat_every' defaultValue={t.repeat_every || ''}>{Object.entries(REPEAT).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
       </label>
       {task ? (
         <label>Status

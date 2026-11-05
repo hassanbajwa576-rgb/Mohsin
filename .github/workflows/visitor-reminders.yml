@@ -1,4 +1,4 @@
-﻿name: Visitor reminders
+name: Visitor reminders
 
 # Calls the app every 5 minutes so guards get their arrival reminders even when nobody has OpsTrack open.
 # GitHub can run this a few minutes late; cron-job.org every minute is more exact.
@@ -13,3 +13,5 @@ jobs:
     steps:
       - name: Send due reminders
         run: curl -fsS --max-time 30 https://opstrack-alphabold.vercel.app/api/cron/visitor-reminders
+      - name: Send task reminders
+        run: curl -fsS --max-time 30 https://opstrack-alphabold.vercel.app/api/cron/task-reminders

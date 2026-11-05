@@ -1670,3 +1670,7 @@ html[data-theme=dark] [style*="color: var(--bad"]{color:#ff8a8a!important}
 /* Phones and tablets: Sign out moves into the Menu so the logo and name get room */
 .mm-so{display:none}
 @media (max-width:900px){.so-top{display:none}.mm-so{display:block;border-top:1px solid var(--line);margin-top:4px;padding-top:4px}.mm-so button{width:100%;text-align:left;border:0;background:transparent;padding:12px 14px;font:inherit;font-size:15px;font-weight:600;color:var(--bad);cursor:pointer;min-height:44px}.mmenu-panel{min-width:200px}}
+.head .tkwho{margin:0;justify-content:flex-end}
+@media (max-width:700px){.head .tkwho{justify-content:flex-start;width:100%}}
+.tk-own.tk-rep{background:#e0eefb;color:#1d4f8a}
+html[data-theme=dark] .tk-own.tk-rep{background:#14243a;color:#8fb0ff}

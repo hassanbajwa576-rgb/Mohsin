@@ -156,6 +156,9 @@ const DDL = [
   // The Sr. SO gets the Tasks page too, even with pages picked by hand.
   `UPDATE pc2_users SET pages = pages || ',/tasks' WHERE role = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/tasks,%'`,
   `UPDATE pc2_roles SET pages = pages || ',/tasks' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/tasks,%'`,
+  // Repeating tasks (daily / weekly / monthly) and the day a reminder was last sent for a task.
+  `ALTER TABLE pc2_tasks ADD COLUMN IF NOT EXISTS repeat_every TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE pc2_tasks ADD COLUMN IF NOT EXISTS last_reminded_on DATE`,
   `CREATE INDEX IF NOT EXISTS pc2_tasks_user_idx ON pc2_tasks (user_id, status)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS pc2_tasks_source_idx ON pc2_tasks (user_id, source, source_ref) WHERE source_ref <> ''`,
   // The Sr. SO and the guards get the Guard Duty page even when their pages were picked by hand before it existed.
@@ -171,7 +174,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-05-3';
+const SCHEMA_VERSION = '2026-11-05-4';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

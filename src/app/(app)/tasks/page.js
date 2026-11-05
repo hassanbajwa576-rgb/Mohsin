@@ -64,16 +64,15 @@ export default async function TasksPage({ searchParams }) {
           <h1>{title}</h1>
           <p className='muted'>{viewing ? 'What ' + short(viewing.name) + ' has pending, and what needs attention soon.' : who === 'all' ? 'Everything pending for you and your team.' : 'What is pending in each area, and what needs you soon.'}</p>
         </div>
+        {people.length ? (
+          <div className='chips tkwho' aria-label='Whose tasks'>
+            {personChip('', 'Mine', perPerson[user.id])}
+            {people.map((p) => personChip(String(p.id), short(p.name), perPerson[p.id]))}
+            {people.length > 1 ? personChip('all', 'Everyone', null) : null}
+          </div>
+        ) : null}
       </div>
       <Flash sp={sp} />
-
-      {people.length ? (
-        <div className='chips tkwho' aria-label='Whose tasks'>
-          {personChip('', 'Mine', perPerson[user.id])}
-          {people.map((p) => personChip(String(p.id), short(p.name), perPerson[p.id]))}
-          {people.length > 1 ? personChip('all', 'Everyone', null) : null}
-        </div>
-      ) : null}
 
       <div className='tkgrid'>
         <aside className='tkside'>
