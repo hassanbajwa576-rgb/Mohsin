@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { todayKey } from '@/lib/att';
-import { taskPeople, taskRows, attentionRows, domainCounts, peopleCounts, daysFrom, DOMAIN, DOMAIN_ORDER } from '@/lib/tasks';
+import { taskPeople, taskRows, attentionRows, domainCounts, peopleCounts, daysFrom, DOMAIN } from '@/lib/tasks';
 import { addTask } from '@/lib/task-actions';
 import TaskForm from '@/components/TaskForm';
 import TaskTable from '@/components/TaskTable';
@@ -87,24 +87,6 @@ export default async function TasksPage({ searchParams }) {
             <div className='card kpi'><span>Open</span><b>{counts.total.open}</b></div>
             <div className='card kpi alt'><span>Due today</span><b>{counts.total.today}</b></div>
             <div className={'card kpi alt' + (counts.total.overdue ? ' neg' : '')}><span>Overdue</span><b>{counts.total.overdue}</b></div>
-          </div>
-
-          <div className='tkdoms'>
-            <Link href={link(who, '', '')} className={'tkdom' + (!domain ? ' on' : '')}>
-              <b>All</b>
-              <span>{counts.total.open} open</span>
-              {counts.total.overdue ? <small className='tk-late'>{counts.total.overdue} overdue</small> : <small>&nbsp;</small>}
-            </Link>
-            {DOMAIN_ORDER.map((k) => {
-              const c = counts.by[k] || { open: 0, overdue: 0 };
-              return (
-                <Link key={k} href={link(who, k, '')} className={'tkdom' + (domain === k ? ' on' : '')}>
-                  <b>{DOMAIN[k]}</b>
-                  <span>{c.open} open</span>
-                  {c.overdue ? <small className='tk-late'>{c.overdue} overdue</small> : <small>&nbsp;</small>}
-                </Link>
-              );
-            })}
           </div>
 
           <div className='card'>
