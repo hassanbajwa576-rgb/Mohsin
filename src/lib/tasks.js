@@ -5,44 +5,69 @@ export const SOURCE = { manual: 'Added here', outlook: 'Outlook', email: 'Email'
 
 export { DOMAINS, DOMAIN, DOMAIN_ORDER } from './task-domains';
 
-const COLS = `id, title, details, priority, status, source, domain, to_char(due_on, 'YYYY-MM-DD') AS due_on, to_char(done_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD') AS done_on`;
-
-// A person's own tasks (nobody else's) for one domain, or all domains when domain is empty: open ones first, by due date then priority.
-export async function taskRows(userId, show, domain) {
-  const where = show === 'done' ? "status = 'done'" : show === 'all' ? 'TRUE' : "status = 'open'";
+// The people a person can give tasks to and follow: the Sr. Ops Manager sees everyone who has the Tasks page,
+// the Sr. SO sees the Support Officers who have it, anyone else only themselves.
+export async function taskPeople(user) {
+  if (user.role !== 'om' && user.role !== 'sso') return [];
   return q(
-    `SELECT ${COLS} FROM pc2_tasks WHERE user_id = $1 AND ($2 = '' OR domain = $2) AND ${where}
-     ORDER BY (status = 'done'), due_on NULLS LAST, CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, id DESC LIMIT 300`,
-    [userId, domain || '']
+    `SELECT u.id, u.name, u.role FROM pc2_users u LEFT JOIN pc2_roles r ON r.id = u.role_id AND r.active
+     WHERE u.active AND u.role NOT IN ('om', 'guard') AND u.id <> $1 AND ($2 OR u.role = 'so')
+       AND (u.role = 'sso' OR (',' || u.perms || ',') LIKE '%,tasks,%' OR (',' || COALESCE(r.perms, '') || ',') LIKE '%,tasks,%')
+     ORDER BY CASE u.role WHEN 'sso' THEN 0 ELSE 1 END, u.name`,
+    [user.id, user.role === 'om']
+  );
+}
+
+const COLS = `t.id, t.title, t.details, t.priority, t.status, t.source, t.domain, t.user_id, t.created_by, ou.name AS owner_name, cu.name AS creator_name,
+  to_char(t.due_on, 'YYYY-MM-DD') AS due_on, to_char(t.done_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD') AS done_on`;
+const FROM = `FROM pc2_tasks t JOIN pc2_users ou ON ou.id = t.user_id LEFT JOIN pc2_users cu ON cu.id = t.created_by`;
+
+// Tasks of the given people (ids) for one domain, or all domains when domain is empty: open ones first, by due date then priority.
+export async function taskRows(ids, show, domain) {
+  const where = show === 'done' ? "t.status = 'done'" : show === 'all' ? 'TRUE' : "t.status = 'open'";
+  return q(
+    `SELECT ${COLS} ${FROM} WHERE t.user_id = ANY($1::int[]) AND ($2 = '' OR t.domain = $2) AND ${where}
+     ORDER BY (t.status = 'done'), t.due_on NULLS LAST, CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, t.id DESC LIMIT 300`,
+    [ids, domain || '']
   );
 }
 
 // What needs attention soon: late, due in the next week, or marked high priority. Late first.
-export async function attentionRows(userId, today) {
+export async function attentionRows(ids, today) {
   return q(
-    `SELECT ${COLS} FROM pc2_tasks
-     WHERE user_id = $1 AND status = 'open' AND (priority = 'high' OR due_on <= ($2::date + 7))
-     ORDER BY due_on NULLS LAST, CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, id DESC LIMIT 12`,
-    [userId, today]
+    `SELECT ${COLS} ${FROM}
+     WHERE t.user_id = ANY($1::int[]) AND t.status = 'open' AND (t.priority = 'high' OR t.due_on <= ($2::date + 7))
+     ORDER BY t.due_on NULLS LAST, CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, t.id DESC LIMIT 12`,
+    [ids, today]
   );
 }
 
-// Open and overdue counts per domain, plus the totals for the summary row.
-export async function domainCounts(userId, today) {
+// Open, due-today and overdue counts per domain, plus the totals for the summary row.
+export async function domainCounts(ids, today) {
   const rows = await q(
     `SELECT domain, COUNT(*)::int AS open,
             COUNT(*) FILTER (WHERE due_on < $2::date)::int AS overdue,
             COUNT(*) FILTER (WHERE due_on = $2::date)::int AS today
-     FROM pc2_tasks WHERE user_id = $1 AND status = 'open' GROUP BY domain`,
-    [userId, today]
+     FROM pc2_tasks WHERE user_id = ANY($1::int[]) AND status = 'open' GROUP BY domain`,
+    [ids, today]
   );
   const by = Object.fromEntries(rows.map((r) => [r.domain, r]));
   const total = rows.reduce((a, r) => ({ open: a.open + r.open, overdue: a.overdue + r.overdue, today: a.today + r.today }), { open: 0, overdue: 0, today: 0 });
   return { by, total };
 }
 
-export async function taskOne(userId, id) {
-  return (await q(`SELECT ${COLS} FROM pc2_tasks WHERE id = $1 AND user_id = $2`, [id, userId]))[0];
+// Open and overdue tasks per person, for the person switch.
+export async function peopleCounts(ids, today) {
+  const rows = await q(
+    `SELECT user_id, COUNT(*)::int AS open, COUNT(*) FILTER (WHERE due_on < $2::date)::int AS overdue
+     FROM pc2_tasks WHERE user_id = ANY($1::int[]) AND status = 'open' GROUP BY user_id`,
+    [ids, today]
+  );
+  return Object.fromEntries(rows.map((r) => [r.user_id, r]));
+}
+
+export async function taskOne(ids, id) {
+  return (await q(`SELECT ${COLS} ${FROM} WHERE t.id = $1 AND t.user_id = ANY($2::int[])`, [id, ids]))[0];
 }
 
 // Whole days from today to a due date (negative when it is already late).

@@ -150,6 +150,12 @@ const DDL = [
   // Personal tasks: each person sees only their own. source/source_ref let tasks collected from elsewhere (for example Outlook) be added without duplicates.
   `CREATE TABLE IF NOT EXISTS pc2_tasks (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES pc2_users(id), title TEXT NOT NULL, details TEXT NOT NULL DEFAULT '', due_on DATE, priority TEXT NOT NULL DEFAULT 'medium', status TEXT NOT NULL DEFAULT 'open', source TEXT NOT NULL DEFAULT 'manual', source_ref TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), done_at TIMESTAMPTZ)`,
   `ALTER TABLE pc2_tasks ADD COLUMN IF NOT EXISTS domain TEXT NOT NULL DEFAULT 'operations'`,
+  // Who created a task: the owner themselves, or the Sr. Ops Manager when he assigns it to someone.
+  `ALTER TABLE pc2_tasks ADD COLUMN IF NOT EXISTS created_by INTEGER`,
+  `UPDATE pc2_tasks SET created_by = user_id WHERE created_by IS NULL`,
+  // The Sr. SO gets the Tasks page too, even with pages picked by hand.
+  `UPDATE pc2_users SET pages = pages || ',/tasks' WHERE role = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/tasks,%'`,
+  `UPDATE pc2_roles SET pages = pages || ',/tasks' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/tasks,%'`,
   `CREATE INDEX IF NOT EXISTS pc2_tasks_user_idx ON pc2_tasks (user_id, status)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS pc2_tasks_source_idx ON pc2_tasks (user_id, source, source_ref) WHERE source_ref <> ''`,
   // The Sr. SO and the guards get the Guard Duty page even when their pages were picked by hand before it existed.
@@ -165,7 +171,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-05-2';
+const SCHEMA_VERSION = '2026-11-05-3';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

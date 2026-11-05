@@ -11,7 +11,7 @@ export const PERMS = [
   ['vis_log', 'Visitor log and Excel download', 'See all visitors, filter them and download the visitor log (everyone can check visitors in and out).'],
   ['att_reconcile', 'Reconciliation', 'Run the check for long shifts, missing check outs and entries that do not fit, and mark them reviewed.'],
   ['guard_duty', 'Guard duty log', 'Record temporary guards (name, mobile, CNIC, card number, who they replace, duty dates, pictures) and see the guard duty list.'],
-  ['tasks', 'My Tasks page', 'A private page to record important tasks with due dates and priority. Each person sees only their own tasks.'],
+  ['tasks', 'My Tasks page', 'A page to record important tasks with due dates and priority. Each person sees their own tasks and tasks given to them. The Sr. Ops Manager can give tasks to others and follow them; the Sr. SO can do the same for Support Officers.'],
 ];
 
 // Money and approval actions. Only the Sr. Ops Manager can do these by default; a role can be given any of them.
@@ -64,7 +64,7 @@ export const PERM_SHORT = {
 // What each role has without any extra grant.
 export const ROLE_PERMS = {
   om: ['att_own', 'att_view', 'att_reports', 'att_logs', 'att_staff', 'att_import', 'att_reconcile', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty'],
-  sso: ['att_own', 'att_view', 'att_reports', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty'],
+  sso: ['att_own', 'att_view', 'att_reports', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty', 'tasks'],
   so: [],
   guard: ['guard_duty'],
 };
