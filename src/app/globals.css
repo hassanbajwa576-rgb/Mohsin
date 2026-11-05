@@ -1011,6 +1011,10 @@ textarea{font:inherit;width:100%;min-width:0;max-width:100%;border:1px solid var
   .tp-time .tp-ap{margin-left:auto}
   .tp-time .tp-ap button{padding:0 16px;font-size:14px}
   .att-when{grid-template-columns:1fr 1fr;justify-content:stretch}
+  /* Edit-entry form: the time box needs a whole row on a phone, or it is cut off. */
+  .entry-edit-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .entry-edit-form>label:nth-of-type(3),.entry-edit-form>button{grid-column:1/-1}
+  .entry-edit-form .tp-time{width:100%}
 }
 
 /* Opening screen, once per app open. The inline script in the layout hides it at once when it was already seen. */
