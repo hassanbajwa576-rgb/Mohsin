@@ -1619,7 +1619,7 @@ html[data-theme=dark] .tk-own{background:#272038;color:#c4b5fd}
 html[data-theme=dark] .tk-own.tk-from{background:#10291f;color:#6ee7b7}
 html[data-theme=dark] .ob-chips button{background:#1b1b1a;color:var(--gold)}
 
-@media (max-width:700px){body:has(.tier.glass .botbar)::after{content:'';position:fixed;left:0;right:0;bottom:0;height:calc(84px + env(safe-area-inset-bottom,0px));z-index:59;pointer-events:none;background:linear-gradient(to bottom,rgba(255,255,255,0),var(--bg) 62%)}}
+@media (max-width:700px){body:has(.tier.glass .botbar)::after{content:'';position:fixed;left:0;right:0;bottom:0;height:calc(84px + env(safe-area-inset-bottom,0px));z-index:19;pointer-events:none;background:linear-gradient(to bottom,rgba(255,255,255,0),var(--bg) 62%)}}
 html[data-theme=dark] .modseg > .modwrap > .modpop > a:hover,html[data-theme=dark] .tier-menu .grppop a:hover,html[data-theme=dark] .modseg a:not(.on):hover,html[data-theme=dark] .notes a:hover,html[data-theme=dark] .subrow a:hover,html[data-theme=dark] .modpop a:hover{background:var(--tint);color:var(--gold)}
 html[data-theme=dark] .modseg > .modwrap > .modpop > a.on:hover,html[data-theme=dark] .modpop a.on:hover,html[data-theme=dark] .tier-menu .grppop a.on:hover{background:var(--gold);color:#000}
 html[data-theme=dark] .tier-menu a:hover,html[data-theme=dark] .tier-menu .grptab:hover,html[data-theme=dark] .toplinks a:hover,html[data-theme=dark] .links a:hover{color:var(--gold)}
