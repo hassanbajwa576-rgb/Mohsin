@@ -15,8 +15,9 @@ export default function MobileMenu({ role, approvals = 0, allowed = null, tasks 
   if (role === 'om') items.push(['/approvals', 'Approvals'], ['/team', 'Team'], ['/roles', 'Roles'], ['/logs', 'Audit log']);
   if (tasks) items.push(['/tasks', 'Tasks']);
   items.push(['/guide', 'Guide']);
-  const shown = allowed ? items.filter(([href]) => allowed.includes(href)) : items;
-  if (!shown.length) return null;
+  const picked = allowed ? items.filter(([href]) => allowed.includes(href)) : items;
+  // Everyone can reach their own profile (theme and navigation style live there).
+  const shown = [['/profile', 'My profile'], ...picked];
   return (
     <details className='mmenu' ref={ref}>
       <summary className='btn ghost'>Menu{approvals ? <span className='navbadge'>{approvals}</span> : null}</summary>
