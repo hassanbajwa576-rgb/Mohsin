@@ -1483,3 +1483,7 @@ td.tk-done b,td.tk-none b{color:var(--mut);font-weight:600}
 .tkdom.on{border-top-color:var(--gold);background:#fdf8e7;box-shadow:0 0 0 1px var(--gold) inset}
 .tk-dom{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;background:#e4ecf6;color:#2c4a6e;margin-right:8px}
 @media (max-width:720px){.tkdoms{grid-template-columns:repeat(2,1fr)}}
+.tkdoms{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.tkdom{min-width:0}
+.tkdom b{font-size:14px;line-height:1.25;overflow-wrap:anywhere}
+@media (max-width:720px){.tkdom{padding:10px}.tkdom b{font-size:12.5px;overflow-wrap:normal}.tkdom span{font-size:12.5px}}

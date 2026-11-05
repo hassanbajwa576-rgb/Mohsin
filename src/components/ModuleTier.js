@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { DOMAIN, DOMAIN_ORDER } from '@/lib/task-domains';
 
 // One module in the switch. Resting the mouse on it (or tabbing to it) drops its pages down;
 // tapping it still opens the module, so phones behave as before.
@@ -33,6 +34,20 @@ function Group({ label, items, on, badge, open, toggle }) {
   );
 }
 
+// On the Tasks page the row shows the task areas (HR, Accounts, BOLDBus...) in place of the Petty pages.
+function TaskTabs() {
+  const dom = useSearchParams().get('domain') || '';
+  const path = usePathname() || '';
+  const items = [['', 'All areas'], ...DOMAIN_ORDER.map((k) => [k, DOMAIN[k]])];
+  return (
+    <nav className='tier-menu'>
+      {items.map(([k, label]) => (
+        <Link key={k || 'all'} href={k ? '/tasks?domain=' + k : '/tasks'} className={path === '/tasks' && dom === k ? 'on' : ''}>{label}</Link>
+      ))}
+    </nav>
+  );
+}
+
 // Second header row: the PettyTrack / AttendTrack / VisitTrack switch and the pages of the module you are in.
 export default function ModuleTier({ role, access = [], reviews = 0, approvals = 0, allowed = null }) {
   const path = usePathname() || '/';
@@ -55,6 +70,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const fuel = path === '/fuel' || path.indexOf('/fuel/') === 0;
   const sup = path === '/support' || path.indexOf('/support/') === 0;
   const exr = path === '/exprev' || path.indexOf('/exprev/') === 0;
+  const tasksPg = path === '/tasks' || path.indexOf('/tasks/') === 0;
   const guard = role === 'guard';
   const om = role === 'om';
   const sso = role === 'sso';
@@ -121,7 +137,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   // Phone only, Sr. Ops Manager only: the module switch moves to a bottom bar with icons.
   const ic = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', width: 22, height: 22, viewBox: '0 0 24 24', 'aria-hidden': true };
   const bots = [];
-  if (pettyK.length) bots.push({ href: '/', label: 'Petty', active: !attend && !visit && !fuel && !sup && !exr, d: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12M16 14h2' });
+  if (pettyK.length) bots.push({ href: '/', label: 'Petty', active: !attend && !visit && !fuel && !sup && !exr && !tasksPg, d: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12M16 14h2' });
   if (attK.length) bots.push({ href: '/attendance', label: 'Attendance', active: attend, d: 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' });
   if (visK.length) bots.push({ href: '/visitors', label: 'Visitors', active: visit, d: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 3-5 6-5s6 2 6 5M16 5a3 3 0 0 1 0 6M18 15c2 .5 3 2.5 3 5' });
   if (access.includes('fuel_use') && fuK.length) bots.push({ href: '/fuel', label: 'Fuel', active: fuel, d: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z' });
@@ -132,7 +148,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
     <div className={'tier' + (om || sso ? ' tier-om' : '')} ref={bar}>
       <div className='tier-in'>
         <span className='modseg' translate='no'>
-          {guard || !pettyK.length ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup && !exr} items={pettyK} on={on} />}
+          {guard || !pettyK.length ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup && !exr && !tasksPg} items={pettyK} on={on} />}
           {attK.length ? <Mod href='/attendance' label='Attendance' active={attend} items={all(attK)} on={on} /> : null}
           {visK.length ? <Mod href='/visitors' label='Visitors' active={visit} items={visK} on={on} /> : null}
           {access.includes('fuel_use') && fuK.length ? <Mod href='/fuel' label='Fuel' active={fuel} items={fuK} on={on} /> : null}
@@ -140,11 +156,13 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
         </span>
         <span className='tier-sep' />
         <div className='tier-scroll'>
+        {tasksPg ? <Suspense fallback={null}><TaskTabs /></Suspense> : (
         <nav className='tier-menu'>
           {menu.map((m) => (m.items
             ? <Group key={m.label} label={m.label} items={m.items} on={on} badge={m.badge} open={open === m.label} toggle={toggle} />
             : <Link key={m.href} href={m.href} className={(on(m.href) ? 'on' : '') + (m.href === '/exprev/import' ? ' hide-m' : '')}>{m.label}{m.badge}</Link>))}
         </nav>
+        )}
         <span className='tier-sp' />
         <nav className='tier-menu admin'>
           {adminK.map((m) => (

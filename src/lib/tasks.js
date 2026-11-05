@@ -3,18 +3,7 @@ import { q } from './db';
 export const PRIORITY = { high: 'High', medium: 'Medium', low: 'Low' };
 export const SOURCE = { manual: 'Added here', outlook: 'Outlook', email: 'Email' };
 
-// The areas a task can belong to. The first one is the default for a new task.
-export const DOMAINS = [
-  ['operations', 'Operations'],
-  ['hr', 'HR'],
-  ['accounts', 'Accounts'],
-  ['boldbus', 'BOLDBus'],
-  ['bolddastarkhawan', 'BOLDDastarkhawan'],
-  ['it', 'IT'],
-];
-export const DOMAIN = Object.fromEntries(DOMAINS);
-// Domains in the order shown on the page (Operations last, as the catch-all).
-export const DOMAIN_ORDER = ['hr', 'accounts', 'boldbus', 'bolddastarkhawan', 'it', 'operations'];
+export { DOMAINS, DOMAIN, DOMAIN_ORDER } from './task-domains';
 
 const COLS = `id, title, details, priority, status, source, domain, to_char(due_on, 'YYYY-MM-DD') AS due_on, to_char(done_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD') AS done_on`;
 
