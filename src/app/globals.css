@@ -1633,3 +1633,4 @@ html[data-theme=dark] .tablewrap .er-grid tr.er-sub:hover td,html[data-theme=dar
 html[data-theme=dark] .btn:hover{color:var(--ink)}
 html[data-theme=dark] .btn.primary:hover{color:#000}
 html[data-theme=dark] .themebtn:hover{color:var(--gold)}
+@media (min-width:701px){html[data-theme=dark] .tablewrap table.tx tbody tr:nth-child(n) td.c-amt.tk-done,html[data-theme=dark] .tablewrap table.tx tbody tr:nth-child(n) td.c-amt.tk-none{background:transparent}}
