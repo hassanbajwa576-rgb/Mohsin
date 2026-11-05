@@ -8,7 +8,6 @@ import { addTask } from '@/lib/task-actions';
 import TaskForm from '@/components/TaskForm';
 import TaskTable from '@/components/TaskTable';
 import TaskAddPanel from '@/components/TaskAddPanel';
-import BackButton from '@/components/BackButton';
 import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
@@ -62,7 +61,6 @@ export default async function TasksPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <BackButton fallback='/' />
           <h1>{title}</h1>
           <p className='muted'>{viewing ? 'What ' + short(viewing.name) + ' has pending, and what needs attention soon.' : who === 'all' ? 'Everything pending for you and your team.' : 'What is pending in each area, and what needs you soon.'}</p>
         </div>

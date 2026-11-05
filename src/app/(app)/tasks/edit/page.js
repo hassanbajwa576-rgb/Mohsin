@@ -4,7 +4,6 @@ import { can } from '@/lib/perms';
 import { taskPeople, taskOne } from '@/lib/tasks';
 import { saveTask } from '@/lib/task-actions';
 import TaskForm from '@/components/TaskForm';
-import BackButton from '@/components/BackButton';
 import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +21,6 @@ export default async function EditTaskPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <BackButton fallback='/tasks' label='Back to tasks' />
           <h1>Edit task</h1>
           <p className='muted'>{task.user_id === user.id ? 'Your task.' : 'Task for ' + task.owner_name + '.'}</p>
         </div>
