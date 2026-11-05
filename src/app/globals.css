@@ -1492,7 +1492,7 @@ td.tk-done b,td.tk-none b{color:var(--mut);font-weight:600}
 .backbtn{margin-bottom:8px}
 .tkgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
 .tkside .tkadd{margin-bottom:0}
-@media (min-width:900px){.tkgrid{grid-template-columns:minmax(0,1fr) 340px}.tkmain{grid-column:1;grid-row:1;min-width:0}.tkside{grid-column:2;grid-row:1;position:sticky;top:12px}.tkside .form{grid-template-columns:1fr}}
+@media (min-width:900px){.tkgrid{grid-template-columns:minmax(0,1fr) 340px}.tkmain{grid-column:1;grid-row:1;min-width:0}.tkside{grid-column:2;grid-row:1;position:sticky;top:112px;align-self:start;max-height:calc(100vh - 128px);overflow-y:auto}.tkside .form{grid-template-columns:1fr}}
 
 /* My Tasks: whose tasks (Mine / Imran / Zubair / Everyone) and the owner tag. */
 .tkwho{margin:0 0 12px}
