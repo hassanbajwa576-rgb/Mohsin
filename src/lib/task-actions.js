@@ -46,6 +46,14 @@ const ownerOf = (u, people, fd) => {
   return want && want !== u.id && people.some((p) => p.id === want) ? want : u.id;
 };
 
+// A finished task is reported to the person who gave it AND the person it is for (never to the person who just finished it).
+async function tellDone(u, task) {
+  const to = new Set([task.created_by, task.user_id]);
+  to.delete(u.id);
+  to.delete(null);
+  for (const id of to) await notifyUser(id, u.name + ' finished the task: ' + task.title, '/tasks');
+}
+
 export async function addTask(fd) {
   const { u, people } = await need();
   const t = read(fd);
@@ -61,7 +69,7 @@ export async function saveTask(fd) {
   const id = Number(s(fd, 'id'));
   const t = read(fd);
   const status = s(fd, 'status') === 'done' ? 'done' : 'open';
-  const before = (await q('SELECT user_id FROM pc2_tasks WHERE id = $1 AND user_id = ANY($2::int[])', [id, mine]))[0];
+  const before = (await q('SELECT user_id, created_by, status FROM pc2_tasks WHERE id = $1 AND user_id = ANY($2::int[])', [id, mine]))[0];
   if (!before) back(fd, 'Task not found');
   const owner = s(fd, 'assign_to') ? ownerOf(u, people, fd) : before.user_id;
   await q(
@@ -69,6 +77,7 @@ export async function saveTask(fd) {
     [t.title, t.details, t.due, t.priority, t.domain, status, owner, id]
   );
   if (owner !== before.user_id && owner !== u.id) await notifyUser(owner, u.name + ' gave you a task: ' + t.title, '/tasks');
+  if (status === 'done' && before.status !== 'done') await tellDone(u, { title: t.title, created_by: before.created_by, user_id: owner });
   back(fd, 'Task updated', true);
 }
 
@@ -80,8 +89,8 @@ export async function toggleTask(fd) {
      WHERE id = $1 AND user_id = ANY($2::int[]) RETURNING title, status, user_id, created_by`,
     [id, mine]
   ))[0];
-  // Tell the person who gave the task when it is finished.
-  if (r && r.status === 'done' && r.created_by && r.created_by !== u.id) await notifyUser(r.created_by, u.name + ' finished the task: ' + r.title, '/tasks');
+  // Tell the giver and the person it is for (except whoever just finished it).
+  if (r && r.status === 'done') await tellDone(u, r);
   back(fd, r ? 'Task updated' : 'Task not found', !!r);
 }
 

@@ -39,8 +39,8 @@ export default async function Nav({ user, unread = 0, lang = 'en', reviews = 0, 
           {guard
             ? <span className='me'>{who}</span>
             : <Link href='/profile' className='me' title='My profile'>{who}</Link>}
-          {guard ? null : <MobileMenu role={user.role} approvals={approvals} allowed={allowed} tasks={can(user, 'tasks')} />}
-          <form action={logout}><button className='btn ghost' type='submit'>Sign out</button></form>
+          {guard ? null : <MobileMenu role={user.role} approvals={approvals} allowed={allowed} tasks={can(user, 'tasks')} signOut={<form action={logout} className='mm-so'><button type='submit'>Sign out</button></form>} />}
+          <form action={logout} className={guard ? undefined : 'so-top'}><button className='btn ghost' type='submit'>Sign out</button></form>
         </div>
       </div>
       {guard ? null : (

@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 
 // Phones: Approvals, Team, Audit log and Guide sit behind one Menu button instead of a row of their own.
-export default function MobileMenu({ role, approvals = 0, allowed = null, tasks = false }) {
+export default function MobileMenu({ role, approvals = 0, allowed = null, tasks = false, signOut = null }) {
   const ref = useRef(null);
   const path = usePathname();
   useEffect(() => {
@@ -25,6 +25,7 @@ export default function MobileMenu({ role, approvals = 0, allowed = null, tasks 
         {shown.map(([href, label]) => (
           <Link key={href} href={href}>{label}{href === '/approvals' && approvals ? <span className='navbadge'>{approvals}</span> : null}</Link>
         ))}
+        {signOut}
       </div>
     </details>
   );
