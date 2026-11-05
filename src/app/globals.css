@@ -1513,7 +1513,7 @@ td.tk-done b,td.tk-none b{color:var(--mut);font-weight:600}
 .tier.glass .modseg{background:rgba(255,255,255,.6);border-color:rgba(255,255,255,.8);border-radius:14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 .tier.glass .modseg > .modwrap > a{border-radius:12px!important}
 @media (max-width:700px){
-  .tier.glass .botbar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:6px 4px;border:1px solid rgba(255,255,255,.85);border-radius:26px;background:rgba(255,255,255,.62);backdrop-filter:blur(16px) saturate(170%);-webkit-backdrop-filter:blur(16px) saturate(170%);box-shadow:0 10px 30px rgba(0,0,0,.14)}
+  .tier.glass .botbar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:6px 4px;border:1px solid rgba(255,255,255,.85);border-radius:26px;background:rgba(255,255,255,.95);backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%);box-shadow:0 8px 28px rgba(0,0,0,.22)}
   .tier.glass .botbar::before{content:'';position:absolute;left:0;top:calc(var(--sy,0px) + 1px);width:var(--sw,0px);height:calc(var(--sh,0px) - 2px);transform:translateX(var(--sx,0px));border-radius:20px;background:var(--gold);box-shadow:0 6px 18px rgba(227,172,32,.45);pointer-events:none;transition:transform .55s cubic-bezier(.34,1.56,.64,1),width .55s cubic-bezier(.34,1.56,.64,1)}
   .tier.glass .botbar a{position:relative;z-index:1;border-radius:20px;transition:transform .4s cubic-bezier(.34,1.56,.64,1),color .3s ease}
   .tier.glass .botbar a:active{transform:scale(.9)}
@@ -1578,7 +1578,7 @@ html[data-theme=dark] .ob-bub{background:#232321;color:var(--ink)}
 html[data-theme=dark] .ob-who{color:var(--ink)}
 html[data-theme=dark] .tier.glass{background:rgba(14,14,13,.72)}
 html[data-theme=dark] .tier.glass .modseg{background:rgba(30,30,28,.7);border-color:rgba(255,255,255,.12)}
-html[data-theme=dark] .tier.glass .botbar{background:rgba(24,24,22,.78);border-color:rgba(255,255,255,.12)}
+html[data-theme=dark] .tier.glass .botbar{background:rgba(22,22,20,.96);border-color:rgba(227,173,33,.35);box-shadow:0 8px 28px rgba(0,0,0,.7)}
 html[data-theme=dark] .tier-menu a,html[data-theme=dark] .botbar a{color:#b9b5a8}
 html[data-theme=dark] .botbar{background:#121211}
 html[data-theme=dark] .tier.glass .tier-menu a.on,html[data-theme=dark] .tier.glass .tier-menu .grptab.on,html[data-theme=dark] .tier.glass .botbar a.on{color:#1a1a1a}
@@ -1618,3 +1618,5 @@ html[data-theme=dark] .chip.on .tk-chipn{background:#000;color:var(--gold)}
 html[data-theme=dark] .tk-own{background:#272038;color:#c4b5fd}
 html[data-theme=dark] .tk-own.tk-from{background:#10291f;color:#6ee7b7}
 html[data-theme=dark] .ob-chips button{background:#1b1b1a;color:var(--gold)}
+
+@media (max-width:700px){body:has(.tier.glass .botbar)::after{content:'';position:fixed;left:0;right:0;bottom:0;height:calc(84px + env(safe-area-inset-bottom,0px));z-index:59;pointer-events:none;background:linear-gradient(to bottom,rgba(255,255,255,0),var(--bg) 62%)}}
