@@ -232,6 +232,8 @@ export default async function Dashboard({ searchParams }) {
         <div className={'card kpi alt' + (T.remaining < 0 ? ' neg' : '')}><span>CIH</span><b><CountUp value={T.remaining} /></b><small>Cash in hand, all holders</small></div>
       </div>
 
+      <AdjustedPosition rows={funds.rows} waiting={waiting} />
+
       {cashSum > 0 ? (
         <div className='card'>
           <h3>Where The Cash Is</h3>
@@ -245,8 +247,6 @@ export default async function Dashboard({ searchParams }) {
           </div>
         </div>
       ) : null}
-
-      <AdjustedPosition rows={funds.rows} waiting={waiting} />
 
       <form method='get' className='card filters compact'>
         {office !== 'all' ? <input type='hidden' name='office' value={office} /> : null}

@@ -42,7 +42,10 @@ export default async function ExpensesPage({ searchParams }) {
     : null;
 
   const showAll = sp.more === '1' || !!f.q;
-  const shown = showAll ? rows : rows.slice(0, 10);
+  // Waiting for approval first (newest first), then everything else (recently sent to Accounts and the rest).
+  const isWaiting = (r) => ['submitted', 'verified'].includes(r.status);
+  const ordered = [...rows.filter(isWaiting), ...rows.filter((r) => !isWaiting(r))];
+  const shown = showAll ? ordered : ordered.slice(0, 10);
   const mp = new URLSearchParams();
   for (const k of ['office', 'status', 'fund', 'month', 'q']) if (sp[k]) mp.set(k, sp[k]);
   if (!showAll) mp.set('more', '1');
