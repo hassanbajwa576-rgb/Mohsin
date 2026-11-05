@@ -44,7 +44,7 @@ export default async function ProfilePage({ searchParams }) {
       {user.role === 'om' ? (
         <div className='card'>
           <h3>Navigation style</h3>
-          <p className='muted'>How the active tab is marked as you move around. Applies to the top tabs and the phone bottom bar.</p>
+          <p className='muted'>How the active tab is marked on the phone bottom bar. Computers keep the gold pill.</p>
           <NavStyle initial={beam ? 'beam' : 'pill'} />
         </div>
       ) : null}
