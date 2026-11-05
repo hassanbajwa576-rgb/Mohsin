@@ -1487,3 +1487,9 @@ td.tk-done b,td.tk-none b{color:var(--mut);font-weight:600}
 .tkdom{min-width:0}
 .tkdom b{font-size:14px;line-height:1.25;overflow-wrap:anywhere}
 @media (max-width:720px){.tkdom{padding:10px}.tkdom b{font-size:12.5px;overflow-wrap:normal}.tkdom span{font-size:12.5px}}
+
+/* My Tasks layout: everything important on the left, the add form at the top right (on top, folded, on phones). */
+.backbtn{margin-bottom:8px}
+.tkgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.tkside .tkadd{margin-bottom:0}
+@media (min-width:900px){.tkgrid{grid-template-columns:minmax(0,1fr) 340px}.tkmain{grid-column:1;grid-row:1;min-width:0}.tkside{grid-column:2;grid-row:1;position:sticky;top:12px}.tkside .form{grid-template-columns:1fr}}

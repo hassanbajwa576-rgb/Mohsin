@@ -38,7 +38,7 @@ function Group({ label, items, on, badge, open, toggle }) {
 function TaskTabs() {
   const dom = useSearchParams().get('domain') || '';
   const path = usePathname() || '';
-  const items = [['', 'All areas'], ...DOMAIN_ORDER.map((k) => [k, DOMAIN[k]])];
+  const items = [['', 'All'], ...DOMAIN_ORDER.map((k) => [k, DOMAIN[k]])];
   return (
     <nav className='tier-menu'>
       {items.map(([k, label]) => (
@@ -147,14 +147,14 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   return (
     <div className={'tier' + (om || sso ? ' tier-om' : '')} ref={bar}>
       <div className='tier-in'>
-        <span className='modseg' translate='no'>
+        {tasksPg ? null : <span className='modseg' translate='no'>
           {guard || !pettyK.length ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup && !exr && !tasksPg} items={pettyK} on={on} />}
           {attK.length ? <Mod href='/attendance' label='Attendance' active={attend} items={all(attK)} on={on} /> : null}
           {visK.length ? <Mod href='/visitors' label='Visitors' active={visit} items={visK} on={on} /> : null}
           {access.includes('fuel_use') && fuK.length ? <Mod href='/fuel' label='Fuel' active={fuel} items={fuK} on={on} /> : null}
           {guard || !suK.length ? null : <Mod href='/support' label='Support' active={sup} items={suK} on={on} />}
-        </span>
-        <span className='tier-sep' />
+        </span>}
+        {tasksPg ? null : <span className='tier-sep' />}
         <div className='tier-scroll'>
         {tasksPg ? <Suspense fallback={null}><TaskTabs /></Suspense> : (
         <nav className='tier-menu'>
