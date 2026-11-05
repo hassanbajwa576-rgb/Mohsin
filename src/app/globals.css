@@ -1674,3 +1674,41 @@ html[data-theme=dark] [style*="color: var(--bad"]{color:#ff8a8a!important}
 @media (max-width:700px){.head .tkwho{justify-content:flex-start;width:100%}}
 .tk-own.tk-rep{background:#e0eefb;color:#1d4f8a}
 html[data-theme=dark] .tk-own.tk-rep{background:#14243a;color:#8fb0ff}
+@media (min-width:701px){table.tx td.tk-act{white-space:nowrap;width:1%}table.tx td.tk-act .inline{display:inline-block;margin:0 2px 0 0}table.tx td.tk-act .btn{padding:6px 11px;font-size:13px;margin:0}}
+
+/* Tasks: "Add a task" is a button beside the title that opens the form below it; the list uses the full width */
+.tkgrid{grid-template-columns:minmax(0,1fr)!important}
+.tkhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:relative}
+.tkhead h1{margin:0}
+.tkaddbtn{position:static}
+.tkaddbtn > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--gold);border-radius:6px;font-weight:600;font-size:14px;background:var(--card);color:var(--ink);user-select:none}
+.tkaddbtn > summary::-webkit-details-marker{display:none}
+.tkaddbtn > summary::before{content:'';flex:none;box-sizing:border-box;width:8px;height:8px;border-right:2px solid var(--gold-d);border-bottom:2px solid var(--gold-d);transform:rotate(-45deg);transition:transform .2s}
+.tkaddbtn[open] > summary{background:var(--gold);color:#000}
+.tkaddbtn[open] > summary::before{transform:rotate(45deg);border-color:#000}
+.tkpop{position:absolute;z-index:40;top:calc(100% + 8px);left:0;width:min(460px,calc(100vw - 32px));max-height:min(72vh,680px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;box-shadow:0 14px 40px rgba(0,0,0,.25)}
+.tkpop .form{grid-template-columns:1fr}
+
+/* Tasks summary boxes are filters */
+.kpis-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.kpibtn{text-decoration:none;color:inherit;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.kpibtn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,.12)}
+.kpibtn.on{box-shadow:0 0 0 2px var(--gold)}
+.kpi.hi b{color:#b3261e}
+html[data-theme=dark] .kpi.hi b{color:#f87171}
+@media (max-width:700px){.kpis-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Task rows: a coloured edge shows how urgent each one is (red late, orange today/tomorrow, gold this week, grey just high priority) */
+table.tx td.c-title{position:relative}
+.tk-u-late td.c-title{box-shadow:inset 4px 0 0 #d92d20}
+.tk-u-now td.c-title{box-shadow:inset 4px 0 0 #f07a1a}
+.tk-u-soon td.c-title{box-shadow:inset 4px 0 0 var(--gold)}
+.tk-u-high td.c-title{box-shadow:inset 4px 0 0 #98a2b3}
+.tk-in{display:block;font-size:11.5px;font-weight:500;color:var(--mut);margin-top:2px}
+@media (max-width:700px){
+  table.tx tbody tr.tk-u-late{border-left:4px solid #d92d20}
+  table.tx tbody tr.tk-u-now{border-left:4px solid #f07a1a}
+  table.tx tbody tr.tk-u-soon{border-left:4px solid var(--gold)}
+  table.tx tbody tr.tk-u-high{border-left:4px solid #98a2b3}
+  .tk-u-late td.c-title,.tk-u-now td.c-title,.tk-u-soon td.c-title,.tk-u-high td.c-title{box-shadow:none}
+}

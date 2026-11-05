@@ -35,15 +35,18 @@ export default async function TasksPage({ searchParams }) {
   const domain = DOMAIN[sp.domain] ? sp.domain : '';
   const show = ['done', 'all'].includes(sp.show) ? sp.show : 'open';
   const today = todayKey();
+  // One of the summary boxes was clicked: only those tasks are listed.
+  const fil = ['today', 'overdue', 'high'].includes(sp.f) ? sp.f : '';
+  const FIL = { today: 'Due today', overdue: 'Overdue', high: 'High priority' };
   const [rows, soon, counts, perPerson] = await Promise.all([
-    taskRows(ids, show, domain),
+    taskRows(ids, fil ? 'open' : show, domain, fil, today),
     attentionRows(ids, today),
     domainCounts(ids, today),
     people.length ? peopleCounts(everyone, today) : Promise.resolve({}),
   ]);
   const keep = show === 'open' ? '' : show;
-  const link = (w, d, s) => {
-    const p = new URLSearchParams({ ...(w ? { who: w } : {}), ...(d ? { domain: d } : {}), ...(s ? { show: s } : {}) }).toString();
+  const link = (w, d, s, f) => {
+    const p = new URLSearchParams({ ...(w ? { who: w } : {}), ...(d ? { domain: d } : {}), ...(s ? { show: s } : {}), ...(f ? { f } : {}) }).toString();
     return '/tasks' + (p ? '?' + p : '');
   };
   const chip = (k, label) => <Link key={k} className={'chip' + (show === k ? ' on' : '')} href={link(who, domain, k === 'open' ? '' : k)}>{label}</Link>;
@@ -61,7 +64,12 @@ export default async function TasksPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>{title}</h1>
+          <div className='tkhead'>
+            <h1>{title}</h1>
+            <TaskAddPanel title={'Add a task' + (viewing ? ' for ' + short(viewing.name) : '')}>
+              <TaskForm action={addTask} view={domain} show={keep} who={who} defaultDomain={domain || 'operations'} people={people} defaultOwner={viewing ? viewing.id : ''} meId={user.id} />
+            </TaskAddPanel>
+          </div>
           <p className='muted'>{viewing ? 'What ' + short(viewing.name) + ' has pending, and what needs attention soon.' : who === 'all' ? 'Everything pending for you and your team.' : 'What is pending in each area, and what needs you soon.'}</p>
         </div>
         {people.length ? (
@@ -75,29 +83,24 @@ export default async function TasksPage({ searchParams }) {
       <Flash sp={sp} />
 
       <div className='tkgrid'>
-        <aside className='tkside'>
-          <TaskAddPanel title={'Add a task' + (viewing ? ' for ' + short(viewing.name) : '')}>
-            <TaskForm action={addTask} view={domain} show={keep} who={who} defaultDomain={domain || 'operations'} people={people} defaultOwner={viewing ? viewing.id : ''} meId={user.id} />
-          </TaskAddPanel>
-        </aside>
-
         <div className='tkmain'>
-          <div className='kpis kpis-3'>
-            <div className='card kpi'><span>Open</span><b>{counts.total.open}</b></div>
-            <div className='card kpi alt'><span>Due today</span><b>{counts.total.today}</b></div>
-            <div className={'card kpi alt' + (counts.total.overdue ? ' neg' : '')}><span>Overdue</span><b>{counts.total.overdue}</b></div>
+          <div className='kpis kpis-4'>
+            <Link href={link(who, domain, keep, '')} className={'card kpi kpibtn' + (!fil ? ' on' : '')}><span>Open</span><b>{counts.total.open}</b></Link>
+            <Link href={link(who, domain, '', 'today')} className={'card kpi alt kpibtn' + (fil === 'today' ? ' on' : '')}><span>Due today</span><b>{counts.total.today}</b></Link>
+            <Link href={link(who, domain, '', 'overdue')} className={'card kpi alt kpibtn' + (counts.total.overdue ? ' neg' : '') + (fil === 'overdue' ? ' on' : '')}><span>Overdue</span><b>{counts.total.overdue}</b></Link>
+            <Link href={link(who, domain, '', 'high')} className={'card kpi alt kpibtn' + (counts.total.high ? ' hi' : '') + (fil === 'high' ? ' on' : '')}><span>High priority</span><b>{counts.total.high}</b></Link>
           </div>
 
-          <div className='card'>
+          {fil ? null : <div className='card'>
             <h3 style={{ marginTop: 0 }}>Needs attention soon</h3>
             <p className='muted' style={{ marginTop: 0 }}>Late, due in the next 7 days, or marked high priority{late ? ' - ' + late + ' already late' : ''}.</p>
             {soon.length ? <TaskTable rows={soon} {...tableProps} /> : <p className='muted'>Nothing urgent. Well done.</p>}
-          </div>
+          </div>}
 
           <div className='card'>
-            <h3 style={{ marginTop: 0 }}>{domain ? DOMAIN[domain] : 'All'}</h3>
-            <div className='chips' style={{ marginBottom: 10 }}>{chip('open', 'Open')}{chip('done', 'Done')}{chip('all', 'All')}</div>
-            {rows.length ? <TaskTable rows={rows} {...tableProps} /> : <p className='muted'>{show === 'done' ? 'No finished tasks here yet.' : 'Nothing pending here. Add a task on the right.'}</p>}
+            <h3 style={{ marginTop: 0 }}>{fil ? FIL[fil] + (domain ? ' - ' + DOMAIN[domain] : '') : domain ? DOMAIN[domain] : 'All'}</h3>
+            {fil ? <div className='chips' style={{ marginBottom: 10 }}><Link className='chip' href={link(who, domain, '', '')}>Show all open tasks</Link></div> : <div className='chips' style={{ marginBottom: 10 }}>{chip('open', 'Open')}{chip('done', 'Done')}{chip('all', 'All')}</div>}
+            {rows.length ? <TaskTable rows={rows} {...tableProps} /> : <p className='muted'>{show === 'done' ? 'No finished tasks here yet.' : 'Nothing pending here. Use Add a task at the top.'}</p>}
           </div>
         </div>
       </div>

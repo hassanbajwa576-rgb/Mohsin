@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import ConfirmButton from '@/components/ConfirmButton';
 import { toggleTask, deleteTask } from '@/lib/task-actions';
-import { PRIORITY, SOURCE, DOMAIN, REPEAT_SHORT, dueLabel } from '@/lib/tasks';
+import { PRIORITY, SOURCE, DOMAIN, REPEAT_SHORT, dueLabel, daysFrom } from '@/lib/tasks';
 
 const short = (n) => String(n || '').trim().split(/\s+/).slice(-1)[0];
 
@@ -30,18 +30,21 @@ export default function TaskTable({ rows, today, me, view = '', show = '', who =
         <tbody>
           {rows.map((t) => {
             const d = dueLabel(t, today);
+            // How urgent an open task is: late, today or tomorrow, within a week, or just marked high.
+            const n = t.status === 'open' && t.due_on ? daysFrom(today, t.due_on) : null;
+            const urg = n === null ? (t.status === 'open' && t.priority === 'high' ? 'high' : '') : n < 0 ? 'late' : n <= 1 ? 'now' : n <= 7 ? 'soon' : '';
             return (
-              <tr key={t.id} className={t.status === 'done' ? 'tk-row-done' : ''}>
+              <tr key={t.id} className={(t.status === 'done' ? 'tk-row-done' : '') + (urg ? ' tk-u-' + urg : '')}>
                 <td className='c-title'><b>{t.title}</b><Owner t={t} me={me} />{t.repeat_every ? <span className='tk-own tk-rep'>Repeats {REPEAT_SHORT[t.repeat_every]}</span> : null}{t.details ? <div className='muted'>{t.details}</div> : null}</td>
                 <td className='c-meta hide-m'><span className='tk-dom'>{DOMAIN[t.domain] || t.domain}</span></td>
                 <td className='c-meta hide-m'><span className={'tk-pri tk-' + t.priority}>{PRIORITY[t.priority]}</span></td>
-                <td className={'r nw c-amt ' + d.cls}><b>{d.text}</b></td>
+                <td className={'r nw c-amt ' + d.cls}><b>{d.text}</b>{n !== null && n >= 2 ? <small className='tk-in'>in {n} days</small> : null}</td>
                 <td className='show-m'>
                   <span className='tk-dom'>{DOMAIN[t.domain] || t.domain}</span>
                   <span className={'tk-pri tk-' + t.priority}>{PRIORITY[t.priority]} priority</span>
                   {t.source !== 'manual' ? <span className='sub'>From {SOURCE[t.source] || t.source}</span> : null}
                 </td>
-                <td className='act'>
+                <td className='act tk-act'>
                   <form action={toggleTask} className='inline'>
                     {hidden(t.id)}
                     <button className={'btn' + (t.status === 'open' ? ' ok' : '')} type='submit'>{t.status === 'open' ? 'Done' : 'Reopen'}</button>

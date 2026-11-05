@@ -1,10 +1,11 @@
-﻿import { requireUser } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { todayKey } from '@/lib/att';
 import { daysFrom, niceDate } from '@/lib/tasks';
 import { addGazetted, removeGazetted, addFixedHolidays } from '@/lib/holiday-actions';
 import ConfirmButton from '@/components/ConfirmButton';
 import Flash from '@/components/Flash';
+import HolidayUpload from '@/components/HolidayUpload';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,14 @@ export default async function HolidaysPage({ searchParams }) {
             <button className='btn' type='submit'>Add the usual fixed-date holidays for {year}</button>
           </form>
           <p className='muted'>Fixed dates: Kashmir Day 5 Feb, Pakistan Day 23 Mar, Labour Day 1 May, Independence Day 14 Aug, 25 Dec. Eid, Ashura and Eid Milad-un-Nabi follow the moon, so add them here when the government notifies the dates.</p>
+        </div>
+      ) : null}
+
+      {om ? (
+        <div className='card'>
+          <h3 style={{ marginTop: 0 }}>Upload the government notification</h3>
+          <p className='muted'>Choose the yearly public holiday notification (PDF, scan or photo). It is read on this device; you check the holidays it finds, and only public holidays are ticked.</p>
+          <HolidayUpload year={year} />
         </div>
       ) : null}
 

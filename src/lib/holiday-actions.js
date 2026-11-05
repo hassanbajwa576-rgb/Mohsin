@@ -51,3 +51,23 @@ export async function addFixedHolidays(fd) {
   await logEvent(u, 'create', 'holiday', null, 'Fixed-date holidays added for ' + y, null, null);
   back(y, 'Fixed-date holidays added for ' + y, true);
 }
+
+// Holidays read from an uploaded notification, after the Sr. Ops Manager has checked them on the page.
+export async function importHolidays(fd) {
+  const u = await need();
+  const year = s(fd, 'year');
+  const y = /^\d{4}$/.test(year) ? year : String(new Date().getFullYear());
+  let rows = [];
+  try { rows = JSON.parse(s(fd, 'rows')); } catch { back(y, 'Could not read the list'); }
+  if (!Array.isArray(rows) || !rows.length) back(y, 'Tick at least one holiday');
+  let n = 0;
+  for (const r of rows.slice(0, 60)) {
+    const day = String(r.day || '');
+    const name = String(r.name || '').trim().slice(0, 80);
+    if (!dateOk(day) || !name) continue;
+    await q('INSERT INTO pc2_holidays (day, name, created_by) VALUES ($1, $2, $3) ON CONFLICT (day) DO UPDATE SET name = EXCLUDED.name', [day, name, u.id]);
+    n++;
+  }
+  await logEvent(u, 'create', 'holiday', null, n + ' holidays imported from the government notification for ' + y, null, null);
+  back(y, n + ' holidays added from the notification', true);
+}

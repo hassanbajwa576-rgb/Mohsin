@@ -26,12 +26,14 @@ const COLS = `t.id, t.title, t.details, t.priority, t.status, t.source, t.domain
 const FROM = `FROM pc2_tasks t JOIN pc2_users ou ON ou.id = t.user_id LEFT JOIN pc2_users cu ON cu.id = t.created_by`;
 
 // Tasks of the given people (ids) for one domain, or all domains when domain is empty: open ones first, by due date then priority.
-export async function taskRows(ids, show, domain) {
+// kind narrows the list to one summary box: today, overdue or high (priority).
+export async function taskRows(ids, show, domain, kind = '', today = '1970-01-01') {
   const where = show === 'done' ? "t.status = 'done'" : show === 'all' ? 'TRUE' : "t.status = 'open'";
   return q(
     `SELECT ${COLS} ${FROM} WHERE t.user_id = ANY($1::int[]) AND ($2 = '' OR t.domain = $2) AND ${where}
+       AND ($3 = '' OR ($3 = 'today' AND t.due_on = $4::date) OR ($3 = 'overdue' AND t.due_on < $4::date) OR ($3 = 'high' AND t.priority = 'high'))
      ORDER BY (t.status = 'done'), t.due_on NULLS LAST, CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, t.id DESC LIMIT 300`,
-    [ids, domain || '']
+    [ids, domain || '', kind || '', today]
   );
 }
 
@@ -50,12 +52,13 @@ export async function domainCounts(ids, today) {
   const rows = await q(
     `SELECT domain, COUNT(*)::int AS open,
             COUNT(*) FILTER (WHERE due_on < $2::date)::int AS overdue,
-            COUNT(*) FILTER (WHERE due_on = $2::date)::int AS today
+            COUNT(*) FILTER (WHERE due_on = $2::date)::int AS today,
+            COUNT(*) FILTER (WHERE priority = 'high')::int AS high
      FROM pc2_tasks WHERE user_id = ANY($1::int[]) AND status = 'open' GROUP BY domain`,
     [ids, today]
   );
   const by = Object.fromEntries(rows.map((r) => [r.domain, r]));
-  const total = rows.reduce((a, r) => ({ open: a.open + r.open, overdue: a.overdue + r.overdue, today: a.today + r.today }), { open: 0, overdue: 0, today: 0 });
+  const total = rows.reduce((a, r) => ({ open: a.open + r.open, overdue: a.overdue + r.overdue, today: a.today + r.today, high: a.high + r.high }), { open: 0, overdue: 0, today: 0, high: 0 });
   return { by, total };
 }
 

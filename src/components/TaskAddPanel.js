@@ -1,17 +1,31 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef } from 'react';
 
-// The "Add a task" panel: open on wide screens (it sits at the top right), folded away on phones so the list is not pushed down.
+// "Add a task" sits next to the page title as a small button. Clicking it opens the form just below; it closes again after saving,
+// when you press Escape or click elsewhere, so the page keeps its full width.
 export default function TaskAddPanel({ title, children }) {
   const ref = useRef(null);
   useEffect(() => {
-    if (ref.current && window.innerWidth < 900) ref.current.open = false;
+    const away = (e) => {
+      const d = ref.current;
+      if (d && d.open && !d.contains(e.target)) d.open = false;
+    };
+    const esc = (e) => {
+      if (e.key === 'Escape' && ref.current) ref.current.open = false;
+    };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', esc);
+    };
   }, []);
+  const closeSoon = () => setTimeout(() => { if (ref.current) ref.current.open = false; }, 100);
   return (
-    <details className='card tkadd' open ref={ref}>
+    <details className='tkaddbtn' ref={ref}>
       <summary>{title}</summary>
-      {children}
+      <div className='tkpop' onSubmit={closeSoon}>{children}</div>
     </details>
   );
 }

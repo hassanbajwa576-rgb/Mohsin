@@ -1,6 +1,7 @@
 import 'server-only';
 import { q } from './db';
 import { TZ } from './att';
+import { autoNoShow } from './visitor-reminders';
 
 export const VTYPES = [
   ['candidate', 'Candidate (interview)'],
@@ -72,6 +73,7 @@ const E_FROM = 'FROM pc2_expected e JOIN pc2_offices o ON o.id = e.office_id';
 
 /** The queue: announced visitors not yet arrived or marked, up to the end of the given day (earlier days still waiting stay on top). */
 export async function waitingQueue(office, upToDay) {
+  await autoNoShow();
   return q(`SELECT ${E_COLS} ${E_FROM} WHERE e.status = 'waiting' AND e.due_at < (($1::date + 1)::timestamp AT TIME ZONE '${TZ}') ${office ? 'AND o.code = $2' : ''} ORDER BY e.due_at`, office ? [upToDay, office] : [upToDay]);
 }
 
@@ -82,6 +84,7 @@ export async function laterQueue(office, afterDay) {
 
 /** No shows between two dates (Karachi time), newest first. */
 export async function noShows({ from, to, office }) {
+  await autoNoShow();
   const params = [from, to];
   if (office) params.push(office);
   return q(`SELECT ${E_COLS} ${E_FROM} WHERE e.status = 'noshow' AND e.due_at >= (($1::date)::timestamp AT TIME ZONE '${TZ}') AND e.due_at < (($2::date + 1)::timestamp AT TIME ZONE '${TZ}') ${office ? 'AND o.code = $3' : ''} ORDER BY e.due_at DESC LIMIT 500`, params);

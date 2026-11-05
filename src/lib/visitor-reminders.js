@@ -1,7 +1,7 @@
 import 'server-only';
 import { q } from './db';
 import { sendPush } from './push';
-import { notifyRoles } from './notify';
+import { notifyRoles, notifyUser } from './notify';
 import { TZ } from './att';
 
 const LATE_MIN = 10;
@@ -17,10 +17,29 @@ async function notifyGuards(officeId, message) {
 
 const who = (r) => r.name + (r.company ? ' (' + r.company + ')' : '') + (r.host ? ', meeting ' + r.host : '');
 
+// An announced visitor who never arrived and whose entry nobody touched moves to "No show" once the expected day is over (Karachi time).
+// Nothing is deleted: it can still be rescheduled from the No show list. Safe to run as often as you like.
+export async function autoNoShow() {
+  try {
+    const rows = await q(
+      `UPDATE pc2_expected SET status = 'noshow', marked_at = now(), remarks = CASE WHEN remarks = '' THEN 'Did not arrive - moved to No show automatically' ELSE remarks END
+       WHERE status = 'waiting' AND due_at < ((date_trunc('day', now() AT TIME ZONE '${TZ}')) AT TIME ZONE '${TZ}')
+       RETURNING id, name, created_by, to_char(due_at AT TIME ZONE '${TZ}', 'DD Mon HH12:MI AM') AS at_label`
+    );
+    for (const r of rows) {
+      if (r.created_by) await notifyUser(r.created_by, r.name + ' did not arrive (expected ' + r.at_label + ') and was moved to No show. You can reschedule from the No show list.', '/visitors');
+    }
+    return rows.length;
+  } catch {
+    return 0;
+  }
+}
+
 // Reminders for announced visitors still waiting: 15 minutes before, 5 minutes before, and 10 minutes late (Sr. Ops Manager and Sr. Support Officer too).
 // Each reminder is claimed with one UPDATE, so it is sent once however many times this runs or who triggers it.
 export async function runVisitorReminders() {
-  const out = { five: 0, fifteen: 0, late: 0 };
+  const out = { five: 0, fifteen: 0, late: 0, noshow: 0 };
+  out.noshow = await autoNoShow();
   try {
     const cols = `e.id, e.office_id, e.name, e.company, e.host, to_char(e.due_at AT TIME ZONE '${TZ}', 'HH12:MI AM') AS at_label`;
     const five = await q(
