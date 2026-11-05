@@ -1,4 +1,5 @@
 import { Montserrat, Noto_Sans_Arabic } from 'next/font/google';
+import { cookies } from 'next/headers';
 import './globals.css';
 import { getLang } from '@/lib/lang';
 import Translator from '@/components/Translator';
@@ -17,8 +18,13 @@ export const viewport = { width: 'device-width', initialScale: 1, viewportFit: '
 
 export default async function RootLayout({ children }) {
   const lang = await getLang();
+  const saved = (await cookies()).get('pt_theme')?.value;
+  const mode = ['light', 'dark', 'auto'].includes(saved) ? saved : 'light';
   return (
-    <html lang={lang} dir={lang === 'ur' ? 'rtl' : 'ltr'}>
+    <html lang={lang} dir={lang === 'ur' ? 'rtl' : 'ltr'} data-theme={mode === 'dark' ? 'dark' : 'light'} suppressHydrationWarning>
+      <head>
+        {mode === 'auto' ? <script dangerouslySetInnerHTML={{ __html: "if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark'" }} /> : null}
+      </head>
       <body className={font.className + ' ' + urFont.variable}>
         {lang === 'ur' ? <Translator /> : null}
         {children}

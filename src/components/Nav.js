@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
+import ThemeToggle from './ThemeToggle';
 import { logout } from '@/lib/actions';
 import { ROLE_LABEL } from '@/lib/fmt';
 import Logo from './Logo';
@@ -10,7 +12,9 @@ import MobileMenu from './MobileMenu';
 import { PERMS, can } from '@/lib/perms';
 
 // Two-tier header. Row 1: AlphaBOLD logo, OpsTrack, account. Row 2: module switch and menu.
-export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approvals = 0, allowed = null }) {
+export default async function Nav({ user, unread = 0, lang = 'en', reviews = 0, approvals = 0, allowed = null }) {
+  const saved = (await cookies()).get('pt_theme')?.value;
+  const theme = ['light', 'dark', 'auto'].includes(saved) ? saved : 'light';
   const guard = user.role === 'guard';
   const access = PERMS.map(([k]) => k).filter((k) => can(user, k));
   const who = (
@@ -30,6 +34,7 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approv
         {guard ? null : <TopLinks role={user.role} approvals={approvals} allowed={allowed} tasks={can(user, 'tasks')} />}
         <div className='who'>
           <LangToggle lang={lang} />
+          <ThemeToggle initial={theme} />
           {guard ? null : <Bell initial={unread} />}
           {guard
             ? <span className='me'>{who}</span>

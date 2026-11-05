@@ -2,11 +2,15 @@ import { requireUser } from '@/lib/auth';
 import { updateProfile, changePassword } from '@/lib/actions';
 import { ROLE_LABEL } from '@/lib/fmt';
 import Flash from '@/components/Flash';
+import ThemeToggle from '@/components/ThemeToggle';
+import { cookies } from 'next/headers';
 
 export default async function ProfilePage({ searchParams }) {
   const user = await requireUser();
   const sp = await searchParams;
   const locked = user.role === 'sso';
+  const saved = (await cookies()).get('pt_theme')?.value;
+  const theme = ['light', 'dark', 'auto'].includes(saved) ? saved : 'light';
   return (
     <>
       <div className='head'>
@@ -27,6 +31,12 @@ export default async function ProfilePage({ searchParams }) {
           {locked ? null : <button className='btn primary' type='submit'>Save details</button>}
         </form>
         <p className='muted'>{locked ? 'Your name, email, role and office are managed by the Sr. Ops Manager.' : 'Role and office are managed by the Sr. Ops Manager.'}</p>
+      </div>
+
+      <div className='card'>
+        <h3>Theme</h3>
+        <p className='muted'>Pick how OpsTrack looks on this device. Auto follows your phone or computer.</p>
+        <ThemeToggle variant='pick' initial={theme} />
       </div>
 
       <div className='card'>

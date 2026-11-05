@@ -1525,3 +1525,77 @@ td.tk-done b,td.tk-none b{color:var(--mut);font-weight:600}
   body:has(.tier.glass .botbar){padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 }
 @media (prefers-reduced-motion:reduce){.tier.glass .tier-menu::before,.tier.glass .botbar::before,.tier.glass .botbar a,.tier.glass .botbar a svg,.tier.glass .tier-menu a{transition:none!important}}
+/* ---------- Dark theme: black with gold. Chosen per person with the theme button (cookie pt_theme). ---------- */
+html[data-theme=dark]{color-scheme:dark;--ink:#f3efe3;--text:#f3efe3;--slate:#d2cdbc;--mut:#a09d92;--line:#2c2c2a;--bg:#0a0a0a;--surface:#121211;--card:#151514;--gold-text:#e3ad21;--ok:#4ade80;--okbg:#0f2a1b;--warn:#f0b429;--warnbg:#2b220d;--bad:#f87171;--badbg:#321616;--info:#8fb0ff;--infobg:#151d36;--tint:rgba(227,173,33,.16);--tint2:rgba(227,173,33,.07)}
+html[data-theme=dark] body{background:var(--bg);color:var(--text)}
+html[data-theme=dark] input,html[data-theme=dark] select,html[data-theme=dark] textarea{background:#1b1b1a;border-color:#3a3a37;color:var(--text)}
+html[data-theme=dark] input::placeholder,html[data-theme=dark] textarea::placeholder{color:#7c7a72}
+html[data-theme=dark] input:disabled{background:#141413;color:#8a877c}
+html[data-theme=dark] .btn{background:#1b1b1a;border-color:#3a3a37;color:var(--ink)}
+html[data-theme=dark] .btn:hover{border-color:var(--gold)}
+html[data-theme=dark] .btn.primary{background:var(--gold);border-color:var(--gold);color:#000}
+html[data-theme=dark] .btn.ghost{background:transparent}
+html[data-theme=dark] .btn.ok{background:var(--okbg);border-color:var(--okbg);color:var(--ok)}
+html[data-theme=dark] .btn.bad{background:var(--badbg);border-color:var(--badbg);color:var(--bad)}
+html[data-theme=dark] .nav,html[data-theme=dark] .tier{background:#0f0f0e}
+html[data-theme=dark] .modseg,html[data-theme=dark] .qseg,html[data-theme=dark] .qseg button,html[data-theme=dark] .dbtn,html[data-theme=dark] .multi details>summary,html[data-theme=dark] .toplinks-m a,html[data-theme=dark] .subrow,html[data-theme=dark] .att-sheet,html[data-theme=dark] .tp-time,html[data-theme=dark] .tp-ap button,html[data-theme=dark] .att-mic,html[data-theme=dark] .qr{background:#161615;border-color:#34342f;color:var(--ink)}
+html[data-theme=dark] .att-sheet-head,html[data-theme=dark] .tp-chips button{background:#1a1a19;color:var(--ink)}
+html[data-theme=dark] .modpop,html[data-theme=dark] .mmenu-panel,html[data-theme=dark] .att-list,html[data-theme=dark] .multi-list,html[data-theme=dark] .dpop,html[data-theme=dark] .deptgrid,html[data-theme=dark] .modalbox{background:#181817;border-color:#34342f;color:var(--ink)}
+html[data-theme=dark] .att-list button:hover,html[data-theme=dark] .att-list button:focus,html[data-theme=dark] .att-sheet-list button:active{background:var(--tint)}
+html[data-theme=dark] .tier-menu a.on,html[data-theme=dark] .modseg > .modwrap > .modpop > a.on,html[data-theme=dark] .subrow a.on,html[data-theme=dark] .tier-menu .grppop a.on,html[data-theme=dark] .chip.on{background:var(--tint);color:var(--gold);border-color:var(--gold)}
+html[data-theme=dark] .chip{background:#161615}
+html[data-theme=dark] .chip.on{color:#000;background:var(--gold)}
+html[data-theme=dark] .modseg .modwrap > a.on[aria-haspopup]::after{border-color:var(--gold)}
+html[data-theme=dark] .toast,html[data-theme=dark] .badge.sent,html[data-theme=dark] .step .n,html[data-theme=dark] .module-badge.attend{background:#2a2a27;color:var(--ink)}
+html[data-theme=dark] .impbar{background:#241f0d;color:var(--gold)}
+html[data-theme=dark] .badge.draft{background:#262624;color:#b4b1a5}
+html[data-theme=dark] tr{background:#151514}
+html[data-theme=dark] .tablewrap table tbody tr:nth-child(even) td,html[data-theme=dark] .tablewrap table tbody tr:nth-child(even),html[data-theme=dark] .adjpos tbody tr:nth-child(even) td,html[data-theme=dark] .adjpos tbody tr:nth-child(even),html[data-theme=dark] .log-tbl tbody tr:nth-child(even) td.act,html[data-theme=dark] .impwait td,html[data-theme=dark] .adjnote,html[data-theme=dark] .splitprev,html[data-theme=dark] .tablewrap .er-grid .er-main td,html[data-theme=dark] .tablewrap .er-grid tr.er-main{background:var(--tint2)}
+html[data-theme=dark] .tablewrap table tfoot td,html[data-theme=dark] .tablewrap table tfoot tr,html[data-theme=dark] .adjpos tfoot td,html[data-theme=dark] .adjpos tfoot tr,html[data-theme=dark] .adjcard.tot,html[data-theme=dark] table.tiles tfoot tr,html[data-theme=dark] .er-grid .er-grand td,html[data-theme=dark] .tablewrap .er-grid tr.er-grand,html[data-theme=dark] .attn,html[data-theme=dark] .pushbar,html[data-theme=dark] .hostchip,html[data-theme=dark] .dtag,html[data-theme=dark] .recovery,html[data-theme=dark] .guide-you,html[data-theme=dark] .implong,html[data-theme=dark] .v-today-box,html[data-theme=dark] .v-today-box tr,html[data-theme=dark] .impeditrow td{background:var(--tint);border-color:rgba(227,173,33,.4);color:var(--ink)}
+html[data-theme=dark] .adjcard,html[data-theme=dark] table.tiles tfoot td,html[data-theme=dark] .adjcard.tot .adjtile,html[data-theme=dark] .tablewrap table.tiles tbody tr:nth-child(even) td,html[data-theme=dark] .tablewrap table.tiles tfoot td,html[data-theme=dark] .tablewrap table.shift tbody tr:nth-child(even) td.c-tile,html[data-theme=dark] .v-today-box table.tx tbody tr{background:#151514}
+html[data-theme=dark] .tx tbody tr:hover{background-color:rgba(227,173,33,.09)}
+html[data-theme=dark] .impdone td,html[data-theme=dark] .justdone td{background:#10261a}
+html[data-theme=dark] .split{background:#1a1913;color:#9c988a}
+html[data-theme=dark] .kpi .split b,html[data-theme=dark] .fund .split b,html[data-theme=dark] .split b{color:#a8a396}
+html[data-theme=dark] .tag.ok,html[data-theme=dark] .fuelcard .fbal.ok{background:#0f2a1b;color:#4ade80}
+html[data-theme=dark] .tag.open,html[data-theme=dark] .pri-medium{background:var(--tint);color:var(--gold)}
+html[data-theme=dark] .pri-urgent,html[data-theme=dark] .fuelcard .fbal.bad{background:#3a1616;color:#f87171}
+html[data-theme=dark] .pri-high{background:#3a2410;color:#fb923c}
+html[data-theme=dark] .pri-low{background:#252523;color:#b4b1a5}
+html[data-theme=dark] .stepper .st.now .dot{box-shadow:0 0 0 4px var(--tint)}
+html[data-theme=dark] .ea{background:var(--tint);color:var(--ink)}
+html[data-theme=dark] .ea-five{background:var(--gold);color:#000}
+html[data-theme=dark] .tp-time input:focus{background:var(--tint)}
+html[data-theme=dark] .welcome{background:#0a0a0a}
+html[data-theme=dark] .welcome-brand,html[data-theme=dark] .welcome-hi{color:var(--ink)}
+html[data-theme=dark] .splash-bar{background:#2a2a27}
+html[data-theme=dark] .skel-bar{background:linear-gradient(90deg,#1b1b1a 25%,#262624 50%,#1b1b1a 75%);background-size:200% 100%}
+html[data-theme=dark] .an-bar,html[data-theme=dark] .opdbar{background:#262624}
+html[data-theme=dark] table.rost .we{background:#1b1b1a}
+html[data-theme=dark] table.rost td.hol,html[data-theme=dark] table.rost th.hol,html[data-theme=dark] .hollegend{background:#17212c}
+html[data-theme=dark] .ob-body,html[data-theme=dark] .ob-panel{background:#151514}
+html[data-theme=dark] .ob-bub{background:#232321;color:var(--ink)}
+html[data-theme=dark] .ob-who{color:var(--ink)}
+html[data-theme=dark] .tier.glass{background:rgba(14,14,13,.72)}
+html[data-theme=dark] .tier.glass .modseg{background:rgba(30,30,28,.7);border-color:rgba(255,255,255,.12)}
+html[data-theme=dark] .tier.glass .botbar{background:rgba(24,24,22,.78);border-color:rgba(255,255,255,.12)}
+html[data-theme=dark] .tier-menu a,html[data-theme=dark] .botbar a{color:#b9b5a8}
+html[data-theme=dark] .botbar{background:#121211}
+html[data-theme=dark] .tier.glass .tier-menu a.on,html[data-theme=dark] .tier.glass .tier-menu .grptab.on,html[data-theme=dark] .tier.glass .botbar a.on{color:#1a1a1a}
+html[data-theme=dark] .tier.glass .botbar a.on svg{stroke:#1a1a1a}
+html[data-theme=dark] .brand-name{color:#cfcabb}
+html[data-theme=dark] .brand-name em{color:var(--gold)}
+html[data-theme=dark] .modal,html[data-theme=dark] .modalbox{box-shadow:0 12px 40px rgba(0,0,0,.6)}
+
+.themebtn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--slate);cursor:pointer;flex:none}
+.themebtn:hover{border-color:var(--gold);color:var(--gold-d)}
+.themebtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.themepick{display:flex;gap:10px;flex-wrap:wrap}
+.themepick button{display:flex;align-items:center;gap:10px;padding:10px 16px;border:2px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
+.themepick button[aria-pressed=true]{border-color:var(--gold)}
+.themepick i{display:inline-block;width:26px;height:26px;border-radius:50%;border:1px solid #888}
+.themepick i.l{background:#fff linear-gradient(135deg,#fff 55%,#e3ad21 55%)}
+.themepick i.d{background:#0a0a0a linear-gradient(135deg,#0a0a0a 55%,#e3ad21 55%)}
+.themepick i.a{background:linear-gradient(90deg,#fff 50%,#0a0a0a 50%)}
+html[data-theme=dark] .logo-ink{fill:#f3efe3}
+html[data-theme=dark] .tablewrap table tbody tr:nth-child(even) td,html[data-theme=dark] .adjpos tbody tr:nth-child(even) td,html[data-theme=dark] .tablewrap .er-grid .er-main td{background:transparent}
