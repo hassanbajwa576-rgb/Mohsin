@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import './globals.css';
 import { getLang } from '@/lib/lang';
 import Translator from '@/components/Translator';
+import AutoCaps from '@/components/AutoCaps';
 
 const font = Montserrat({ subsets: ['latin'], weight: ['400', '500', '600', '700'], display: 'swap' });
 const urFont = Noto_Sans_Arabic({ subsets: ['arabic'], variable: '--font-ur', display: 'swap', preload: false });
@@ -28,6 +29,7 @@ export default async function RootLayout({ children }) {
       </head>
       <body className={font.className + ' ' + urFont.variable}>
         {lang === 'ur' ? <Translator /> : null}
+        <AutoCaps />
         {children}
       </body>
     </html>
