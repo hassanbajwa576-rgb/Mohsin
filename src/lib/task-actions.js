@@ -8,6 +8,8 @@ import { notifyUser } from './notify';
 import { PRIORITY, DOMAIN, REPEAT, taskPeople } from './tasks';
 import { todayKey } from './att';
 import { FIXED_KINDS, fixedOnOrAfter, fixedNext } from './task-repeat';
+import { runRoutines } from './task-rules';
+import { daysText } from './weekdays';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const badDate = (d) => d.length !== 10 || Number.isNaN(Date.parse(d));
@@ -86,6 +88,14 @@ export async function addTask(fd) {
   const { u, people } = await need();
   const t = await read(fd);
   const owner = ownerOf(u, people, fd);
+  // Days ticked under Routine: a rule that creates this task again on those weekdays, instead of one single task.
+  const days = [...new Set(fd.getAll('routine_days').map(String).filter((d) => /^[1-7]$/.test(d)))].sort();
+  if (days.length) {
+    await q('INSERT INTO pc2_task_rules (user_id, created_by, title, details, priority, domain, weekdays) VALUES ($1,$2,$3,$4,$5,$6,$7)', [owner, u.id, t.title, t.details, t.priority, t.domain, days.join(',')]);
+    await runRoutines(true);
+    if (owner !== u.id) await notifyUser(owner, u.name + ' set a routine for you: ' + t.title + ' (' + daysText(days.join(',')) + ')', '/tasks');
+    back(fd, 'Routine added: ' + t.title + ' - ' + daysText(days.join(',')), true);
+  }
   await q('INSERT INTO pc2_tasks (user_id, created_by, title, details, due_on, priority, domain, repeat_every) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', [owner, u.id, t.title, t.details, t.due, t.priority, t.domain, t.repeat]);
   if (owner !== u.id) await notifyUser(owner, u.name + ' gave you a task: ' + t.title + (t.due ? ' (due ' + t.due + ')' : ''), '/tasks');
   const who = owner === u.id ? '' : people.find((p) => p.id === owner).name + ' - ';
@@ -134,4 +144,20 @@ export async function deleteTask(fd) {
   const id = Number(s(fd, 'id'));
   await q('DELETE FROM pc2_tasks WHERE id = $1 AND (created_by = $2 OR ($3 AND user_id = ANY($4::int[])))', [id, u.id, u.role === 'om', mine]);
   back(fd, 'Task removed', true);
+}
+
+// Pause or resume a routine (for yourself or the people you manage).
+export async function toggleRule(fd) {
+  const { mine } = await need();
+  const id = Number(s(fd, 'id'));
+  await q('UPDATE pc2_task_rules SET active = NOT active WHERE id = $1 AND user_id = ANY($2::int[])', [id, mine]);
+  back(fd, 'Routine updated', true);
+}
+
+// The person who set a routine up can remove it; the Sr. Ops Manager can remove any he can see.
+export async function deleteRule(fd) {
+  const { u, mine } = await need();
+  const id = Number(s(fd, 'id'));
+  await q('DELETE FROM pc2_task_rules WHERE id = $1 AND (created_by = $2 OR ($3 AND user_id = ANY($4::int[])))', [id, u.id, u.role === 'om', mine]);
+  back(fd, 'Routine removed', true);
 }

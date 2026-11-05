@@ -1,7 +1,7 @@
 import { q } from './db';
 
 export const PRIORITY = { high: 'High', medium: 'Medium', low: 'Low' };
-export const SOURCE = { manual: 'Added here', outlook: 'Outlook', email: 'Email' };
+export const SOURCE = { manual: 'Added here', outlook: 'Outlook', email: 'Email', routine: 'a routine' };
 
 export { DOMAINS, DOMAIN, DOMAIN_ORDER } from './task-domains';
 
@@ -93,4 +93,9 @@ export function dueLabel(t, today) {
   if (n === 0) return { text: 'Today', cls: 'tk-today' };
   if (n === 1) return { text: 'Tomorrow', cls: '' };
   return { text: niceDate(t.due_on), cls: '' };
+}
+
+// Routines (tasks that appear again on chosen weekdays) for the given people.
+export async function routineRows(ids) {
+  return q(`SELECT r.id, r.title, r.weekdays, r.active, r.priority, r.domain, r.user_id, r.created_by, ou.name AS owner_name FROM pc2_task_rules r JOIN pc2_users ou ON ou.id = r.user_id WHERE r.user_id = ANY($1::int[]) ORDER BY r.active DESC, r.id`, [ids]);
 }

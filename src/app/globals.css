@@ -1712,3 +1712,8 @@ table.tx td.c-title{position:relative}
   table.tx tbody tr.tk-u-high{border-left:4px solid #98a2b3}
   .tk-u-late td.c-title,.tk-u-now td.c-title,.tk-u-soon td.c-title,.tk-u-high td.c-title{box-shadow:none}
 }
+.tkdays{border:1px solid var(--line);border-radius:6px;padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.tkdays legend{font-size:13px;font-weight:600;padding:0 6px}
+.tkdays small{flex:1 1 100%}
+.daychk{display:inline-flex!important;flex-direction:row!important;align-items:center;gap:6px;font-weight:500}
+.daychk input{width:auto!important}

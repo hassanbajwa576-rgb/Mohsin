@@ -159,6 +159,10 @@ const DDL = [
   // Repeating tasks (daily / weekly / monthly) and the day a reminder was last sent for a task.
   `ALTER TABLE pc2_tasks ADD COLUMN IF NOT EXISTS repeat_every TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE pc2_tasks ADD COLUMN IF NOT EXISTS last_reminded_on DATE`,
+  // Routines: a task that is created again on chosen weekdays (1 = Monday ... 7 = Sunday), for whoever it is set for.
+  `CREATE TABLE IF NOT EXISTS pc2_task_rules (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES pc2_users(id), created_by INTEGER, title TEXT NOT NULL, details TEXT NOT NULL DEFAULT '', priority TEXT NOT NULL DEFAULT 'medium', domain TEXT NOT NULL DEFAULT 'operations', weekdays TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE, last_made_on DATE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  // Reminders: a nudge on a schedule (once, every day, chosen weekdays, the 15th, last working day). Separate from tasks.
+  `CREATE TABLE IF NOT EXISTS pc2_reminders (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES pc2_users(id), created_by INTEGER, title TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL DEFAULT 'once', on_date DATE, weekdays TEXT NOT NULL DEFAULT '', hour INTEGER NOT NULL DEFAULT 9, active BOOLEAN NOT NULL DEFAULT TRUE, last_sent_on DATE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS pc2_tasks_user_idx ON pc2_tasks (user_id, status)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS pc2_tasks_source_idx ON pc2_tasks (user_id, source, source_ref) WHERE source_ref <> ''`,
   // The Sr. SO and the guards get the Guard Duty page even when their pages were picked by hand before it existed.
@@ -174,7 +178,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-05-4';
+const SCHEMA_VERSION = '2026-11-05-5';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { PRIORITY, DOMAINS, REPEAT } from '@/lib/tasks';
+import { WEEKDAYS } from '@/lib/weekdays';
 
 // Add or edit one task. The same form is used for both. view/show/who remember what the list was showing.
 // people: who the task can be given to besides the person using the form (empty when nobody).
@@ -30,6 +31,13 @@ export default function TaskForm({ action, task, view = '', show = '', who = '',
       <label>Repeat
         <select name='repeat_every' defaultValue={t.repeat_every || ''}>{Object.entries(REPEAT).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
       </label>
+      {task ? null : (
+        <fieldset className='wide tkdays'>
+          <legend>Routine: make this task appear again on these days</legend>
+          {WEEKDAYS.map(([k, l]) => <label key={k} className='daychk'><input type='checkbox' name='routine_days' value={k} />{l}</label>)}
+          <small className='muted'>Leave empty for a normal task. Ticked days create the task each of those days for the person chosen above.</small>
+        </fieldset>
+      )}
       {task ? (
         <label>Status
           <select name='status' defaultValue={t.status || 'open'}><option value='open'>Open</option><option value='done'>Done</option></select>

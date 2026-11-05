@@ -3,12 +3,15 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { todayKey } from '@/lib/att';
-import { taskPeople, taskRows, attentionRows, domainCounts, peopleCounts, daysFrom, DOMAIN } from '@/lib/tasks';
-import { addTask } from '@/lib/task-actions';
+import { routineRows, taskPeople, taskRows, attentionRows, domainCounts, peopleCounts, daysFrom, DOMAIN } from '@/lib/tasks';
+import { addTask, toggleRule, deleteRule } from '@/lib/task-actions';
+import { runRoutines } from '@/lib/task-rules';
+import { daysText } from '@/lib/weekdays';
 import TaskForm from '@/components/TaskForm';
 import TaskTable from '@/components/TaskTable';
 import TaskAddPanel from '@/components/TaskAddPanel';
 import Flash from '@/components/Flash';
+import ConfirmButton from '@/components/ConfirmButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,14 +38,16 @@ export default async function TasksPage({ searchParams }) {
   const domain = DOMAIN[sp.domain] ? sp.domain : '';
   const show = ['done', 'all'].includes(sp.show) ? sp.show : 'open';
   const today = todayKey();
+  await runRoutines(); // routine tasks for today, if they have not been made yet
   // One of the summary boxes was clicked: only those tasks are listed.
   const fil = ['today', 'overdue', 'high'].includes(sp.f) ? sp.f : '';
   const FIL = { today: 'Due today', overdue: 'Overdue', high: 'High priority' };
-  const [rows, soon, counts, perPerson] = await Promise.all([
+  const [rows, soon, counts, perPerson, routines] = await Promise.all([
     taskRows(ids, fil ? 'open' : show, domain, fil, today),
     attentionRows(ids, today),
     domainCounts(ids, today),
     people.length ? peopleCounts(everyone, today) : Promise.resolve({}),
+    routineRows(ids),
   ]);
   const keep = show === 'open' ? '' : show;
   const link = (w, d, s, f) => {
@@ -102,7 +107,36 @@ export default async function TasksPage({ searchParams }) {
             {fil ? <div className='chips' style={{ marginBottom: 10 }}><Link className='chip' href={link(who, domain, '', '')}>Show all open tasks</Link></div> : <div className='chips' style={{ marginBottom: 10 }}>{chip('open', 'Open')}{chip('done', 'Done')}{chip('all', 'All')}</div>}
             {rows.length ? <TaskTable rows={rows} {...tableProps} /> : <p className='muted'>{show === 'done' ? 'No finished tasks here yet.' : 'Nothing pending here. Use Add a task at the top.'}</p>}
           </div>
-        </div>
+          {routines.length ? (
+            <div className='card'>
+              <h3 style={{ marginTop: 0 }}>Routines</h3>
+              <p className='muted' style={{ marginTop: 0 }}>These create a fresh task on the days shown. Pause one to stop it for a while.</p>
+              <div className='tablewrap'>
+                <table className='tx'>
+                  <tbody>
+                    {routines.map((r) => (
+                      <tr key={r.id} className={r.active ? '' : 'tk-row-done'}>
+                        <td className='c-title'><b>{r.title}</b>{r.user_id !== user.id ? <span className='tk-own'>For {short(r.owner_name)}</span> : null}{r.active ? null : <span className='tk-own'>Paused</span>}</td>
+                        <td className='c-meta'>Every {daysText(r.weekdays)}</td>
+                        <td className='act tk-act'>
+                          <form action={toggleRule} className='inline'>
+                            <input type='hidden' name='id' value={r.id} /><input type='hidden' name='view_who' value={who} /><input type='hidden' name='view_domain' value={domain} />
+                            <button className='btn' type='submit'>{r.active ? 'Pause' : 'Resume'}</button>
+                          </form>
+                          {canRemove(r) ? (
+                            <form action={deleteRule} className='inline'>
+                              <input type='hidden' name='id' value={r.id} /><input type='hidden' name='view_who' value={who} /><input type='hidden' name='view_domain' value={domain} />
+                              <ConfirmButton className='btn ghost' message='Remove this routine? Tasks it already made stay.'>Remove</ConfirmButton>
+                            </form>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}        </div>
       </div>
     </>
   );
