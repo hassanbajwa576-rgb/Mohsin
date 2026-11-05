@@ -27,14 +27,14 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approv
           <span className='sep' />
           <span className='brand-name' translate='no'>Ops<em>Track</em></span>
         </Link>
-        {guard ? null : <TopLinks role={user.role} approvals={approvals} allowed={allowed} />}
+        {guard ? null : <TopLinks role={user.role} approvals={approvals} allowed={allowed} tasks={can(user, 'tasks')} />}
         <div className='who'>
           <LangToggle lang={lang} />
           {guard ? null : <Bell initial={unread} />}
           {guard
             ? <span className='me'>{who}</span>
             : <Link href='/profile' className='me' title='My profile'>{who}</Link>}
-          {guard ? null : <MobileMenu role={user.role} approvals={approvals} allowed={allowed} />}
+          {guard ? null : <MobileMenu role={user.role} approvals={approvals} allowed={allowed} tasks={can(user, 'tasks')} />}
           <form action={logout}><button className='btn ghost' type='submit'>Sign out</button></form>
         </div>
       </div>

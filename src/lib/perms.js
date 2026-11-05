@@ -11,6 +11,7 @@ export const PERMS = [
   ['vis_log', 'Visitor log and Excel download', 'See all visitors, filter them and download the visitor log (everyone can check visitors in and out).'],
   ['att_reconcile', 'Reconciliation', 'Run the check for long shifts, missing check outs and entries that do not fit, and mark them reviewed.'],
   ['guard_duty', 'Guard duty log', 'Record temporary guards (name, mobile, CNIC, card number, who they replace, duty dates, pictures) and see the guard duty list.'],
+  ['tasks', 'My Tasks page', 'A private page to record important tasks with due dates and priority. Each person sees only their own tasks.'],
 ];
 
 // Money and approval actions. Only the Sr. Ops Manager can do these by default; a role can be given any of them.
@@ -49,6 +50,7 @@ export const PERM_SHORT = {
   att_reconcile: 'reconciliation',
   vis_log: 'visitor log',
   guard_duty: 'guard duty',
+  tasks: 'my tasks',
   fuel_use: 'fuel cards',
   roster_edit: 'Support roster',
   exp_approve: 'approve expenses',

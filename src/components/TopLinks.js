@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation';
 
 // Manager links in the top bar (wide screens): Approvals (with its count), Team, Audit log and Guide.
 // Phones keep the same links on the strip under the header.
-export default function TopLinks({ role, approvals = 0, allowed = null }) {
+export default function TopLinks({ role, approvals = 0, allowed = null, tasks = false }) {
   const path = usePathname() || '/';
   const on = (href) => path === href || path.indexOf(href + '/') === 0;
   const items = [];
   if (role === 'om') items.push(['/exprev', 'ExpRev'], ['/approvals', 'Approvals'], ['/team', 'Team'], ['/roles', 'Roles'], ['/logs', 'Audit log']);
+  if (tasks) items.push(['/tasks', 'Tasks']);
   items.push(['/guide', 'Guide']);
   const shown = allowed ? items.filter(([href]) => allowed.includes(href)) : items;
   return (

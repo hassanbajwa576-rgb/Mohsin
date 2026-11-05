@@ -5,7 +5,7 @@ export const PAGE_GROUPS = [
   { key: 'fuel', label: 'Fuel', pages: [['/fuel', 'Fuel Entry'], ['/fuel/log', 'Fuel Log'], ['/fuel/setup', 'Setup']] },
   { key: 'support', label: 'Support', pages: [['/support', 'Dashboard'], ['/support/new', 'Record Complaint'], ['/support/list', 'All Complaints'], ['/support/people', 'By Person']] },
   { key: 'exprev', label: 'ExpRev', pages: [['/exprev', 'Dashboard'], ['/exprev/entries', 'Expenditures'], ['/exprev/budget', 'Budget vs Actual'], ['/exprev/analysis', 'Analysis'], ['/exprev/import', 'Import']] },
-  { key: 'general', label: 'Manager pages', pages: [['/approvals', 'Approvals'], ['/team', 'Team'], ['/logs', 'Audit log'], ['/guide', 'Guide']] },
+  { key: 'general', label: 'Manager pages', pages: [['/approvals', 'Approvals'], ['/team', 'Team'], ['/logs', 'Audit log'], ['/tasks', 'Tasks'], ['/guide', 'Guide']] },
 ];
 export const ALL_PAGES = PAGE_GROUPS.flatMap((g) => g.pages.map(([h]) => h));
 
@@ -21,6 +21,7 @@ export const PAGE_NEEDS = {
   '/attendance/reconcile': 'att_reconcile',
   '/visitors/log': 'vis_log',
   '/visitors/guards': 'guard_duty',
+  '/tasks': 'tasks',
   '/fuel': 'fuel_use',
   '/fuel/log': 'fuel_use',
   '/fuel/setup': 'fuel_use',
@@ -46,6 +47,7 @@ export function defaultPages(role, perms = [], rolePerms = {}) {
   L.push('/visitors');
   if (can('vis_log')) L.push('/visitors/log');
   if (can('guard_duty')) L.push('/visitors/guards');
+  if (can('tasks')) L.push('/tasks');
   if (can('fuel_use')) {
     L.push('/fuel', '/fuel/log');
     if (om) L.push('/fuel/setup');
