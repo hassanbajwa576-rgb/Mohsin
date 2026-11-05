@@ -1599,3 +1599,22 @@ html[data-theme=dark] .modal,html[data-theme=dark] .modalbox{box-shadow:0 12px 4
 .themepick i.a{background:linear-gradient(90deg,#fff 50%,#0a0a0a 50%)}
 html[data-theme=dark] .logo-ink{fill:#f3efe3}
 html[data-theme=dark] .tablewrap table tbody tr:nth-child(even) td,html[data-theme=dark] .adjpos tbody tr:nth-child(even) td,html[data-theme=dark] .tablewrap .er-grid .er-main td{background:transparent}
+html[data-theme=dark] .tkdom,html[data-theme=dark] .glist li,html[data-theme=dark] .gmenu{background:#161615;color:var(--ink);border-color:#34342f}
+html[data-theme=dark] .tkdom.on{background:var(--tint);border-color:var(--gold)}
+html[data-theme=dark] .tkdom b,html[data-theme=dark] .tkdom span{color:var(--ink)}
+html[data-theme=dark] .tkdom span,html[data-theme=dark] .tkdom small{color:var(--mut)}
+html[data-theme=dark] .tkdom .tk-late,html[data-theme=dark] .tk-late{color:#f87171}
+html[data-theme=dark] .tk-pri{background:#262624;color:#b4b1a5}
+html[data-theme=dark] .tk-pri.tk-high{background:#3a1616;color:#f87171}
+html[data-theme=dark] .tk-pri.tk-medium{background:var(--tint);color:var(--gold)}
+html[data-theme=dark] .tk-pri.tk-low{background:#0f2a1b;color:#4ade80}
+html[data-theme=dark] .tablewrap table.tx tbody tr:nth-child(n) td.c-amt.tk-over{background:#3a1616;color:#f87171}
+html[data-theme=dark] .tablewrap table.tx tbody tr:nth-child(n) td.c-amt.tk-today{background:var(--gold);color:#000}
+html[data-theme=dark] .tablewrap table.tx tbody tr:nth-child(n) td.c-amt.tk-done,html[data-theme=dark] .tablewrap table.tx tbody tr:nth-child(n) td.c-amt.tk-none{background:#262624;color:#b4b1a5}
+html[data-theme=dark] .tk-dom{background:#16243a;color:#8fb0ff}
+html[data-theme=dark] .tk-chipn{background:#262624;color:#b4b1a5}
+html[data-theme=dark] .tk-chipn.late{background:#3a1616;color:#f87171}
+html[data-theme=dark] .chip.on .tk-chipn{background:#000;color:var(--gold)}
+html[data-theme=dark] .tk-own{background:#272038;color:#c4b5fd}
+html[data-theme=dark] .tk-own.tk-from{background:#10291f;color:#6ee7b7}
+html[data-theme=dark] .ob-chips button{background:#1b1b1a;color:var(--gold)}
