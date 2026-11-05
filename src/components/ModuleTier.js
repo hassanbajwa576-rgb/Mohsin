@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DOMAIN, DOMAIN_ORDER } from '@/lib/task-domains';
 
 // One module in the switch. Resting the mouse on it (or tabbing to it) drops its pages down;
@@ -34,13 +34,46 @@ function Group({ label, items, on, badge, open, toggle }) {
   );
 }
 
+// Glass look (switched on for the Sr. Ops Manager only): a gold pill glides under the page you are on.
+// It measures the active link and hands its position to the CSS as variables, so the move is animated by CSS.
+function useSlide(ref, active, deps) {
+  useLayoutEffect(() => {
+    if (!active) return undefined;
+    const place = () => {
+      const el = ref.current;
+      if (!el) return;
+      const t = el.querySelector('a.on, button.on');
+      if (!t) {
+        el.style.setProperty('--sw', '0px');
+        return;
+      }
+      const a = el.getBoundingClientRect();
+      const b = t.getBoundingClientRect();
+      el.style.setProperty('--sx', b.left - a.left + 'px');
+      el.style.setProperty('--sy', b.top - a.top + 'px');
+      el.style.setProperty('--sw', b.width + 'px');
+      el.style.setProperty('--sh', b.height + 'px');
+    };
+    place();
+    const id = setTimeout(place, 80);
+    window.addEventListener('resize', place);
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener('resize', place);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+}
+
 // On the Tasks page the row shows the task areas (HR, Accounts, BOLDBus...) in place of the Petty pages.
-function TaskTabs() {
+function TaskTabs({ glass }) {
   const dom = useSearchParams().get('domain') || '';
   const path = usePathname() || '';
+  const ref = useRef(null);
+  useSlide(ref, glass, [glass, dom, path]);
   const items = [['', 'All'], ...DOMAIN_ORDER.map((k) => [k, DOMAIN[k]])];
   return (
-    <nav className='tier-menu'>
+    <nav className='tier-menu' ref={ref}>
       {items.map(([k, label]) => (
         <Link key={k || 'all'} href={k ? '/tasks?domain=' + k : '/tasks'} className={path === '/tasks' && dom === k ? 'on' : ''}>{label}</Link>
       ))}
@@ -49,10 +82,14 @@ function TaskTabs() {
 }
 
 // Second header row: the PettyTrack / AttendTrack / VisitTrack switch and the pages of the module you are in.
-export default function ModuleTier({ role, access = [], reviews = 0, approvals = 0, allowed = null }) {
+export default function ModuleTier({ role, access = [], reviews = 0, approvals = 0, allowed = null, glass = false }) {
   const path = usePathname() || '/';
   const [open, setOpen] = useState('');
   const bar = useRef(null);
+  const menuRef = useRef(null);
+  const botRef = useRef(null);
+  useSlide(menuRef, glass, [glass, path, open]);
+  useSlide(botRef, glass, [glass, path]);
   // The open group closes when the page changes or when you tap anywhere else.
   useEffect(() => setOpen(''), [path]);
   useEffect(() => {
@@ -145,7 +182,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   if (om && erK.length) bots.push({ href: '/exprev', label: 'ExpRev', active: exr, d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' });
 
   return (
-    <div className={'tier' + (om || sso ? ' tier-om' : '')} ref={bar}>
+    <div className={'tier' + (om || sso ? ' tier-om' : '') + (glass ? ' glass' : '')} ref={bar}>
       <div className='tier-in'>
         {tasksPg ? null : <span className='modseg' translate='no'>
           {guard || !pettyK.length ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup && !exr && !tasksPg} items={pettyK} on={on} />}
@@ -156,8 +193,8 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
         </span>}
         {tasksPg ? null : <span className='tier-sep' />}
         <div className='tier-scroll'>
-        {tasksPg ? <Suspense fallback={null}><TaskTabs /></Suspense> : (
-        <nav className='tier-menu'>
+        {tasksPg ? <Suspense fallback={null}><TaskTabs glass={glass} /></Suspense> : (
+        <nav className='tier-menu' ref={menuRef}>
           {menu.map((m) => (m.items
             ? <Group key={m.label} label={m.label} items={m.items} on={on} badge={m.badge} open={open === m.label} toggle={toggle} />
             : <Link key={m.href} href={m.href} className={(on(m.href) ? 'on' : '') + (m.href === '/exprev/import' ? ' hide-m' : '')}>{m.label}{m.badge}</Link>))}
@@ -177,7 +214,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
         </nav>
       ) : null}
       {om || sso ? (
-        <nav className='botbar' aria-label='Modules' translate='no'>
+        <nav className='botbar' aria-label='Modules' translate='no' ref={botRef}>
           {bots.map((b) => (
             <Link key={b.href} href={b.href} className={b.active ? 'on' : ''}>
               <svg {...ic}><path d={b.d} /></svg>

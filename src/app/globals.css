@@ -1501,3 +1501,27 @@ td.tk-done b,td.tk-none b{color:var(--mut);font-weight:600}
 .chip.on .tk-chipn{background:#fff}
 .tk-own{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;background:#e8e2f6;color:#4a3a7a;font-size:12px;font-weight:700;vertical-align:middle}
 .tk-own.tk-from{background:#dff0ea;color:#1e5c4a}
+
+/* Glass navigation (Sr. Ops Manager only for now). A gold pill glides under the page you are on; JS only sets --sx --sy --sw --sh. */
+.tier.glass{background:rgba(250,250,248,.7);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%)}
+.tier.glass .tier-menu{position:relative}
+.tier.glass .tier-menu::before{content:'';position:absolute;left:0;top:calc(var(--sy,0px) + 7px);width:var(--sw,0px);height:calc(var(--sh,0px) - 14px);transform:translateX(var(--sx,0px));border-radius:12px;background:var(--gold);box-shadow:0 4px 14px rgba(227,172,32,.35);pointer-events:none;transition:transform .5s cubic-bezier(.34,1.4,.64,1),width .5s cubic-bezier(.34,1.4,.64,1),height .5s cubic-bezier(.34,1.4,.64,1),top .5s cubic-bezier(.34,1.4,.64,1)}
+.tier.glass .tier-menu.admin::before{display:none}
+.tier.glass .tier-menu a,.tier.glass .tier-menu .grptab{position:relative;z-index:1;border-bottom-color:transparent!important;background:none!important;border-radius:12px;transition:color .3s ease,transform .4s cubic-bezier(.34,1.56,.64,1)}
+.tier.glass .tier-menu a:active,.tier.glass .tier-menu .grptab:active{transform:scale(.94)}
+.tier.glass .tier-menu a.on,.tier.glass .tier-menu .grptab.on{color:#2c3138}
+.tier.glass .modseg{background:rgba(255,255,255,.6);border-color:rgba(255,255,255,.8);border-radius:14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.tier.glass .modseg > .modwrap > a{border-radius:12px!important}
+@media (max-width:700px){
+  .tier.glass .botbar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:6px 4px;border:1px solid rgba(255,255,255,.85);border-radius:26px;background:rgba(255,255,255,.62);backdrop-filter:blur(16px) saturate(170%);-webkit-backdrop-filter:blur(16px) saturate(170%);box-shadow:0 10px 30px rgba(0,0,0,.14)}
+  .tier.glass .botbar::before{content:'';position:absolute;left:0;top:calc(var(--sy,0px) + 1px);width:var(--sw,0px);height:calc(var(--sh,0px) - 2px);transform:translateX(var(--sx,0px));border-radius:20px;background:var(--gold);box-shadow:0 6px 18px rgba(227,172,32,.45);pointer-events:none;transition:transform .55s cubic-bezier(.34,1.56,.64,1),width .55s cubic-bezier(.34,1.56,.64,1)}
+  .tier.glass .botbar a{position:relative;z-index:1;border-radius:20px;transition:transform .4s cubic-bezier(.34,1.56,.64,1),color .3s ease}
+  .tier.glass .botbar a:active{transform:scale(.9)}
+  .tier.glass .botbar a.on{color:#2c3138}
+  .tier.glass .botbar a.on svg{stroke:#2c3138;background:transparent;transform:translateY(-1px) scale(1.08)}
+  .tier.glass .botbar a.on::before{display:none}
+  .tier.glass .botbar a svg{width:26px;height:26px;padding:0;background:transparent}
+  .tier.glass .botbar a svg{transition:transform .45s cubic-bezier(.34,1.56,.64,1),stroke .3s ease}
+  body:has(.tier.glass .botbar){padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+}
+@media (prefers-reduced-motion:reduce){.tier.glass .tier-menu::before,.tier.glass .botbar::before,.tier.glass .botbar a,.tier.glass .botbar a svg,.tier.glass .tier-menu a{transition:none!important}}

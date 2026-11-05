@@ -46,7 +46,7 @@ export default function Nav({ user, unread = 0, lang = 'en', reviews = 0, approv
             <Link href='/guide'>Guide</Link>
         </nav>
       )}
-      <ModuleTier role={user.role} access={access} reviews={reviews} approvals={approvals} allowed={allowed} />
+      <ModuleTier role={user.role} access={access} reviews={reviews} approvals={approvals} allowed={allowed} glass={user.role === 'om'} />
     </header>
   );
 }
