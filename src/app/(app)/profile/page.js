@@ -3,6 +3,7 @@ import { updateProfile, changePassword } from '@/lib/actions';
 import { ROLE_LABEL } from '@/lib/fmt';
 import Flash from '@/components/Flash';
 import ThemeToggle from '@/components/ThemeToggle';
+import NavStyle from '@/components/NavStyle';
 import { cookies } from 'next/headers';
 
 export default async function ProfilePage({ searchParams }) {
@@ -11,6 +12,7 @@ export default async function ProfilePage({ searchParams }) {
   const locked = user.role === 'sso';
   const saved = (await cookies()).get('pt_theme')?.value;
   const theme = ['light', 'dark', 'auto'].includes(saved) ? saved : 'light';
+  const beam = (await cookies()).get('pt_nav')?.value === 'beam';
   return (
     <>
       <div className='head'>
@@ -38,6 +40,14 @@ export default async function ProfilePage({ searchParams }) {
         <p className='muted'>Pick how OpsTrack looks on this device. Auto follows your phone or computer.</p>
         <ThemeToggle variant='pick' initial={theme} />
       </div>
+
+      {user.role === 'om' ? (
+        <div className='card'>
+          <h3>Navigation style</h3>
+          <p className='muted'>How the active tab is marked as you move around. Applies to the top tabs and the phone bottom bar.</p>
+          <NavStyle initial={beam ? 'beam' : 'pill'} />
+        </div>
+      ) : null}
 
       <div className='card'>
         <h3>Authenticator app</h3>

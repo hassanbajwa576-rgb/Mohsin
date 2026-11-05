@@ -40,10 +40,12 @@ export default function ThemeToggle({ initial = 'light', variant = 'icon' }) {
       </div>
     );
   }
-  const next = ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length];
+  // The header button flips between Light and Dark. Auto is chosen on the profile page; here it flips from whatever it looks like now.
+  const looksDark = mode === 'dark' || (mode === 'auto' && typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark');
+  const next = looksDark ? 'light' : 'dark';
   return (
-    <button type='button' className='themebtn' onClick={() => pick(next)} title={'Theme: ' + LABEL[mode] + ' (tap for ' + LABEL[next] + ')'} aria-label={'Theme: ' + LABEL[mode] + '. Switch to ' + LABEL[next]}>
-      <Icon mode={mode} />
+    <button type='button' suppressHydrationWarning className='themebtn' onClick={() => pick(next)} title={'Switch to ' + LABEL[next]} aria-label={'Switch to ' + LABEL[next] + ' theme'}>
+      <Icon mode={looksDark ? 'dark' : 'light'} />
     </button>
   );
 }

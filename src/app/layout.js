@@ -20,8 +20,9 @@ export default async function RootLayout({ children }) {
   const lang = await getLang();
   const saved = (await cookies()).get('pt_theme')?.value;
   const mode = ['light', 'dark', 'auto'].includes(saved) ? saved : 'light';
+  const beam = (await cookies()).get('pt_nav')?.value === 'beam';
   return (
-    <html lang={lang} dir={lang === 'ur' ? 'rtl' : 'ltr'} data-theme={mode === 'dark' ? 'dark' : 'light'} suppressHydrationWarning>
+    <html lang={lang} dir={lang === 'ur' ? 'rtl' : 'ltr'} data-theme={mode === 'dark' ? 'dark' : 'light'} data-nav={beam ? 'beam' : undefined} suppressHydrationWarning>
       <head>
         {mode === 'auto' ? <script dangerouslySetInnerHTML={{ __html: "if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark'" }} /> : null}
       </head>
