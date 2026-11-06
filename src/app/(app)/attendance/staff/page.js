@@ -6,6 +6,7 @@ import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
 import { addStaff, toggleStaff, importStaff, deleteStaff, saveDeptShift, saveTempHours, endTempHours, deleteTempHours } from '@/lib/att-actions';
 import ConfirmButton from '@/components/ConfirmButton';
+import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
 import ShiftFields from '@/components/ShiftFields';
 import DeptShiftForm from '@/components/DeptShiftForm';
@@ -31,7 +32,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
   );
   const pickStaff = rows.filter((r) => r.active).map((r) => ({ id: r.id, name: r.name, dept: r.dept }));
   const fd = depts.includes(sp.dept) ? sp.dept : '';
-  const fo = allOffices(user) && ['LHR', 'ISB'].includes(sp.office) ? sp.office : '';
+  const fo = allOffices(user) && ['LHR', 'ISB', 'REMOTE'].includes(sp.office) ? sp.office : '';
   const fs = ['active', 'inactive'].includes(sp.status) ? sp.status : '';
   const fh = ['morning', 'evening', 'night', 'none'].includes(sp.shift) ? sp.shift : '';
   const fq = String(sp.q || '').trim().slice(0, 60);
@@ -44,6 +45,14 @@ export default async function AttendanceStaffPage({ searchParams }) {
       (!fq || r.name.toLowerCase().includes(fq.toLowerCase()) || String(r.code).toLowerCase().includes(fq.toLowerCase()))
   );
   const nActive = shown.filter((r) => r.active).length;
+  // Headcount of active employees (not narrowed by the filters below).
+  const act = rows.filter((r) => r.active);
+  const cnt = (code) => act.filter((r) => r.office === code).length;
+  const nInactive = rows.length - act.length;
+  const statusLink = (v) => {
+    const p = new URLSearchParams({ ...(fd ? { dept: fd } : {}), ...(fo ? { office: fo } : {}), ...(v ? { status: v } : {}), ...(fh ? { shift: fh } : {}), ...(fq ? { q: fq } : {}) }).toString();
+    return '/attendance/staff' + (p ? '?' + p : '');
+  };
 
   return (
     <>
@@ -61,6 +70,13 @@ export default async function AttendanceStaffPage({ searchParams }) {
       </div>
       <Flash sp={sp} />
 
+      <div className='kpis kpis-4'>
+        <div className='card kpi'><span>Total employees</span><b>{act.length}</b></div>
+        <div className='card kpi alt'><span>LHR</span><b>{cnt('LHR')}</b></div>
+        <div className='card kpi alt'><span>ISB</span><b>{cnt('ISB')}</b></div>
+        <div className='card kpi alt'><span>Remote</span><b>{cnt('REMOTE')}</b></div>
+      </div>
+
       <details className='card' open={rows.length === 0}>
         <summary>Add employee</summary>
         <form action={addStaff} className='form'>
@@ -68,7 +84,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
           <label>Department<input name='dept' list='dept-list' /></label>
           <datalist id='dept-list'>{depts.map((d) => <option key={d} value={d} />)}</datalist>
           <label>Office
-            <select name='office' defaultValue='LHR'><option>LHR</option><option>ISB</option></select>
+            <select name='office' defaultValue='LHR'><option>LHR</option><option>ISB</option><option value='REMOTE'>Remote</option></select>
           </label>
           <ShiftFields />
           <button className='btn primary' type='submit'>Add employee</button>
@@ -141,11 +157,11 @@ export default async function AttendanceStaffPage({ searchParams }) {
 
       <details className='card'>
         <summary>Upload employees from Excel</summary>
-        <p className='muted'>One row per employee with the columns <b>Name</b>, <b>Department</b>, <b>Office</b> (LHR or ISB) and an optional <b>Code</b>. People already in the list are skipped.</p>
+        <p className='muted'>One row per employee with the columns <b>Name</b>, <b>Department</b>, <b>Office</b> (LHR, ISB or Remote) and an optional <b>Code</b>. People already in the list are skipped.</p>
         <form action={importStaff} className='form'>
           <label className='wide'>Excel file (.xlsx)<input type='file' name='file' accept='.xlsx' required /></label>
           <label>Office for rows without one
-            <select name='office' defaultValue='LHR'><option>LHR</option><option>ISB</option></select>
+            <select name='office' defaultValue='LHR'><option>LHR</option><option>ISB</option><option value='REMOTE'>Remote</option></select>
           </label>
           <button className='btn primary' type='submit'>Upload employees</button>
           <a className='btn ghost' href='/attendance/staff/template'>Download template</a>
@@ -161,7 +177,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
         </label>
         {allOffices(user) ? (
           <label>Office
-            <select name='office' defaultValue={fo}><option value=''>Both offices</option><option>LHR</option><option>ISB</option></select>
+            <select name='office' defaultValue={fo}><option value=''>All offices</option><option>LHR</option><option>ISB</option><option value='REMOTE'>Remote</option></select>
           </label>
         ) : null}
         <label>Status
@@ -186,6 +202,11 @@ export default async function AttendanceStaffPage({ searchParams }) {
       </form>
 
       <div className='card'>
+        <div className='chips' style={{ marginBottom: 10 }} aria-label='Active or inactive'>
+          <Link className={'chip' + (!fs ? ' on' : '')} href={statusLink('')}>All ({rows.length})</Link>
+          <Link className={'chip' + (fs === 'active' ? ' on' : '')} href={statusLink('active')}>Active ({act.length})</Link>
+          <Link className={'chip' + (fs === 'inactive' ? ' on' : '')} href={statusLink('inactive')}>Inactive ({nInactive})</Link>
+        </div>
         {shown.length ? (
           <div className='tablewrap'>
             <table className='tx'>
@@ -198,7 +219,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
                     <td className='hide-m'>{i + 1}</td>
                     <td className='c-title'><b>{r.name}</b></td>
                     <td className='c-meta'>{r.dept || '-'}</td>
-                    <td className='c-meta'><span className='pill'>{r.office}</span></td>
+                    <td className='c-meta'><OfficeTag o={r.office} /></td>
                     <td className='c-meta'>{(() => {
                       const t = shiftOn(r, today, periodsToday);
                       if (t.shift_src === 'temporary') return <><span className='tmppill'>{shiftText(t)}</span><span className='srctag'>until {t.temp_to}{r.shift ? ', then ' + shiftText(r) : ''}</span></>;

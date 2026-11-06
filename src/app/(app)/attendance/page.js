@@ -62,7 +62,7 @@ export default async function AttendancePage({ searchParams }) {
 
       <div className='card'>
         <h3>Add Entry</h3>
-        <AttendanceEntryForm options={options} action={addEntry} defaultOffice={user.office_code} workOffices={allOffices(user) ? ['LHR', 'ISB'] : [user.office_code]} />
+        <AttendanceEntryForm options={options} action={addEntry} defaultOffice={user.office_code} workOffices={allOffices(user) ? ['LHR', 'ISB', 'REMOTE'] : [user.office_code]} />
       </div>
 
       <p className='muted'>Made a mistake? Open the <Link href='/attendance/entries'>Entries</Link> tab to change or delete an entry.</p>

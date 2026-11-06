@@ -24,7 +24,7 @@ export async function GET() {
   head.font = { bold: true };
   head.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3AD21' } };
   for (let r = 2; r <= 300; r++) {
-    ws.getCell('C' + r).dataValidation = { type: 'list', allowBlank: true, formulae: ['"LHR,ISB"'] };
+    ws.getCell('C' + r).dataValidation = { type: 'list', allowBlank: true, formulae: ['"LHR,ISB,Remote"'] };
   }
   const buf = await wb.xlsx.writeBuffer();
   return new Response(buf, {

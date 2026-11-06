@@ -305,7 +305,7 @@ export async function importStaff(fd) {
   const data = grid.slice(1);
   if (data.length > 500) back(page, 'Please upload at most 500 employees at a time.');
 
-  const OFFICE = { lhr: 'LHR', lahore: 'LHR', isb: 'ISB', islamabad: 'ISB' };
+  const OFFICE = { lhr: 'LHR', lahore: 'LHR', isb: 'ISB', islamabad: 'ISB', remote: 'REMOTE', wfh: 'REMOTE' };
   const offices = await q('SELECT id, code FROM pc2_offices');
   const officeId = Object.fromEntries(offices.map((o) => [o.code, o.id]));
   const have = await q('SELECT lower(name) AS n, office_id, code FROM pc2_staff');
