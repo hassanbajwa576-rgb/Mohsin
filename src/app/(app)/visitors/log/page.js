@@ -6,7 +6,7 @@ import { ATT_ROLES, allOffices, todayKey, validDate, fmt12, fmtDay, fmtDur, fmtT
 import { addDay } from '@/lib/att-import';
 import { TagNote, TagForm } from '@/components/VisitorTag';
 import { VTYPES, VLABEL, visitorRows, pendingDeletes, noShows, alreadyRescheduled, visitHistory } from '@/lib/visitors';
-import { deleteVisitor, decideVisitorDelete, rescheduleExpected } from '@/lib/vis-actions';
+import { deleteVisitor, decideVisitorDelete, rescheduleExpected, deleteNoShow } from '@/lib/vis-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import ConfirmButton from '@/components/ConfirmButton';
@@ -185,6 +185,12 @@ export default async function VisitorLogPage({ searchParams }) {
                             </form>
                           </details>
                         )}
+                        {user.role === 'om' ? (
+                          <form action={deleteNoShow} className='inline'>
+                            <input type='hidden' name='id' value={v.id} />
+                            <ConfirmButton className='btn ghost' message={'Delete the no show entry for ' + v.name + '? This cannot be undone.'}>Delete</ConfirmButton>
+                          </form>
+                        ) : null}
                       </td>
                     </tr>
                   );

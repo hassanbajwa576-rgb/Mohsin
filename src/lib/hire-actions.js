@@ -6,6 +6,7 @@ import { getUser } from './auth';
 import { can } from './perms';
 import { logEvent } from './audit';
 import { notifyUser } from './notify';
+import { validDate, validTime } from './att';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const PAGE = '/visitors/hires';
@@ -29,10 +30,22 @@ export async function markHireArrived(fd) {
   if (!h) back('New hire not found');
   if (!can(u, 'hire_info') && u.role !== 'om' && u.role !== 'sso' && u.office_id !== h.office_id) back('That new hire is in the other office');
   if (h.arrived_at) back(h.name + ' is already marked as arrived');
-  await q('UPDATE pc2_hires SET arrived_at = now(), arrived_by = $1 WHERE id = $2', [u.id, h.id]);
-  await logEvent(u, 'edit', 'hire', h.id, 'New hire arrived: ' + h.name);
-  if (h.created_by && h.created_by !== u.id) await notifyUser(h.created_by, h.name + ' has arrived (new hire)', '/visitors/hires');
-  back(h.name + ' marked as arrived', true);
+  // The time they came in (defaults to now when none is sent).
+  const date = s(fd, 'date');
+  const time = s(fd, 'time');
+  const given = date || time;
+  if (given && (!validDate(date) || !validTime(time))) back('Choose a valid date and time');
+  if (given) {
+    const ms = Number((await q(`SELECT (extract(epoch from (($1::date + $2::time) AT TIME ZONE 'Asia/Karachi')) * 1000)::float8 AS ms`, [date, time]))[0].ms);
+    if (ms > Date.now() + 60000) back('That time is in the future');
+    await q(`UPDATE pc2_hires SET arrived_at = ($1::date + $2::time) AT TIME ZONE 'Asia/Karachi', arrived_by = $3 WHERE id = $4`, [date, time, u.id, h.id]);
+  } else {
+    await q('UPDATE pc2_hires SET arrived_at = now(), arrived_by = $1 WHERE id = $2', [u.id, h.id]);
+  }
+  const at = given ? ' at ' + time : '';
+  await logEvent(u, 'edit', 'hire', h.id, 'New hire arrived: ' + h.name + (given ? ' ' + date + ' ' + time : ''));
+  if (h.created_by && h.created_by !== u.id) await notifyUser(h.created_by, h.name + ' has arrived (new hire)' + at, '/visitors/hires');
+  back(h.name + ' arrived' + at, true);
 }
 
 // Record a new joiner: name, department, joining date, office and level.

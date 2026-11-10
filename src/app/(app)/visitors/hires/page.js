@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
-import { ATT_ROLES, allOffices, departments, todayKey } from '@/lib/att';
-import { saveHire, deleteHire, markHireArrived } from '@/lib/hire-actions';
+import { ATT_ROLES, allOffices, departments, todayKey, fmtTime } from '@/lib/att';
+import { saveHire, deleteHire } from '@/lib/hire-actions';
+import HireArrived from '@/components/HireArrived';
 import ConfirmButton from '@/components/ConfirmButton';
 import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
@@ -73,10 +74,7 @@ export default async function NewHiresPage({ searchParams }) {
                     <td className='c-meta'>{r.level ? 'Level ' + r.level : '-'}</td>
                     <td className='act'>
                       {!r.arrived && r.join_date <= today ? (
-                        <form action={markHireArrived} className='inline'>
-                          <input type='hidden' name='id' value={r.id} />
-                          <button className='btn primary' type='submit'>Arrived</button>
-                        </form>
+                        <HireArrived id={r.id} role={user.role} today={today} nowTime={fmtTime(Date.now())} />
                       ) : null}
                       {manage ? <Link className='btn' href={'/visitors/hires?edit=' + r.id}>Edit</Link> : null}
                       {manage ? (

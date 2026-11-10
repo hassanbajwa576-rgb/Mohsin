@@ -265,6 +265,18 @@ export async function rescheduleExpected(fd) {
   back('/visitors', e.name + ' rescheduled for ' + date + ' ' + time, true);
 }
 
+// Sr. Ops Manager only: delete a no-show entry. A rescheduled visit that pointed back at it keeps going without that step.
+export async function deleteNoShow(fd) {
+  const u = await needOm();
+  const id = Number(s(fd, 'id'));
+  const e = (await q("SELECT id, name FROM pc2_expected WHERE id = $1 AND status = 'noshow'", [Number.isInteger(id) ? id : 0]))[0];
+  if (!e) back('/visitors/log', 'No show entry not found');
+  await q('UPDATE pc2_expected SET reschedule_of = NULL WHERE reschedule_of = $1', [e.id]);
+  await q('DELETE FROM pc2_expected WHERE id = $1', [e.id]);
+  await logEvent(u, 'delete', 'visitor', e.id, 'Deleted no show entry: ' + e.name, null, null);
+  back('/visitors/log', 'No show entry deleted', true);
+}
+
 // Whoever announced a visitor (or the Sr. Ops Manager / Sr. Support Officer) can take it out of the queue.
 export async function cancelExpected(fd) {
   const u = await need();

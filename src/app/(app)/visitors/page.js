@@ -10,7 +10,7 @@ import HostPicker from '@/components/HostPicker';
 import TimePick from '@/components/TimePick';
 import ExpectedAlert from '@/components/ExpectedAlert';
 import { runVisitorReminders } from '@/lib/visitor-reminders';
-import { markHireArrived } from '@/lib/hire-actions';
+import HireArrived from '@/components/HireArrived';
 import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
 
@@ -66,10 +66,7 @@ export default async function VisitorsPage({ searchParams }) {
                     <td className='c-title'><OfficeTag o={h.office} /><b>{h.name}</b>{h.dept ? <div className='muted'>{h.dept}</div> : null}</td>
                     <td className='nw c-meta'>{h.join_date === today ? 'Joins today' : 'Joined ' + h.join_date}</td>
                     <td className='act'>
-                      <form action={markHireArrived} className='inline'>
-                        <input type='hidden' name='id' value={h.id} />
-                        <button className='btn primary' type='submit'>Arrived</button>
-                      </form>
+                      <HireArrived id={h.id} role={user.role} today={today} nowTime={nowTime} />
                     </td>
                   </tr>
                 ))}
