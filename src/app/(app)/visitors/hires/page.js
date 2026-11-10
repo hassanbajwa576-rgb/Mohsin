@@ -42,8 +42,8 @@ export default async function NewHiresPage({ searchParams }) {
       </div>
       <Flash sp={sp} />
 
-      {manage ? <div className='card'>
-        <h3 style={{ marginTop: 0 }}>{edit ? 'Edit new hire' : 'Add a new hire'}</h3>
+      {manage ? <details className='card' open={!!edit}>
+        <summary>{edit ? 'Edit new hire' : 'Add a new hire'}</summary>
         <form action={saveHire} className='form' key={edit ? edit.id : 'new'}>
           {edit ? <input type='hidden' name='id' value={edit.id} /> : null}
           <label>Name<input name='name' defaultValue={edit ? edit.name : ''} required maxLength={80} autoComplete='off' /></label>
@@ -60,7 +60,7 @@ export default async function NewHiresPage({ searchParams }) {
           <button className='btn primary' type='submit'>{edit ? 'Save changes' : 'Add new hire'}</button>
           {edit ? <Link href='/visitors/hires' className='btn ghost'>Cancel</Link> : null}
         </form>
-      </div> : null}
+      </details> : null}
 
       <div className='hires2'>
         <div className='card'>
@@ -69,22 +69,23 @@ export default async function NewHiresPage({ searchParams }) {
           {waiting.length ? (
             <div className='tablewrap'>
               <table className='tx'>
-                <thead><tr><th>Name</th><th>Joining</th><th>Level</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>Joining</th><th></th></tr></thead>
                 <tbody>
                   {waiting.map((r) => (
                     <tr key={r.id}>
-                      <td className='c-title'><OfficeTag o={r.office} /><b>{r.name}</b>{r.dept ? <div className='muted'>{r.dept}</div> : null}</td>
+                      <td className='c-title hname'><OfficeTag o={r.office} /><b>{r.name}</b>{r.dept || r.level ? <div className='muted'>{[r.dept, r.level ? 'Level ' + r.level : ''].filter(Boolean).join(' · ')}</div> : null}</td>
                       <td className='c-meta'>{r.join_date < today ? 'Not marked arrived: ' : ''}{hireWhen(r.join_date, r.join_time, today)}</td>
-                      <td className='c-meta'>{r.level ? 'Level ' + r.level : '-'}</td>
                       <td className='act'>
-                        {r.join_date <= today ? <HireArrived id={r.id} role={user.role} today={today} nowTime={fmtTime(Date.now())} /> : null}
-                        {manage ? <Link className='btn' href={'/visitors/hires?edit=' + r.id}>Edit</Link> : null}
-                        {manage ? (
-                          <form action={deleteHire} className='inline'>
-                            <input type='hidden' name='id' value={r.id} />
-                            <ConfirmButton className='btn ghost' message={'Remove ' + r.name + ' from the new hires list?'}>Remove</ConfirmButton>
-                          </form>
-                        ) : null}
+                        <div className='staffact'>
+                          {r.join_date <= today ? <HireArrived id={r.id} role={user.role} today={today} nowTime={fmtTime(Date.now())} /> : null}
+                          {manage ? <Link className='btn' href={'/visitors/hires?edit=' + r.id}>Edit</Link> : null}
+                          {manage ? (
+                            <form action={deleteHire} className='inline'>
+                              <input type='hidden' name='id' value={r.id} />
+                              <ConfirmButton className='btn ghost' message={'Remove ' + r.name + ' from the new hires list?'}>Remove</ConfirmButton>
+                            </form>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -100,21 +101,22 @@ export default async function NewHiresPage({ searchParams }) {
           {joined.length ? (
             <div className='tablewrap'>
               <table className='tx'>
-                <thead><tr><th>Name</th><th>Arrived</th><th>Level</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>Arrived</th><th></th></tr></thead>
                 <tbody>
                   {joined.map((r) => (
                     <tr key={r.id}>
-                      <td className='c-title'><OfficeTag o={r.office} /><b>{r.name}</b>{r.dept ? <div className='muted'>{r.dept}</div> : null}</td>
+                      <td className='c-title hname'><OfficeTag o={r.office} /><b>{r.name}</b>{r.dept || r.level ? <div className='muted'>{[r.dept, r.level ? 'Level ' + r.level : ''].filter(Boolean).join(' · ')}</div> : null}</td>
                       <td className='c-meta'>{r.arrived}</td>
-                      <td className='c-meta'>{r.level ? 'Level ' + r.level : '-'}</td>
                       <td className='act'>
-                        {manage ? <Link className='btn' href={'/visitors/hires?edit=' + r.id}>Edit</Link> : null}
-                        {manage ? (
-                          <form action={deleteHire} className='inline'>
-                            <input type='hidden' name='id' value={r.id} />
-                            <ConfirmButton className='btn ghost' message={'Remove ' + r.name + ' from the new hires list?'}>Remove</ConfirmButton>
-                          </form>
-                        ) : null}
+                        <div className='staffact'>
+                          {manage ? <Link className='btn' href={'/visitors/hires?edit=' + r.id}>Edit</Link> : null}
+                          {manage ? (
+                            <form action={deleteHire} className='inline'>
+                              <input type='hidden' name='id' value={r.id} />
+                              <ConfirmButton className='btn ghost' message={'Remove ' + r.name + ' from the new hires list?'}>Remove</ConfirmButton>
+                            </form>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}

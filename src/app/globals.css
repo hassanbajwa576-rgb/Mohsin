@@ -240,6 +240,8 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .hires2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .hires2>.card{min-width:0}
 @media (max-width:1000px){.hires2{grid-template-columns:1fr}}
+.hires2 .hname b{white-space:nowrap}
+@media (max-width:700px){.hires2 .hname b{white-space:normal}}
 /* Module names with a long and a short form: the short one on phones so the switch does not get wider. */
 .modseg .ms{display:none}
 @media (max-width:700px){.modseg .ml{display:none}.modseg .ms{display:inline}}
