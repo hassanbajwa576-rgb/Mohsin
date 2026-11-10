@@ -488,7 +488,7 @@ html[data-theme=dark] .otag.remote{color:#cbb8f5;border-color:#6d55b3;background
 }
 
 /* employees: filters, one-line actions, shifts; reports: department multi-select */
-.staffact{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;white-space:nowrap}
+.staffact{display:flex;gap:6px;align-items:flex-start;flex-wrap:nowrap;white-space:nowrap}
 .staffact form{margin:0}
 .staffact .btn{padding:6px 12px;font-size:13px;min-height:0}
 .shiftpill{display:inline-block;font-size:12px;padding:1px 9px;border-radius:6px;background:var(--infobg);color:var(--info);white-space:nowrap}
@@ -659,6 +659,15 @@ td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.
 td.act .actrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 td.act .actrow .inline{margin:0;display:inline-flex;flex-wrap:nowrap}
 td.act .actrow .btn{white-space:nowrap}
+/* Wide screens: never wrap the four buttons; the table gives this cell the width it needs. */
+@media (min-width:721px){td.act .actrow{flex-wrap:nowrap}td.act .actrow .btn{padding:6px 11px}}
+/* One standard for every table on wide screens: the buttons in an action cell (Tag, Edit, Delete, Remove...) stay on one line.
+   The table gives the cell the width it needs. Pop-up forms inside the cell wrap normally. */
+@media (min-width:721px){
+  td.act{white-space:nowrap}
+  td.act .markform,td.act details[open]>*:not(summary),td.act .muted{white-space:normal}
+  td.act .entry-act{flex-wrap:nowrap}
+}
 /* Action buttons sit side by side and only wrap when the cell runs out of room (all tables) */
 @media (min-width:721px){
   td.act .inline:not(:has(.sm)){display:inline-flex;flex-wrap:nowrap;margin:0 6px 6px 0;vertical-align:top}
