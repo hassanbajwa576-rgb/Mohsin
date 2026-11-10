@@ -168,8 +168,13 @@ const DDL = [
   // Employees set up beforehand: joins on active_from, leaves (becomes inactive) on active_to.
   `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS active_from DATE`,
   `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS active_to DATE`,
+  `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS inactive_reason TEXT NOT NULL DEFAULT ''`,
   // New hires (Guest and Hire): details of upcoming joiners.
   `CREATE TABLE IF NOT EXISTS pc2_hires (id SERIAL PRIMARY KEY, name TEXT NOT NULL, dept TEXT NOT NULL DEFAULT '', join_date DATE NOT NULL, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), level TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `ALTER TABLE pc2_hires ADD COLUMN IF NOT EXISTS arrived_at TIMESTAMPTZ`,
+  `ALTER TABLE pc2_hires ADD COLUMN IF NOT EXISTS arrived_by INTEGER`,
+  `UPDATE pc2_users SET pages = pages || ',/visitors/hires' WHERE role = 'guard' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
+  `UPDATE pc2_roles SET pages = pages || ',/visitors/hires' WHERE sys_key = 'guard' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
   `UPDATE pc2_users SET pages = pages || ',/visitors/hires' WHERE role = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
   `UPDATE pc2_roles SET pages = pages || ',/visitors/hires' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
   `CREATE INDEX IF NOT EXISTS pc2_tasks_user_idx ON pc2_tasks (user_id, status)`,
@@ -187,7 +192,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-10-1';
+const SCHEMA_VERSION = '2026-11-10-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

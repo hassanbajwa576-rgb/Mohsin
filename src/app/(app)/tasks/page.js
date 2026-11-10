@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
+import { q } from '@/lib/db';
 import { todayKey } from '@/lib/att';
 import { routineRows, taskPeople, taskRows, attentionRows, domainCounts, peopleCounts, daysFrom, DOMAIN } from '@/lib/tasks';
 import { addTask, toggleRule, deleteRule } from '@/lib/task-actions';
@@ -49,6 +50,7 @@ export default async function TasksPage({ searchParams }) {
     people.length ? peopleCounts(everyone, today) : Promise.resolve({}),
     routineRows(ids),
   ]);
+  const remN = Number((await q('SELECT COUNT(*)::int AS n FROM pc2_reminders WHERE user_id = $1 AND active', [user.id]))[0].n);
   const keep = show === 'open' ? '' : show;
   const link = (w, d, s, f) => {
     const p = new URLSearchParams({ ...(w ? { who: w } : {}), ...(d ? { domain: d } : {}), ...(s ? { show: s } : {}), ...(f ? { f } : {}) }).toString();
@@ -74,6 +76,7 @@ export default async function TasksPage({ searchParams }) {
             <TaskAddPanel title={'Add a task' + (viewing ? ' for ' + short(viewing.name) : '')}>
               <TaskForm action={addTask} view={domain} show={keep} who={who} defaultDomain={domain || 'operations'} people={people} defaultOwner={viewing ? viewing.id : ''} meId={user.id} />
             </TaskAddPanel>
+            <Link href='/reminders' className='btn ghost tk-rem'>&#128276; Reminders{remN ? <span className='tk-chipn'>{remN}</span> : null}</Link>
           </div>
           <p className='muted'>{viewing ? 'What ' + short(viewing.name) + ' has pending, and what needs attention soon.' : who === 'all' ? 'Everything pending for you and your team.' : 'What is pending in each area, and what needs you soon.'}</p>
         </div>

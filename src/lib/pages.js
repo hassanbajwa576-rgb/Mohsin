@@ -21,7 +21,7 @@ export const PAGE_NEEDS = {
   '/attendance/reconcile': 'att_reconcile',
   '/visitors/log': 'vis_log',
   '/visitors/guards': 'guard_duty',
-  '/visitors/hires': 'hire_info',
+  '/visitors/hires': 'hire_view',
   '/tasks': 'tasks',
   '/fuel': 'fuel_use',
   '/fuel/log': 'fuel_use',
@@ -48,7 +48,7 @@ export function defaultPages(role, perms = [], rolePerms = {}) {
   L.push('/visitors');
   if (can('vis_log')) L.push('/visitors/log');
   if (can('guard_duty')) L.push('/visitors/guards');
-  if (can('hire_info')) L.push('/visitors/hires');
+  if (can('hire_view')) L.push('/visitors/hires');
   if (can('tasks')) L.push('/tasks');
   if (can('fuel_use')) {
     L.push('/fuel', '/fuel/log');

@@ -6,6 +6,7 @@ import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
 import { updateStaff } from '@/lib/att-actions';
 import ShiftFields from '@/components/ShiftFields';
+import ReasonFields from '@/components/ReasonFields';
 import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ export default async function EditEmployeePage({ searchParams }) {
   const id = Number(sp.id);
   const r = (
     await q(
-      `SELECT s.id, s.code, s.name, s.dept, s.shift, s.shift_start, s.shift_end, s.office_id, to_char(s.active_from, 'YYYY-MM-DD') AS active_from, to_char(s.active_to, 'YYYY-MM-DD') AS active_to, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.id = $1`,
+      `SELECT s.id, s.code, s.name, s.dept, s.shift, s.shift_start, s.shift_end, s.office_id, to_char(s.active_from, 'YYYY-MM-DD') AS active_from, to_char(s.active_to, 'YYYY-MM-DD') AS active_to, s.inactive_reason, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.id = $1`,
       [Number.isInteger(id) ? id : 0]
     )
   )[0];
@@ -48,6 +49,8 @@ export default async function EditEmployeePage({ searchParams }) {
           <ShiftFields shift={r.shift} start={r.shift_start} end={r.shift_end} noneLabel={ds ? 'Same as department' : 'None'} />
           <label>Active from (new joiner)<input type='date' name='active_from' defaultValue={r.active_from || ''} /></label>
           <label>Deactivate with effect from (separation)<input type='date' name='active_to' defaultValue={r.active_to || ''} /></label>
+          <ReasonFields required={false} reason={(r.inactive_reason || '').split(':')[0]} />
+          <p className='muted wide'>The reason is needed when a "Deactivate with effect from" date is set.</p>
           <p className='muted wide'>Set these beforehand. A future "Active from" keeps the person out of attendance until that day; "Deactivate with effect from" switches them to inactive on that day. Leave both empty for no change.</p>
           <button className='btn primary' type='submit'>Save</button>
         </form>

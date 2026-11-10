@@ -72,12 +72,19 @@ function TaskTabs({ glass }) {
   const ref = useRef(null);
   useSlide(ref, glass, [glass, dom, path]);
   const items = [['', 'All'], ...DOMAIN_ORDER.map((k) => [k, DOMAIN[k]])];
+  // Reminders have nothing to do with the task areas, so on that page the row is just a way back to Tasks.
+  if (path === '/reminders' || path.indexOf('/reminders/') === 0) {
+    return (
+      <nav className='tier-menu' ref={ref}>
+        <Link href='/tasks'>&larr; Back to Tasks</Link>
+      </nav>
+    );
+  }
   return (
     <nav className='tier-menu' ref={ref}>
       {items.map(([k, label]) => (
         <Link key={k || 'all'} href={k ? '/tasks?domain=' + k : '/tasks'} className={path === '/tasks' && dom === k ? 'on' : ''}>{label}</Link>
       ))}
-      <Link href='/reminders' className={path === '/reminders' || path.indexOf('/reminders/') === 0 ? 'on' : ''}>Reminders</Link>
     </nav>
   );
 }
@@ -143,7 +150,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const vis = [page('/visitors', 'Visitor Entry')];
   if (access.includes('vis_log')) vis.push(page('/visitors/log', 'Visitor Log'));
   if (access.includes('guard_duty')) vis.push(page('/visitors/guards', 'Guard Duty'));
-  if (access.includes('hire_info')) vis.push(page('/visitors/hires', 'New Hires'));
+  if (access.includes('hire_view')) vis.push(page('/visitors/hires', 'New Hires'));
 
   const fu = [page('/fuel', 'Fuel Entry'), page('/fuel/log', 'Fuel Log')];
   if (om) fu.push(page('/fuel/setup', 'Setup'));

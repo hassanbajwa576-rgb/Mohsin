@@ -11,7 +11,8 @@ export const PERMS = [
   ['vis_log', 'Visitor log and Excel download', 'See all visitors, filter them and download the visitor log (everyone can check visitors in and out).'],
   ['att_reconcile', 'Reconciliation', 'Run the check for long shifts, missing check outs and entries that do not fit, and mark them reviewed.'],
   ['guard_duty', 'Guard duty log', 'Record temporary guards (name, mobile, CNIC, card number, who they replace, duty dates, pictures) and see the guard duty list.'],
-  ['hire_info', 'New hires (Guest and Hire)', 'Record details of new joiners: name, department, joining date, office and level.'],
+  ['hire_info', 'New hires: add and edit', 'Record details of new joiners: name, department, joining date, office and level.'],
+  ['hire_view', 'New hires: see and mark arrived', 'See who is joining and mark a new hire as arrived when they come in (guards use this).'],
   ['tasks', 'My Tasks page', 'A page to record important tasks with due dates and priority. Each person sees their own tasks and tasks given to them. The Sr. Ops Manager can give tasks to others and follow them; the Sr. SO can do the same for Support Officers.'],
 ];
 
@@ -52,6 +53,7 @@ export const PERM_SHORT = {
   vis_log: 'visitor log',
   guard_duty: 'guard duty',
   hire_info: 'new hires',
+  hire_view: 'see new hires',
   tasks: 'my tasks',
   fuel_use: 'fuel cards',
   roster_edit: 'Support roster',
@@ -65,10 +67,10 @@ export const PERM_SHORT = {
 
 // What each role has without any extra grant.
 export const ROLE_PERMS = {
-  om: ['att_own', 'att_view', 'att_reports', 'att_logs', 'att_staff', 'att_import', 'att_reconcile', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty', 'hire_info'],
-  sso: ['att_own', 'att_view', 'att_reports', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty', 'hire_info', 'tasks'],
+  om: ['att_own', 'att_view', 'att_reports', 'att_logs', 'att_staff', 'att_import', 'att_reconcile', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty', 'hire_info', 'hire_view'],
+  sso: ['att_own', 'att_view', 'att_reports', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty', 'hire_info', 'hire_view', 'tasks'],
   so: [],
-  guard: ['guard_duty'],
+  guard: ['guard_duty', 'hire_view'],
 };
 
 // The permissions a role carries without any extra grant: the built-in role's own plus, for a created role, its checklist.

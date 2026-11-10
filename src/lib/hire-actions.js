@@ -5,6 +5,7 @@ import { q } from './db';
 import { getUser } from './auth';
 import { can } from './perms';
 import { logEvent } from './audit';
+import { notifyUser } from './notify';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const PAGE = '/visitors/hires';
@@ -16,6 +17,22 @@ async function need() {
   if (u.totp_required && !u.totp_enabled) redirect('/security');
   if (!can(u, 'hire_info')) redirect('/');
   return u;
+}
+
+// The guard (or anyone who can see new hires) marks that the new hire has come in.
+export async function markHireArrived(fd) {
+  const u = await getUser();
+  if (!u) redirect('/login');
+  if (!can(u, 'hire_view')) redirect('/');
+  const id = Number(s(fd, 'id'));
+  const h = (await q('SELECT h.id, h.name, h.office_id, h.created_by, h.arrived_at FROM pc2_hires h WHERE h.id = $1', [Number.isInteger(id) ? id : 0]))[0];
+  if (!h) back('New hire not found');
+  if (!can(u, 'hire_info') && u.role !== 'om' && u.role !== 'sso' && u.office_id !== h.office_id) back('That new hire is in the other office');
+  if (h.arrived_at) back(h.name + ' is already marked as arrived');
+  await q('UPDATE pc2_hires SET arrived_at = now(), arrived_by = $1 WHERE id = $2', [u.id, h.id]);
+  await logEvent(u, 'edit', 'hire', h.id, 'New hire arrived: ' + h.name);
+  if (h.created_by && h.created_by !== u.id) await notifyUser(h.created_by, h.name + ' has arrived (new hire)', '/visitors/hires');
+  back(h.name + ' marked as arrived', true);
 }
 
 // Record a new joiner: name, department, joining date, office and level.

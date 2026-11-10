@@ -163,7 +163,11 @@ export async function updateStaff(fd) {
     const day = (k) => (/^\d{4}-\d{2}-\d{2}$/.test(s(fd, k)) ? s(fd, k) : null);
     const from = day('active_from');
     const to = day('active_to');
-    await q('UPDATE pc2_staff SET active_from = $1, active_to = $2 WHERE id = $3', [from && from > todayKey() ? from : null, to, id]);
+    const why = reasonFrom(fd);
+    if (to && !why) {
+      back('/attendance/staff/edit?id=' + id, 'Choose the reason for the separation date');
+    }
+    await q('UPDATE pc2_staff SET active_from = $1, active_to = $2, inactive_reason = CASE WHEN $2::date IS NOT NULL THEN $4 WHEN active THEN \'\' ELSE inactive_reason END WHERE id = $3', [from && from > todayKey() ? from : null, to, id, why]);
     if (from && from > todayKey()) await q('UPDATE pc2_staff SET active = FALSE WHERE id = $1', [id]);
   } catch {
     failed = true;
@@ -260,12 +264,25 @@ export async function deleteTempHours(fd) {
   back('/attendance/staff', 'Temporary hours removed', true);
 }
 
+// "Resigned", "Terminated"... plus an optional note; "Other" needs the note.
+function reasonFrom(fd) {
+  const pick = s(fd, 'reason').slice(0, 40);
+  const note = s(fd, 'reason_note').slice(0, 120);
+  if (!pick) return '';
+  if (pick === 'Other' && !note) return '';
+  return pick === 'Other' ? note : pick + (note ? ': ' + note : '');
+}
+
 export async function toggleStaff(fd) {
   const u = await needPerm('att_staff');
   const id = Number(s(fd, 'id'));
+  const cur = (await q('SELECT active FROM pc2_staff WHERE id = $1', [id]))[0];
+  // Deactivating needs a reason (kept on the employee and in the audit log).
+  const reason = cur && cur.active ? reasonFrom(fd) : '';
+  if (cur && cur.active && !reason) back('/attendance/staff', 'Choose the reason for deactivating');
   // Switching by hand clears any date that was waiting.
-  const r = await q('UPDATE pc2_staff SET active = NOT active, active_from = NULL, active_to = NULL WHERE id = $1 RETURNING name, active', [id]);
-  if (r[0]) await logEvent(u, 'update', 'staff', id, (r[0].active ? 'Activated ' : 'Deactivated ') + r[0].name);
+  const r = await q('UPDATE pc2_staff SET active = NOT active, active_from = NULL, active_to = NULL, inactive_reason = $2 WHERE id = $1 RETURNING name, active', [id, reason]);
+  if (r[0]) await logEvent(u, 'update', 'staff', id, (r[0].active ? 'Activated ' : 'Deactivated ') + r[0].name + (reason ? ' - ' + reason : ''));
   back('/attendance/staff', 'Employee updated', true);
 }
 

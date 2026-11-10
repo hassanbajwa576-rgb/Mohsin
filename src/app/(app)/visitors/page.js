@@ -10,6 +10,9 @@ import HostPicker from '@/components/HostPicker';
 import TimePick from '@/components/TimePick';
 import ExpectedAlert from '@/components/ExpectedAlert';
 import { runVisitorReminders } from '@/lib/visitor-reminders';
+import { markHireArrived } from '@/lib/hire-actions';
+import { can } from '@/lib/perms';
+import { q } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +32,15 @@ export default async function VisitorsPage({ searchParams }) {
   const queue = await waitingQueue(office, today);
   const later = await laterQueue(office, today);
   const planner = user.role !== 'guard';
+  // New hires joining today (or earlier and not yet marked), so the guard knows who to expect.
+  const hires = can(user, 'hire_view')
+    ? await q(
+        `SELECT h.id, h.name, h.dept, to_char(h.join_date, 'YYYY-MM-DD') AS join_date, o.code AS office
+         FROM pc2_hires h JOIN pc2_offices o ON o.id = h.office_id
+         WHERE h.arrived_at IS NULL AND h.join_date <= $1::date AND h.join_date >= $1::date - 7 ${both ? '' : 'AND h.office_id = ' + Number(user.office_id)} ORDER BY h.join_date, h.name`,
+        [today]
+      )
+    : [];
   const when = (ms) => (dateKey(ms) === today ? '' : fmtDay(ms) + ', ') + fmt12(ms);
 
   return (
@@ -41,6 +53,31 @@ export default async function VisitorsPage({ searchParams }) {
       </div>
       <Flash sp={sp} />
       {user.role === 'guard' ? <ExpectedAlert items={queue.map((x) => ({ id: x.id, name: x.name, company: x.company, host: x.host, due_ms: x.due_ms }))} /> : null}
+
+      {hires.length ? (
+        <div className='card v-focus'>
+          <h3 style={{ marginTop: 0 }}>New hires joining{hires.length ? <span className='v-count'>{hires.length}</span> : null}</h3>
+          <p className='muted' style={{ marginTop: 0 }}>When they come in, tap Arrived.</p>
+          <div className='tablewrap'>
+            <table className='tx'>
+              <tbody>
+                {hires.map((h) => (
+                  <tr key={h.id}>
+                    <td className='c-title'><OfficeTag o={h.office} /><b>{h.name}</b>{h.dept ? <div className='muted'>{h.dept}</div> : null}</td>
+                    <td className='nw c-meta'>{h.join_date === today ? 'Joins today' : 'Joined ' + h.join_date}</td>
+                    <td className='act'>
+                      <form action={markHireArrived} className='inline'>
+                        <input type='hidden' name='id' value={h.id} />
+                        <button className='btn primary' type='submit'>Arrived</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <div className='card'>
         <h3 style={{ marginTop: 0 }}>Inside now ({inside.length})</h3>

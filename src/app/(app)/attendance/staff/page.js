@@ -12,6 +12,7 @@ import Flash from '@/components/Flash';
 import ShiftFields from '@/components/ShiftFields';
 import DeptShiftForm from '@/components/DeptShiftForm';
 import DeptPicker from '@/components/DeptPicker';
+import ReasonFields from '@/components/ReasonFields';
 import TempHoursForm from '@/components/TempHoursForm';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
   const sp = await searchParams;
   await applyStaffDates(); // joiners and leavers whose date has arrived
   const rows = await q(
-    `SELECT s.id, s.code, s.name, s.dept, ${SHIFT_COLS}, s.active, to_char(s.active_from, 'YYYY-MM-DD') AS active_from, to_char(s.active_to, 'YYYY-MM-DD') AS active_to, o.code AS office, (SELECT COUNT(*)::int FROM pc2_attendance a WHERE a.staff_id = s.id) AS entries FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
+    `SELECT s.id, s.code, s.name, s.dept, ${SHIFT_COLS}, s.active, to_char(s.active_from, 'YYYY-MM-DD') AS active_from, to_char(s.active_to, 'YYYY-MM-DD') AS active_to, s.inactive_reason, o.code AS office, (SELECT COUNT(*)::int FROM pc2_attendance a WHERE a.staff_id = s.id) AS entries FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
   );
 
   const depts = [...new Set(rows.map((r) => r.dept).filter(Boolean))].sort();
@@ -227,14 +228,25 @@ export default async function AttendanceStaffPage({ searchParams }) {
                       if (t.shift_src === 'temporary') return <><span className='tmppill'>{shiftText(t)}</span><span className='srctag'>until {t.temp_to}{r.shift ? ', then ' + shiftText(r) : ''}</span></>;
                       return r.shift ? <><span className='shiftpill'>{shiftText(r)}</span>{r.shift_src === 'department' ? <span className='srctag'>from department</span> : null}</> : '-';
                     })()}</td>
-                    <td className='c-stage'><span className={'badge ' + (r.active ? 'approved' : r.active_from ? 'submitted' : 'rejected')}>{r.active ? 'Active' : r.active_from ? 'Joins' : 'Inactive'}</span>{r.active_from ? <span className='srctag'>from {r.active_from}</span> : null}{r.active_to ? <span className='srctag'>leaves {r.active_to}</span> : null}</td>
+                    <td className='c-stage'><span className={'badge ' + (r.active ? 'approved' : r.active_from ? 'submitted' : 'rejected')}>{r.active ? 'Active' : r.active_from ? 'Joins' : 'Inactive'}</span>{r.active_from ? <span className='srctag'>from {r.active_from}</span> : null}{r.active_to ? <span className='srctag'>leaves {r.active_to}</span> : null}{(!r.active || r.active_to) && r.inactive_reason ? <span className='srctag'>{r.inactive_reason}</span> : null}</td>
                     <td className='act'>
                       <div className='staffact'>
                         <a className='btn' href={'/attendance/staff/edit?id=' + r.id}>Edit</a>
-                        <form action={toggleStaff} className='inline'>
-                          <input type='hidden' name='id' value={r.id} />
-                          <button className='btn ghost' type='submit'>{r.active ? 'Deactivate' : 'Activate'}</button>
-                        </form>
+                        {r.active ? (
+                          <details className='mark'>
+                            <summary className='btn ghost'>Deactivate</summary>
+                            <form action={toggleStaff} className='markform'>
+                              <input type='hidden' name='id' value={r.id} />
+                              <ReasonFields />
+                              <button className='btn primary' type='submit'>Deactivate {r.name.split(' ')[0]}</button>
+                            </form>
+                          </details>
+                        ) : (
+                          <form action={toggleStaff} className='inline'>
+                            <input type='hidden' name='id' value={r.id} />
+                            <button className='btn ghost' type='submit'>Activate</button>
+                          </form>
+                        )}
                         {user.role === 'om' ? (
                           <form action={deleteStaff} className='inline'>
                             <input type='hidden' name='id' value={r.id} />
