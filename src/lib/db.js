@@ -163,6 +163,15 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS pc2_task_rules (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES pc2_users(id), created_by INTEGER, title TEXT NOT NULL, details TEXT NOT NULL DEFAULT '', priority TEXT NOT NULL DEFAULT 'medium', domain TEXT NOT NULL DEFAULT 'operations', weekdays TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE, last_made_on DATE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   // Reminders: a nudge on a schedule (once, every day, chosen weekdays, the 15th, last working day). Separate from tasks.
   `CREATE TABLE IF NOT EXISTS pc2_reminders (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES pc2_users(id), created_by INTEGER, title TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL DEFAULT 'once', on_date DATE, weekdays TEXT NOT NULL DEFAULT '', hour INTEGER NOT NULL DEFAULT 9, active BOOLEAN NOT NULL DEFAULT TRUE, last_sent_on DATE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  // Reminders can be set for a minute, not just a whole hour.
+  `ALTER TABLE pc2_reminders ADD COLUMN IF NOT EXISTS minute INTEGER NOT NULL DEFAULT 0`,
+  // Employees set up beforehand: joins on active_from, leaves (becomes inactive) on active_to.
+  `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS active_from DATE`,
+  `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS active_to DATE`,
+  // New hires (Guest and Hire): details of upcoming joiners.
+  `CREATE TABLE IF NOT EXISTS pc2_hires (id SERIAL PRIMARY KEY, name TEXT NOT NULL, dept TEXT NOT NULL DEFAULT '', join_date DATE NOT NULL, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), level TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `UPDATE pc2_users SET pages = pages || ',/visitors/hires' WHERE role = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
+  `UPDATE pc2_roles SET pages = pages || ',/visitors/hires' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
   `CREATE INDEX IF NOT EXISTS pc2_tasks_user_idx ON pc2_tasks (user_id, status)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS pc2_tasks_source_idx ON pc2_tasks (user_id, source, source_ref) WHERE source_ref <> ''`,
   // The Sr. SO and the guards get the Guard Duty page even when their pages were picked by hand before it existed.
@@ -178,7 +187,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-06-1';
+const SCHEMA_VERSION = '2026-11-10-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

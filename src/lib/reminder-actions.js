@@ -28,13 +28,15 @@ export async function addReminder(fd) {
   const kind = KINDS.includes(s(fd, 'kind')) ? s(fd, 'kind') : 'once';
   const date = s(fd, 'on_date');
   const days = [...new Set(fd.getAll('days').map(String).filter((d) => /^[1-7]$/.test(d)))].sort().join(',');
-  const hour = Math.min(22, Math.max(5, Number(s(fd, 'hour')) || 9));
+  const tm = /^(\d{1,2}):(\d{2})/.exec(s(fd, 'time'));
+  const hour = tm ? Math.min(23, Number(tm[1])) : 9;
+  const minute = tm ? Math.min(59, Number(tm[2])) : 0;
   const want = Number(s(fd, 'assign_to'));
   const owner = want && want !== u.id && people.some((p) => p.id === want) ? want : u.id;
   if (!title) back('Write the reminder');
   if (kind === 'once' && (date.length !== 10 || Number.isNaN(Date.parse(date)))) back('Pick the date for a one-time reminder');
   if (kind === 'days' && !days) back('Tick at least one day');
-  await q('INSERT INTO pc2_reminders (user_id, created_by, title, note, kind, on_date, weekdays, hour) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', [owner, u.id, title, note, kind, kind === 'once' ? date : null, kind === 'days' ? days : '', hour]);
+  await q('INSERT INTO pc2_reminders (user_id, created_by, title, note, kind, on_date, weekdays, hour, minute) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [owner, u.id, title, note, kind, kind === 'once' ? date : null, kind === 'days' ? days : '', hour, minute]);
   if (owner !== u.id) await notifyUser(owner, u.name + ' set a reminder for you: ' + title + (kind === 'days' ? ' (' + daysText(days) + ')' : ''), '/reminders');
   back('Reminder added: ' + title, true);
 }

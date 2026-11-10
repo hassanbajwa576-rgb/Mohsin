@@ -1,7 +1,7 @@
 export const PAGE_GROUPS = [
   { key: 'petty', label: 'Petty', pages: [['/', 'Dashboard'], ['/expenses', 'Expenses'], ['/advances', 'Advances'], ['/accounts', 'Accounts']] },
   { key: 'attendance', label: 'Attendance', pages: [['/attendance', 'Add Entry'], ['/attendance/entries', 'Entries'], ['/attendance/logs', 'Day log'], ['/attendance/board', "Today's board"], ['/attendance/dashboard', 'Dashboard'], ['/attendance/reports', 'Reports'], ['/attendance/analysis', 'Analysis'], ['/attendance/staff', 'Employees'], ['/attendance/hk-roster', 'Roster'], ['/attendance/hk-roster/request', 'Time Off Request'], ['/attendance/import', 'Import'], ['/attendance/reconcile', 'Reconciliation']] },
-  { key: 'visitors', label: 'Visitors', pages: [['/visitors', 'Visitor Entry'], ['/visitors/log', 'Visitor Log'], ['/visitors/guards', 'Guard Duty']] },
+  { key: 'visitors', label: 'Guest and Hire', pages: [['/visitors', 'Visitor Entry'], ['/visitors/log', 'Visitor Log'], ['/visitors/guards', 'Guard Duty'], ['/visitors/hires', 'New Hires']] },
   { key: 'fuel', label: 'Fuel', pages: [['/fuel', 'Fuel Entry'], ['/fuel/log', 'Fuel Log'], ['/fuel/setup', 'Setup']] },
   { key: 'support', label: 'Support', pages: [['/support', 'Dashboard'], ['/support/new', 'Record Complaint'], ['/support/list', 'All Complaints'], ['/support/people', 'By Person']] },
   { key: 'exprev', label: 'ExpRev', pages: [['/exprev', 'Dashboard'], ['/exprev/entries', 'Expenditures'], ['/exprev/budget', 'Budget vs Actual'], ['/exprev/analysis', 'Analysis'], ['/exprev/import', 'Import']] },
@@ -21,6 +21,7 @@ export const PAGE_NEEDS = {
   '/attendance/reconcile': 'att_reconcile',
   '/visitors/log': 'vis_log',
   '/visitors/guards': 'guard_duty',
+  '/visitors/hires': 'hire_info',
   '/tasks': 'tasks',
   '/fuel': 'fuel_use',
   '/fuel/log': 'fuel_use',
@@ -47,6 +48,7 @@ export function defaultPages(role, perms = [], rolePerms = {}) {
   L.push('/visitors');
   if (can('vis_log')) L.push('/visitors/log');
   if (can('guard_duty')) L.push('/visitors/guards');
+  if (can('hire_info')) L.push('/visitors/hires');
   if (can('tasks')) L.push('/tasks');
   if (can('fuel_use')) {
     L.push('/fuel', '/fuel/log');

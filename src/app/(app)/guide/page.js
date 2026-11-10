@@ -302,7 +302,7 @@ export default async function GuidePage() {
 
       {visitors ? (
         <details className='card'>
-          <summary>VisitTrack (visitors)</summary>
+          <summary>Guest and Hire (visitors and new hires)</summary>
           <Table
             head={['Feature', 'What it means']}
             rows={[

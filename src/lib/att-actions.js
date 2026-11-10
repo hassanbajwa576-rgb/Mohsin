@@ -129,14 +129,17 @@ export async function addStaff(fd) {
   if (!off) back('/attendance/staff', 'Pick an office');
   let failed = false;
   let id = null;
+  // A joining date in the future adds the person as not yet active; they switch on by themselves on that day.
+  const from = s(fd, 'active_from');
+  const later = /^\d{4}-\d{2}-\d{2}$/.test(from) && from > todayKey();
   try {
-    id = (await q('INSERT INTO pc2_staff (code, name, dept, office_id, shift, shift_start, shift_end) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [code, name, dept, off.id, sh.shift, sh.start, sh.end]))[0].id;
+    id = (await q('INSERT INTO pc2_staff (code, name, dept, office_id, shift, shift_start, shift_end, active, active_from) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id', [code, name, dept, off.id, sh.shift, sh.start, sh.end, !later, later ? from : null]))[0].id;
   } catch {
     failed = true;
   }
   if (failed) back('/attendance/staff', 'That employee code is already in use');
   await logEvent(u, 'create', 'staff', id, 'Added employee ' + name + ' #' + code + ' (' + off.code + ')', null, { name, code, dept, office: off.code, shift: sh.shift, shift_start: sh.start, shift_end: sh.end });
-  back('/attendance/staff', 'Employee added', true);
+  back('/attendance/staff', later ? 'Employee added, active from ' + from : 'Employee added', true);
 }
 
 export async function updateStaff(fd) {
@@ -156,6 +159,12 @@ export async function updateStaff(fd) {
   let failed = false;
   try {
     await q('UPDATE pc2_staff SET name = $1, code = $2, dept = $3, office_id = $4, shift = $5, shift_start = $6, shift_end = $7 WHERE id = $8', [name, code, dept, off.id, sh.shift, sh.start, sh.end, id]);
+    // Joining and separation dates set beforehand. A future joining date holds the person back until that day.
+    const day = (k) => (/^\d{4}-\d{2}-\d{2}$/.test(s(fd, k)) ? s(fd, k) : null);
+    const from = day('active_from');
+    const to = day('active_to');
+    await q('UPDATE pc2_staff SET active_from = $1, active_to = $2 WHERE id = $3', [from && from > todayKey() ? from : null, to, id]);
+    if (from && from > todayKey()) await q('UPDATE pc2_staff SET active = FALSE WHERE id = $1', [id]);
   } catch {
     failed = true;
   }
@@ -254,7 +263,8 @@ export async function deleteTempHours(fd) {
 export async function toggleStaff(fd) {
   const u = await needPerm('att_staff');
   const id = Number(s(fd, 'id'));
-  const r = await q('UPDATE pc2_staff SET active = NOT active WHERE id = $1 RETURNING name, active', [id]);
+  // Switching by hand clears any date that was waiting.
+  const r = await q('UPDATE pc2_staff SET active = NOT active, active_from = NULL, active_to = NULL WHERE id = $1 RETURNING name, active', [id]);
   if (r[0]) await logEvent(u, 'update', 'staff', id, (r[0].active ? 'Activated ' : 'Deactivated ') + r[0].name);
   back('/attendance/staff', 'Employee updated', true);
 }

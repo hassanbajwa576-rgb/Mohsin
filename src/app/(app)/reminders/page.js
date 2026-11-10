@@ -12,8 +12,8 @@ import Flash from '@/components/Flash';
 export const dynamic = 'force-dynamic';
 
 const short = (n) => String(n || '').trim().split(/\s+/).slice(-1)[0];
-const hourText = (h) => (h === 12 ? '12:00 PM' : h > 12 ? h - 12 + ':00 PM' : h + ':00 AM');
-const when = (r) => (r.kind === 'once' ? 'Once, ' + r.on_date : r.kind === 'daily' ? 'Every day' : r.kind === 'days' ? 'Every ' + daysText(r.weekdays) : r.kind === 'm15' ? 'On the 15th of each month' : 'Last working day of each month') + ' at ' + hourText(r.hour);
+const hourText = (h, m) => (h % 12 || 12) + ':' + String(m || 0).padStart(2, '0') + (h >= 12 ? ' PM' : ' AM');
+const when = (r) => (r.kind === 'once' ? 'Once, ' + r.on_date : r.kind === 'daily' ? 'Every day' : r.kind === 'days' ? 'Every ' + daysText(r.weekdays) : r.kind === 'm15' ? 'On the 15th of each month' : 'Last working day of each month') + ' at ' + hourText(r.hour, r.minute);
 
 export default async function RemindersPage({ searchParams }) {
   const user = await requireUser(['om', 'sso', 'so']);
@@ -22,7 +22,7 @@ export default async function RemindersPage({ searchParams }) {
   const people = await taskPeople(user);
   const ids = [user.id, ...people.map((p) => p.id)];
   const rows = await q(
-    `SELECT r.id, r.user_id, r.created_by, r.title, r.note, r.kind, r.weekdays, r.hour, r.active, to_char(r.on_date, 'YYYY-MM-DD') AS on_date, ou.name AS owner_name, cu.name AS by_name
+    `SELECT r.id, r.user_id, r.created_by, r.title, r.note, r.kind, r.weekdays, r.hour, r.minute, r.active, to_char(r.on_date, 'YYYY-MM-DD') AS on_date, ou.name AS owner_name, cu.name AS by_name
      FROM pc2_reminders r JOIN pc2_users ou ON ou.id = r.user_id LEFT JOIN pc2_users cu ON cu.id = r.created_by
      WHERE r.user_id = ANY($1::int[]) ORDER BY r.active DESC, r.id DESC LIMIT 200`,
     [ids]
@@ -33,7 +33,7 @@ export default async function RemindersPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Reminders</h1>
-          <p className='muted'>A reminder is a nudge on a schedule that arrives in your bell and on your phone. Tasks are kept separate on the Tasks page.</p>
+          <p className='muted'>A reminder is a nudge that arrives in your bell and on your phone at the time you choose.</p>
         </div>
       </div>
       <Flash sp={sp} />

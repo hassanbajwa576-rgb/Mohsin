@@ -7,10 +7,10 @@ import { DOMAIN, DOMAIN_ORDER } from '@/lib/task-domains';
 
 // One module in the switch. Resting the mouse on it (or tabbing to it) drops its pages down;
 // tapping it still opens the module, so phones behave as before.
-function Mod({ href, label, active, items, on }) {
+function Mod({ href, label, short = '', active, items, on }) {
   return (
     <span className='modwrap'>
-      <Link href={href} className={active ? 'on' : ''} aria-haspopup='true'>{label}</Link>
+      <Link href={href} className={active ? 'on' : ''} aria-haspopup='true'>{short ? <><span className='ml'>{label}</span><span className='ms'>{short}</span></> : label}</Link>
       <span className='modpop' role='menu' aria-label={label + ' pages'}>
         {items.map((it) => <Link key={it.href} href={it.href} role='menuitem' className={on(it.href) ? 'on' : ''}>{it.label}</Link>)}
       </span>
@@ -77,6 +77,7 @@ function TaskTabs({ glass }) {
       {items.map(([k, label]) => (
         <Link key={k || 'all'} href={k ? '/tasks?domain=' + k : '/tasks'} className={path === '/tasks' && dom === k ? 'on' : ''}>{label}</Link>
       ))}
+      <Link href='/reminders' className={path === '/reminders' || path.indexOf('/reminders/') === 0 ? 'on' : ''}>Reminders</Link>
     </nav>
   );
 }
@@ -107,7 +108,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const fuel = path === '/fuel' || path.indexOf('/fuel/') === 0;
   const sup = path === '/support' || path.indexOf('/support/') === 0;
   const exr = path === '/exprev' || path.indexOf('/exprev/') === 0;
-  const tasksPg = path === '/tasks' || path.indexOf('/tasks/') === 0;
+  const tasksPg = path === '/tasks' || path.indexOf('/tasks/') === 0 || path === '/reminders' || path.indexOf('/reminders/') === 0;
   const guard = role === 'guard';
   const om = role === 'om';
   const sso = role === 'sso';
@@ -142,6 +143,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const vis = [page('/visitors', 'Visitor Entry')];
   if (access.includes('vis_log')) vis.push(page('/visitors/log', 'Visitor Log'));
   if (access.includes('guard_duty')) vis.push(page('/visitors/guards', 'Guard Duty'));
+  if (access.includes('hire_info')) vis.push(page('/visitors/hires', 'New Hires'));
 
   const fu = [page('/fuel', 'Fuel Entry'), page('/fuel/log', 'Fuel Log')];
   if (om) fu.push(page('/fuel/setup', 'Setup'));
@@ -176,7 +178,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const bots = [];
   if (pettyK.length) bots.push({ href: '/', label: 'Petty', active: !attend && !visit && !fuel && !sup && !exr && !tasksPg, d: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12M16 14h2' });
   if (attK.length) bots.push({ href: '/attendance', label: 'Attend', active: attend, d: 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' });
-  if (visK.length) bots.push({ href: '/visitors', label: 'Visitors', active: visit, d: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 3-5 6-5s6 2 6 5M16 5a3 3 0 0 1 0 6M18 15c2 .5 3 2.5 3 5' });
+  if (visK.length) bots.push({ href: '/visitors', label: 'Guests', active: visit, d: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 3-5 6-5s6 2 6 5M16 5a3 3 0 0 1 0 6M18 15c2 .5 3 2.5 3 5' });
   if (access.includes('fuel_use') && fuK.length) bots.push({ href: '/fuel', label: 'Fuel', active: fuel, d: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z' });
   if (suK.length) bots.push({ href: '/support', label: 'Support', active: sup, d: 'M4 5h16v11H9l-5 4zM8 10h8' });
   if (om && erK.length) bots.push({ href: '/exprev', label: 'ExpRev', active: exr, d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' });
@@ -188,7 +190,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
         {tasksPg ? null : <span className='modseg' translate='no'>
           {guard || !pettyK.length ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup && !exr && !tasksPg} items={pettyK} on={on} />}
           {attK.length ? <Mod href='/attendance' label='Attendance' active={attend} items={all(attK)} on={on} /> : null}
-          {visK.length ? <Mod href='/visitors' label='Visitors' active={visit} items={visK} on={on} /> : null}
+          {visK.length ? <Mod href='/visitors' label='Guest and Hire' short='Guest/Hire' active={visit} items={visK} on={on} /> : null}
           {access.includes('fuel_use') && fuK.length ? <Mod href='/fuel' label='Fuel' active={fuel} items={fuK} on={on} /> : null}
           {guard || !suK.length ? null : <Mod href='/support' label='Support' active={sup} items={suK} on={on} />}
         </span>}

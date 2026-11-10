@@ -236,6 +236,9 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .modseg a{white-space:nowrap}
 .tier-menu{flex:none}
 @media (max-width:700px){.nav-top .sep{display:none}.modseg a{padding:6px 10px;font-size:12.5px}.tier-sep{margin:0 6px}}
+/* Module names with a long and a short form: the short one on phones so the switch does not get wider. */
+.modseg .ms{display:none}
+@media (max-width:700px){.modseg .ml{display:none}.modseg .ms{display:inline}}
 
 /* header mobile v2 */
 .tier-in{overflow:visible;white-space:normal;flex-wrap:nowrap}
@@ -545,6 +548,8 @@ html[data-theme=dark] .otag.remote{color:#cbb8f5;border-color:#6d55b3;background
 .fbar-dates label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px}
 @media (max-width:720px){.qseg{flex-wrap:wrap}.qseg button{flex:1 1 auto}.dwrap{flex:1 1 100%}.dbtn{width:100%;text-align:left}}
 .dpop.flip{left:auto;right:0}
+/* Phones: the department list opens as a sheet across the screen, wherever the button sits. */
+@media (max-width:720px){.dpop,.dpop.flip{position:fixed;left:12px;right:12px;top:14vh;width:auto;max-height:72vh;overflow:auto;z-index:60}}
 .tmppill{display:inline-block;font-size:12px;padding:1px 9px;border-radius:6px;background:var(--gold);color:#2c3138;white-space:nowrap;font-weight:600}
 .staffgrid{max-height:240px;overflow-y:auto}
 

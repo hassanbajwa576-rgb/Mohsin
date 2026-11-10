@@ -3,6 +3,7 @@ import OfficeTag from '@/components/OfficeTag';
 import { requireUser } from '@/lib/auth';
 import { q } from '@/lib/db';
 import { can } from '@/lib/perms';
+import { applyStaffDates } from '@/lib/staff-dates';
 import { addEntry, removeEntry } from '@/lib/att-actions';
 import {
   ATT_ROLES, KIND_LABEL, STATE_LABEL, BREAK_LIMIT_MIN, canSeeTimes, entryStaff, allOffices, recentEvents, groupByStaff,
@@ -23,6 +24,7 @@ export default async function AttendancePage({ searchParams }) {
   const see = canSeeTimes(user);
 
   // Everyone can enter a visiting employee from the other office; entries are recorded at the user's own office.
+  await applyStaffDates(); // joiners and leavers whose date has arrived
   const staff = await entryStaff();
   const evs = await recentEvents(staff.map((x) => x.id), 3);
   const by = groupByStaff(evs);

@@ -4,12 +4,14 @@ import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, shiftText, SHIFT_COLS, SHIFT_JOIN, loadPeriods, shiftOn, todayKey } from '@/lib/att';
 import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
+import { applyStaffDates } from '@/lib/staff-dates';
 import { addStaff, toggleStaff, importStaff, deleteStaff, saveDeptShift, saveTempHours, endTempHours, deleteTempHours } from '@/lib/att-actions';
 import ConfirmButton from '@/components/ConfirmButton';
 import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
 import ShiftFields from '@/components/ShiftFields';
 import DeptShiftForm from '@/components/DeptShiftForm';
+import DeptPicker from '@/components/DeptPicker';
 import TempHoursForm from '@/components/TempHoursForm';
 
 export const dynamic = 'force-dynamic';
@@ -18,8 +20,9 @@ export default async function AttendanceStaffPage({ searchParams }) {
   const user = await requireUser(ATT_ROLES);
   if (!can(user, 'att_staff')) redirect('/attendance');
   const sp = await searchParams;
+  await applyStaffDates(); // joiners and leavers whose date has arrived
   const rows = await q(
-    `SELECT s.id, s.code, s.name, s.dept, ${SHIFT_COLS}, s.active, o.code AS office, (SELECT COUNT(*)::int FROM pc2_attendance a WHERE a.staff_id = s.id) AS entries FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
+    `SELECT s.id, s.code, s.name, s.dept, ${SHIFT_COLS}, s.active, to_char(s.active_from, 'YYYY-MM-DD') AS active_from, to_char(s.active_to, 'YYYY-MM-DD') AS active_to, o.code AS office, (SELECT COUNT(*)::int FROM pc2_attendance a WHERE a.staff_id = s.id) AS entries FROM pc2_staff s ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = s.office_id ${allOffices(user) ? '' : 'WHERE s.office_id = ' + Number(user.office_id)} ORDER BY s.active DESC, o.code, s.name`
   );
 
   const depts = [...new Set(rows.map((r) => r.dept).filter(Boolean))].sort();
@@ -31,14 +34,14 @@ export default async function AttendanceStaffPage({ searchParams }) {
      FROM pc2_shift_periods p LEFT JOIN pc2_staff s ON s.id = p.staff_id WHERE p.to_date >= current_date - 60 ORDER BY p.from_date DESC, p.id DESC`
   );
   const pickStaff = rows.filter((r) => r.active).map((r) => ({ id: r.id, name: r.name, dept: r.dept }));
-  const fd = depts.includes(sp.dept) ? sp.dept : '';
+  const fds = [].concat(sp.dept || []).filter((d) => depts.includes(d));
   const fo = allOffices(user) && ['LHR', 'ISB', 'REMOTE'].includes(sp.office) ? sp.office : '';
   const fs = ['active', 'inactive'].includes(sp.status) ? sp.status : '';
   const fh = ['morning', 'evening', 'night', 'none'].includes(sp.shift) ? sp.shift : '';
   const fq = String(sp.q || '').trim().slice(0, 60);
   const shown = rows.filter(
     (r) =>
-      (!fd || r.dept === fd) &&
+      (!fds.length || fds.includes(r.dept)) &&
       (!fo || r.office === fo) &&
       (!fs || (fs === 'active') === r.active) &&
       (!fh || (fh === 'none' ? !r.shift : r.shift === fh)) &&
@@ -50,7 +53,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
   const cnt = (code) => act.filter((r) => r.office === code).length;
   const nInactive = rows.length - act.length;
   const statusLink = (v) => {
-    const p = new URLSearchParams({ ...(fd ? { dept: fd } : {}), ...(fo ? { office: fo } : {}), ...(v ? { status: v } : {}), ...(fh ? { shift: fh } : {}), ...(fq ? { q: fq } : {}) }).toString();
+    const p = new URLSearchParams([...fds.map((d) => ['dept', d]), ...(fo ? [['office', fo]] : []), ...(v ? [['status', v]] : []), ...(fh ? [['shift', fh]] : []), ...(fq ? [['q', fq]] : [])]).toString();
     return '/attendance/staff' + (p ? '?' + p : '');
   };
 
@@ -86,6 +89,8 @@ export default async function AttendanceStaffPage({ searchParams }) {
           <label>Office
             <select name='office' defaultValue='LHR'><option>LHR</option><option>ISB</option><option value='REMOTE'>Remote</option></select>
           </label>
+          <label>Active from (optional)<input type='date' name='active_from' /></label>
+          <p className='muted wide'>For an upcoming joiner, pick the joining date. They are added now and switch on by themselves on that day. Leave empty to start today.</p>
           <ShiftFields />
           <button className='btn primary' type='submit'>Add employee</button>
         </form>
@@ -169,12 +174,9 @@ export default async function AttendanceStaffPage({ searchParams }) {
       </details>
 
       <form method='get' className='card filters compact'>
-        <label>Department
-          <select name='dept' defaultValue={fd}>
-            <option value=''>All departments</option>
-            {depts.map((d) => <option key={d}>{d}</option>)}
-          </select>
-        </label>
+        <div className='fbar-field'>Department
+          <DeptPicker depts={depts} selected={fds} tags={false} />
+        </div>
         {allOffices(user) ? (
           <label>Office
             <select name='office' defaultValue={fo}><option value=''>All offices</option><option>LHR</option><option>ISB</option><option value='REMOTE'>Remote</option></select>
@@ -225,7 +227,7 @@ export default async function AttendanceStaffPage({ searchParams }) {
                       if (t.shift_src === 'temporary') return <><span className='tmppill'>{shiftText(t)}</span><span className='srctag'>until {t.temp_to}{r.shift ? ', then ' + shiftText(r) : ''}</span></>;
                       return r.shift ? <><span className='shiftpill'>{shiftText(r)}</span>{r.shift_src === 'department' ? <span className='srctag'>from department</span> : null}</> : '-';
                     })()}</td>
-                    <td className='c-stage'><span className={'badge ' + (r.active ? 'approved' : 'rejected')}>{r.active ? 'Active' : 'Inactive'}</span></td>
+                    <td className='c-stage'><span className={'badge ' + (r.active ? 'approved' : r.active_from ? 'submitted' : 'rejected')}>{r.active ? 'Active' : r.active_from ? 'Joins' : 'Inactive'}</span>{r.active_from ? <span className='srctag'>from {r.active_from}</span> : null}{r.active_to ? <span className='srctag'>leaves {r.active_to}</span> : null}</td>
                     <td className='act'>
                       <div className='staffact'>
                         <a className='btn' href={'/attendance/staff/edit?id=' + r.id}>Edit</a>

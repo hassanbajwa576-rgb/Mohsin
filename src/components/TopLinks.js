@@ -16,7 +16,7 @@ export default function TopLinks({ role, approvals = 0, allowed = null, tasks = 
   items.push(['/guide', 'Guide']);
   const picked = allowed ? items.filter(([href]) => allowed.includes(href)) : items;
   // The holiday calendar is open to everyone who can see the manager links.
-  const extra = [...(tasks ? [['/reminders', 'Reminders']] : []), ['/holidays', 'Holidays']];
+  const extra = [['/holidays', 'Holidays']];
   const shown = [...picked.filter(([h]) => h !== '/guide'), ...extra, ...picked.filter(([h]) => h === '/guide')];
   return (
     <nav className='toplinks' aria-label='Manager links'>

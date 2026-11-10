@@ -6,8 +6,6 @@ import { WEEKDAYS } from '@/lib/weekdays';
 // Add a reminder: what, for whom, when (once, every day, chosen days, the 15th, last working day) and at what hour.
 export default function ReminderForm({ action, people = [], meId = '' }) {
   const [kind, setKind] = useState('once');
-  const hours = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
-  const label = (h) => (h === 12 ? '12:00 PM' : h > 12 ? h - 12 + ':00 PM' : h + ':00 AM');
   return (
     <form action={action} className='form'>
       {people.length ? (
@@ -29,8 +27,8 @@ export default function ReminderForm({ action, people = [], meId = '' }) {
           <option value='mend'>Last working day of every month</option>
         </select>
       </label>
-      <label>At
-        <select name='hour' defaultValue='9'>{hours.map((h) => <option key={h} value={h}>{label(h)}</option>)}</select>
+      <label>Remind me at (time)
+        <input type='time' name='time' defaultValue='09:00' required />
       </label>
       {kind === 'once' ? <label>Date<input type='date' name='on_date' required /></label> : null}
       {kind === 'days' ? (

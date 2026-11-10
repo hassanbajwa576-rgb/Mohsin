@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import TimePick from '@/components/TimePick';
+import DeptPicker from '@/components/DeptPicker';
 
 const SCOPES = [['department', 'Departments'], ['employee', 'Specific employees'], ['everyone', 'Everyone']];
 
@@ -31,19 +32,8 @@ export default function TempHoursForm({ depts, staff, action, today }) {
 
       {scope === 'department' ? (
         <div className='wide'>
-          <span className='att-lbl'>Departments (tick one or more)</span>
-          <div className='deptgrid'>
-            {depts.map((d) => (
-              <label key={d} className='checkrow'>
-                <input type='checkbox' name='dept' value={d} checked={dsel.includes(d)} onChange={() => toggle(setDsel, d)} /> {d}
-              </label>
-            ))}
-          </div>
-          <p className='deptlinks'>
-            <button type='button' className='linkbtn' onClick={() => setDsel(depts)}>Select all</button>
-            {' · '}
-            <button type='button' className='linkbtn' onClick={() => setDsel([])}>Clear</button>
-          </p>
+          <span className='att-lbl'>Departments (pick one or more)</span>
+          <DeptPicker depts={depts} value={dsel} onChange={setDsel} />
         </div>
       ) : null}
 

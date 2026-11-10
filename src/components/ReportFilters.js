@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import DeptPicker from '@/components/DeptPicker';
 
 const addDays = (key, n) => {
   const d = new Date(key + 'T00:00:00Z');
@@ -26,14 +27,9 @@ export default function ReportFilters({
   const [to, setTo] = useState(to0);
   const [office, setOffice] = useState(office0);
   const [sel, setSel] = useState(selected);
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState('');
   const [custom, setCustom] = useState(false);
   const [who, setWho] = useState(who0);
-  const [flip, setFlip] = useState(false);
   const form = useRef(null);
-  const wrap = useRef(null);
-  const popRef = useRef(null);
 
   const periods = useMemo(() => {
     const lm = lastMonth(today);
@@ -48,25 +44,6 @@ export default function ReportFilters({
   const active = quick.find((k) => periods[k][1] === from && periods[k][2] === to) || '';
   const showDates = custom || !active;
 
-  // Open towards the left when the list would run off the right edge of the screen.
-  useEffect(() => {
-    if (!open) {
-      setFlip(false);
-      return;
-    }
-    const el = popRef.current;
-    if (el) setFlip(el.getBoundingClientRect().right > window.innerWidth - 8);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const away = (e) => {
-      if (wrap.current && !wrap.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', away);
-    return () => document.removeEventListener('mousedown', away);
-  }, [open]);
-
   const submitSoon = () => setTimeout(() => form.current && form.current.requestSubmit(), 0);
   const pick = (k) => {
     setFrom(periods[k][1]);
@@ -74,8 +51,6 @@ export default function ReportFilters({
     setCustom(false);
     submitSoon();
   };
-  const shown = depts.filter((d) => d.toLowerCase().includes(text.trim().toLowerCase()));
-  const toggle = (d) => setSel((s) => (s.includes(d) ? s.filter((x) => x !== d) : [...s, d]));
 
   return (
     <form ref={form} method='get' className='card fbar'>
@@ -83,7 +58,6 @@ export default function ReportFilters({
       <input type='hidden' name='from' value={from} />
       <input type='hidden' name='to' value={to} />
       {canOffice ? <input type='hidden' name='office' value={office} /> : null}
-      {sel.map((d) => <input key={d} type='hidden' name='dept' value={d} />)}
 
       <div className='fbar-row'>
         <div className='qseg' role='group' aria-label='Period'>
@@ -101,30 +75,7 @@ export default function ReportFilters({
           </div>
         ) : null}
 
-        <div className='dwrap' ref={wrap}>
-          <button type='button' className='dbtn' onClick={() => setOpen(!open)} aria-expanded={open}>
-            {sel.length ? 'Departments (' + sel.length + ')' : 'All departments'} <span aria-hidden='true'>&#9662;</span>
-          </button>
-          {open ? (
-            <div className={'dpop' + (flip ? ' flip' : '')} ref={popRef}>
-              <input className='dsearch' type='search' placeholder='Search departments' value={text} onChange={(e) => setText(e.target.value)} autoFocus />
-              <div className='dcols'>
-                {shown.map((d) => (
-                  <label key={d}><input type='checkbox' checked={sel.includes(d)} onChange={() => toggle(d)} /> <span>{d}</span></label>
-                ))}
-                {!shown.length ? <p className='muted'>No department matches.</p> : null}
-              </div>
-              <div className='dfoot'>
-                <span>
-                  <button type='button' className='linkbtn' onClick={() => setSel((s) => [...new Set([...s, ...shown])])}>Select all</button>
-                  {' · '}
-                  <button type='button' className='linkbtn' onClick={() => setSel([])}>Clear</button>
-                </span>
-                <button type='button' className='btn primary' onClick={() => { setOpen(false); submitSoon(); }}>Done</button>
-              </div>
-            </div>
-          ) : null}
-        </div>
+        <DeptPicker depts={depts} value={sel} onChange={setSel} autoSubmit tags={false} />
 
         <label className='fbar-field'>Employee
           <input
