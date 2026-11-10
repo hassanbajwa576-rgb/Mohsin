@@ -635,6 +635,8 @@ table.rost .we{background:#f1efe8}
 table.rost th.we{background:#e8c25a}
 table.rost th.tod{outline:2px solid #000;outline-offset:-2px}
 .rostag{padding:2px 8px;border-radius:3px;font-size:12.5px}
+/* Dark theme: the pastel type colours are dimmed instead of glaring white, and the text stays light. */
+html[data-theme=dark] .rostag{background-image:linear-gradient(rgba(12,12,12,.62),rgba(12,12,12,.62))!important;color:#f1efe6}
 
 table.rost td{font-size:11px;font-weight:600}
 
@@ -653,6 +655,10 @@ h1,h2,h3{text-transform:capitalize}
 /* Edit and Remove side by side in tables */
 td.act .entry-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}td.act .entry-act .btn{white-space:nowrap}
 
+/* Expense rows: Approve, Reject, Edit and Delete on one row (wraps only when the cell is too narrow) */
+td.act .actrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+td.act .actrow .inline{margin:0;display:inline-flex;flex-wrap:nowrap}
+td.act .actrow .btn{white-space:nowrap}
 /* Action buttons sit side by side and only wrap when the cell runs out of room (all tables) */
 @media (min-width:721px){
   td.act .inline:not(:has(.sm)){display:inline-flex;flex-wrap:nowrap;margin:0 6px 6px 0;vertical-align:top}

@@ -46,24 +46,29 @@ export default function ExpenseTable({ rows: raw, user, back = '/expenses', acti
                 <td className='c-stage'><span className={'badge ' + r.status}>{STATUS_LABEL[r.status]}</span></td>
                 <td className='act'>
                   {canDecide ? (
-                    <form action={decideExpense} className='inline'>
+                    <form id={'dec-' + r.id} action={decideExpense} className='inline'>
                       <input type='hidden' name='id' value={r.id} />
                       <input type='hidden' name='back' value={back} />
                       <input name='note' placeholder='Note (optional)' className='sm' />
-                      <button name='decision' value='approve' className='btn ok' type='submit'>{isOM ? 'Approve' : 'Verify'}</button>
-                      <button name='decision' value='reject' className='btn bad' type='submit'>Reject</button>
                     </form>
                   ) : null}
-                  {canEdit ? (
-                    <div className='inline'><a href={'/expenses/edit?id=' + r.id} className='btn'>Edit</a></div>
-                  ) : null}
-                  {canDelete ? (
-                    <form action={deleteExpense} className='inline'>
-                      <input type='hidden' name='id' value={r.id} />
-                      <input type='hidden' name='back' value={back} />
-                      <ConfirmButton className='btn ghost' message={r.status === 'sent' ? 'This expense was already sent to Accounts. Delete it anyway? This cannot be undone.' : 'Delete this expense? This cannot be undone.'}>Delete</ConfirmButton>
-                    </form>
-                  ) : null}
+                  {/* One row: Approve, Reject, Edit and Delete (the two decision buttons belong to the note form above). */}
+                  <div className='actrow'>
+                    {canDecide ? (
+                      <>
+                        <button form={'dec-' + r.id} name='decision' value='approve' className='btn ok' type='submit'>{isOM ? 'Approve' : 'Verify'}</button>
+                        <button form={'dec-' + r.id} name='decision' value='reject' className='btn bad' type='submit'>Reject</button>
+                      </>
+                    ) : null}
+                    {canEdit ? <a href={'/expenses/edit?id=' + r.id} className='btn'>Edit</a> : null}
+                    {canDelete ? (
+                      <form action={deleteExpense} className='inline'>
+                        <input type='hidden' name='id' value={r.id} />
+                        <input type='hidden' name='back' value={back} />
+                        <ConfirmButton className='btn ghost' message={r.status === 'sent' ? 'This expense was already sent to Accounts. Delete it anyway? This cannot be undone.' : 'Delete this expense? This cannot be undone.'}>Delete</ConfirmButton>
+                      </form>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             );

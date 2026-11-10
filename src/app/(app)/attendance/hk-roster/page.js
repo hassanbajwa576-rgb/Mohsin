@@ -40,7 +40,8 @@ export default async function RosterPage({ searchParams }) {
   const settings = await getSettings();
   const hol = await holidaysBetween(month + '-01', month + '-' + String(n).padStart(2, '0'));
   const off = await offToday(today, office);
-  const coming = await comingUp(today, 14, office);
+  // "Coming up" is time off that starts after today; anyone off today is already counted under "Off today".
+  const coming = (await comingUp(today, 14, office)).filter((e) => e.from_date > today);
   const pending = edit ? await pendingRequests(office) : [];
   const birthdays = upcomingBirthdays(team, today, 30);
   const names = team.map((p) => p.name);
