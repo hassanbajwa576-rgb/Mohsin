@@ -171,6 +171,7 @@ const DDL = [
   `ALTER TABLE pc2_staff ADD COLUMN IF NOT EXISTS inactive_reason TEXT NOT NULL DEFAULT ''`,
   // New hires (Guest and Hire): details of upcoming joiners.
   `CREATE TABLE IF NOT EXISTS pc2_hires (id SERIAL PRIMARY KEY, name TEXT NOT NULL, dept TEXT NOT NULL DEFAULT '', join_date DATE NOT NULL, office_id INTEGER NOT NULL REFERENCES pc2_offices(id), level TEXT NOT NULL DEFAULT '', created_by INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `ALTER TABLE pc2_hires ADD COLUMN IF NOT EXISTS join_time TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE pc2_hires ADD COLUMN IF NOT EXISTS arrived_at TIMESTAMPTZ`,
   `ALTER TABLE pc2_hires ADD COLUMN IF NOT EXISTS arrived_by INTEGER`,
   `UPDATE pc2_users SET pages = pages || ',/visitors/hires' WHERE role = 'guard' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
@@ -192,7 +193,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-10-2';
+const SCHEMA_VERSION = '2026-11-11-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

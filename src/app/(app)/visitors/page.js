@@ -11,6 +11,7 @@ import TimePick from '@/components/TimePick';
 import ExpectedAlert from '@/components/ExpectedAlert';
 import { runVisitorReminders } from '@/lib/visitor-reminders';
 import HireArrived from '@/components/HireArrived';
+import { hireWhen } from '@/lib/hires';
 import { can } from '@/lib/perms';
 import { q } from '@/lib/db';
 
@@ -35,9 +36,9 @@ export default async function VisitorsPage({ searchParams }) {
   // New hires joining today (or earlier and not yet marked), so the guard knows who to expect.
   const hires = can(user, 'hire_view')
     ? await q(
-        `SELECT h.id, h.name, h.dept, to_char(h.join_date, 'YYYY-MM-DD') AS join_date, o.code AS office
+        `SELECT h.id, h.name, h.dept, to_char(h.join_date, 'YYYY-MM-DD') AS join_date, h.join_time, o.code AS office
          FROM pc2_hires h JOIN pc2_offices o ON o.id = h.office_id
-         WHERE h.arrived_at IS NULL AND h.join_date <= $1::date AND h.join_date >= $1::date - 7 ${both ? '' : 'AND h.office_id = ' + Number(user.office_id)} ORDER BY h.join_date, h.name`,
+         WHERE h.arrived_at IS NULL AND h.join_date <= $1::date + 7 AND h.join_date >= $1::date - 7 ${both ? '' : 'AND h.office_id = ' + Number(user.office_id)} ORDER BY h.join_date, h.join_time, h.name`,
         [today]
       )
     : [];
@@ -56,17 +57,17 @@ export default async function VisitorsPage({ searchParams }) {
 
       {hires.length ? (
         <div className='card v-focus'>
-          <h3 style={{ marginTop: 0 }}>New hires joining{hires.length ? <span className='v-count'>{hires.length}</span> : null}</h3>
-          <p className='muted' style={{ marginTop: 0 }}>When they come in, tap Arrived.</p>
+          <h3 style={{ marginTop: 0 }}>New hires coming<span className='v-count'>{hires.length}</span></h3>
+          <p className='muted' style={{ marginTop: 0 }}>Expect them on the day and time shown. When one comes in, tap Arrived.</p>
           <div className='tablewrap'>
             <table className='tx'>
               <tbody>
                 {hires.map((h) => (
                   <tr key={h.id}>
                     <td className='c-title'><OfficeTag o={h.office} /><b>{h.name}</b>{h.dept ? <div className='muted'>{h.dept}</div> : null}</td>
-                    <td className='nw c-meta'>{h.join_date === today ? 'Joins today' : 'Joined ' + h.join_date}</td>
+                    <td className='c-meta'>{hireWhen(h.join_date, h.join_time, today)}</td>
                     <td className='act'>
-                      <HireArrived id={h.id} role={user.role} today={today} nowTime={nowTime} />
+                      {h.join_date <= today ? <HireArrived id={h.id} role={user.role} today={today} nowTime={nowTime} /> : null}
                     </td>
                   </tr>
                 ))}
@@ -109,7 +110,7 @@ export default async function VisitorsPage({ searchParams }) {
       </div>
 
       <div className='card v-focus'>
-        <h3 style={{ marginTop: 0 }}>Expected Visitors Today{queue.length ? <span className='v-count'>{queue.length}</span> : null}</h3>
+        <h3 style={{ marginTop: 0 }}>Expected Visitors{queue.length ? <span className='v-count'>{queue.length}</span> : null}</h3>
         <p className='muted' style={{ marginTop: 0 }}>{planner ? 'Add a visitor here before they come. The guard marks them as arrived or no show.' : 'When a visitor arrives, tap Arrived. If they do not come, tap No show.'}</p>
         {queue.length ? (
           <div className='v-today-box'>
@@ -158,7 +159,7 @@ export default async function VisitorsPage({ searchParams }) {
             </table>
           </div>
           </div>
-        ) : <p className='muted'>Nobody is expected right now.</p>}
+        ) : <p className='muted'>Nobody is expected today.</p>}
         {later.length ? (
           <>
             <h4 style={{ marginBottom: 6 }}>Coming on later days ({later.length})</h4>

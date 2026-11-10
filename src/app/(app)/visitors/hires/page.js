@@ -6,6 +6,7 @@ import { q } from '@/lib/db';
 import { ATT_ROLES, allOffices, departments, todayKey, fmtTime } from '@/lib/att';
 import { saveHire, deleteHire } from '@/lib/hire-actions';
 import HireArrived from '@/components/HireArrived';
+import { hireWhen, timeText } from '@/lib/hires';
 import ConfirmButton from '@/components/ConfirmButton';
 import OfficeTag from '@/components/OfficeTag';
 import Flash from '@/components/Flash';
@@ -22,12 +23,14 @@ export default async function NewHiresPage({ searchParams }) {
   const today = todayKey();
   const depts = manage ? await departments() : [];
   const rows = await q(
-    `SELECT h.id, h.name, h.dept, h.level, to_char(h.join_date, 'YYYY-MM-DD') AS join_date, to_char(h.arrived_at AT TIME ZONE 'Asia/Karachi', 'DD Mon, HH12:MI AM') AS arrived, o.code AS office
+    `SELECT h.id, h.name, h.dept, h.level, to_char(h.join_date, 'YYYY-MM-DD') AS join_date, h.join_time, (extract(epoch from h.arrived_at) * 1000)::float8 AS arrived_ms, to_char(h.arrived_at AT TIME ZONE 'Asia/Karachi', 'DD Mon, HH12:MI AM') AS arrived, o.code AS office
      FROM pc2_hires h JOIN pc2_offices o ON o.id = h.office_id ${allOffices(user) ? '' : 'WHERE h.office_id = ' + Number(user.office_id)}
      ORDER BY (h.arrived_at IS NOT NULL), CASE WHEN h.arrived_at IS NULL THEN h.join_date END ASC, h.join_date DESC, h.id DESC LIMIT 300`
   );
   const edit = rows.find((r) => String(r.id) === String(sp.edit || '')) || null;
-  const upcoming = rows.filter((r) => r.join_date >= today && !r.arrived).length;
+  // Left: still to join (soonest first). Right: already marked as arrived (latest first).
+  const waiting = rows.filter((r) => !r.arrived);
+  const joined = rows.filter((r) => r.arrived).sort((a, b) => b.arrived_ms - a.arrived_ms).slice(0, 30);
 
   return (
     <>
@@ -47,6 +50,7 @@ export default async function NewHiresPage({ searchParams }) {
           <label>Department<input name='dept' defaultValue={edit ? edit.dept : ''} list='hire-depts' maxLength={60} autoComplete='off' /></label>
           <datalist id='hire-depts'>{depts.map((d) => <option key={d} value={d} />)}</datalist>
           <label>Joining date<input type='date' name='join_date' defaultValue={edit ? edit.join_date : today} required /></label>
+          <label>Joining time (optional)<input type='time' name='join_time' defaultValue={edit ? edit.join_time : ''} /></label>
           <label>Office location
             <select name='office' defaultValue={edit ? edit.office : allOffices(user) ? 'LHR' : user.office_code}>
               {allOffices(user) ? <><option value='LHR'>LHR</option><option value='ISB'>ISB</option><option value='REMOTE'>Remote</option></> : <option value={user.office_code}>{user.office_code}</option>}
@@ -58,38 +62,67 @@ export default async function NewHiresPage({ searchParams }) {
         </form>
       </div> : null}
 
-      <div className='card'>
-        <h3 style={{ marginTop: 0 }}>New hires{upcoming ? <span className='v-count'>{upcoming}</span> : null}</h3>
-        {rows.length ? (
-          <div className='tablewrap'>
-            <table className='tx'>
-              <thead><tr><th>Name</th><th>Department</th><th>Joining date</th><th>Office</th><th>Level</th><th></th></tr></thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id}>
-                    <td className='c-title'><b>{r.name}</b>{r.arrived ? <span className='srctag'>arrived {r.arrived}</span> : r.join_date >= today ? <span className='srctag'>{r.join_date === today ? 'joins today' : 'upcoming'}</span> : <span className='srctag'>not marked arrived</span>}</td>
-                    <td className='c-meta'>{r.dept || '-'}</td>
-                    <td className='nw c-meta'>{r.join_date}</td>
-                    <td className='c-meta'><OfficeTag o={r.office} /></td>
-                    <td className='c-meta'>{r.level ? 'Level ' + r.level : '-'}</td>
-                    <td className='act'>
-                      {!r.arrived && r.join_date <= today ? (
-                        <HireArrived id={r.id} role={user.role} today={today} nowTime={fmtTime(Date.now())} />
-                      ) : null}
-                      {manage ? <Link className='btn' href={'/visitors/hires?edit=' + r.id}>Edit</Link> : null}
-                      {manage ? (
-                        <form action={deleteHire} className='inline'>
-                          <input type='hidden' name='id' value={r.id} />
-                          <ConfirmButton className='btn ghost' message={'Remove ' + r.name + ' from the new hires list?'}>Remove</ConfirmButton>
-                        </form>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : <p className='muted'>No new hires recorded yet.</p>}
+      <div className='hires2'>
+        <div className='card'>
+          <h3 style={{ marginTop: 0 }}>Upcoming hires{waiting.length ? <span className='v-count'>{waiting.length}</span> : null}</h3>
+          <p className='muted' style={{ marginTop: 0 }}>Expected to join, soonest first.</p>
+          {waiting.length ? (
+            <div className='tablewrap'>
+              <table className='tx'>
+                <thead><tr><th>Name</th><th>Joining</th><th>Level</th><th></th></tr></thead>
+                <tbody>
+                  {waiting.map((r) => (
+                    <tr key={r.id}>
+                      <td className='c-title'><OfficeTag o={r.office} /><b>{r.name}</b>{r.dept ? <div className='muted'>{r.dept}</div> : null}</td>
+                      <td className='c-meta'>{r.join_date < today ? 'Not marked arrived: ' : ''}{hireWhen(r.join_date, r.join_time, today)}</td>
+                      <td className='c-meta'>{r.level ? 'Level ' + r.level : '-'}</td>
+                      <td className='act'>
+                        {r.join_date <= today ? <HireArrived id={r.id} role={user.role} today={today} nowTime={fmtTime(Date.now())} /> : null}
+                        {manage ? <Link className='btn' href={'/visitors/hires?edit=' + r.id}>Edit</Link> : null}
+                        {manage ? (
+                          <form action={deleteHire} className='inline'>
+                            <input type='hidden' name='id' value={r.id} />
+                            <ConfirmButton className='btn ghost' message={'Remove ' + r.name + ' from the new hires list?'}>Remove</ConfirmButton>
+                          </form>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className='muted'>Nobody is waiting to join.</p>}
+        </div>
+
+        <div className='card'>
+          <h3 style={{ marginTop: 0 }}>Recently joined{joined.length ? <span className='v-count'>{joined.length}</span> : null}</h3>
+          <p className='muted' style={{ marginTop: 0 }}>Marked as arrived, latest first.</p>
+          {joined.length ? (
+            <div className='tablewrap'>
+              <table className='tx'>
+                <thead><tr><th>Name</th><th>Arrived</th><th>Level</th><th></th></tr></thead>
+                <tbody>
+                  {joined.map((r) => (
+                    <tr key={r.id}>
+                      <td className='c-title'><OfficeTag o={r.office} /><b>{r.name}</b>{r.dept ? <div className='muted'>{r.dept}</div> : null}</td>
+                      <td className='c-meta'>{r.arrived}</td>
+                      <td className='c-meta'>{r.level ? 'Level ' + r.level : '-'}</td>
+                      <td className='act'>
+                        {manage ? <Link className='btn' href={'/visitors/hires?edit=' + r.id}>Edit</Link> : null}
+                        {manage ? (
+                          <form action={deleteHire} className='inline'>
+                            <input type='hidden' name='id' value={r.id} />
+                            <ConfirmButton className='btn ghost' message={'Remove ' + r.name + ' from the new hires list?'}>Remove</ConfirmButton>
+                          </form>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className='muted'>Nobody has been marked as arrived yet.</p>}
+        </div>
       </div>
     </>
   );
