@@ -53,6 +53,12 @@ details.card summary{cursor:pointer;font-weight:600;color:var(--ink)}
 .funds{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:16px}
 .fund{margin:0;display:flex;flex-direction:column;gap:8px}
 .fund-h{display:flex;justify-content:space-between;font-size:16px;color:var(--ink)}
+/* Fund cards side by side share their rows, so a label that wraps in one card (Submitted to Accounts...) makes the same row
+   taller in all of them and the gold CIH line sits at the same height in every card. */
+.funds > .fund{display:grid;grid-template-rows:subgrid;grid-row:span 8;row-gap:0}
+.funds > .fund .cih{display:contents}
+.funds > .fund .fund-h{padding-bottom:6px}
+.funds > .fund > :last-child:not(.cih){margin-top:10px}
 .track{height:8px;background:var(--surface);border-radius:2px;overflow:hidden}
 .fill{height:100%;background:var(--gold);border-radius:2px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:16px}
@@ -1660,6 +1666,11 @@ html[data-theme=dark] .modseg > .modwrap > .modpop > a.on:hover,html[data-theme=
 html[data-theme=dark] .tier-menu a:hover,html[data-theme=dark] .tier-menu .grptab:hover,html[data-theme=dark] .toplinks a:hover,html[data-theme=dark] .links a:hover{color:var(--gold)}
 html[data-theme=dark] .tier-menu a.on:hover,html[data-theme=dark] .tier-menu .grptab.on:hover,html[data-theme=dark] .tier.glass .tier-menu a.on:hover,html[data-theme=dark] .tier.glass .tier-menu .grptab.on:hover,html[data-theme=dark] .tier.glass .botbar a.on:hover{color:#1a1a1a}
 html[data-theme=dark] .tier-menu a.on,html[data-theme=dark] .tier-menu .grptab.on{color:var(--gold)}
+/* Glass navigation: the page you are on, inside a drop-down (Reports, Records, Live, Manage...), keeps its own highlight.
+   Without this it had dark text on no background and vanished on the dark panel. */
+.tier.glass .tier-menu .grppop a.on{background:#fbf1cf!important;color:#000}
+html[data-theme=dark] .tier.glass .tier-menu .grppop a.on{background:var(--tint)!important;color:var(--gold)}
+html[data-theme=dark] .tier.glass .tier-menu .grppop a.on:hover{background:var(--gold)!important;color:#000}
 html[data-theme=dark] .modseg .modwrap > a.on,html[data-theme=dark] .modseg .modwrap > a.on:hover{color:#1a1a1a}
 html[data-theme=dark] .ob-chips button:hover,html[data-theme=dark] .att-list button:hover{background:var(--tint);color:var(--gold)}
 html[data-theme=dark] .bell:hover,html[data-theme=dark] .notes a:hover{background:#1f1f1d}
