@@ -644,7 +644,7 @@ html[data-theme=dark] .otag.remote{color:#cbb8f5;border-color:#6d55b3;background
 .rostable{overflow-x:auto}
 table.rost{border-collapse:collapse;font-size:12px;width:max-content;min-width:100%}
 table.rost th,table.rost td{border:1px solid var(--line);text-align:center;padding:3px 0;min-width:26px;width:26px}
-table.rost th small{display:block;font-weight:400;font-size:10px;color:var(--mut)}
+table.rost th small{display:block;font-weight:400;font-size:9.5px;letter-spacing:0;color:var(--mut)}
 table.rost .rn{min-width:190px;width:190px;text-align:left;padding:4px 8px;position:sticky;left:0;background:var(--card,#fff);z-index:1;white-space:nowrap}
 table.rost th.rn{background:var(--gold);color:#000}
 table.rost th{background:var(--gold);color:#000}

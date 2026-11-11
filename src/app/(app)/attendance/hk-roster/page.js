@@ -16,7 +16,8 @@ import SiteMap from '@/components/SiteMap';
 export const dynamic = 'force-dynamic';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+// Three letters, so a day name is never mistaken for a time off code (W = Wednesday, not "working").
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const num = (v) => String(Math.round(v * 100) / 100);
 const span = (e) => e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.hours != null ? ' (' + num(e.hours) + ' h)' : '');
 
