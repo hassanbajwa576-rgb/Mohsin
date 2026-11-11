@@ -3,14 +3,16 @@ import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
 import { TINFO, daysIn, validMonth, monthOff, hkPeople, siteList } from '@/lib/roster';
 import { teamOf, siteText } from '@/lib/teams';
+import { can } from '@/lib/perms';
 
 export const dynamic = 'force-dynamic';
 
 // The month's roster as a grid: one row per employee, one column per day.
 export async function GET(req) {
   const u = await requireUser(ATT_ROLES);
-  if (u.role !== 'om' && u.role !== 'sso') return new Response('Not allowed', { status: 403 });
   const sp = new URL(req.url).searchParams;
+  const okDast = teamOf(sp.get('team')) === 'dast' && can(u, 'dast_edit');
+  if (u.role !== 'om' && u.role !== 'sso' && !okDast) return new Response('Not allowed', { status: 403 });
   // The Excel grid is per month; for a custom range it covers the month the range starts in.
   const rawM = validMonth(sp.get('m')) ? sp.get('m') : /^\d{4}-\d{2}-\d{2}$/.test(sp.get('from') || '') ? sp.get('from').slice(0, 7) : '';
   const month = validMonth(rawM) ? rawM : todayKey().slice(0, 7);

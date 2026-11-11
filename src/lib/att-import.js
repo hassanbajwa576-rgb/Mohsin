@@ -32,10 +32,11 @@ function timeOf(v) {
   if (v instanceof Date) m = Math.round((((v.getTime() % 864e5) + 864e5) % 864e5) / 60000);
   else if (typeof v === 'number') m = Math.round((v % 1) * 1440);
   else {
-    const t = String(v).trim().match(/^(\d{1,2})[:.](\d{2})\s*(am|pm)?$/i);
+    // 10:55, 10.55, 10:55:30, 10:55 AM, 10:55 p.m.
+    const t = String(v).trim().match(/^(\d{1,2})[:.](\d{2})(?:[:.]\d{2})?\s*(?:([ap])\.?\s?m?\.?)?$/i);
     if (!t) return null;
     let h = Number(t[1]);
-    if (t[3]) h = (h % 12) + (/pm/i.test(t[3]) ? 12 : 0);
+    if (t[3]) h = (h % 12) + (/p/i.test(t[3]) ? 12 : 0);
     m = h * 60 + Number(t[2]);
   }
   m %= 1440;
@@ -62,18 +63,29 @@ function readSheet(ws, year, month, from, to, mode, problems) {
   for (let c = 5; c <= ws.columnCount; c++) {
     const head = val(ws.getRow(1).getCell(c));
     const weekday = String(val(ws.getRow(2).getCell(c)) || '').trim().toLowerCase();
-    let day = Number(head);
+    // The day may be a number, a real date, or text such as "7", "7 Nov" or "Sat 7".
+    let day = head instanceof Date ? head.getUTCDate() : Number(head);
+    if (typeof head === 'string' && Number.isNaN(day)) {
+      const dm = head.match(/\b(\d{1,2})\b/);
+      day = dm ? Number(dm[1]) : NaN;
+    }
     if ((head == null || head === '') && weekday && weekday === lastWeekday) day = lastDay;
     else if (head != null && head !== '') {
       lastDay = day;
       lastWeekday = weekday;
     }
-    const lab = String(val(ws.getRow(3).getCell(c)) || '').trim().toLowerCase();
-    if (!(day >= 1 && day <= 31) || (lab !== 'check in' && lab !== 'check out')) continue;
+    // "Check In", "Check-in", "Checkin", "check out"...
+    const raw = String(val(ws.getRow(3).getCell(c)) || '').toLowerCase().replace(/[^a-z]/g, '');
+    const lab = raw === 'checkin' ? 'check in' : raw === 'checkout' ? 'check out' : '';
+    if (!(day >= 1 && day <= 31) || !lab) continue;
     const date = year + '-' + pad(month) + '-' + pad(day);
     if (date < from || date > to || !validDate(date)) continue;
     if (!cols[date]) cols[date] = {};
     if (cols[date][lab] == null) cols[date][lab] = c;
+  }
+  // Say so when a day in the range has no columns on the sheet (instead of silently importing nothing for it).
+  for (let d = from; d <= to; d = addDay(d, 1)) {
+    if (d.slice(0, 7) === year + '-' + pad(month) && !cols[d]) problems.push('The ' + (mode === 'attendance' ? 'attendance' : 'break') + ' sheet has no Check In / Check Out columns for ' + d + ' (not imported)');
   }
   const out = [];
   const seen = new Map();

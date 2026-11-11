@@ -8,6 +8,7 @@ import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
 import HkTabs from '@/components/HkTabs';
 import { TEAM_SHORT } from '@/lib/teams';
+import { can } from '@/lib/perms';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,8 @@ const d1 = (v) => String(Math.round(v * 10) / 10);
 // forceTeam: the Dastarkhawan section (/dastarkhawan/balances) shows this same page for its own team.
 export default async function BalancesPage({ searchParams, forceTeam }) {
   const user = await requireUser(ATT_ROLES);
-  if (user.role !== 'om' && user.role !== 'sso') redirect(forceTeam ? '/' : '/attendance/hk-roster/request');
+  const dastOk = forceTeam === 'dast' && can(user, 'dast_edit');
+  if (user.role !== 'om' && user.role !== 'sso' && !dastOk) redirect(forceTeam ? '/' : '/attendance/hk-roster/request');
   const sp = await searchParams;
   if (!forceTeam && sp.team === 'dast') redirect('/dastarkhawan/balances'); // the old address
   const thisYear = Number(todayKey().slice(0, 4));

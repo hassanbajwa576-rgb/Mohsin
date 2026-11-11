@@ -13,6 +13,7 @@ export const PERMS = [
   ['guard_duty', 'Guard duty log', 'Record temporary guards (name, mobile, CNIC, card number, who they replace, duty dates, pictures) and see the guard duty list.'],
   ['hire_info', 'New hires: add and edit', 'Record details of new joiners: name, department, joining date, office and level.'],
   ['hire_view', 'New hires: see and mark arrived', 'See who is joining and mark a new hire as arrived when they come in (guards use this).'],
+  ['dast_edit', 'Dastarkhawan: manage the team', 'Shows the Dastarkhawan button: roster, time off, balances, sites. Add and remove people and record time off for the Dastarkhawan team only (not the Support team).'],
   ['tasks', 'My Tasks page', 'A page to record important tasks with due dates and priority. Each person sees their own tasks and tasks given to them. The Sr. Ops Manager can give tasks to others and follow them; the Sr. SO can do the same for Support Officers.'],
 ];
 
@@ -55,6 +56,7 @@ export const PERM_SHORT = {
   hire_info: 'new hires',
   hire_view: 'see new hires',
   tasks: 'my tasks',
+  dast_edit: 'Dastarkhawan',
   fuel_use: 'fuel cards',
   roster_edit: 'Support roster',
   exp_approve: 'approve expenses',
@@ -68,7 +70,7 @@ export const PERM_SHORT = {
 // What each role has without any extra grant.
 export const ROLE_PERMS = {
   om: ['att_own', 'att_view', 'att_reports', 'att_logs', 'att_staff', 'att_import', 'att_reconcile', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty', 'hire_info', 'hire_view'],
-  sso: ['att_own', 'att_view', 'att_reports', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty', 'hire_info', 'hire_view', 'tasks'],
+  sso: ['att_own', 'att_view', 'att_reports', 'vis_log', 'roster_edit', 'fuel_use', 'guard_duty', 'hire_info', 'hire_view', 'tasks', 'dast_edit'],
   so: [],
   guard: ['guard_duty', 'hire_view'],
 };

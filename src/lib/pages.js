@@ -51,7 +51,7 @@ export function defaultPages(role, perms = [], rolePerms = {}) {
   if (can('guard_duty')) L.push('/visitors/guards');
   if (can('hire_view')) L.push('/visitors/hires');
   if (can('tasks')) L.push('/tasks');
-  if (om || sso) L.push('/dastarkhawan', '/dastarkhawan/balances', '/dastarkhawan/sites');
+  if (om || sso || can('dast_edit')) L.push('/dastarkhawan', '/dastarkhawan/balances', '/dastarkhawan/sites');
   if (can('fuel_use')) {
     L.push('/fuel', '/fuel/log');
     if (om) L.push('/fuel/setup');

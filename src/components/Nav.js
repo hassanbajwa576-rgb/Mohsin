@@ -16,8 +16,8 @@ export default async function Nav({ user, unread = 0, lang = 'en', reviews = 0, 
   const saved = (await cookies()).get('pt_theme')?.value;
   const theme = ['light', 'dark', 'auto'].includes(saved) ? saved : 'light';
   const guard = user.role === 'guard';
-  // The Dastarkhawan section is for the Sr. Ops Manager and the Sr. Support Officer.
-  const dast = user.role === 'om' || user.role === 'sso';
+  // The Dastarkhawan section is for the Sr. Ops Manager, the Sr. Support Officer and anyone given the "Dastarkhawan" permission.
+  const dast = user.role === 'om' || user.role === 'sso' || can(user, 'dast_edit');
   const access = PERMS.map(([k]) => k).filter((k) => can(user, k));
   const who = (
     <>

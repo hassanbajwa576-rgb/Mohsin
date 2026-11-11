@@ -25,7 +25,9 @@ const span = (e) => e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_dat
 // forceTeam: the Dastarkhawan section (/dastarkhawan) shows this same page for its own team.
 export default async function RosterPage({ searchParams, forceTeam }) {
   const user = await requireUser(ATT_ROLES);
-  if (user.role !== 'om' && user.role !== 'sso') redirect(forceTeam ? '/' : '/attendance/hk-roster/request');
+  // The Dastarkhawan section also opens for anyone given the "Dastarkhawan" permission (e.g. a Support Officer); Support stays om/sso only.
+  const dastOk = forceTeam === 'dast' && can(user, 'dast_edit');
+  if (user.role !== 'om' && user.role !== 'sso' && !dastOk) redirect(forceTeam ? '/' : '/attendance/hk-roster/request');
   const sp = await searchParams;
   if (!forceTeam && sp.team === 'dast') redirect('/dastarkhawan'); // the old address
   const tm = forceTeam === 'dast' ? 'dast' : 'support';
@@ -42,7 +44,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
   const dates = Array.from({ length: nDays }, (_, i) => addDays(from, i));
   const mondayOf = (key) => addDays(key, 1 - (new Date(key + 'T00:00:00Z').getUTCDay() || 7));
   const shortDay = (k) => Number(k.slice(8)) + ' ' + MONTHS[Number(k.slice(5, 7)) - 1].slice(0, 3) + (k.slice(0, 4) !== today.slice(0, 4) ? ' ' + k.slice(0, 4) : '');
-  const edit = can(user, 'roster_edit');
+  const edit = can(user, dast ? 'dast_edit' : 'roster_edit');
   const both = allOffices(user);
   // The Support team is filtered by office; the Dastarkhawan team by site (APL, LHR, OKA, ISB).
   const office = dast ? '' : both ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;

@@ -12,8 +12,8 @@ export const dynamic = 'force-dynamic';
 // The sites where Dastarkhawan people work. Added and removed here, whenever a site opens or closes.
 export default async function SitesPage({ searchParams }) {
   const user = await requireUser(ATT_ROLES);
-  if (user.role !== 'om' && user.role !== 'sso') redirect('/');
-  const edit = can(user, 'roster_edit');
+  if (!['om', 'sso', 'so'].includes(user.role) || !can(user, 'dast_edit')) redirect('/');
+  const edit = can(user, 'dast_edit');
   const sp = await searchParams;
   const sites = await siteCounts();
 
