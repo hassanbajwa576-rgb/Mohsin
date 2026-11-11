@@ -7,29 +7,32 @@ import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
 import HkTabs from '@/components/HkTabs';
-import { teamOf, TEAM_SHORT } from '@/lib/teams';
+import { TEAM_SHORT } from '@/lib/teams';
 
 export const dynamic = 'force-dynamic';
 
 const d1 = (v) => String(Math.round(v * 10) / 10);
 
 // Leave balances and the yearly summary: days off per person and per type, against the yearly allowance set in Setup.
-export default async function BalancesPage({ searchParams }) {
+// forceTeam: the Dastarkhawan section (/dastarkhawan/balances) shows this same page for its own team.
+export default async function BalancesPage({ searchParams, forceTeam }) {
   const user = await requireUser(ATT_ROLES);
-  if (user.role !== 'om' && user.role !== 'sso') redirect('/attendance/hk-roster/request');
+  if (user.role !== 'om' && user.role !== 'sso') redirect(forceTeam ? '/' : '/attendance/hk-roster/request');
   const sp = await searchParams;
+  if (!forceTeam && sp.team === 'dast') redirect('/dastarkhawan/balances'); // the old address
   const thisYear = Number(todayKey().slice(0, 4));
   const year = /^\d{4}$/.test(sp.y || '') ? Number(sp.y) : thisYear;
   const both = allOffices(user);
-  const tm = teamOf(sp.team);
+  const tm = forceTeam === 'dast' ? 'dast' : 'support';
   const dast = tm === 'dast';
+  const base = dast ? '/dastarkhawan/balances' : '/attendance/hk-roster/balances';
   const office = dast ? '' : both ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
   const SITES = dast ? await siteList() : [];
   const site = dast && SITES.includes(sp.site) ? sp.site : '';
   const team = await hkPeople({ office, team: tm, site });
   const used = await usedByPerson(year, office, tm, site);
   const set = await getSettings();
-  const yq = (y) => '/attendance/hk-roster/balances?' + new URLSearchParams({ y: String(y), ...(dast ? { team: 'dast' } : {}), ...(site ? { site } : {}), ...(office && both ? { office } : {}) }).toString();
+  const yq = (y) => base + '?' + new URLSearchParams({ y: String(y), ...(site ? { site } : {}), ...(office && both ? { office } : {}) }).toString();
   const totals = Object.fromEntries(TYPES.map(([k]) => [k, team.reduce((a, p) => a + ((used.get(p.id) || {})[k] || 0), 0)]));
   const anySet = ALLOWED.some((k) => set[k] > 0);
 
@@ -49,7 +52,7 @@ export default async function BalancesPage({ searchParams }) {
         <Link className='btn' href={yq(year + 1)}>{year + 1} &gt;</Link>
         {year !== thisYear ? <Link className='btn ghost' href={yq(thisYear)}>This year</Link> : null}
       </div>
-      {dast ? <AutoFilters hidden={{ y: String(year), team: 'dast' }} fields={[{ name: 'site', label: 'Site', value: site, options: [['', 'All sites'], ...SITES.map((x) => [x, x])] }]} /> : both ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]} /> : null}
+      {dast ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'site', label: 'Site', value: site, options: [['', 'All sites'], ...SITES.map((x) => [x, x])] }]} /> : both ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]} /> : null}
       {!anySet ? <p className='muted'>No yearly allowance is set yet, so only the days used are shown. Set them on the Setup tab of the Support team.</p> : dast ? <p className='muted'>The yearly allowances are the same as the Support team's (set on its Setup tab).</p> : null}
 
       <div className='card'>
@@ -97,7 +100,7 @@ export default async function BalancesPage({ searchParams }) {
               </tfoot>
             </table>
           </div>
-        ) : <p className='muted'>No {TEAM_SHORT[tm]} team members yet. Add them on the Roster tab.</p>}
+        ) : <p className='muted'>No {TEAM_SHORT[tm]} team members yet. Add them on the Roster page.</p>}
       </div>
     </>
   );

@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 
 // Phones: Approvals, Team, Audit log and Guide sit behind one Menu button instead of a row of their own.
-export default function MobileMenu({ role, approvals = 0, allowed = null, tasks = false, signOut = null }) {
+export default function MobileMenu({ role, approvals = 0, allowed = null, tasks = false, dast = false, signOut = null }) {
   const ref = useRef(null);
   const path = usePathname();
   useEffect(() => {
@@ -14,6 +14,7 @@ export default function MobileMenu({ role, approvals = 0, allowed = null, tasks 
   const items = [];
   if (role === 'om') items.push(['/approvals', 'Approvals'], ['/team', 'Team'], ['/roles', 'Roles'], ['/logs', 'Audit log']);
   if (tasks) items.push(['/tasks', 'Tasks']);
+  if (dast) items.push(['/dastarkhawan', 'Dastarkhawan']);
   items.push(['/guide', 'Guide']);
   const picked = allowed ? items.filter(([href]) => allowed.includes(href)) : items;
   // Everyone can reach their own profile (theme and navigation style live there).

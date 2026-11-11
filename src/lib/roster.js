@@ -23,6 +23,21 @@ export const TINFO = {
 // Shown in today's cell for someone who has checked in today (not a type of time off).
 export const WORKING = { label: 'Working (checked in today)', letter: 'W', color: '#c8ecd3' };
 
+/** For each day from..to (Karachi time): the lower-case names of employees who checked in. Roster people are matched by name. */
+export async function checkedInDays(from, to) {
+  const r = await q(
+    `SELECT DISTINCT to_char(a.at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD') AS d, lower(s.name) AS n FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id
+     WHERE a.kind = 'in' AND a.at >= ($1::date::timestamp AT TIME ZONE 'Asia/Karachi') AND a.at < (($2::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi')`,
+    [from, to]
+  );
+  const m = new Map();
+  for (const x of r) {
+    if (!m.has(x.d)) m.set(x.d, new Set());
+    m.get(x.d).add(x.n);
+  }
+  return m;
+}
+
 /** Lower-case names of employees with a check in on the given day (Karachi time). Roster people are matched to them by name. */
 export async function checkedInToday(day) {
   const r = await q(
@@ -68,9 +83,10 @@ function scope(params, cond, { office, team, site }) {
 }
 
 /** Approved time off that touches the month, for the active people of one team, with optional office, site and name filters. */
-export async function monthOff({ month, office, who, team = 'support', site = '' }) {
-  const first = month + '-01';
-  const last = month + '-' + String(daysIn(month)).padStart(2, '0');
+export async function monthOff({ month, from, to, office, who, team = 'support', site = '' }) {
+  // A month, or any range of days (from..to) when given.
+  const first = from || month + '-01';
+  const last = to || month + '-' + String(daysIn(month)).padStart(2, '0');
   const params = [first, last];
   const cond = ["s.active", "t.status = 'approved'", 't.from_date <= $2::date', 't.to_date >= $1::date'];
   scope(params, cond, { office, team, site });

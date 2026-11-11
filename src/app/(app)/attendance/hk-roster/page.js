@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInToday } from '@/lib/roster';
+import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInDays } from '@/lib/roster';
 import { addTimeOff, deleteTimeOff, addHkPerson, updateHkPerson, removeHkPerson, decideTimeOff } from '@/lib/roster-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
@@ -22,14 +22,26 @@ const num = (v) => String(Math.round(v * 100) / 100);
 const span = (e) => e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.hours != null ? ' (' + num(e.hours) + ' h)' : '');
 
 // Who in the support team is off, and when. Only the Sr. Ops Manager and the Sr. Support Officer see this page.
-export default async function RosterPage({ searchParams }) {
+// forceTeam: the Dastarkhawan section (/dastarkhawan) shows this same page for its own team.
+export default async function RosterPage({ searchParams, forceTeam }) {
   const user = await requireUser(ATT_ROLES);
-  if (user.role !== 'om' && user.role !== 'sso') redirect('/attendance/hk-roster/request');
+  if (user.role !== 'om' && user.role !== 'sso') redirect(forceTeam ? '/' : '/attendance/hk-roster/request');
   const sp = await searchParams;
-  const tm = teamOf(sp.team);
+  if (!forceTeam && sp.team === 'dast') redirect('/dastarkhawan'); // the old address
+  const tm = forceTeam === 'dast' ? 'dast' : 'support';
   const dast = tm === 'dast';
+  const base = dast ? '/dastarkhawan' : '/attendance/hk-roster';
   const today = todayKey();
   const month = validMonth(sp.m) ? sp.m : today.slice(0, 7);
+  // The time frame: a whole month (default), or any range of days (last week, this week, last 7 days, custom dates; up to about two months).
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  const rangeMode = ISO.test(sp.from || '') && ISO.test(sp.to || '') && sp.from <= sp.to && (Date.parse(sp.to) - Date.parse(sp.from)) / 864e5 <= 61;
+  const from = rangeMode ? sp.from : month + '-01';
+  const to = rangeMode ? sp.to : month + '-' + String(daysIn(month)).padStart(2, '0');
+  const nDays = Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1;
+  const dates = Array.from({ length: nDays }, (_, i) => addDays(from, i));
+  const mondayOf = (key) => addDays(key, 1 - (new Date(key + 'T00:00:00Z').getUTCDay() || 7));
+  const shortDay = (k) => Number(k.slice(8)) + ' ' + MONTHS[Number(k.slice(5, 7)) - 1].slice(0, 3) + (k.slice(0, 4) !== today.slice(0, 4) ? ' ' + k.slice(0, 4) : '');
   const edit = can(user, 'roster_edit');
   const both = allOffices(user);
   // The Support team is filtered by office; the Dastarkhawan team by site (APL, LHR, OKA, ISB).
@@ -37,22 +49,23 @@ export default async function RosterPage({ searchParams }) {
   const SITES = dast ? await siteList() : []; // the sites you manage on the Sites tab
   const site = dast && SITES.includes(sp.site) ? sp.site : '';
   const who = String(sp.who || '').trim().slice(0, 60);
-  const everyone = sp.all === '1';
-  const n = daysIn(month);
-  const [y, mo] = month.split('-').map(Number);
+  // The whole team is shown by default; "only people with time off" is the option.
+  const onlyOff = sp.only === '1';
+  const everyone = !onlyOff;
+  const [y, mo] = from.slice(0, 7).split('-').map(Number);
+  const rangeLabel = rangeMode ? shortDay(from) + ' to ' + shortDay(to) : MONTHS[mo - 1] + ' ' + y;
   // The tag next to a name: the office (Support), or the site (Dastarkhawan: "4 sites" when mapped to several).
   const tag = (p) => (dast ? ((p.sites || []).length > 1 ? p.sites.length + ' sites' : (p.sites || [])[0] ? p.sites[0].site : p.site || '') : p.office);
 
-  const entries = await monthOff({ month, office, who, team: tm, site });
+  const entries = await monthOff({ month, from, to, office, who, team: tm, site });
   const team = await hkPeople({ office, team: tm, site });
   const people = everyone ? await hkPeople({ office, who, team: tm, site }) : [];
-  // Live link with attendance: on the current month, anyone who checked in today shows W (working) in today's cell.
-  const thisMonth = month === today.slice(0, 7);
-  const working = thisMonth ? await checkedInToday(today) : new Set();
+  // Live link with attendance: on every day up to today, anyone who checked in (and has no time off) shows W (worked).
+  const checked = from <= today ? await checkedInDays(from, to < today ? to : today) : new Map();
   const byId = new Map(team.map((p) => [p.id, p]));
   const rows = everyone ? people : [...new Map(entries.map((e) => [e.staff_id, byId.get(e.staff_id) || { id: e.staff_id, name: e.name, dept: e.dept, office: e.office, site: e.site, sites: [] }])).values()];
   const settings = await getSettings();
-  const hol = await holidaysBetween(month + '-01', month + '-' + String(n).padStart(2, '0'));
+  const hol = await holidaysBetween(from, to);
   const off = await offToday(today, office, tm, site);
   // "Coming up" is time off that starts after today; anyone off today is already counted under "Off today".
   const coming = (await comingUp(today, 14, office, tm, site)).filter((e) => e.from_date > today);
@@ -60,15 +73,13 @@ export default async function RosterPage({ searchParams }) {
   const birthdays = upcomingBirthdays(team, today, 30);
   const names = team.map((p) => p.name);
 
-  const dayKey = (d) => month + '-' + String(d).padStart(2, '0');
   const grid = new Map();
   for (const e of entries) {
     if (!grid.has(e.staff_id)) grid.set(e.staff_id, {});
-    for (let d = 1; d <= n; d++) {
-      const key = dayKey(d);
+    for (const key of dates) {
       if (key >= e.from_date && key <= e.to_date) {
-        const cur = grid.get(e.staff_id)[d];
-        if (!cur) grid.get(e.staff_id)[d] = { ...e };
+        const cur = grid.get(e.staff_id)[key];
+        if (!cur) grid.get(e.staff_id)[key] = { ...e };
         else if (e.hours != null && cur.hours != null && cur.kind === e.kind) cur.hours += e.hours;
       }
     }
@@ -80,16 +91,22 @@ export default async function RosterPage({ searchParams }) {
     const min = settings['min_' + code];
     const size = team.filter((p) => p.office === code).length;
     if (!(min > 0) || !size || (office && office !== code)) continue;
-    for (let d = 1; d <= n; d++) {
-      if (hol.has(dayKey(d))) continue;
-      const out = new Set(entries.filter((e) => e.office === code && e.hours == null && dayKey(d) >= e.from_date && dayKey(d) <= e.to_date).map((e) => e.staff_id)).size;
-      if (size - out < min) lowCover.set(d, (lowCover.get(d) ? lowCover.get(d) + '; ' : '') + code + ': ' + (size - out) + ' in, ' + min + ' needed');
+    for (const key of dates) {
+      if (hol.has(key)) continue;
+      const out = new Set(entries.filter((e) => e.office === code && e.hours == null && key >= e.from_date && key <= e.to_date).map((e) => e.staff_id)).size;
+      if (size - out < min) lowCover.set(key, (lowCover.get(key) ? lowCover.get(key) + '; ' : '') + code + ': ' + (size - out) + ' in, ' + min + ' needed');
     }
   }
 
-  const qp = (extra = {}) => new URLSearchParams({ m: month, ...(dast ? { team: 'dast' } : {}), ...(site ? { site } : {}), ...(office && both ? { office } : {}), ...(who ? { who } : {}), ...(everyone ? { all: '1' } : {}), ...extra }).toString();
-  const days = Array.from({ length: n }, (_, i) => i + 1);
-  const wd = (d) => new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
+  // Links keep the time frame (a month, or from..to) and the filters. Empty values are left out.
+  const qp = (extra = {}) => {
+    const p = { ...(rangeMode ? { from, to } : { m: month }), ...(site ? { site } : {}), ...(office && both ? { office } : {}), ...(who ? { who } : {}), ...(onlyOff ? { only: '1' } : {}), ...extra };
+    return new URLSearchParams(Object.fromEntries(Object.entries(p).filter(([, v]) => v !== '' && v != null))).toString();
+  };
+  const wd = (key) => new Date(key + 'T00:00:00Z').getUTCDay();
+  const wk0 = mondayOf(today);
+  const QUICK = [['Last week', addDays(wk0, -7), addDays(wk0, -1)], ['This week', wk0, addDays(wk0, 6)], ['Last 7 days', addDays(today, -6), today]];
+  const monthLink = (m) => base + '?' + qp({ m, from: '', to: '' });
   const count = (e) => (e.hours != null ? num(e.hours) + ' h' : String(Math.round((new Date(e.to_date) - new Date(e.from_date)) / 864e5) + 1) + ' day(s)');
 
   return (
@@ -100,26 +117,45 @@ export default async function RosterPage({ searchParams }) {
           <p className='muted'>Who in the {TEAM_SHORT[tm]} team will be off, and when (full days or a number of hours){dast ? ', with the site and joining date of each person' : ''}. Only the Sr. Ops Manager and the Sr. Support Officer can see and change it.</p>
         </div>
         <div className='inline'>
-          <a href={'/attendance/hk-roster/xlsx?' + qp()} className='btn primary'>Download Excel (.xlsx)</a>
+          <a href={base + '/xlsx?' + qp()} className='btn primary'>Download Excel (.xlsx)</a>
         </div>
       </div>
       <HkTabs active='roster' team={tm} />
       <Flash sp={sp} />
 
       <div className='card rosnav'>
-        <Link className='btn' href={'/attendance/hk-roster?' + qp({ m: shiftMonth(month, -1) })}>&lt; {MONTHS[(mo + 10) % 12]}</Link>
-        <b>{MONTHS[mo - 1]} {y}</b>
-        <Link className='btn' href={'/attendance/hk-roster?' + qp({ m: shiftMonth(month, 1) })}>{MONTHS[mo % 12]} &gt;</Link>
-        <Link className='btn ghost' href={'/attendance/hk-roster?' + qp({ m: today.slice(0, 7) })}>This month</Link>
+        {rangeMode ? (
+          <>
+            <Link className='btn' href={base + '?' + qp({ from: addDays(from, -nDays), to: addDays(from, -1) })}>&lt; Earlier</Link>
+            <b>{rangeLabel}</b>
+            <Link className='btn' href={base + '?' + qp({ from: addDays(to, 1), to: addDays(to, nDays) })}>Later &gt;</Link>
+          </>
+        ) : (
+          <>
+            <Link className='btn' href={monthLink(shiftMonth(month, -1))}>&lt; {MONTHS[(mo + 10) % 12]}</Link>
+            <b>{rangeLabel}</b>
+            <Link className='btn' href={monthLink(shiftMonth(month, 1))}>{MONTHS[mo % 12]} &gt;</Link>
+          </>
+        )}
+        {QUICK.map(([label, a, b]) => (
+          <Link key={label} className={'btn ' + (rangeMode && from === a && to === b ? 'primary' : 'ghost')} href={base + '?' + qp({ from: a, to: b })}>{label}</Link>
+        ))}
+        <Link className={'btn ' + (!rangeMode && month === today.slice(0, 7) ? 'primary' : 'ghost')} href={monthLink(today.slice(0, 7))}>This month</Link>
+        <form method='get' className='rosrange'>
+          {Object.entries({ ...(site ? { site } : {}), ...(office && both ? { office } : {}), ...(who ? { who } : {}), ...(onlyOff ? { only: '1' } : {}) }).map(([k, v]) => <input key={k} type='hidden' name={k} value={v} />)}
+          <label>From<input type='date' name='from' defaultValue={from} required /></label>
+          <label>To<input type='date' name='to' defaultValue={to} required /></label>
+          <button className='btn' type='submit'>Show</button>
+        </form>
       </div>
       {dast ? (
         <AutoFilters
-          hidden={{ m: month, who, all: everyone ? '1' : '', team: 'dast' }}
+          hidden={{ ...(rangeMode ? { from, to } : { m: month }), who, only: onlyOff ? '1' : '' }}
           fields={[{ name: 'site', label: 'Site', value: site, options: [['', 'All sites'], ...SITES.map((x) => [x, x])] }]}
         />
       ) : both ? (
         <AutoFilters
-          hidden={{ m: month, who, all: everyone ? '1' : '' }}
+          hidden={{ ...(rangeMode ? { from, to } : { m: month }), who, only: onlyOff ? '1' : '' }}
           fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]}
         />
       ) : null}
@@ -128,8 +164,8 @@ export default async function RosterPage({ searchParams }) {
         <div className='roslegend'>
           {TYPES.map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{letter}</i>{l}</span>)}
           <span><i className='hollegend'>H</i>Holiday</span>
-          {thisMonth ? <span><i style={{ background: WORKING.color }}>{WORKING.letter}</i>Working today (checked in)</span> : null}
-          <Link href={'/attendance/hk-roster?' + qp({ all: everyone ? '' : '1' })} className='rosall'>{everyone ? 'Show only people with time off' : 'Show the whole team'}</Link>
+          <span><i style={{ background: WORKING.color }}>{WORKING.letter}</i>Worked (checked in)</span>
+          <Link href={base + '?' + qp({ only: onlyOff ? '' : '1' })} className='rosall'>{onlyOff ? 'Show the whole team' : 'Show only people with time off'}</Link>
         </div>
         {rows.length ? (
           <div className='rostable'>
@@ -137,38 +173,50 @@ export default async function RosterPage({ searchParams }) {
               <thead>
                 <tr>
                   <th className='rn'>Team member</th>
-                  {days.map((d) => <th key={d} className={(wd(d) === 0 || wd(d) === 6 ? 'we ' : '') + (hol.has(dayKey(d)) ? 'hol ' : '') + (lowCover.has(d) ? 'lowcov ' : '') + (dayKey(d) === today ? 'tod' : '')} title={[hol.get(dayKey(d)), lowCover.get(d)].filter(Boolean).join(' | ') || undefined}>{d}<small>{DOW[wd(d)]}</small></th>)}
+                  {dates.map((key) => <th key={key} className={(wd(key) === 0 || wd(key) === 6 ? 'we ' : '') + (hol.has(key) ? 'hol ' : '') + (lowCover.has(key) ? 'lowcov ' : '') + (key === today ? 'tod' : '')} title={[shortDay(key), hol.get(key), lowCover.get(key)].filter(Boolean).join(' | ')}>{Number(key.slice(8))}<small>{DOW[wd(key)]}</small></th>)}
+                  <th className='rsum' title='Days with a check in'>Worked</th>
+                  <th className='rsum' title='Full days of time off'>Off</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((p) => (
-                  <tr key={p.id}>
-                    <td className='rn' title={dast ? siteText(p.sites) : undefined}><OfficeTag o={tag(p)} /><b>{p.name}</b>{p.dept ? <small className='muted'> {p.dept}</small> : null}</td>
-                    {days.map((d) => {
-                      const e = (grid.get(p.id) || {})[d];
-                      const t = e ? TINFO[e.kind] : null;
-                      const h = hol.has(dayKey(d));
-                      // Checked in today and no time off: working (W).
-                      const w = !t && dayKey(d) === today && working.has(String(p.name).toLowerCase());
-                      return (
-                        <td key={d} className={(wd(d) === 0 || wd(d) === 6 ? 'we ' : '') + (h && !t && !w ? 'hol' : '')} style={t ? { background: t.color } : w ? { background: WORKING.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : w ? p.name + ': ' + WORKING.label : h ? hol.get(dayKey(d)) : undefined}>
-                          {t ? t.letter : w ? WORKING.letter : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                {rows.map((p) => {
+                  let worked = 0;
+                  let offDays = 0;
+                  const lname = String(p.name).toLowerCase();
+                  const cells = dates.map((key) => {
+                    const e = (grid.get(p.id) || {})[key];
+                    const t = e ? TINFO[e.kind] : null;
+                    const h = hol.has(key);
+                    // Checked in that day and no time off: worked (W).
+                    const w = !t && key <= today && !!checked.get(key) && checked.get(key).has(lname);
+                    if (w) worked += 1;
+                    if (t && e.hours == null) offDays += 1;
+                    return (
+                      <td key={key} className={(wd(key) === 0 || wd(key) === 6 ? 'we ' : '') + (h && !t && !w ? 'hol' : '')} style={t ? { background: t.color } : w ? { background: WORKING.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : w ? p.name + ': ' + WORKING.label + ', ' + shortDay(key) : h ? hol.get(key) : undefined}>
+                        {t ? t.letter : w ? WORKING.letter : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
+                      </td>
+                    );
+                  });
+                  return (
+                    <tr key={p.id}>
+                      <td className='rn' title={dast ? siteText(p.sites) : undefined}><OfficeTag o={tag(p)} /><b>{p.name}</b>{p.dept ? <small className='muted'> {p.dept}</small> : null}</td>
+                      {cells}
+                      <td className='rsum'>{worked || '-'}</td>
+                      <td className='rsum'>{offDays || '-'}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        ) : <p className='muted'>No {TEAM_SHORT[tm]} time off recorded for {MONTHS[mo - 1]} {y}.</p>}
-        {lowCover.size ? <p className='muted' style={{ marginBottom: 0 }}>Days short of cover: {[...lowCover.entries()].map(([d, t]) => d + ' ' + MONTHS[mo - 1].slice(0, 3) + ' (' + t + ')').join(', ')}</p> : null}
+        ) : <p className='muted'>No {TEAM_SHORT[tm]} time off recorded for {rangeLabel}.</p>}
+        {lowCover.size ? <p className='muted' style={{ marginBottom: 0 }}>Days short of cover: {[...lowCover.entries()].map(([k, t]) => shortDay(k) + ' (' + t + ')').join(', ')}</p> : null}
       </div>
 
 
       <div className='kpis'>
         <div className='card kpi'><span>Off today</span><b>{off.length}</b><small>{off.length ? off.slice(0, 6).map((e) => e.name).join(', ') + (off.length > 6 ? ' ...' : '') : 'Everyone is expected in'}</small></div>
-        <div className='card kpi alt'><span>People off in {MONTHS[mo - 1]}</span><b>{new Set(entries.map((e) => e.staff_id)).size}</b></div>
+        <div className='card kpi alt'><span>People off in {rangeMode ? 'this period' : MONTHS[mo - 1]}</span><b>{new Set(entries.map((e) => e.staff_id)).size}</b></div>
         {dast ? (
           <div className='card kpi alt'><span>Team members</span><b>{team.length}</b><small>{SITES.map((x) => x + ' ' + team.filter((p) => (p.sites || []).some((m) => m.site === x)).length).join(' · ')}</small></div>
         ) : (
@@ -294,7 +342,7 @@ export default async function RosterPage({ searchParams }) {
 
       {entries.length ? (
         <div className='card'>
-          <h3 style={{ marginTop: 0 }}>Time off in {MONTHS[mo - 1]} ({entries.length})</h3>
+          <h3 style={{ marginTop: 0 }}>Time off in {rangeLabel} ({entries.length})</h3>
           <div className='tablewrap'>
             <table className='tx'>
               <thead><tr><th>Team member</th><th>Type</th><th>From</th><th>To</th><th>Time off</th><th>Note</th><th>Added by</th>{edit ? <th></th> : null}</tr></thead>

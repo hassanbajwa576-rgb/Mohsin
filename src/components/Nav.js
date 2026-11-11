@@ -16,6 +16,8 @@ export default async function Nav({ user, unread = 0, lang = 'en', reviews = 0, 
   const saved = (await cookies()).get('pt_theme')?.value;
   const theme = ['light', 'dark', 'auto'].includes(saved) ? saved : 'light';
   const guard = user.role === 'guard';
+  // The Dastarkhawan section is for the Sr. Ops Manager and the Sr. Support Officer.
+  const dast = user.role === 'om' || user.role === 'sso';
   const access = PERMS.map(([k]) => k).filter((k) => can(user, k));
   const who = (
     <>
@@ -31,7 +33,7 @@ export default async function Nav({ user, unread = 0, lang = 'en', reviews = 0, 
           <span className='sep' />
           <span className='brand-name' translate='no'>Ops<em>Track</em></span>
         </Link>
-        {guard ? null : <TopLinks role={user.role} approvals={approvals} allowed={allowed} tasks={can(user, 'tasks')} />}
+        {guard ? null : <TopLinks role={user.role} approvals={approvals} allowed={allowed} tasks={can(user, 'tasks')} dast={dast} />}
         <div className='who'>
           <LangToggle lang={lang} />
           <ThemeToggle initial={theme} />
@@ -39,7 +41,7 @@ export default async function Nav({ user, unread = 0, lang = 'en', reviews = 0, 
           {guard
             ? <span className='me'>{who}</span>
             : <Link href='/profile' className='me' title='My profile'>{who}</Link>}
-          {guard ? null : <MobileMenu role={user.role} approvals={approvals} allowed={allowed} tasks={can(user, 'tasks')} signOut={<form action={logout} className='mm-so'><button type='submit'>Sign out</button></form>} />}
+          {guard ? null : <MobileMenu role={user.role} approvals={approvals} allowed={allowed} tasks={can(user, 'tasks')} dast={dast} signOut={<form action={logout} className='mm-so'><button type='submit'>Sign out</button></form>} />}
           <form action={logout} className={guard ? undefined : 'so-top'}><button className='btn ghost' type='submit'>Sign out</button></form>
         </div>
       </div>

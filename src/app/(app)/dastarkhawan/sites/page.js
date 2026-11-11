@@ -6,14 +6,13 @@ import { siteCounts } from '@/lib/roster';
 import { addSite, removeSite } from '@/lib/roster-actions';
 import Flash from '@/components/Flash';
 import ConfirmButton from '@/components/ConfirmButton';
-import HkTabs from '@/components/HkTabs';
 
 export const dynamic = 'force-dynamic';
 
 // The sites where Dastarkhawan people work. Added and removed here, whenever a site opens or closes.
 export default async function SitesPage({ searchParams }) {
   const user = await requireUser(ATT_ROLES);
-  if (user.role !== 'om' && user.role !== 'sso') redirect('/attendance/hk-roster/request');
+  if (user.role !== 'om' && user.role !== 'sso') redirect('/');
   const edit = can(user, 'roster_edit');
   const sp = await searchParams;
   const sites = await siteCounts();
@@ -26,7 +25,6 @@ export default async function SitesPage({ searchParams }) {
           <p className='muted'>The places where the Dastarkhawan team works. Add a site when a new one opens and remove it when it closes. A site can be removed once nobody is at it.</p>
         </div>
       </div>
-      <HkTabs active='sites' team='dast' />
       <Flash sp={sp} />
 
       {edit ? (

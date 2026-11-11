@@ -116,6 +116,8 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const sup = path === '/support' || path.indexOf('/support/') === 0;
   const exr = path === '/exprev' || path.indexOf('/exprev/') === 0;
   const tasksPg = path === '/tasks' || path.indexOf('/tasks/') === 0 || path === '/reminders' || path.indexOf('/reminders/') === 0;
+  // The Dastarkhawan section (button after Tasks) has its own menu row and no module switch.
+  const dastPg = path === '/dastarkhawan' || path.indexOf('/dastarkhawan/') === 0;
   const guard = role === 'guard';
   const om = role === 'om';
   const sso = role === 'sso';
@@ -135,7 +137,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   if (access.includes('att_reports')) reports.push(page('/attendance/reports', 'Reports'), page('/attendance/analysis', 'Analysis'));
   const manage = [];
   if (access.includes('att_staff')) manage.push(page('/attendance/staff', 'Employees', mark));
-  if (!guard) manage.push(om || role === 'sso' ? page('/attendance/hk-roster', 'Teams') : page('/attendance/hk-roster/request', 'Time Off Request'));
+  if (!guard) manage.push(om || role === 'sso' ? page('/attendance/hk-roster', 'Support Team') : page('/attendance/hk-roster/request', 'Time Off Request'));
   if (access.includes('att_import')) manage.push(page('/attendance/import', 'Import', mark));
   if (access.includes('att_reconcile')) manage.push(page('/attendance/reconcile', 'Reconciliation'));
 
@@ -166,7 +168,8 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const fuK = keep(fu);
   const suK = keep(su);
   const erK = keep(er);
-  const menu = exr ? erK : sup ? suK : fuel ? fuK : visit ? visK : guard || attend ? attK : pettyK;
+  const dkK = keep([page('/dastarkhawan', 'Roster'), page('/dastarkhawan/balances', 'Time-off Balance'), page('/dastarkhawan/sites', 'Sites')]);
+  const menu = dastPg ? dkK : exr ? erK : sup ? suK : fuel ? fuK : visit ? visK : guard || attend ? attK : pettyK;
   // Every page of a module, for the dropdown under its name.
   const all = (list) => list.flatMap((m) => (m.items ? m.items : [m]));
   const admin = [];
@@ -178,12 +181,12 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const opened = menu.find((m) => m.items && m.label === open);
 
   // Exact match for the section home pages, prefix match for everything else.
-  const on = (href) => (href === '/' || href === '/attendance' || href === '/visitors' || href === '/fuel' || href === '/support' || href === '/exprev' ? path === href : path === href || path.indexOf(href + '/') === 0);
+  const on = (href) => (href === '/' || href === '/attendance' || href === '/visitors' || href === '/fuel' || href === '/support' || href === '/exprev' || href === '/dastarkhawan' ? path === href : path === href || path.indexOf(href + '/') === 0);
 
   // Phone only, Sr. Ops Manager only: the module switch moves to a bottom bar with icons.
   const ic = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', width: 22, height: 22, viewBox: '0 0 24 24', 'aria-hidden': true };
   const bots = [];
-  if (pettyK.length) bots.push({ href: '/', label: 'Petty', active: !attend && !visit && !fuel && !sup && !exr && !tasksPg, d: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12M16 14h2' });
+  if (pettyK.length) bots.push({ href: '/', label: 'Petty', active: !attend && !visit && !fuel && !sup && !exr && !tasksPg && !dastPg, d: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-3h12M16 14h2' });
   if (attK.length) bots.push({ href: '/attendance', label: 'Attend', active: attend, d: 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' });
   if (visK.length) bots.push({ href: '/visitors', label: 'Guests', active: visit, d: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 3-5 6-5s6 2 6 5M16 5a3 3 0 0 1 0 6M18 15c2 .5 3 2.5 3 5' });
   if (access.includes('fuel_use') && fuK.length) bots.push({ href: '/fuel', label: 'Fuel', active: fuel, d: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z' });
@@ -194,14 +197,14 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   return (
     <div className={'tier' + (om || sso ? ' tier-om' : '') + (glass ? ' glass' : '')} ref={bar}>
       <div className='tier-in'>
-        {tasksPg ? null : <span className='modseg' translate='no'>
-          {guard || !pettyK.length ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup && !exr && !tasksPg} items={pettyK} on={on} />}
+        {tasksPg || dastPg ? null : <span className='modseg' translate='no'>
+          {guard || !pettyK.length ? null : <Mod href='/' label='Petty' active={!attend && !visit && !fuel && !sup && !exr && !tasksPg && !dastPg} items={pettyK} on={on} />}
           {attK.length ? <Mod href='/attendance' label='Attendance' active={attend} items={all(attK)} on={on} /> : null}
           {visK.length ? <Mod href='/visitors' label='Guest and Hire' short='Guest/Hire' active={visit} items={visK} on={on} /> : null}
           {access.includes('fuel_use') && fuK.length ? <Mod href='/fuel' label='Fuel' active={fuel} items={fuK} on={on} /> : null}
           {guard || !suK.length ? null : <Mod href='/support' label='Complaints' active={sup} items={suK} on={on} />}
         </span>}
-        {tasksPg ? null : <span className='tier-sep' />}
+        {tasksPg || dastPg ? null : <span className='tier-sep' />}
         <div className='tier-scroll'>
         {tasksPg ? <Suspense fallback={null}><TaskTabs glass={glass} /></Suspense> : (
         <nav className='tier-menu' ref={menuRef}>

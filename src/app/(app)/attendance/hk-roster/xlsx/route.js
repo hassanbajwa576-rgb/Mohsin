@@ -11,7 +11,9 @@ export async function GET(req) {
   const u = await requireUser(ATT_ROLES);
   if (u.role !== 'om' && u.role !== 'sso') return new Response('Not allowed', { status: 403 });
   const sp = new URL(req.url).searchParams;
-  const month = validMonth(sp.get('m')) ? sp.get('m') : todayKey().slice(0, 7);
+  // The Excel grid is per month; for a custom range it covers the month the range starts in.
+  const rawM = validMonth(sp.get('m')) ? sp.get('m') : /^\d{4}-\d{2}-\d{2}$/.test(sp.get('from') || '') ? sp.get('from').slice(0, 7) : '';
+  const month = validMonth(rawM) ? rawM : todayKey().slice(0, 7);
   const team = teamOf(sp.get('team'));
   const dast = team === 'dast';
   const office = dast ? '' : allOffices(u) ? (['LHR', 'ISB'].includes(sp.get('office')) ? sp.get('office') : '') : u.office_code;
@@ -20,7 +22,7 @@ export async function GET(req) {
   const entries = await monthOff({ month, office, who, team, site });
   const all = await hkPeople({ office, team, site });
   const byId = new Map(all.map((p) => [p.id, p]));
-  const people = sp.get('all') === '1'
+  const people = sp.get('only') !== '1'
     ? await hkPeople({ office, who, team, site })
     : [...new Map(entries.map((e) => [e.staff_id, byId.get(e.staff_id) || { id: e.staff_id, name: e.name, dept: e.dept, office: e.office, site: e.site, sites: [] }])).values()];
   const n = daysIn(month);

@@ -13,10 +13,11 @@ import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from './teams';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const ROOT = '/attendance/hk-roster';
-// The roster page of a team, with optional extra query values (month...).
+// The roster page of a team (Dastarkhawan has its own section), with optional extra query values (month...).
+const DAST = '/dastarkhawan';
 const root = (team, extra = {}) => {
-  const p = new URLSearchParams({ ...(team === 'dast' ? { team: 'dast' } : {}), ...extra }).toString();
-  return ROOT + (p ? '?' + p : '');
+  const p = new URLSearchParams(extra).toString();
+  return (team === 'dast' ? DAST : ROOT) + (p ? '?' + p : '');
 };
 
 // Only the Sr. Ops Manager and the Sr. Support Officer manage the roster.
@@ -163,7 +164,7 @@ async function saveSites(personId, list) {
   for (const x of list) await q('INSERT INTO pc2_person_sites (person_id, site, weekdays) VALUES ($1, $2, $3)', [personId, x.site, x.days]);
 }
 
-const SITES_PAGE = ROOT + '/sites?team=dast';
+const SITES_PAGE = DAST + '/sites';
 
 export async function addSite(fd) {
   const u = await need();

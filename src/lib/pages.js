@@ -1,10 +1,11 @@
 export const PAGE_GROUPS = [
   { key: 'petty', label: 'Petty', pages: [['/', 'Dashboard'], ['/expenses', 'Expenses'], ['/advances', 'Advances'], ['/accounts', 'Accounts']] },
-  { key: 'attendance', label: 'Attendance', pages: [['/attendance', 'Add Entry'], ['/attendance/entries', 'Entries'], ['/attendance/logs', 'Day log'], ['/attendance/board', "Today's board"], ['/attendance/dashboard', 'Dashboard'], ['/attendance/reports', 'Reports'], ['/attendance/analysis', 'Analysis'], ['/attendance/staff', 'Employees'], ['/attendance/hk-roster', 'Teams'], ['/attendance/hk-roster/request', 'Time Off Request'], ['/attendance/import', 'Import'], ['/attendance/reconcile', 'Reconciliation']] },
+  { key: 'attendance', label: 'Attendance', pages: [['/attendance', 'Add Entry'], ['/attendance/entries', 'Entries'], ['/attendance/logs', 'Day log'], ['/attendance/board', "Today's board"], ['/attendance/dashboard', 'Dashboard'], ['/attendance/reports', 'Reports'], ['/attendance/analysis', 'Analysis'], ['/attendance/staff', 'Employees'], ['/attendance/hk-roster', 'Support Team'], ['/attendance/hk-roster/request', 'Time Off Request'], ['/attendance/import', 'Import'], ['/attendance/reconcile', 'Reconciliation']] },
   { key: 'visitors', label: 'Guest and Hire', pages: [['/visitors', 'Visitor Entry'], ['/visitors/log', 'Visitor Log'], ['/visitors/guards', 'Guard Duty'], ['/visitors/hires', 'New Hires']] },
   { key: 'fuel', label: 'Fuel', pages: [['/fuel', 'Fuel Entry'], ['/fuel/log', 'Fuel Log'], ['/fuel/setup', 'Setup']] },
   { key: 'support', label: 'Complaints', pages: [['/support', 'Dashboard'], ['/support/new', 'Record Complaint'], ['/support/list', 'All Complaints'], ['/support/people', 'By Person']] },
   { key: 'exprev', label: 'ExpRev', pages: [['/exprev', 'Dashboard'], ['/exprev/entries', 'Expenditures'], ['/exprev/budget', 'Budget vs Actual'], ['/exprev/analysis', 'Analysis'], ['/exprev/import', 'Import']] },
+  { key: 'dastarkhawan', label: 'Dastarkhawan', pages: [['/dastarkhawan', 'Roster'], ['/dastarkhawan/balances', 'Time-off Balance'], ['/dastarkhawan/sites', 'Sites']] },
   { key: 'general', label: 'Manager pages', pages: [['/approvals', 'Approvals'], ['/team', 'Team'], ['/logs', 'Audit log'], ['/tasks', 'Tasks'], ['/guide', 'Guide']] },
 ];
 export const ALL_PAGES = PAGE_GROUPS.flatMap((g) => g.pages.map(([h]) => h));
@@ -50,6 +51,7 @@ export function defaultPages(role, perms = [], rolePerms = {}) {
   if (can('guard_duty')) L.push('/visitors/guards');
   if (can('hire_view')) L.push('/visitors/hires');
   if (can('tasks')) L.push('/tasks');
+  if (om || sso) L.push('/dastarkhawan', '/dastarkhawan/balances', '/dastarkhawan/sites');
   if (can('fuel_use')) {
     L.push('/fuel', '/fuel/log');
     if (om) L.push('/fuel/setup');
