@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList } from '@/lib/roster';
+import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInToday } from '@/lib/roster';
 import { addTimeOff, deleteTimeOff, addHkPerson, updateHkPerson, removeHkPerson, decideTimeOff } from '@/lib/roster-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
@@ -46,6 +46,9 @@ export default async function RosterPage({ searchParams }) {
   const entries = await monthOff({ month, office, who, team: tm, site });
   const team = await hkPeople({ office, team: tm, site });
   const people = everyone ? await hkPeople({ office, who, team: tm, site }) : [];
+  // Live link with attendance: on the current month, anyone who checked in today shows W (working) in today's cell.
+  const thisMonth = month === today.slice(0, 7);
+  const working = thisMonth ? await checkedInToday(today) : new Set();
   const byId = new Map(team.map((p) => [p.id, p]));
   const rows = everyone ? people : [...new Map(entries.map((e) => [e.staff_id, byId.get(e.staff_id) || { id: e.staff_id, name: e.name, dept: e.dept, office: e.office, site: e.site, sites: [] }])).values()];
   const settings = await getSettings();
@@ -125,6 +128,7 @@ export default async function RosterPage({ searchParams }) {
         <div className='roslegend'>
           {TYPES.map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{letter}</i>{l}</span>)}
           <span><i className='hollegend'>H</i>Holiday</span>
+          {thisMonth ? <span><i style={{ background: WORKING.color }}>{WORKING.letter}</i>Working today (checked in)</span> : null}
           <Link href={'/attendance/hk-roster?' + qp({ all: everyone ? '' : '1' })} className='rosall'>{everyone ? 'Show only people with time off' : 'Show the whole team'}</Link>
         </div>
         {rows.length ? (
@@ -144,9 +148,11 @@ export default async function RosterPage({ searchParams }) {
                       const e = (grid.get(p.id) || {})[d];
                       const t = e ? TINFO[e.kind] : null;
                       const h = hol.has(dayKey(d));
+                      // Checked in today and no time off: working (W).
+                      const w = !t && dayKey(d) === today && working.has(String(p.name).toLowerCase());
                       return (
-                        <td key={d} className={(wd(d) === 0 || wd(d) === 6 ? 'we ' : '') + (h && !t ? 'hol' : '')} style={t ? { background: t.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : h ? hol.get(dayKey(d)) : undefined}>
-                          {t ? t.letter : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
+                        <td key={d} className={(wd(d) === 0 || wd(d) === 6 ? 'we ' : '') + (h && !t && !w ? 'hol' : '')} style={t ? { background: t.color } : w ? { background: WORKING.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : w ? p.name + ': ' + WORKING.label : h ? hol.get(dayKey(d)) : undefined}>
+                          {t ? t.letter : w ? WORKING.letter : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
                         </td>
                       );
                     })}

@@ -20,6 +20,19 @@ export const TINFO = {
   ...Object.fromEntries(TYPES.map((t) => [t[0], { label: t[1], letter: t[2], color: t[3] }])),
 };
 
+// Shown in today's cell for someone who has checked in today (not a type of time off).
+export const WORKING = { label: 'Working (checked in today)', letter: 'W', color: '#c8ecd3' };
+
+/** Lower-case names of employees with a check in on the given day (Karachi time). Roster people are matched to them by name. */
+export async function checkedInToday(day) {
+  const r = await q(
+    `SELECT DISTINCT lower(s.name) AS n FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id
+     WHERE a.kind = 'in' AND a.at >= ($1::date::timestamp AT TIME ZONE 'Asia/Karachi') AND a.at < (($1::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi')`,
+    [day]
+  );
+  return new Set(r.map((x) => x.n));
+}
+
 export const addDays = (key, n) => {
   const d = new Date(key + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + n);
