@@ -77,6 +77,14 @@ export async function dkUnlinked() {
   return { people, staff };
 }
 
+/** Dastarkhawan people linked to a facial-app staff record, with that record's name and site. */
+export async function dkLinked() {
+  return q(
+    `SELECT p.id, p.name, p.dk_emp_id AS emp_id, s.name AS fname, s.site AS fsite, s.status AS fstatus
+       FROM pc2_hk_people p LEFT JOIN pc2_dk_staff s ON s.emp_id = p.dk_emp_id WHERE p.active AND p.team = 'dast' AND p.dk_emp_id IS NOT NULL ORDER BY p.name`
+  );
+}
+
 /** Lower-case names of employees with a check in on the given day (Karachi time). Roster people are matched to them by name. */
 export async function checkedInToday(day) {
   const r = await q(

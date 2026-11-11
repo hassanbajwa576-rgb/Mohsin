@@ -1929,3 +1929,5 @@ html[data-theme=dark] .otag.tc2{color:#bdb7f6;border-color:#5a52b8;background:#1
 html[data-theme=dark] .otag.tc3{color:#8fdcd2;border-color:#2f8077;background:#0e2a27}
 html[data-theme=dark] .otag.tc4{color:#c4e48a;border-color:#6a8f2e;background:#1c2810}
 html[data-theme=dark] .otag.tc5{color:#e0bd9a;border-color:#8a6444;background:#2a1d12}
+.dkpanel .dkp-diff{color:var(--warn);font-weight:600;font-size:13px}
+.dkpanel .dkp-form .muted,.dkpanel .dkp-form .dkp-diff{flex:1 1 220px;min-width:0}

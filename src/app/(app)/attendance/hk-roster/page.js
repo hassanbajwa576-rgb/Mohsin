@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInDays, dkCheckedInDays, dkToday, dkUnlinked } from '@/lib/roster';
+import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInDays, dkCheckedInDays, dkToday, dkUnlinked, dkLinked } from '@/lib/roster';
 import { addTimeOff, deleteTimeOff, addHkPerson, updateHkPerson, removeHkPerson, decideTimeOff } from '@/lib/roster-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
@@ -72,11 +72,15 @@ export default async function RosterPage({ searchParams, forceTeam }) {
   let dkRows = [];
   let dkStat = { at: '', error: '' };
   let dkUn = { people: [], staff: [] };
+  let dkLink = [];
   if (dast) {
     await syncDk();
     dkStat = await dkStatus();
     dkRows = await dkToday(today);
-    if (edit) dkUn = await dkUnlinked();
+    if (edit) {
+      dkUn = await dkUnlinked();
+      dkLink = await dkLinked();
+    }
     if (from <= today) dkDays = await dkCheckedInDays(from, to < today ? to : today);
   }
   const byId = new Map(team.map((p) => [p.id, p]));
@@ -139,7 +143,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
       </div>
       <HkTabs active='roster' team={tm} />
       <Flash sp={sp} />
-      {dast ? <DkPanel rows={dkRows} teamSize={team.length} status={dkStat} unlinked={dkUn} edit={edit} /> : null}
+      {dast ? <DkPanel rows={dkRows} teamSize={team.length} status={dkStat} unlinked={dkUn} linked={dkLink} edit={edit} /> : null}
 
       <div className='card rosnav'>
         {rangeMode ? (

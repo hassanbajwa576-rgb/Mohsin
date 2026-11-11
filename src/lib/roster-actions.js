@@ -180,6 +180,17 @@ export async function refreshDk() {
   back(DAST, 'Check-ins updated: ' + r.records + ' records from ' + r.staff + ' staff', true);
 }
 
+// Remove the link between a Dastarkhawan person and a facial-app staff record (their check-ins from that record stop showing).
+export async function unlinkDkPerson(fd) {
+  const u = await need('dast');
+  const id = Number(s(fd, 'id'));
+  const p = (await q(`SELECT id, name, dk_emp_id FROM pc2_hk_people WHERE id = $1 AND active AND team = 'dast'`, [Number.isInteger(id) ? id : 0]))[0];
+  if (!p || !p.dk_emp_id) back(DAST, 'That person is not linked to the facial app');
+  await q('UPDATE pc2_hk_people SET dk_emp_id = NULL WHERE id = $1', [id]);
+  await logEvent(u, 'edit', 'hk_person', id, 'Unlinked ' + p.name + ' from facial app staff ' + p.dk_emp_id, null, null);
+  back(DAST, p.name + ' unlinked from the facial app (' + p.dk_emp_id + ')', true);
+}
+
 // Link a Dastarkhawan person to their staff record in the facial app (matched by name automatically when the names are the same).
 export async function linkDkPerson(fd) {
   const u = await need('dast');

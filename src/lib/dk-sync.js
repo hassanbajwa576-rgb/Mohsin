@@ -10,7 +10,7 @@ const DAYS = 60; // how many days back are kept in sync
 async function get(path) {
   // If the facial app is later protected with a key, set DK_API_KEY in Vercel and it is sent along.
   const headers = process.env.DK_API_KEY ? { Authorization: 'Bearer ' + process.env.DK_API_KEY } : {};
-  const r = await fetch(BASE + path, { headers, cache: 'no-store', signal: AbortSignal.timeout(12000) });
+  const r = await fetch(BASE + path, { headers, cache: 'no-store', signal: AbortSignal.timeout(25000) });
   if (!r.ok) throw new Error(path + ' answered ' + r.status);
   return r.json();
 }
@@ -24,8 +24,9 @@ export async function syncDk({ force = false } = {}) {
     const last = (await q('SELECT synced_at FROM pc2_dk_sync WHERE id = 1'))[0];
     if (!force && last && last.synced_at && Date.now() - new Date(last.synced_at).getTime() < FRESH_MS) return { skipped: true };
 
-    const staff = (await get('/api/state/attendance_contractors?lite=1')).value || [];
-    const att = (await get('/api/state/attendance_attendance?lite=1')).value || [];
+    const [staffRes, attRes] = await Promise.all([get('/api/state/attendance_contractors?lite=1'), get('/api/state/attendance_attendance?lite=1')]);
+    const staff = staffRes.value || [];
+    const att = attRes.value || [];
 
     // One row per staff member / per person and day (the last one wins), so the insert never meets the same key twice.
     const s = [...new Map(staff.filter((x) => clean(x.id) && clean(x.name)).map((x) => [clean(x.id), x])).values()];
@@ -53,7 +54,7 @@ export async function syncDk({ force = false } = {}) {
        WHERE p.team = 'dast' AND p.active AND p.dk_emp_id IS NULL AND s.status = 'active' AND lower(trim(p.name)) = lower(trim(s.name))
          AND NOT EXISTS (SELECT 1 FROM pc2_hk_people p2 WHERE p2.active AND p2.dk_emp_id = s.emp_id)`
     );
-    await q(`INSERT INTO pc2_dk_sync (id, synced_at, error, rows) VALUES (1, now(), NULL, $1) ON CONFLICT (id) DO UPDATE SET synced_at = now(), error = NULL, rows = EXCLUDED.rows`, [a.length]);
+    await q(`INSERT INTO pc2_dk_sync (id, synced_at, ok_at, error, rows) VALUES (1, now(), now(), NULL, $1) ON CONFLICT (id) DO UPDATE SET synced_at = now(), ok_at = now(), error = NULL, rows = EXCLUDED.rows`, [a.length]);
     return { ok: true, staff: s.length, records: a.length };
   } catch (e) {
     // Try again in about a minute; the page keeps working with what is already stored.
@@ -66,6 +67,7 @@ export async function syncDk({ force = false } = {}) {
 
 /** When the last good sync was, and the last error (if the latest try failed). */
 export async function dkStatus() {
-  const r = (await q(`SELECT to_char(synced_at AT TIME ZONE 'Asia/Karachi', 'DD Mon, HH12:MI AM') AS at, error FROM pc2_dk_sync WHERE id = 1`))[0];
+  // "at" is the last time the data was really received (a failed try does not move it).
+  const r = (await q(`SELECT to_char(ok_at AT TIME ZONE 'Asia/Karachi', 'DD Mon, HH12:MI AM') AS at, error FROM pc2_dk_sync WHERE id = 1`))[0];
   return r || { at: '', error: '' };
 }

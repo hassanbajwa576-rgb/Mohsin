@@ -23,10 +23,18 @@ export default async function AttendanceLogsPage({ searchParams }) {
   const emp = String(sp.emp || '').trim().slice(0, 60);
   const depts = await departments();
   const dept = depts.includes(sp.dept) ? sp.dept : '';
-  const params = [day];
-  if (office) params.push(office);
-  if (emp) params.push('%' + emp.replace(/[\\%_]/g, '') + '%');
-  if (dept) params.push(dept);
+  // Optional last day: to look at one person over several days (up to 31) in one list.
+  const toRaw = validDate(sp.to || '') && sp.to > day ? sp.to : day;
+  const to = (Date.parse(toRaw) - Date.parse(day)) / 864e5 > 30 ? dateKey(Date.parse(day) + 30 * 864e5) : toRaw;
+  const range = to !== day;
+  const params = [day, to];
+  const arg = (v) => {
+    params.push(v);
+    return '$' + params.length;
+  };
+  const officeSql = office ? 'AND o.code = ' + arg(office) : '';
+  const empSql = emp ? 'AND s.name ILIKE ' + arg('%' + emp.replace(/[\\%_]/g, '') + '%') : '';
+  const deptSql = dept ? 'AND s.dept = ' + arg(dept) : '';
   const names = await q(`SELECT s.name FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active ${office ? 'AND o.code = $1' : ''} ORDER BY s.name`, office ? [office] : []);
 
   const rows = await q(
@@ -34,31 +42,31 @@ export default async function AttendanceLogsPage({ searchParams }) {
             (extract(epoch from a.at) * 1000)::float8 AS ms, (extract(epoch from a.entered_at) * 1000)::float8 AS entered_ms,
             (a.entered_at > now() - interval '30 minutes') AS fresh
      FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id ${SHIFT_JOIN} JOIN pc2_offices o ON o.id = a.office_id LEFT JOIN pc2_users u ON u.id = a.entered_by
-     WHERE a.at >= ($1::date)::timestamp AT TIME ZONE 'Asia/Karachi' AND a.at < ($1::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi'
-     ${office ? 'AND o.code = $2' : ''}
-     ${emp ? 'AND s.name ILIKE $' + (params.length - (dept ? 1 : 0)) : ''}
-     ${dept ? 'AND s.dept = $' + params.length : ''}
+     WHERE a.at >= ($1::date)::timestamp AT TIME ZONE 'Asia/Karachi' AND a.at < ($2::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi'
+     ${officeSql} ${empSql} ${deptSql}
      ORDER BY a.at DESC, a.id DESC`,
     params
   );
-  const periods = await loadPeriods(day, day);
-  const bad = conflictIds(await eventsAround([...new Set(rows.map((r) => r.staff_id))], day));
+  const periods = await loadPeriods(day, to);
+  // The "does not fit" check looks at one day; for a range of days it is left out.
+  const bad = range ? new Set() : conflictIds(await eventsAround([...new Set(rows.map((r) => r.staff_id))], day));
   const allRows = sp.all === '1';
-  const shownRows = allRows || emp ? rows : rows.slice(0, 10);
-  const moreHref = '/attendance/logs?date=' + day + (office ? '&office=' + office : '') + (emp ? '&emp=' + encodeURIComponent(emp) : '') + (dept ? '&dept=' + encodeURIComponent(dept) : '') + (allRows ? '' : '&all=1');
+  const shownRows = allRows || emp || range ? rows : rows.slice(0, 10);
+  const moreHref = '/attendance/logs?date=' + day + (range ? '&to=' + to : '') + (office ? '&office=' + office : '') + (emp ? '&emp=' + encodeURIComponent(emp) : '') + (dept ? '&dept=' + encodeURIComponent(dept) : '') + (allRows ? '' : '&all=1');
 
   return (
     <>
       <div className='head'>
         <div>
           <h1>Day log</h1>
-          <p className='muted'>Every check in, check out and break entry for the chosen day (Pakistan time).</p>
+          <p className='muted'>Every check in, check out and break entry for the chosen day (Pakistan time). To follow one person, type the name under Employee and pick a last date under To.</p>
         </div>
       </div>
       <Flash sp={sp} />
 
       <form method='get' className='card filters'>
         <label>Date<input type='date' name='date' defaultValue={day} /></label>
+        <label>To (optional, to see several days)<input type='date' name='to' defaultValue={range ? to : ''} /></label>
         <label>Office
           <select name='office' defaultValue={office}>{(allOffices(user) ? ['', 'LHR', 'ISB'] : [user.office_code]).map((o) => <option key={o} value={o}>{o || 'Both'}</option>)}</select>
         </label>
@@ -86,7 +94,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
               <tbody>
                 {shownRows.map((r) => (
                   <tr key={r.id} className={bad.has(r.id) ? 'conflict' : ''}>
-                    <td className={'nw c-tile ' + timeClass(r.kind, fmtTime(r.ms), shiftOn(r, day, periods))}><b className={r.source === 'excel' ? 'xl' : ''} title={r.source === 'excel' ? 'Imported from Excel' : undefined}>{fmt12(r.ms)}</b></td>
+                    <td className={'nw c-tile ' + timeClass(r.kind, fmtTime(r.ms), shiftOn(r, dateKey(r.ms), periods))}>{range ? <small className='muted'>{dateKey(r.ms)} </small> : null}<b className={r.source === 'excel' ? 'xl' : ''} title={r.source === 'excel' ? 'Imported from Excel' : undefined}>{fmt12(r.ms)}</b></td>
                     <td className='c-meta'><OfficeTag o={r.office} /></td>
                     <td className='c-name'>{r.name}</td>
                     <td className='c-tile'>{KIND_LABEL[r.kind]}{bad.has(r.id) ? <div className='over-t'>Does not fit - please fix</div> : null}</td>
@@ -110,7 +118,7 @@ export default async function AttendanceLogsPage({ searchParams }) {
         ) : (
           <p className='muted'>No entries on this day.</p>
         )}
-        <p className='totals'>{allRows || rows.length <= 10 ? rows.length + ' entries' : 'Showing the latest 10 of ' + rows.length + ' entries'}{rows.length > 10 ? <> - <Link href={moreHref}>{allRows ? 'Show fewer' : 'See more'}</Link></> : null}. Only the Sr. Ops Manager (and anyone given Reconciliation access) can edit or delete entries from here.</p>
+        <p className='totals'>{allRows || range || emp || rows.length <= 10 ? rows.length + ' entries' : 'Showing the latest 10 of ' + rows.length + ' entries'}{rows.length > 10 ? <> - <Link href={moreHref}>{allRows ? 'Show fewer' : 'See more'}</Link></> : null}. Only the Sr. Ops Manager (and anyone given Reconciliation access) can edit or delete entries from here.</p>
       </div>
     </>
   );

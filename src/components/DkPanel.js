@@ -1,8 +1,8 @@
-import { refreshDk, linkDkPerson } from '@/lib/roster-actions';
+import { refreshDk, linkDkPerson, unlinkDkPerson } from '@/lib/roster-actions';
 
 // Dastarkhawan: who has checked in today (from the facial attendance app), when the data was last updated,
 // and people not yet linked to their facial app record.
-export default function DkPanel({ rows, teamSize, status, unlinked, edit }) {
+export default function DkPanel({ rows, teamSize, status, unlinked, linked = [], edit }) {
   const out = rows.filter((r) => r.check_out).length;
   const inNow = rows.length - out;
   return (
@@ -35,6 +35,23 @@ export default function DkPanel({ rows, teamSize, status, unlinked, edit }) {
       ) : (
         <p className='muted'>Nobody has checked in yet today.</p>
       )}
+      {edit && linked.length ? (
+        <details className='dkp-link'>
+          <summary>Linked to the facial app ({linked.length})</summary>
+          <p className='muted'>Each person here gets their check-ins from the facial app staff record shown. If a name is different, check that it is really the same person, and unlink it if not.</p>
+          {linked.map((l) => {
+            const same = String(l.fname || '').trim().toLowerCase() === String(l.name).trim().toLowerCase();
+            return (
+              <form key={l.id} action={unlinkDkPerson} className='dkp-form'>
+                <input type='hidden' name='id' value={l.id} />
+                <b>{l.name}</b>
+                <span className={same ? 'muted' : 'dkp-diff'}>{l.fname ? l.fname + ' (' + l.emp_id + (l.fsite ? ', ' + l.fsite.replace(/^BOLDDastarkhawan\s*/i, '') : '') + ')' : l.emp_id + ' (not in the facial app list)'}{same ? '' : ' - different name'}</span>
+                <button className='btn' type='submit'>Unlink</button>
+              </form>
+            );
+          })}
+        </details>
+      ) : null}
       {edit && unlinked.people.length ? (
         <details className='dkp-link'>
           <summary>Not linked to the facial app ({unlinked.people.length})</summary>
