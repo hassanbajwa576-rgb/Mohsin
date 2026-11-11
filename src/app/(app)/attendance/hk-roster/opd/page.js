@@ -104,7 +104,7 @@ export default async function HkOpdPage({ searchParams }) {
               </tbody>
             </table>
           </div>
-        ) : <p className='muted'>No Support team members yet. Add them on the Support Roster page.</p>}
+        ) : <p className='muted'>No Support team members yet. Add them on the Support Team page.</p>}
       </div>
 
       {claims.length ? (

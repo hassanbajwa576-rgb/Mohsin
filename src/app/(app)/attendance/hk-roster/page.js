@@ -82,7 +82,7 @@ export default async function RosterPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Support Roster</h1>
+          <h1>Support Team</h1>
           <p className='muted'>Who in the support team will be off, and when (full days or a number of hours). Only the Sr. Ops Manager and the Sr. Support Officer can see and change it.</p>
         </div>
         <div className='inline'>
@@ -141,8 +141,8 @@ export default async function RosterPage({ searchParams }) {
       </div>
 
       {edit ? (
-        <div className='card'>
-          <h3 style={{ marginTop: 0 }}>Add time off</h3>
+        <details className='card'>
+          <summary>Add time off</summary>
           <form action={addTimeOff} className='form'>
             <input type='hidden' name='month' value={month} />
             <label>Team member<input name='name' list='ros-names' placeholder='Type a name' required autoComplete='off' /></label>
@@ -154,7 +154,7 @@ export default async function RosterPage({ searchParams }) {
             <label>Hours (only for part of a day)<input type='number' name='hours' min='0.25' max='24' step='0.25' placeholder='Leave empty for full days' /></label>
             <button className='btn primary' type='submit'>Add time off</button>
           </form>
-        </div>
+        </details>
       ) : null}
 
       {edit ? (

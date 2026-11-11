@@ -92,7 +92,7 @@ export default async function BalancesPage({ searchParams }) {
               </tfoot>
             </table>
           </div>
-        ) : <p className='muted'>No Support team members yet. Add them on the Roster tab.</p>}
+        ) : <p className='muted'>No Support team members yet. Add them on the Calendar tab.</p>}
       </div>
     </>
   );

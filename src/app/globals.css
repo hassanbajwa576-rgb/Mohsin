@@ -643,6 +643,10 @@ table.rost th.tod{outline:2px solid #000;outline-offset:-2px}
 .rostag{padding:2px 8px;border-radius:3px;font-size:12.5px}
 /* Dark theme: the pastel type colours are dimmed instead of glaring white, and the text stays light. */
 html[data-theme=dark] .rostag{background-image:linear-gradient(rgba(12,12,12,.62),rgba(12,12,12,.62))!important;color:#f1efe6}
+/* Same for the time-off cells of the grid and the legend chips (their colour is set inline), plus readable weekday letters on the gold header. */
+html[data-theme=dark] table.rost td[style*='background'],html[data-theme=dark] .roslegend i[style*='background']{background-image:linear-gradient(rgba(12,12,12,.6),rgba(12,12,12,.6))!important;color:#f1efe6}
+html[data-theme=dark] table.rost th small{color:#2c2410;font-weight:600}
+html[data-theme=dark] table.rost th.we small{color:#a8a396}
 
 table.rost td{font-size:11px;font-weight:600}
 
