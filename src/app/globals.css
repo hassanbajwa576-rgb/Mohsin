@@ -1845,3 +1845,13 @@ table.tx td.c-title{position:relative}
   .toplinks .top-er,.toplinks .top-tk,.toplinks .top-dk{padding:6px 12px}
   .nav-top .who{gap:10px}
 }
+
+/* Phone header: the alphabold wordmark and "OpsTrack" are the same visual size (letter height) at every phone width. */
+@media (max-width:700px){
+  .nav-top .brandbox svg{height:34px}
+  .nav-top .brand-name{font-size:17px;line-height:1}
+}
+@media (max-width:380px){
+  .nav-top .brandbox svg{height:30px}
+  .nav-top .brand-name{font-size:15px}
+}
