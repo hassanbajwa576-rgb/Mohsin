@@ -92,6 +92,58 @@ export default async function RosterPage({ searchParams }) {
       <HkTabs active='roster' />
       <Flash sp={sp} />
 
+      <div className='card rosnav'>
+        <Link className='btn' href={'/attendance/hk-roster?' + qp({ m: shiftMonth(month, -1) })}>&lt; {MONTHS[(mo + 10) % 12]}</Link>
+        <b>{MONTHS[mo - 1]} {y}</b>
+        <Link className='btn' href={'/attendance/hk-roster?' + qp({ m: shiftMonth(month, 1) })}>{MONTHS[mo % 12]} &gt;</Link>
+        <Link className='btn ghost' href={'/attendance/hk-roster?' + qp({ m: today.slice(0, 7) })}>This month</Link>
+      </div>
+      {both ? (
+        <AutoFilters
+          hidden={{ m: month, who, all: everyone ? '1' : '' }}
+          fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]}
+        />
+      ) : null}
+
+      <div className='card'>
+        <div className='roslegend'>
+          {TYPES.map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{letter}</i>{l}</span>)}
+          <span><i className='hollegend'>H</i>Holiday</span>
+          <Link href={'/attendance/hk-roster?' + qp({ all: everyone ? '' : '1' })} className='rosall'>{everyone ? 'Show only people with time off' : 'Show the whole team'}</Link>
+        </div>
+        {rows.length ? (
+          <div className='rostable'>
+            <table className='rost'>
+              <thead>
+                <tr>
+                  <th className='rn'>Team member</th>
+                  {days.map((d) => <th key={d} className={(wd(d) === 0 || wd(d) === 6 ? 'we ' : '') + (hol.has(dayKey(d)) ? 'hol ' : '') + (lowCover.has(d) ? 'lowcov ' : '') + (dayKey(d) === today ? 'tod' : '')} title={[hol.get(dayKey(d)), lowCover.get(d)].filter(Boolean).join(' | ') || undefined}>{d}<small>{DOW[wd(d)]}</small></th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((p) => (
+                  <tr key={p.id}>
+                    <td className='rn'><OfficeTag o={p.office} /><b>{p.name}</b>{p.dept ? <small className='muted'> {p.dept}</small> : null}</td>
+                    {days.map((d) => {
+                      const e = (grid.get(p.id) || {})[d];
+                      const t = e ? TINFO[e.kind] : null;
+                      const h = hol.has(dayKey(d));
+                      return (
+                        <td key={d} className={(wd(d) === 0 || wd(d) === 6 ? 'we ' : '') + (h && !t ? 'hol' : '')} style={t ? { background: t.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : h ? hol.get(dayKey(d)) : undefined}>
+                          {t ? t.letter : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className='muted'>No support time off recorded for {MONTHS[mo - 1]} {y}.</p>}
+        {lowCover.size ? <p className='muted' style={{ marginBottom: 0 }}>Days short of cover: {[...lowCover.entries()].map(([d, t]) => d + ' ' + MONTHS[mo - 1].slice(0, 3) + ' (' + t + ')').join(', ')}</p> : null}
+      </div>
+
+
       <div className='kpis'>
         <div className='card kpi'><span>Off today</span><b>{off.length}</b><small>{off.length ? off.slice(0, 6).map((e) => e.name).join(', ') + (off.length > 6 ? ' ...' : '') : 'Everyone is expected in'}</small></div>
         <div className='card kpi alt'><span>People off in {MONTHS[mo - 1]}</span><b>{new Set(entries.map((e) => e.staff_id)).size}</b></div>
@@ -167,7 +219,7 @@ export default async function RosterPage({ searchParams }) {
             <label>Joining date<input type='date' name='joined' /></label>
             <label>Birthday<input type='date' name='birthday' /></label>
             {both ? <label>Office<select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select></label> : null}
-            <button className='btn primary' type='submit'>Add to the Support team</button>
+            <button className='btn primary' type='submit'>Add team member</button>
           </form>
           {team.length ? (
             <div className='tablewrap' style={{ marginTop: 10 }}>
@@ -209,57 +261,6 @@ export default async function RosterPage({ searchParams }) {
           ) : null}
         </div>
       ) : null}
-
-      <div className='card rosnav'>
-        <Link className='btn' href={'/attendance/hk-roster?' + qp({ m: shiftMonth(month, -1) })}>&lt; {MONTHS[(mo + 10) % 12]}</Link>
-        <b>{MONTHS[mo - 1]} {y}</b>
-        <Link className='btn' href={'/attendance/hk-roster?' + qp({ m: shiftMonth(month, 1) })}>{MONTHS[mo % 12]} &gt;</Link>
-        <Link className='btn ghost' href={'/attendance/hk-roster?' + qp({ m: today.slice(0, 7) })}>This month</Link>
-      </div>
-      {both ? (
-        <AutoFilters
-          hidden={{ m: month, who, all: everyone ? '1' : '' }}
-          fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]}
-        />
-      ) : null}
-
-      <div className='card'>
-        <div className='roslegend'>
-          {TYPES.map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{letter}</i>{l}</span>)}
-          <span><i className='hollegend'>H</i>Holiday</span>
-          <Link href={'/attendance/hk-roster?' + qp({ all: everyone ? '' : '1' })} className='rosall'>{everyone ? 'Show only people with time off' : 'Show the whole team'}</Link>
-        </div>
-        {rows.length ? (
-          <div className='rostable'>
-            <table className='rost'>
-              <thead>
-                <tr>
-                  <th className='rn'>Team member</th>
-                  {days.map((d) => <th key={d} className={(wd(d) === 0 || wd(d) === 6 ? 'we ' : '') + (hol.has(dayKey(d)) ? 'hol ' : '') + (lowCover.has(d) ? 'lowcov ' : '') + (dayKey(d) === today ? 'tod' : '')} title={[hol.get(dayKey(d)), lowCover.get(d)].filter(Boolean).join(' | ') || undefined}>{d}<small>{DOW[wd(d)]}</small></th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((p) => (
-                  <tr key={p.id}>
-                    <td className='rn'><OfficeTag o={p.office} /><b>{p.name}</b>{p.dept ? <small className='muted'> {p.dept}</small> : null}</td>
-                    {days.map((d) => {
-                      const e = (grid.get(p.id) || {})[d];
-                      const t = e ? TINFO[e.kind] : null;
-                      const h = hol.has(dayKey(d));
-                      return (
-                        <td key={d} className={(wd(d) === 0 || wd(d) === 6 ? 'we ' : '') + (h && !t ? 'hol' : '')} style={t ? { background: t.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : h ? hol.get(dayKey(d)) : undefined}>
-                          {t ? t.letter : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : <p className='muted'>No support time off recorded for {MONTHS[mo - 1]} {y}.</p>}
-        {lowCover.size ? <p className='muted' style={{ marginBottom: 0 }}>Days short of cover: {[...lowCover.entries()].map(([d, t]) => d + ' ' + MONTHS[mo - 1].slice(0, 3) + ' (' + t + ')').join(', ')}</p> : null}
-      </div>
 
       {entries.length ? (
         <div className='card'>
