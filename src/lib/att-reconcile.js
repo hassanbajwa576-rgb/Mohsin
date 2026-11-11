@@ -1,6 +1,6 @@
 import 'server-only';
 import { q } from './db';
-import { TZ, EV_COLS, KIND_LABEL, groupByStaff, sessionsOf, conflictIds, dateKey, fmtTime } from './att';
+import { TZ, EV_COLS, KIND_LABEL, groupByStaff, sessionsOf, conflictIds, dateKey, fmtTime, fmt12 } from './att';
 
 export const LONG_MS = 16 * 3600000;
 const dur = (ms) => Math.floor(ms / 3600000) + 'h ' + String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0') + 'm';
@@ -51,9 +51,9 @@ export async function scan(from, to, only = 0) {
       if (day < from || day > to) continue;
       const base = { staff: s.id, name: s.name, office: s.office, day };
       if (x.end != null && !x.missed && x.end - x.start > LONG_MS) {
-        add(out.long, { ...base, kind: 'long', sig: fmtTime(x.start) + '|' + fmtTime(x.end), text: 'In ' + fmtTime(x.start) + ', Out ' + fmtTime(x.end) + ' = ' + dur(x.end - x.start) });
+        add(out.long, { ...base, kind: 'long', sig: fmtTime(x.start) + '|' + fmtTime(x.end), text: 'In ' + fmt12(x.start) + ', Out ' + fmt12(x.end) + ' = ' + dur(x.end - x.start) });
       } else if (x.missed) {
-        add(out.noout, { ...base, kind: 'noout', sig: fmtTime(x.start) + '|', text: 'Check in ' + fmtTime(x.start) + ', no check out' });
+        add(out.noout, { ...base, kind: 'noout', sig: fmtTime(x.start) + '|', text: 'Check in ' + fmt12(x.start) + ', no check out' });
       }
     }
   }
@@ -68,7 +68,7 @@ export async function scan(from, to, only = 0) {
     if (!groups.has(k)) groups.set(k, { staff: e.staff_id, day, ids: [], parts: [] });
     const g = groups.get(k);
     g.ids.push(e.id);
-    g.parts.push(KIND_LABEL[e.kind] + ' ' + fmtTime(e.ms));
+    g.parts.push(KIND_LABEL[e.kind] + ' ' + fmt12(e.ms));
   }
   for (const g of groups.values()) {
     const s = names.get(g.staff);

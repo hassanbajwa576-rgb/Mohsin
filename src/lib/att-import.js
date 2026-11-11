@@ -1,6 +1,6 @@
 import 'server-only';
 import { q } from './db';
-import { TZ, validDate, validTime } from './att';
+import { TZ, validDate, validTime, to12 } from './att';
 import { reviewedSet, markKey } from './att-reconcile';
 
 // Reads the weekly Excel sheets (one sheet per month, one row per employee, three columns per day) and works out
@@ -127,9 +127,11 @@ async function readFile(file, from, to, mode, problems) {
   return out;
 }
 
-const showBreaks = (br) => br.map((b) => b[0] + '-' + (b[1] || '?')).join(', ');
+// Shown to people in 12-hour time (9:05 AM); the stored and compared values stay HH:MM.
+const t12 = (s) => (/^\d{1,2}:\d{2}$/.test(String(s || '')) ? to12(s) : s);
+const showBreaks = (br) => br.map((b) => t12(b[0]) + ' - ' + (b[1] ? t12(b[1]) : '?')).join(', ');
 const text = (inT, outT, br) =>
-  [inT ? 'In ' + inT : '', outT ? 'Out ' + outT : '', br.length ? 'Breaks ' + showBreaks(br) : ''].filter(Boolean).join(' - ') || 'nothing';
+  [inT ? 'In ' + t12(inT) : '', outT ? 'Out ' + t12(outT) : '', br.length ? 'Breaks ' + showBreaks(br) : ''].filter(Boolean).join(' - ') || 'nothing';
 
 /** The app's entries of the given people from the first day to the day after the last, in time order. */
 export async function appEvents(staffIds, from, to) {
@@ -288,7 +290,7 @@ export async function buildPlan({ attFile, brkFile, from, to }) {
   for (const it of items.values()) {
     if (!it.in || !it.out) continue;
     const d = (mins(it.out) - mins(it.in) + 1440) % 1440;
-    if (d > 16 * 60) long.push({ staff: it.staff, name: it.name, date: it.date, sig: it.in + '|' + it.out, text: 'In ' + it.in + ', Out ' + it.out + ' = ' + Math.floor(d / 60) + 'h ' + String(d % 60).padStart(2, '0') + 'm' });
+    if (d > 16 * 60) long.push({ staff: it.staff, name: it.name, date: it.date, sig: it.in + '|' + it.out, text: 'In ' + t12(it.in) + ', Out ' + t12(it.out) + ' = ' + Math.floor(d / 60) + 'h ' + String(d % 60).padStart(2, '0') + 'm' });
   }
 
   const done = await reviewedSet(from, to);
