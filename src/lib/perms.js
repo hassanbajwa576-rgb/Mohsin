@@ -13,7 +13,7 @@ export const PERMS = [
   ['guard_duty', 'Guard duty log', 'Record temporary guards (name, mobile, CNIC, card number, who they replace, duty dates, pictures) and see the guard duty list.'],
   ['hire_info', 'New hires: add and edit', 'Record details of new joiners: name, department, joining date, office and level.'],
   ['hire_view', 'New hires: see and mark arrived', 'See who is joining and mark a new hire as arrived when they come in (guards use this).'],
-  ['dast_edit', 'Dastarkhawan: manage the team', 'Shows the Dastarkhawan button: roster, time off, balances, sites. Add and remove people and record time off for the Dastarkhawan team only (not the Support team).'],
+  ['dast_edit', 'Dastarkhawan: manage the team', 'Shows the Dastarkhawan button: roster, time-off, balances, sites. Add and remove people and record time-off for the Dastarkhawan team only (not the Support team).'],
   ['tasks', 'My Tasks page', 'A page to record important tasks with due dates and priority. Each person sees their own tasks and tasks given to them. The Sr. Ops Manager can give tasks to others and follow them; the Sr. SO can do the same for Support Officers.'],
 ];
 

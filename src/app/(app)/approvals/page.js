@@ -46,7 +46,7 @@ export default async function ApprovalsPage({ searchParams }) {
       <div className='kpis'>
         <div className={'card kpi' + (total ? ' neg' : '')}><span>Waiting for you</span><b>{total}</b></div>
         <div className='card kpi alt'><span>Expenses</span><b>{expCount}</b><small>{pkr(expenses.reduce((a, e) => a + Number(e.amount), 0))}</small></div>
-        <div className='card kpi alt'><span>Time off requests</span><b>{timeoff.length}</b></div>
+        <div className='card kpi alt'><span>Time-off requests</span><b>{timeoff.length}</b></div>
         <div className='card kpi alt'><span>Visitor delete requests</span><b>{visitors.length}</b></div>
         <div className='card kpi alt'><span>Card top-up requests</span><b>{refills.length}</b></div>
       </div>
@@ -89,7 +89,7 @@ export default async function ApprovalsPage({ searchParams }) {
 
       {timeoff.length ? (
         <div className='card'>
-          <h3 style={{ marginTop: 0 }}>Time Off Requests ({timeoff.length})</h3>
+          <h3 style={{ marginTop: 0 }}>Time-Off Requests ({timeoff.length})</h3>
           <div className='tablewrap'>
             <table className='tx'>
               <thead><tr><th>Team member</th><th>Type</th><th>When</th><th>Asked by</th><th>Note</th><th></th></tr></thead>

@@ -6,7 +6,7 @@ import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
 
-// Anyone can ask for time off for a support team member; the Sr. Ops Manager or the Sr. Support Officer approves it.
+// Anyone can ask for time-off for a support team member; the Sr. Ops Manager or the Sr. Support Officer approves it.
 export default async function RequestPage({ searchParams }) {
   const user = await requireUser(ATT_ROLES.filter((r) => r !== 'guard'));
   const sp = await searchParams;
@@ -16,8 +16,8 @@ export default async function RequestPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Time off request</h1>
-          <p className='muted'>Ask for time off for a support team member. The Sr. Ops Manager or the Sr. Support Officer will approve or decline it, and you will be told.</p>
+          <h1>Time-off request</h1>
+          <p className='muted'>Ask for time-off for a support team member. The Sr. Ops Manager or the Sr. Support Officer will approve or decline it, and you will be told.</p>
         </div>
       </div>
       <Flash sp={sp} />

@@ -1,4 +1,4 @@
-﻿import 'server-only';
+import 'server-only';
 import { q } from './db';
 import { todayKey, allOffices, dayBoard, stateOf, LATE_AFTER, EARLY_BEFORE, fmtTime } from './att';
 import { can } from './perms';
@@ -159,7 +159,7 @@ async function visitorsAnswer(user, n, nowY, nowM, today) {
   );
 }
 
-// More topics: attendance, headcount, complaints, time off, fuel, the team, a person's expenses, and finding an amount.
+// More topics: attendance, headcount, complaints, time-off, fuel, the team, a person's expenses, and finding an amount.
 const STATUS_WORDS = [[/not yet submitted|draft/, 'draft', 'not yet submitted'], [/rejected/, 'rejected', 'rejected'], [/sent to accounts|submitted to accounts/, 'sent', 'sent to Accounts'], [/ready for accounts|approved/, 'approved', 'approved (ready for Accounts)'], [/awaiting|pending|submitted/, 'submitted', 'awaiting review']];
 const officeAsked = (n, user) => (allOffices(user) ? (has(n, /\bisb\b|islamabad/) && !has(n, /\blhr\b|lahore/) ? 'ISB' : has(n, /\blhr\b|lahore/) && !has(n, /\bisb\b|islamabad/) ? 'LHR' : '') : user.office_code);
 const names = (list, max = 15) => list.slice(0, max).map((x) => '  ' + x).join('\n') + (list.length > max ? '\n  and ' + (list.length - max) + ' more' : '');
@@ -250,9 +250,9 @@ async function extraTopics(user, n, nowY, nowM, today) {
     return lines('Complaints' + (office ? ' in ' + office : '') + ': ' + r.total + ' in total.', '  Open: ' + r.open, '  Open and past the due date: ' + r.late);
   }
   if (has(n, /time off|leave|pto|off request/)) {
-    if (!sup) return 'Time off numbers are available to the Sr. Ops Manager and the Sr. Support Officer.';
+    if (!sup) return 'Time-off numbers are available to the Sr. Ops Manager and the Sr. Support Officer.';
     const r = (await q("SELECT COUNT(*)::int AS n FROM pc2_hk_off WHERE status = 'pending'"))[0];
-    return 'Time off requests waiting for a decision: ' + r.n + '.';
+    return 'Time-off requests waiting for a decision: ' + r.n + '.';
   }
   if (has(n, /fuel|refill|top up/)) {
     if (!can(user, 'fuel_use')) return 'You do not have access to FuelTrack.';
@@ -266,14 +266,14 @@ async function extraTopics(user, n, nowY, nowM, today) {
   if (has(n, /needs? (my )?attention|what is pending|what s pending|anything pending|to do list|waiting for me|what should i do/)) {
     if (!om) return 'That summary is for the Sr. Ops Manager. Ask me about your own expenses or advances.';
     const r = (await q("SELECT (SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int FROM pc2_expenses WHERE status IN ('submitted', 'verified')) AS exp, (SELECT COUNT(*)::int FROM pc2_visitors WHERE del_req_by IS NOT NULL) AS vis, (SELECT COUNT(*)::int FROM pc2_hk_off WHERE status = 'pending') AS off, (SELECT COUNT(*)::int FROM pc2_fuel_refill WHERE status = 'open') AS fuel, (SELECT COUNT(DISTINCT COALESCE(split_group, id::text))::int FROM pc2_expenses WHERE status = 'approved' AND batch_id IS NULL) AS ready"))[0];
-    return lines('Waiting for you:', '  Expenses to approve: ' + r.exp, '  Visitor delete requests: ' + r.vis, '  Time off requests: ' + r.off, '  Fuel refill requests open: ' + r.fuel, '  Approved expenses not yet sent to Accounts: ' + r.ready);
+    return lines('Waiting for you:', '  Expenses to approve: ' + r.exp, '  Visitor delete requests: ' + r.vis, '  Time-off requests: ' + r.off, '  Fuel refill requests open: ' + r.fuel, '  Approved expenses not yet sent to Accounts: ' + r.ready);
   }
   // Who is off (Support roster)
   if (has(n, /who is off|who s off|on leave|off today|off this week|time off today/)) {
     if (!sup) return 'The roster is available to the Sr. Ops Manager and the Sr. Support Officer.';
     const week = has(n, /week/);
     const r = await q("SELECT p.name, h.kind, to_char(h.from_date, 'DD Mon') AS f, to_char(h.to_date, 'DD Mon') AS t FROM pc2_hk_off h JOIN pc2_hk_people p ON p.id = h.hk_id WHERE h.from_date <= ($1::date + $2::int) AND h.to_date >= $1::date ORDER BY h.from_date LIMIT 20", [today, week ? 6 : 0]);
-    return r.length ? lines('Time off ' + (week ? 'in the next 7 days' : 'today') + ':', ...r.map((x) => '  ' + x.name + ' - ' + x.kind + ' (' + x.f + (x.f === x.t ? '' : ' to ' + x.t) + ')')) : 'Nobody has time off ' + (week ? 'in the next 7 days' : 'today') + '.';
+    return r.length ? lines('Time-off ' + (week ? 'in the next 7 days' : 'today') + ':', ...r.map((x) => '  ' + x.name + ' - ' + x.kind + ' (' + x.f + (x.f === x.t ? '' : ' to ' + x.t) + ')')) : 'Nobody has time-off ' + (week ? 'in the next 7 days' : 'today') + '.';
   }
   // Expected visitors and no shows
   if (has(n, /expected visitor|visitors? expected|expecting|coming today|coming tomorrow|no show|noshow/)) {
@@ -414,7 +414,7 @@ export async function opsbotAnswer(user, text, ctx = null) {
   if (has(n, /what can i ask|ideas|examples|what can you do|show me questions|list of questions|topics/) && om) return { reply: 'You can ask me things like:\n' + IDEAS_OM.map((x) => '- ' + x).join('\n'), suggestions: SUGGEST_OM };
   if (has(n, /what can i ask|ideas|examples|what can you do/) && !om) return { reply: 'You can ask me things like:\n- What is my cash in hand?\n- How many expenses are waiting?\n- Advances outstanding\n- Visitors today\n- Open complaints\n- Who is on duty today? (if you can see attendance)', suggestions: SUGGEST_OTHER };
   if (has(n, /^(hi|hello|hey|salam|help)\b|who are you|how do i ask/)) {
-    return { reply: om ? 'I am OpsBot. I answer from the data in OpsTrack. Ask about spending by office, head or month, the budget, year against year, cash in hand, advances, the expenses of one person ("Zubair expenses this month"), expenses in a stage ("rejected expenses"), attendance ("who is on duty today"), headcount, complaints, time off requests, fuel refills, the team, visitors, or find an amount ("find 18376"). Name a month, a year, an office or a head. I only know what is in the app.' : 'I am OpsBot. I answer from the data in OpsTrack that you can open: your cash in hand, advances, expenses and visitors.', suggestions: sugg };
+    return { reply: om ? 'I am OpsBot. I answer from the data in OpsTrack. Ask about spending by office, head or month, the budget, year against year, cash in hand, advances, the expenses of one person ("Zubair expenses this month"), expenses in a stage ("rejected expenses"), attendance ("who is on duty today"), headcount, complaints, time-off requests, fuel refills, the team, visitors, or find an amount ("find 18376"). Name a month, a year, an office or a head. I only know what is in the app.' : 'I am OpsBot. I answer from the data in OpsTrack that you can open: your cash in hand, advances, expenses and visitors.', suggestions: sugg };
   }
   const extra = await extraTopics(user, n, nowY, nowM, today);
   if (extra) return { reply: extra, suggestions: [] };

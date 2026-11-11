@@ -1,26 +1,26 @@
 import 'server-only';
 import { q } from './db';
 
-// Kinds of time off a person can be given: [key, label, letter in the grid, colour].
+// Kinds of time-off a person can be given: [key, label, letter in the grid, colour].
 export const TYPES = [
   ['pto', 'PTO', 'P', '#cfe3fb'],
   ['ptom', 'PTO-M', 'PM', '#f9d3d3'],
   ['bereavement', 'Bereavement PTO', 'B', '#ddd6ee'],
   ['cpto', 'C-PTO', 'CP', '#d3efdb'],
-  ['unpaid', 'Unpaid time off', 'U', '#fbeab5'],
-  ['other', 'Other time off', 'X', '#e4e4e4'],
+  ['unpaid', 'Unpaid time-off', 'U', '#fbeab5'],
+  ['other', 'Other time-off', 'X', '#e4e4e4'],
 ];
 export const TLABEL = Object.fromEntries(TYPES.map((t) => [t[0], t[1]]));
 // Kinds that have a yearly allowance.
 export const ALLOWED = ['pto', 'ptom', 'bereavement', 'cpto'];
 // Entries made before the types changed still display; they just cannot be chosen for new entries.
-const OLD = { weekly: ['Weekly off', 'O', '#d3efdb'], annual: ['Annual time off', 'A', '#cfe3fb'], sick: ['Sick time off', 'S', '#f9d3d3'], casual: ['Casual time off', 'C', '#fbeab5'], wfh: ['Work from home', 'W', '#d3efdb'] };
+const OLD = { weekly: ['Weekly off', 'O', '#d3efdb'], annual: ['Annual time-off', 'A', '#cfe3fb'], sick: ['Sick time-off', 'S', '#f9d3d3'], casual: ['Casual time-off', 'C', '#fbeab5'], wfh: ['Work from home', 'W', '#d3efdb'] };
 export const TINFO = {
   ...Object.fromEntries(Object.entries(OLD).map(([k, v]) => [k, { label: v[0], letter: v[1], color: v[2] }])),
   ...Object.fromEntries(TYPES.map((t) => [t[0], { label: t[1], letter: t[2], color: t[3] }])),
 };
 
-// Shown in today's cell for someone who has checked in today (not a type of time off).
+// Shown in today's cell for someone who has checked in today (not a type of time-off).
 export const WORKING = { label: 'Working (checked in today)', letter: 'W', color: '#c8ecd3' };
 
 /** For each day from..to (Karachi time): the lower-case names of employees who checked in. Roster people are matched by name. */
@@ -121,7 +121,7 @@ function scope(params, cond, { office, team, site }) {
   }
 }
 
-/** Approved time off that touches the month, for the active people of one team, with optional office, site and name filters. */
+/** Approved time-off that touches the month, for the active people of one team, with optional office, site and name filters. */
 export async function monthOff({ month, from, to, office, who, team = 'support', site = '' }) {
   // A month, or any range of days (from..to) when given.
   const first = from || month + '-01';
@@ -143,7 +143,7 @@ export async function offToday(day, office, team = 'support', site = '') {
   return q(`SELECT ${COLS} ${FROM} WHERE ${cond.join(' AND ')} ORDER BY s.name`, params);
 }
 
-/** Approved time off in the next few days. */
+/** Approved time-off in the next few days. */
 export async function comingUp(from, days, office, team = 'support', site = '') {
   const params = [from, addDays(from, days)];
   const cond = ['s.active', "t.status = 'approved'", 't.from_date <= $2::date', 't.to_date >= $1::date'];

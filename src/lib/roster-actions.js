@@ -34,7 +34,7 @@ async function need(team = 'support') {
   if ((u.role !== 'om' && u.role !== 'sso') || !can(u, 'roster_edit')) redirect('/attendance');
   return u;
 }
-// Anyone who uses AttendTrack may ask for time off.
+// Anyone who uses AttendTrack may ask for time-off.
 async function needAny() {
   const u = await getUser();
   if (!u) redirect('/login');
@@ -47,38 +47,38 @@ function back(path, msg, ok) {
 }
 const dateOk = (d) => validDate(String(d || ''));
 
-// Validate the time off fields and find the team member. Returns { st, kind, from, to, hrs, note } or redirects with an error.
+// Validate the time-off fields and find the team member. Returns { st, kind, from, to, hrs, note } or redirects with an error.
 async function readTimeOff(fd, u, here, team = 'support') {
   const name = s(fd, 'name');
   const kind = s(fd, 'kind');
   const from = s(fd, 'from');
   const hrs = s(fd, 'hours') ? Number(s(fd, 'hours')) : null;
   const to = hrs !== null ? from : s(fd, 'to') || from;
-  if (!TLABEL[kind]) back(here, 'Choose the type of time off');
+  if (!TLABEL[kind]) back(here, 'Choose the type of time-off');
   if (hrs !== null && !(hrs > 0 && hrs <= 24)) back(here, 'Hours must be more than 0 and at most 24');
   if (!dateOk(from) || !dateOk(to) || to < from) back(here, 'Choose valid dates (the last day cannot be before the first)');
-  if ((new Date(to) - new Date(from)) / 864e5 > 120) back(here, 'Time off can be at most 120 days at once');
+  if ((new Date(to) - new Date(from)) / 864e5 > 120) back(here, 'Time-off can be at most 120 days at once');
   const found = await q('SELECT s.id, s.name, s.office_id FROM pc2_hk_people s WHERE s.active AND s.team = $2 AND lower(s.name) = lower($1)', [name, team]);
   if (!found.length) back(here, 'Nobody in the ' + TEAM_SHORT[team] + ' team is called "' + name + '". Pick a name from the list.');
   if (found.length > 1) back(here, 'More than one ' + TEAM_SHORT[team] + ' team member is called "' + name + '". Ask Mohsin to make the names different.');
   const st = found[0];
-  if (team !== 'dast' && !allOffices(u) && st.office_id !== u.office_id) back(here, 'You can only record time off for your own office');
-  // A range made only of holidays needs no time off.
+  if (team !== 'dast' && !allOffices(u) && st.office_id !== u.office_id) back(here, 'You can only record time-off for your own office');
+  // A range made only of holidays needs no time-off.
   const hol = await holidaysBetween(from, to);
   let working = 0;
   for (let d = from; d <= to; d = addDays(d, 1)) if (!hol.has(d)) working += 1;
-  if (!working) back(here, 'Those days are all holidays, so no time off is needed');
+  if (!working) back(here, 'Those days are all holidays, so no time-off is needed');
   // Hours may share a day with other hours; a full day cannot overlap anything that is approved or waiting.
   const clash = await q(
     `SELECT to_char(from_date, 'YYYY-MM-DD') AS f, to_char(to_date, 'YYYY-MM-DD') AS t FROM pc2_hk_off WHERE hk_id = $1 AND status <> 'declined' AND from_date <= $3::date AND to_date >= $2::date ${hrs !== null ? 'AND hours IS NULL' : ''} LIMIT 1`,
     [st.id, from, to]
   );
-  if (clash.length) back(here, st.name + ' already has time off from ' + clash[0].f + ' to ' + clash[0].t + '. Remove it first to change it.');
+  if (clash.length) back(here, st.name + ' already has time-off from ' + clash[0].f + ' to ' + clash[0].t + '. Remove it first to change it.');
   return { st, kind, from, to, hrs, note: s(fd, 'note').slice(0, 120) };
 }
 const span = (a) => a.from + (a.to !== a.from ? ' to ' + a.to : '') + (a.hrs !== null ? ' (' + a.hrs + ' h)' : '');
 
-// Record time off straight away (Sr. Ops Manager / Sr. Support Officer).
+// Record time-off straight away (Sr. Ops Manager / Sr. Support Officer).
 export async function addTimeOff(fd) {
   const team = teamOf(s(fd, 'team'));
   const u = await need(team);
@@ -86,19 +86,19 @@ export async function addTimeOff(fd) {
   const here = root(team, m ? { m } : {});
   const a = await readTimeOff(fd, u, here, team);
   const r = await q(`INSERT INTO pc2_hk_off (hk_id, from_date, to_date, kind, note, created_by, hours, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved') RETURNING id`, [a.st.id, a.from, a.to, a.kind, a.note, u.id, a.hrs]);
-  await logEvent(u, 'create', 'timeoff', r[0].id, 'Time off: ' + a.st.name + ' ' + TLABEL[a.kind] + ' ' + span(a), null, { kind: a.kind });
+  await logEvent(u, 'create', 'timeoff', r[0].id, 'Time-off: ' + a.st.name + ' ' + TLABEL[a.kind] + ' ' + span(a), null, { kind: a.kind });
   back(here, a.st.name + ': ' + TLABEL[a.kind] + (a.hrs !== null ? ' ' + a.hrs + ' h' : '') + ' recorded', true);
 }
 
-// Ask for time off (anyone). It waits for the Sr. Ops Manager to approve.
+// Ask for time-off (anyone). It waits for the Sr. Ops Manager to approve.
 export async function requestTimeOff(fd) {
   const u = await needAny();
   if (u.role === 'guard') redirect('/');
   const here = ROOT + '/request';
   const a = await readTimeOff(fd, u, here);
   const r = await q(`INSERT INTO pc2_hk_off (hk_id, from_date, to_date, kind, note, created_by, hours, status, requested_by) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $6) RETURNING id`, [a.st.id, a.from, a.to, a.kind, a.note, u.id, a.hrs]);
-  await logEvent(u, 'create', 'timeoff', r[0].id, 'Time off requested: ' + a.st.name + ' ' + TLABEL[a.kind] + ' ' + span(a), null, { kind: a.kind });
-  await notifyRoles(['om'], u.name + ' asked for time off for ' + a.st.name + ': ' + TLABEL[a.kind] + ' ' + span(a), ROOT, u.id);
+  await logEvent(u, 'create', 'timeoff', r[0].id, 'Time-off requested: ' + a.st.name + ' ' + TLABEL[a.kind] + ' ' + span(a), null, { kind: a.kind });
+  await notifyRoles(['om'], u.name + ' asked for time-off for ' + a.st.name + ': ' + TLABEL[a.kind] + ' ' + span(a), ROOT, u.id);
   back(here, 'Request sent for ' + a.st.name + '. You will be told when it is approved or declined.', true);
 }
 
@@ -112,8 +112,8 @@ export async function decideTimeOff(fd) {
   const r = (await q(`SELECT t.id, t.kind, t.requested_by, to_char(t.from_date, 'YYYY-MM-DD') AS f, to_char(t.to_date, 'YYYY-MM-DD') AS t2, s.name FROM pc2_hk_off t JOIN pc2_hk_people s ON s.id = t.hk_id WHERE t.id = $1 AND t.status = 'pending'`, [Number.isInteger(id) ? id : 0]))[0];
   if (!r) back(to, 'That request was already handled');
   await q(`UPDATE pc2_hk_off SET status = $1, decided_by = $2, decided_at = now() WHERE id = $3`, [approve ? 'approved' : 'declined', u.id, id]);
-  await logEvent(u, 'edit', 'timeoff', id, (approve ? 'Approved' : 'Declined') + ' time off: ' + r.name + ' ' + TLABEL[r.kind] + ' ' + r.f + (r.t2 !== r.f ? ' to ' + r.t2 : ''), null, null);
-  if (r.requested_by && r.requested_by !== u.id) await notifyUser(r.requested_by, 'Your time off request for ' + r.name + ' (' + r.f + (r.t2 !== r.f ? ' to ' + r.t2 : '') + ') was ' + (approve ? 'approved' : 'declined'), ROOT + '/request');
+  await logEvent(u, 'edit', 'timeoff', id, (approve ? 'Approved' : 'Declined') + ' time-off: ' + r.name + ' ' + TLABEL[r.kind] + ' ' + r.f + (r.t2 !== r.f ? ' to ' + r.t2 : ''), null, null);
+  if (r.requested_by && r.requested_by !== u.id) await notifyUser(r.requested_by, 'Your time-off request for ' + r.name + ' (' + r.f + (r.t2 !== r.f ? ' to ' + r.t2 : '') + ') was ' + (approve ? 'approved' : 'declined'), ROOT + '/request');
   back(to, r.name + ': request ' + (approve ? 'approved' : 'declined'), true);
 }
 
@@ -124,10 +124,10 @@ export async function deleteTimeOff(fd) {
   const u = await need(r ? r.team : 'support');
   const here = root(r ? r.team : teamOf(s(fd, 'team')), m ? { m } : {});
   if (!r) back(here, 'That entry no longer exists');
-  if (r.team !== 'dast' && !allOffices(u) && r.office_id !== u.office_id) back(here, 'You can only change time off for your own office');
+  if (r.team !== 'dast' && !allOffices(u) && r.office_id !== u.office_id) back(here, 'You can only change time-off for your own office');
   await q('DELETE FROM pc2_hk_off WHERE id = $1', [id]);
-  await logEvent(u, 'delete', 'timeoff', id, 'Removed time off: ' + r.name + ' ' + TLABEL[r.kind] + ' ' + r.f + (r.t2 !== r.f ? ' to ' + r.t2 : ''), null, null);
-  back(here, 'Time off removed', true);
+  await logEvent(u, 'delete', 'timeoff', id, 'Removed time-off: ' + r.name + ' ' + TLABEL[r.kind] + ' ' + r.f + (r.t2 !== r.f ? ' to ' + r.t2 : ''), null, null);
+  back(here, 'Time-off removed', true);
 }
 
 // Add someone to the support team (they are not on the Employees list and have no attendance entries).
@@ -247,7 +247,7 @@ export async function updateHkPerson(fd) {
   back(here, name + ' updated', true);
 }
 
-// Remove someone from the team (their past time off stays in the database but is out of view).
+// Remove someone from the team (their past time-off stays in the database but is out of view).
 export async function removeHkPerson(fd) {
   const id = Number(s(fd, 'id'));
   const p = (await q('SELECT id, name, office_id, team FROM pc2_hk_people WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];

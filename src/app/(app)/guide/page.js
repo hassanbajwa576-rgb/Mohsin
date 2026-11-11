@@ -30,7 +30,7 @@ const STAGES = [
 const CASH_NEW = [
   ['Paid from', 'A Support Officer picks Petty Cash or BRC when adding an expense. The expense is taken from the oldest advance first and, if one advance is not enough, from the next one. The Sr. Ops Manager sees it as one line with the total.'],
   ['Cash in hand colours', 'Cash in hand shows in red on a light red background when a person holds less than 20% of the cash issued to them, and in green when they hold 20% or more. It appears on the dashboard, the Advances page and the Support Officer dashboard.'],
-  ['Approvals page', 'The Sr. Ops Manager sees everything waiting for a decision on one page: expenses, time off requests and visitor delete requests. The number next to Approvals in the top bar shows how many are waiting.'],
+  ['Approvals page', 'The Sr. Ops Manager sees everything waiting for a decision on one page: expenses, time-off requests and visitor delete requests. The number next to Approvals in the top bar shows how many are waiting.'],
   ['Expenses with no cash in hand', 'A Support Officer can record an expense even when no cash is left on the advance. Whatever the advances cannot cover is recorded without an advance behind it, and the expense still goes through review.'],
   ['One entry, even when paid from two advances', 'An expense taken from more than one advance is shown as a single entry with the full amount on the Expenses, Accounts and dashboard pages, and counted once.'],
   ['Paste from Excel', 'On Expenses, open "Paste from Excel" and paste your rows. You can paste the full sheet columns (Cost Center, Expense Type, Detail, Amount, Payment Mode, Office): the detail and amount are picked out, the category is guessed from the type, and an Office column (ISB or LHR) puts that row in that office. The Sr. Ops Manager and the Sr. Support Officer can also pick the office for a single expense.'],
@@ -100,8 +100,8 @@ const TEAM_PAGES = [
 ];
 
 const ROSTER_NEW = [
-  ['Support Team', 'The Support team has four tabs: Roster, Time-off Balance, OPD and Setup. The Dastarkhawan team is managed separately, with its own button after Tasks (Roster, Time-off Balance and Sites; each person is mapped to one or more sites with a joining date). The Roster is the full team time off grid for the month: who is off and when, with PTO, PTO-M, Bereavement PTO, C-PTO, Unpaid and Other types. Time off can be in days or in hours. The list at the top shows who is off in the next 14 days and upcoming birthdays.'],
-  ['Time Off Request', 'Anyone can ask for time off for a Support team member. The Sr. Ops Manager or the Sr. Support Officer approves or declines it and you are told the result.'],
+  ['Support Team', 'The Support team has four tabs: Roster, Time-off Balance, OPD and Setup. The Dastarkhawan team is managed separately, with its own button after Tasks (Roster, Time-off Balance and Sites; each person is mapped to one or more sites with a joining date). The Roster is the full team time-off grid for the month: who is off and when, with PTO, PTO-M, Bereavement PTO, C-PTO, Unpaid and Other types. Time-off can be in days or in hours. The list at the top shows who is off in the next 14 days and upcoming birthdays.'],
+  ['Time-Off Request', 'Anyone can ask for time-off for a Support team member. The Sr. Ops Manager or the Sr. Support Officer approves or declines it and you are told the result.'],
   ['Time-off Balance', 'Days used and days left for each person against the yearly allowance, plus a yearly summary per type. Hours count as part of a day and holidays are not counted. Nothing carries forward.'],
   ['OPD', 'Every Support team member has Rs 120,000 of OPD a year (1 January to 31 December, no carry forward). Claims are recorded with the amount and the available balance updates. The Sr. Ops Manager and the Sr. Support Officer are alerted at 80% used and when the limit is reached.'],
   ['Setup', 'Yearly allowances, hours in one working day, the minimum people in for each office, and the holidays. A day with fewer people than the minimum is marked red on the roster.'],
@@ -134,14 +134,14 @@ const RULES = [
   ['Submit to Accounts', 'Yes', 'Yes', '-'],
   ['Team management and Audit Log', 'Yes', '-', '-'],
   ['Approvals page', 'Yes', '-', '-'],
-  ['Support roster, time off balance and OPD', 'Yes', 'Yes', '-'],
-  ['Ask for time off', 'Yes', 'Yes', 'Yes'],
+  ['Support roster, time-off balance and OPD', 'Yes', 'Yes', '-'],
+  ['Ask for time-off', 'Yes', 'Yes', 'Yes'],
   ['Record visitors', 'Yes', 'Yes', 'Yes'],
   ['See both offices dashboard', 'Yes', 'Yes', 'Own only'],
 ];
 
 const YOU = {
-  om: 'You lead the process. Record funds received from Accounts, hand cash to the Sr. SO or Support Officers, review and approve every expense, then submit approved expenses to Accounts. You also manage the team, see the Audit Log and the Approvals page, and approve time off, visitor delete requests and OPD alerts.',
+  om: 'You lead the process. Record funds received from Accounts, hand cash to the Sr. SO or Support Officers, review and approve every expense, then submit approved expenses to Accounts. You also manage the team, see the Audit Log and the Approvals page, and approve time-off, visitor delete requests and OPD alerts.',
   sso: 'You run day-to-day cash: issue advances to Support Officers, record cash they return, add your own expenses and submit the approved batch to Accounts together with the Sr. Ops Manager. You can see both offices but you cannot approve, edit, delete or manage the team.',
   so: 'You spend from the advances issued to you. Add each expense, then press Submit expenses to hand them over for review. Only then does your advance reduce.',
 };
@@ -337,14 +337,14 @@ export default async function GuidePage() {
 
       {attend && (has('/attendance/hk-roster') || has('/attendance/hk-roster/request')) ? (user.role === 'om' || user.role === 'sso') && has('/attendance/hk-roster') ? (
         <details className='card'>
-          <summary>Support team roster, time off and OPD</summary>
+          <summary>Support team roster, time-off and OPD</summary>
           <p className='flow'>Only the Sr. Ops Manager and the Sr. Support Officer can see the roster, balances, OPD and setup.</p>
           <Table head={['Feature', 'What it means']} rows={ROSTER_NEW} />
         </details>
       ) : (
         <details className='card'>
-          <summary>Time off requests</summary>
-          <p className='flow'>Use the Time Off Request tab in AttendTrack to ask for time off for a Support team member. The Sr. Ops Manager or the Sr. Support Officer approves or declines it and you are told the result.</p>
+          <summary>Time-off requests</summary>
+          <p className='flow'>Use the Time-Off Request tab in AttendTrack to ask for time-off for a Support team member. The Sr. Ops Manager or the Sr. Support Officer approves or declines it and you are told the result.</p>
         </details>
       ) : null}
 

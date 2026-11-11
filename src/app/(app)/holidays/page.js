@@ -31,7 +31,7 @@ export default async function HolidaysPage({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Holiday calendar</h1>
-          <p className='muted'>Gazetted holidays for {year}. Holidays do not count as time off in the Support roster, and a task set to repeat on the last working day skips them.</p>
+          <p className='muted'>Gazetted holidays for {year}. Holidays do not count as time-off in the Support roster, and a task set to repeat on the last working day skips them.</p>
         </div>
         <div className='chips'>
           <Link className='chip' href={'/holidays?y=' + (y - 1)}>{y - 1}</Link>

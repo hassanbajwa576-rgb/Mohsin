@@ -18,7 +18,7 @@ import { syncDk, dkStatus } from '@/lib/dk-sync';
 export const dynamic = 'force-dynamic';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-// Three letters, so a day name is never mistaken for a time off code (W = Wednesday, not "working").
+// Three letters, so a day name is never mistaken for a time-off code (W = Wednesday, not "working").
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const num = (v) => String(Math.round(v * 100) / 100);
 const span = (e) => e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.hours != null ? ' (' + num(e.hours) + ' h)' : '');
@@ -53,7 +53,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
   const SITES = dast ? await siteList() : []; // the sites you manage on the Sites tab
   const site = dast && SITES.includes(sp.site) ? sp.site : '';
   const who = String(sp.who || '').trim().slice(0, 60);
-  // The whole team is shown by default; "only people with time off" is the option.
+  // The whole team is shown by default; "only people with time-off" is the option.
   const onlyOff = sp.only === '1';
   const everyone = !onlyOff;
   const [y, mo] = from.slice(0, 7).split('-').map(Number);
@@ -64,9 +64,11 @@ export default async function RosterPage({ searchParams, forceTeam }) {
   const entries = await monthOff({ month, from, to, office, who, team: tm, site });
   const team = await hkPeople({ office, team: tm, site });
   const people = everyone ? await hkPeople({ office, who, team: tm, site }) : [];
-  // Live link with attendance: on every day up to today, anyone who checked in (and has no time off) shows W (worked).
+  // Live link with attendance: on every day up to today, anyone who checked in (and has no time-off) shows W (worked).
   const checked = from <= today ? await checkedInDays(from, to < today ? to : today) : new Map();
-  // Dastarkhawan: bring in the latest check-ins from the facial attendance app (at most every 5 minutes) and add them to the W marks.
+  // Dastarkhawan has two sources for W: OpsTrack's own attendance entries (matched by name, above) and the facial attendance app
+  // (linked by staff ID; refreshed at most every 5 minutes). A W counts if either has a check in; hovering a W says which.
+  let dkDays = new Map();
   let dkRows = [];
   let dkStat = { at: '', error: '' };
   let dkUn = { people: [], staff: [] };
@@ -75,19 +77,14 @@ export default async function RosterPage({ searchParams, forceTeam }) {
     dkStat = await dkStatus();
     dkRows = await dkToday(today);
     if (edit) dkUn = await dkUnlinked();
-    if (from <= today) {
-      for (const [d, set] of await dkCheckedInDays(from, to < today ? to : today)) {
-        if (checked.has(d)) set.forEach((n) => checked.get(d).add(n));
-        else checked.set(d, new Set(set));
-      }
-    }
+    if (from <= today) dkDays = await dkCheckedInDays(from, to < today ? to : today);
   }
   const byId = new Map(team.map((p) => [p.id, p]));
   const rows = everyone ? people : [...new Map(entries.map((e) => [e.staff_id, byId.get(e.staff_id) || { id: e.staff_id, name: e.name, dept: e.dept, office: e.office, site: e.site, sites: [] }])).values()];
   const settings = await getSettings();
   const hol = await holidaysBetween(from, to);
   const off = await offToday(today, office, tm, site);
-  // "Coming up" is time off that starts after today; anyone off today is already counted under "Off today".
+  // "Coming up" is time-off that starts after today; anyone off today is already counted under "Off today".
   const coming = (await comingUp(today, 14, office, tm, site)).filter((e) => e.from_date > today);
   const pending = edit ? await pendingRequests(office, tm, site) : [];
   const birthdays = upcomingBirthdays(team, today, 30);
@@ -185,8 +182,8 @@ export default async function RosterPage({ searchParams, forceTeam }) {
         <div className='roslegend'>
           {TYPES.map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{letter}</i>{l}</span>)}
           <span><i className='hollegend'>H</i>Holiday</span>
-          <span><i style={{ background: WORKING.color }}>{WORKING.letter}</i>Worked (checked in)</span>
-          <Link href={base + '?' + qp({ only: onlyOff ? '' : '1' })} className='rosall'>{onlyOff ? 'Show the whole team' : 'Show only people with time off'}</Link>
+          <span><i style={{ background: WORKING.color }}>{WORKING.letter}</i>Worked (checked in{dast ? ': facial app or OpsTrack attendance, hover to see which' : ''})</span>
+          <Link href={base + '?' + qp({ only: onlyOff ? '' : '1' })} className='rosall'>{onlyOff ? 'Show the whole team' : 'Show only people with time-off'}</Link>
         </div>
         {rows.length ? (
           <div className='rostable'>
@@ -196,7 +193,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                   <th className='rn'>Team member</th>
                   {dates.map((key) => <th key={key} className={(wd(key) === 0 || wd(key) === 6 ? 'we ' : '') + (hol.has(key) ? 'hol ' : '') + (lowCover.has(key) ? 'lowcov ' : '') + (key === today ? 'tod' : '')} title={[shortDay(key), hol.get(key), lowCover.get(key)].filter(Boolean).join(' | ')}>{Number(key.slice(8))}<small>{DOW[wd(key)]}</small></th>)}
                   <th className='rsum' title='Days with a check in'>Worked</th>
-                  <th className='rsum' title='Full days of time off'>Off</th>
+                  <th className='rsum' title='Full days of time-off'>Off</th>
                 </tr>
               </thead>
               <tbody>
@@ -208,12 +205,15 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                     const e = (grid.get(p.id) || {})[key];
                     const t = e ? TINFO[e.kind] : null;
                     const h = hol.has(key);
-                    // Checked in that day and no time off: worked (W).
-                    const w = !t && key <= today && !!checked.get(key) && checked.get(key).has(lname);
+                    // Checked in that day and no time-off: worked (W).
+                    const inApp = !!checked.get(key) && checked.get(key).has(lname);
+                    const inDk = !!dkDays.get(key) && dkDays.get(key).has(lname);
+                    const w = !t && key <= today && (inApp || inDk);
+                    const src = inApp && inDk ? 'facial app and OpsTrack attendance' : inDk ? 'facial app' : 'OpsTrack attendance';
                     if (w) worked += 1;
                     if (t && e.hours == null) offDays += 1;
                     return (
-                      <td key={key} className={(wd(key) === 0 || wd(key) === 6 ? 'we ' : '') + (h && !t && !w ? 'hol' : '')} style={t ? { background: t.color } : w ? { background: WORKING.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : w ? p.name + ': ' + WORKING.label + ', ' + shortDay(key) : h ? hol.get(key) : undefined}>
+                      <td key={key} className={(wd(key) === 0 || wd(key) === 6 ? 'we ' : '') + (h && !t && !w ? 'hol' : '')} style={t ? { background: t.color } : w ? { background: WORKING.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : w ? p.name + ': ' + WORKING.label + ', ' + shortDay(key) + (dast ? ' (from the ' + src + ')' : '') : h ? hol.get(key) : undefined}>
                         {t ? t.letter : w ? WORKING.letter : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
                       </td>
                     );
@@ -230,7 +230,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
               </tbody>
             </table>
           </div>
-        ) : <p className='muted'>No {TEAM_SHORT[tm]} time off recorded for {rangeLabel}.</p>}
+        ) : <p className='muted'>No {TEAM_SHORT[tm]} time-off recorded for {rangeLabel}.</p>}
         {lowCover.size ? <p className='muted' style={{ marginBottom: 0 }}>Days short of cover: {[...lowCover.entries()].map(([k, t]) => shortDay(k) + ' (' + t + ')').join(', ')}</p> : null}
       </div>
 
@@ -248,7 +248,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
 
       {pending.length ? (
         <div className='card'>
-          <h3 style={{ marginTop: 0 }}>Time off requests ({pending.length})</h3>
+          <h3 style={{ marginTop: 0 }}>Time-off requests ({pending.length})</h3>
           <div className='tablewrap'>
             <table className='tx'>
               <thead><tr><th>Team member</th><th>Type</th><th>When</th><th>Asked by</th><th>Note</th><th></th></tr></thead>
@@ -289,7 +289,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
 
       {edit ? (
         <details className='card'>
-          <summary>Add time off</summary>
+          <summary>Add time-off</summary>
           <form action={addTimeOff} className='form'>
             <input type='hidden' name='month' value={month} />
             <input type='hidden' name='team' value={tm} />
@@ -300,14 +300,14 @@ export default async function RosterPage({ searchParams, forceTeam }) {
             <label>Last day<input type='date' name='to' defaultValue={today} required /></label>
             <label className='span3'>Note (optional)<input name='note' maxLength={120} placeholder='For example: family wedding' /></label>
             <label>Hours (only for part of a day)<input type='number' name='hours' min='0.25' max='24' step='0.25' placeholder='Leave empty for full days' /></label>
-            <button className='btn primary' type='submit'>Add time off</button>
+            <button className='btn primary' type='submit'>Add time-off</button>
           </form>
         </details>
       ) : null}
 
       {edit ? (
-        <div className='card'>
-          <h3 style={{ marginTop: 0 }}>{TEAM_SHORT[tm]} team ({team.length})</h3>
+        <details className='card'>
+          <summary>Add team member</summary>
           <form action={addHkPerson} className='form'>
             <input type='hidden' name='team' value={tm} />
             <label>Name<input name='name' required maxLength={80} placeholder='Team member name' autoComplete='off' /></label>
@@ -318,6 +318,12 @@ export default async function RosterPage({ searchParams, forceTeam }) {
             {dast ? <SiteMap sites={SITES} /> : both ? <label>Office<select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select></label> : null}
             <button className='btn primary' type='submit'>Add team member</button>
           </form>
+        </details>
+      ) : null}
+
+      {edit ? (
+        <div className='card'>
+          <h3 style={{ marginTop: 0 }}>{TEAM_SHORT[tm]} team ({team.length})</h3>
           {team.length ? (
             <div className='tablewrap' style={{ marginTop: 10 }}>
               <table className='tx'>
@@ -363,10 +369,10 @@ export default async function RosterPage({ searchParams, forceTeam }) {
 
       {entries.length ? (
         <div className='card'>
-          <h3 style={{ marginTop: 0 }}>Time off in {rangeLabel} ({entries.length})</h3>
+          <h3 style={{ marginTop: 0 }}>Time-off in {rangeLabel} ({entries.length})</h3>
           <div className='tablewrap'>
             <table className='tx'>
-              <thead><tr><th>Team member</th><th>Type</th><th>From</th><th>To</th><th>Time off</th><th>Note</th><th>Added by</th>{edit ? <th></th> : null}</tr></thead>
+              <thead><tr><th>Team member</th><th>Type</th><th>From</th><th>To</th><th>Time-off</th><th>Note</th><th>Added by</th>{edit ? <th></th> : null}</tr></thead>
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id}>
@@ -383,7 +389,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                           <input type='hidden' name='id' value={e.id} />
                           <input type='hidden' name='month' value={month} />
                           <input type='hidden' name='team' value={tm} />
-                          <ConfirmButton className='btn ghost' message='Remove this time off?'>Remove</ConfirmButton>
+                          <ConfirmButton className='btn ghost' message='Remove this time-off?'>Remove</ConfirmButton>
                         </form>
                       </td>
                     ) : null}
