@@ -1860,3 +1860,7 @@ table.tx td.c-title{position:relative}
   .nav-top .brandbox svg{height:27px}
   .nav-top .brand-name{font-size:13.5px}
 }
+
+/* The divider between the alphabold logo and OpsTrack: clearly visible on white and on black. */
+.nav-top .brandbox .sep{width:2px;height:28px;background:var(--mut);opacity:.6;border-radius:1px}
+@media (max-width:700px){.nav-top .brandbox .sep{height:20px}}
