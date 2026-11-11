@@ -1864,3 +1864,12 @@ table.tx td.c-title{position:relative}
 /* The divider between the alphabold logo and OpsTrack: clearly visible on white and on black. */
 .nav-top .brandbox .sep{width:2px;height:28px;background:var(--gold);opacity:1;border-radius:1px}
 @media (max-width:700px){.nav-top .brandbox .sep{height:20px}}
+
+/* No gold bar before the ExpRev button (the only divider is the one between the logo and OpsTrack). */
+.toplinks::before{display:none!important;content:none!important}
+@media (max-width:380px){
+  .nav-top{padding-left:8px;padding-right:8px;gap:5px}
+  .nav-top .brandbox{gap:5px}
+  .nav-top .brandbox .sep{display:block;height:18px}
+  .nav-top .who{gap:3px}
+}
