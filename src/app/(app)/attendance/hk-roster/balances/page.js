@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings, siteList } from '@/lib/roster';
+import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings, siteList, dkAllowances } from '@/lib/roster';
+import { setDkAllowance, setDkAllowanceAll } from '@/lib/roster-actions';
+import { applyHkDates } from '@/lib/hk-dates';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
@@ -22,6 +24,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
   if (user.role !== 'om' && user.role !== 'sso' && !dastOk) redirect(forceTeam ? '/' : '/attendance/hk-roster/request');
   const sp = await searchParams;
   if (!forceTeam && sp.team === 'dast') redirect('/dastarkhawan/balances'); // the old address
+  await applyHkDates();
   const thisYear = Number(todayKey().slice(0, 4));
   const year = /^\d{4}$/.test(sp.y || '') ? Number(sp.y) : thisYear;
   const both = allOffices(user);
@@ -34,6 +37,8 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
   const team = await hkPeople({ office, team: tm, site });
   const used = await usedByPerson(year, office, tm, site);
   const set = await getSettings();
+  const allow = dast ? await dkAllowances(year) : new Map();
+  const editDk = dast && can(user, 'dast_edit');
   const yq = (y) => base + '?' + new URLSearchParams({ y: String(y), ...(site ? { site } : {}), ...(office && both ? { office } : {}) }).toString();
   const totals = Object.fromEntries(TYPES.map(([k]) => [k, team.reduce((a, p) => a + ((used.get(p.id) || {})[k] || 0), 0)]));
   const anySet = ALLOWED.some((k) => set[k] > 0);
@@ -55,8 +60,65 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
         {year !== thisYear ? <Link className='btn ghost' href={yq(thisYear)}>This year</Link> : null}
       </div>
       {dast ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'site', label: 'Site', value: site, options: [['', 'All sites'], ...SITES.map((x) => [x, x])] }]} /> : both ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]} /> : null}
-      {!anySet ? <p className='muted'>No yearly allowance is set yet, so only the days used are shown. Set them on the Setup tab of the Support team.</p> : dast ? <p className='muted'>The yearly allowances are the same as the Support team's (set on its Setup tab).</p> : null}
+      {dast ? (
+        <p className='muted'>For the Dastarkhawan team only PTO applies. Give each person their yearly PTO allowance below; the days used come from the time-off recorded on the roster, and the days left are worked out for you.</p>
+      ) : !anySet ? <p className='muted'>No yearly allowance is set yet, so only the days used are shown. Set them on the Setup tab of the Support team.</p> : null}
 
+      {dast && editDk ? (
+        <form action={setDkAllowanceAll} className='card filters'>
+          <input type='hidden' name='year' value={year} />
+          <label>Same PTO for everyone in {year} (days)<input type='number' name='days' min='0' max='365' step='0.5' placeholder='For example: 14' required /></label>
+          <button className='btn' type='submit'>Apply to all</button>
+          <span className='muted'>You can still change each person below.</span>
+        </form>
+      ) : null}
+
+      {dast ? (
+        <div className='card'>
+          {team.length ? (
+            <div className='tablewrap'>
+              <table className='tx'>
+                <thead>
+                  <tr><th>Team member</th><th className='r'>PTO allowed ({year})</th><th className='r'>Used</th><th className='r'>Left</th></tr>
+                </thead>
+                <tbody>
+                  {team.map((p) => {
+                    const v = (used.get(p.id) || {}).pto || 0;
+                    const cap = allow.get(p.id);
+                    const left = cap == null ? null : cap - v;
+                    const low = cap != null && left < 0.2 * cap;
+                    return (
+                      <tr key={p.id}>
+                        <td className='c-title'><OfficeTag o={(p.sites || []).length > 1 ? p.sites.length + ' sites' : (p.sites || [])[0] ? p.sites[0].site : p.site || ''} /><b>{p.name}</b></td>
+                        <td className='r nw c-meta'>
+                          {editDk ? (
+                            <form action={setDkAllowance} className='inline'>
+                              <input type='hidden' name='id' value={p.id} />
+                              <input type='hidden' name='year' value={year} />
+                              <input type='number' name='days' min='0' max='365' step='0.5' defaultValue={cap == null ? '' : cap} placeholder='Not set' style={{ width: 90 }} />
+                              <button className='btn' type='submit'>Save</button>
+                            </form>
+                          ) : cap == null ? 'Not set' : d1(cap)}
+                        </td>
+                        <td className='r nw c-meta'>{v ? d1(v) : '0'}</td>
+                        <td className='r nw'>{left == null ? <span className='muted'>-</span> : <b style={{ color: low ? '#b3261e' : '#1b6e34', background: low ? '#fbd3d3' : '#d9f1df', padding: '0 6px', borderRadius: 3 }}>{d1(left)} left</b>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td><b>Total</b></td>
+                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + (allow.get(p.id) || 0), 0))}</b></td>
+                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((used.get(p.id) || {}).pto || 0), 0))}</b></td>
+                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + (allow.get(p.id) == null ? 0 : allow.get(p.id) - ((used.get(p.id) || {}).pto || 0)), 0))}</b></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : <p className='muted'>No {TEAM_SHORT[tm]} team members yet. Add them on the Roster page.</p>}
+        </div>
+      ) : (
       <div className='card'>
         {team.length ? (
           <div className='tablewrap'>
@@ -104,6 +166,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
           </div>
         ) : <p className='muted'>No {TEAM_SHORT[tm]} team members yet. Add them on the Roster page.</p>}
       </div>
+      )}
     </>
   );
 }

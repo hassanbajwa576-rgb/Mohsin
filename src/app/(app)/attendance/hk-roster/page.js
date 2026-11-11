@@ -3,8 +3,10 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInDays, dkCheckedInDays, dkToday, dkUnlinked, dkLinked } from '@/lib/roster';
-import { addTimeOff, deleteTimeOff, addHkPerson, updateHkPerson, removeHkPerson, decideTimeOff } from '@/lib/roster-actions';
+import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInDays, dkCheckedInDays, dkToday, dkUnlinked, dkLinked, hkInactive, hkHistory } from '@/lib/roster';
+import { addTimeOff, deleteTimeOff, addHkPerson, updateHkPerson, decideTimeOff, addDkHoliday, removeDkHoliday } from '@/lib/roster-actions';
+import { DeactivateForm, InactiveCard } from '@/components/HkStatus';
+import { applyHkDates } from '@/lib/hk-dates';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
@@ -32,6 +34,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
   if (user.role !== 'om' && user.role !== 'sso' && !dastOk) redirect(forceTeam ? '/' : '/attendance/hk-roster/request');
   const sp = await searchParams;
   if (!forceTeam && sp.team === 'dast') redirect('/dastarkhawan'); // the old address
+  await applyHkDates(); // deactivations / re-activations whose date has arrived
   const tm = forceTeam === 'dast' ? 'dast' : 'support';
   const dast = tm === 'dast';
   const base = dast ? '/dastarkhawan' : '/attendance/hk-roster';
@@ -86,7 +89,12 @@ export default async function RosterPage({ searchParams, forceTeam }) {
   const byId = new Map(team.map((p) => [p.id, p]));
   const rows = everyone ? people : [...new Map(entries.map((e) => [e.staff_id, byId.get(e.staff_id) || { id: e.staff_id, name: e.name, dept: e.dept, office: e.office, site: e.site, sites: [] }])).values()];
   const settings = await getSettings();
-  const hol = await holidaysBetween(from, to);
+  const hol = await holidaysBetween(from, to, tm);
+  // Dastarkhawan has no gazetted calendar: its holidays are added by hand (listed for the year being viewed).
+  const holYear = from.slice(0, 4);
+  const dkHol = dast && edit ? [...(await holidaysBetween(holYear + '-01-01', holYear + '-12-31', 'dast')).entries()] : [];
+  const inactive = edit ? await hkInactive(tm) : [];
+  const hist = edit ? await hkHistory(tm) : [];
   const off = await offToday(today, office, tm, site);
   // "Coming up" is time-off that starts after today; anyone off today is already counted under "Off today".
   const coming = (await comingUp(today, 14, office, tm, site)).filter((e) => e.from_date > today);
@@ -184,7 +192,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
 
       <div className='card'>
         <div className='roslegend'>
-          {TYPES.map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{letter}</i>{l}</span>)}
+          {(dast ? TYPES.filter(([k]) => k === 'pto') : TYPES).map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{letter}</i>{l}</span>)}
           <span><i className='hollegend'>H</i>Holiday</span>
           <span><i style={{ background: WORKING.color }}>{WORKING.letter}</i>Worked (checked in{dast ? ': facial app or OpsTrack attendance, hover to see which' : ''})</span>
           <Link href={base + '?' + qp({ only: onlyOff ? '' : '1' })} className='rosall'>{onlyOff ? 'Show the whole team' : 'Show only people with time-off'}</Link>
@@ -299,7 +307,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
             <input type='hidden' name='team' value={tm} />
             <label>Team member<input name='name' list='ros-names' placeholder='Type a name' required autoComplete='off' /></label>
             <datalist id='ros-names'>{names.map((nm) => <option key={nm} value={nm} />)}</datalist>
-            <label>Type<select name='kind' defaultValue='pto'>{TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+            <label>Type<select name='kind' defaultValue='pto'>{(dast ? TYPES.filter(([k]) => k === 'pto') : TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
             <label>First day<input type='date' name='from' defaultValue={today} required /></label>
             <label>Last day<input type='date' name='to' defaultValue={today} required /></label>
             <label className='span3'>Note (optional)<input name='note' maxLength={120} placeholder='For example: family wedding' /></label>
@@ -335,7 +343,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                 <tbody>
                   {team.map((p) => (
                     <tr key={p.id}>
-                      <td className='c-title'><OfficeTag o={tag(p)} /><b>{p.name}</b></td>
+                      <td className='c-title'><OfficeTag o={tag(p)} /><b>{p.name}</b>{p.active_to ? <small className='dkp-diff'> leaving w.e.f. {p.active_to}</small> : null}</td>
                       {dast ? <td className='c-meta'>{siteText(p.sites) || p.site || '-'}</td> : null}
                       <td className='c-meta'>{p.dept || '-'}</td>
                       <td className='c-meta'>{p.phone ? <a href={'tel:' + p.phone}>{p.phone}</a> : '-'}</td>
@@ -356,10 +364,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                             <button className='btn primary' type='submit'>Save</button>
                           </form>
                         </details>
-                        <form action={removeHkPerson} className='inline'>
-                          <input type='hidden' name='id' value={p.id} />
-                          <ConfirmButton className='btn ghost' message={'Remove this person from the ' + TEAM_NAME[tm] + '?'}>Remove</ConfirmButton>
-                        </form>
+                        <DeactivateForm p={p} today={today} />
                         </div>
                       </td>
                     </tr>
@@ -369,6 +374,34 @@ export default async function RosterPage({ searchParams, forceTeam }) {
             </div>
           ) : null}
         </div>
+      ) : null}
+
+      {edit ? <InactiveCard rows={inactive} history={hist} today={today} /> : null}
+
+      {dast && edit ? (
+        <details className='card'>
+          <summary>Dastarkhawan holidays in {holYear} ({dkHol.length})</summary>
+          <p className='muted'>There is no gazetted calendar for the Dastarkhawan team. Add a holiday here when there is one; it is shaded on the roster and not counted as time-off.</p>
+          <form action={addDkHoliday} className='form'>
+            <label>Date<input type='date' name='day' defaultValue={today} required /></label>
+            <label>Holiday name<input name='name' maxLength={80} required placeholder='For example: Eid holiday' autoComplete='off' /></label>
+            <button className='btn primary' type='submit'>Add holiday</button>
+          </form>
+          {dkHol.length ? (
+            <ul className='hk-hist'>
+              {dkHol.map(([d, n]) => (
+                <li key={d}>
+                  <span className='nw'>{d}</span>
+                  <b>{n}</b>
+                  <form action={removeDkHoliday} className='inline'>
+                    <input type='hidden' name='day' value={d} />
+                    <ConfirmButton className='btn ghost' message={'Remove the holiday ' + n + ' (' + d + ')?'}>Remove</ConfirmButton>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          ) : <p className='muted'>No holidays added for {holYear}.</p>}
+        </details>
       ) : null}
 
       {entries.length ? (

@@ -196,6 +196,15 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS pc2_dk_staff (emp_id TEXT PRIMARY KEY, name TEXT NOT NULL, site TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active')`,
   `CREATE TABLE IF NOT EXISTS pc2_dk_checkins (emp_id TEXT NOT NULL, day DATE NOT NULL, check_in TEXT, check_out TEXT, status TEXT, method TEXT, PRIMARY KEY (emp_id, day))`,
   `CREATE TABLE IF NOT EXISTS pc2_dk_sync (id INTEGER PRIMARY KEY, synced_at TIMESTAMPTZ, error TEXT, rows INTEGER)`,
+  // Roster team members: activate / deactivate with a reason, remarks and a "with effect from" date, and a history of every change.
+  `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS active_from DATE`,
+  `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS active_to DATE`,
+  `CREATE TABLE IF NOT EXISTS pc2_hk_status_log (id SERIAL PRIMARY KEY, person_id INTEGER NOT NULL, action TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', remarks TEXT NOT NULL DEFAULT '', eff_date DATE NOT NULL, by_id INTEGER, at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS pc2_hk_status_log_person ON pc2_hk_status_log (person_id, id)`,
+  // Dastarkhawan has no gazetted calendar: its holidays are added by hand and show on its roster.
+  `CREATE TABLE IF NOT EXISTS pc2_dk_holidays (day DATE PRIMARY KEY, name TEXT NOT NULL, by_id INTEGER)`,
+  // Per-person yearly allowance (Dastarkhawan: PTO only).
+  `CREATE TABLE IF NOT EXISTS pc2_hk_allow (person_id INTEGER NOT NULL, year INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'pto', days NUMERIC(6,2) NOT NULL DEFAULT 0, PRIMARY KEY (person_id, year, kind))`,
   `ALTER TABLE pc2_dk_sync ADD COLUMN IF NOT EXISTS ok_at TIMESTAMPTZ`,
   `UPDATE pc2_dk_sync SET ok_at = synced_at WHERE ok_at IS NULL AND error IS NULL`,
   `UPDATE pc2_users SET pages = pages || ',/visitors/hires' WHERE role = 'guard' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
@@ -217,7 +226,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-12-2';
+const SCHEMA_VERSION = '2026-11-12-3';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -32,14 +32,14 @@ export default function TopLinks({ role, approvals = 0, allowed = null, tasks = 
   if (tasks) items.push(['/tasks', 'Tasks']);
   // The Dastarkhawan section sits right after Tasks (managed separately from the office pages).
   if (dast) items.push(['/dastarkhawan', 'Dastarkhawan']);
-  if (role === 'om') items.push(['/approvals', 'Approvals'], ['/team', 'Team'], ['/roles', 'Roles'], ['/logs', 'Audit log']);
+  if (role === 'om') items.push(['/approvals', 'Approvals'], ['/team', 'Team'], ['/roles', 'Roles'], ['/logs', 'Audit log'], ['/storage', 'Storage']);
   items.push(['/guide', 'Guide']);
   const picked = allowed ? items.filter(([href]) => allowed.includes(href)) : items;
   // The holiday calendar is open to everyone who can see the manager links.
   const extra = [['/holidays', 'Holidays']];
   const shown = [...picked.filter(([h]) => h !== '/guide'), ...extra, ...picked.filter(([h]) => h === '/guide')];
   // The Sr. Ops Manager has many links: the less used ones go under "More".
-  const MORE = ['/team', '/roles', '/logs', '/holidays', '/guide'];
+  const MORE = ['/team', '/roles', '/logs', '/storage', '/holidays', '/guide'];
   const fold = role === 'om';
   const main = fold ? shown.filter(([h]) => !MORE.includes(h)) : shown;
   const more = fold ? shown.filter(([h]) => MORE.includes(h)) : [];
@@ -55,7 +55,7 @@ export default function TopLinks({ role, approvals = 0, allowed = null, tasks = 
       {more.length ? (
         <div className='tl-more' ref={box}>
           <button type='button' className={'tl-morebtn' + (more.some(([h]) => on(h)) ? ' on' : '')} aria-expanded={open} aria-haspopup='menu' onClick={() => setOpen(!open)}>
-            More <span aria-hidden='true'>▾</span>
+            More <span aria-hidden='true'>&#9662;</span>
           </button>
           {open ? <div className='tl-pop' role='menu'>{more.map(([href, label]) => <Link key={href} href={href} role='menuitem' className={on(href) ? 'on' : ''}>{label}</Link>)}</div> : null}
         </div>

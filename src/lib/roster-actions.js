@@ -6,7 +6,8 @@ import { getUser } from './auth';
 import { logEvent } from './audit';
 import { can } from './perms';
 import { notifyRoles, notifyUser } from './notify';
-import { ATT_ROLES, allOffices, validDate } from './att';
+import { ATT_ROLES, allOffices, validDate, todayKey } from './att';
+import { DEACT_REASONS, ACT_REASONS } from './hk-status';
 import { TLABEL, ALLOWED, holidaysBetween, addDays, siteList } from './roster';
 import { OPD_LIMIT } from './hk-opd';
 import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from './teams';
@@ -55,6 +56,7 @@ async function readTimeOff(fd, u, here, team = 'support') {
   const hrs = s(fd, 'hours') ? Number(s(fd, 'hours')) : null;
   const to = hrs !== null ? from : s(fd, 'to') || from;
   if (!TLABEL[kind]) back(here, 'Choose the type of time-off');
+  if (team === 'dast' && kind !== 'pto') back(here, 'Only PTO applies to the Dastarkhawan team');
   if (hrs !== null && !(hrs > 0 && hrs <= 24)) back(here, 'Hours must be more than 0 and at most 24');
   if (!dateOk(from) || !dateOk(to) || to < from) back(here, 'Choose valid dates (the last day cannot be before the first)');
   if ((new Date(to) - new Date(from)) / 864e5 > 120) back(here, 'Time-off can be at most 120 days at once');
@@ -64,7 +66,7 @@ async function readTimeOff(fd, u, here, team = 'support') {
   const st = found[0];
   if (team !== 'dast' && !allOffices(u) && st.office_id !== u.office_id) back(here, 'You can only record time-off for your own office');
   // A range made only of holidays needs no time-off.
-  const hol = await holidaysBetween(from, to);
+  const hol = await holidaysBetween(from, to, team);
   let working = 0;
   for (let d = from; d <= to; d = addDays(d, 1)) if (!hol.has(d)) working += 1;
   if (!working) back(here, 'Those days are all holidays, so no time-off is needed');
@@ -258,17 +260,109 @@ export async function updateHkPerson(fd) {
   back(here, name + ' updated', true);
 }
 
-// Remove someone from the team (their past time-off stays in the database but is out of view).
-export async function removeHkPerson(fd) {
+// Read the reason, remarks and "with effect from" date of an activation or deactivation. Redirects with a message when something is missing.
+function readStatus(fd, list, here) {
+  const reason = s(fd, 'reason');
+  const remarks = s(fd, 'remarks').slice(0, 200);
+  const eff = s(fd, 'eff') || todayKey();
+  if (!list.includes(reason)) back(here, 'Choose a reason');
+  if (reason === 'Other' && !remarks) back(here, 'Write the remarks when the reason is Other');
+  if (!dateOk(eff)) back(here, 'Choose a valid date (with effect from)');
+  const t = todayKey();
+  if (eff < addDays(t, -730) || eff > addDays(t, 365)) back(here, 'The date must be within the last 2 years or the next year');
+  return { reason, remarks, eff, future: eff > t };
+}
+
+// Deactivate a team member with a reason, remarks and the date it takes effect (past or today: at once; a future date: on that day).
+// Their past time-off and check-ins stay in the database; they leave the roster and can be activated again.
+export async function deactivateHkPerson(fd) {
   const id = Number(s(fd, 'id'));
   const p = (await q('SELECT id, name, office_id, team FROM pc2_hk_people WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
   const u = await need(p ? p.team : 'support');
   const here = root(p ? p.team : teamOf(s(fd, 'team')));
-  if (!p) back(here, 'That person is no longer in the team');
+  if (!p) back(here, 'That person is no longer active');
   if (p.team !== 'dast' && !allOffices(u) && p.office_id !== u.office_id) back(here, 'You can only change your own office');
-  await q('UPDATE pc2_hk_people SET active = FALSE WHERE id = $1', [id]);
-  await logEvent(u, 'delete', 'hk_person', id, 'Removed from the ' + TEAM_NAME[p.team] + ': ' + p.name, null, null);
-  back(here, p.name + ' removed from the ' + TEAM_NAME[p.team], true);
+  const x = readStatus(fd, DEACT_REASONS, here);
+  if (x.future) await q('UPDATE pc2_hk_people SET active_to = $1::date WHERE id = $2', [x.eff, id]);
+  else await q('UPDATE pc2_hk_people SET active = FALSE, active_to = NULL, active_from = NULL WHERE id = $1', [id]);
+  await q(`INSERT INTO pc2_hk_status_log (person_id, action, reason, remarks, eff_date, by_id) VALUES ($1, 'deactivate', $2, $3, $4::date, $5)`, [id, x.reason, x.remarks, x.eff, u.id]);
+  await logEvent(u, 'edit', 'hk_person', id, 'Deactivated ' + p.name + ' (' + TEAM_SHORT[p.team] + ') w.e.f. ' + x.eff + ': ' + x.reason + (x.remarks ? ' - ' + x.remarks : ''), null, null);
+  back(here, p.name + (x.future ? ' will be deactivated w.e.f. ' : ' deactivated w.e.f. ') + x.eff + ' (' + x.reason + ')', true);
+}
+
+// Activate a deactivated team member again (re-hired, re-joined...) with remarks and the date it takes effect.
+export async function activateHkPerson(fd) {
+  const id = Number(s(fd, 'id'));
+  const p = (await q('SELECT id, name, office_id, team FROM pc2_hk_people WHERE id = $1 AND NOT active', [Number.isInteger(id) ? id : 0]))[0];
+  const u = await need(p ? p.team : 'support');
+  const here = root(p ? p.team : teamOf(s(fd, 'team')));
+  if (!p) back(here, 'That person is already active');
+  if (p.team !== 'dast' && !allOffices(u) && p.office_id !== u.office_id) back(here, 'You can only change your own office');
+  const x = readStatus(fd, ACT_REASONS, here);
+  const dup = await q('SELECT id FROM pc2_hk_people WHERE active AND team = $2 AND lower(name) = lower($1) AND id <> $3', [p.name, p.team, id]);
+  if (dup.length) back(here, 'Someone called ' + p.name + ' is already active in the ' + TEAM_SHORT[p.team] + ' team');
+  if (x.future) await q('UPDATE pc2_hk_people SET active_from = $1::date WHERE id = $2', [x.eff, id]);
+  else await q('UPDATE pc2_hk_people SET active = TRUE, active_from = NULL, active_to = NULL WHERE id = $1', [id]);
+  await q(`INSERT INTO pc2_hk_status_log (person_id, action, reason, remarks, eff_date, by_id) VALUES ($1, 'activate', $2, $3, $4::date, $5)`, [id, x.reason, x.remarks, x.eff, u.id]);
+  await logEvent(u, 'edit', 'hk_person', id, 'Activated ' + p.name + ' (' + TEAM_SHORT[p.team] + ') w.e.f. ' + x.eff + ': ' + x.reason + (x.remarks ? ' - ' + x.remarks : ''), null, null);
+  back(here, p.name + (x.future ? ' will be activated w.e.f. ' : ' activated w.e.f. ') + x.eff + ' (' + x.reason + ')', true);
+}
+
+// Dastarkhawan holidays are added by hand (there is no gazetted calendar for it). They show on its roster and are not counted as time-off.
+export async function addDkHoliday(fd) {
+  const u = await need('dast');
+  const day = s(fd, 'day');
+  const name = s(fd, 'name').slice(0, 80);
+  if (!dateOk(day)) back(DAST, 'Choose the date of the holiday');
+  if (!name) back(DAST, 'Enter the name of the holiday');
+  await q('INSERT INTO pc2_dk_holidays (day, name, by_id) VALUES ($1::date, $2, $3) ON CONFLICT (day) DO UPDATE SET name = EXCLUDED.name, by_id = EXCLUDED.by_id', [day, name, u.id]);
+  await logEvent(u, 'create', 'holiday', null, 'Dastarkhawan holiday: ' + day + ' ' + name, null, null);
+  back(DAST + '?m=' + day.slice(0, 7), name + ' (' + day + ') added to the Dastarkhawan holidays', true);
+}
+
+export async function removeDkHoliday(fd) {
+  const u = await need('dast');
+  const day = s(fd, 'day');
+  if (!dateOk(day)) back(DAST, 'That holiday was not found');
+  const r = await q('DELETE FROM pc2_dk_holidays WHERE day = $1::date RETURNING name', [day]);
+  if (r.length) await logEvent(u, 'delete', 'holiday', null, 'Removed Dastarkhawan holiday: ' + day + ' ' + r[0].name, null, null);
+  back(DAST + '?m=' + day.slice(0, 7), 'Holiday removed', true);
+}
+
+// Dastarkhawan: the yearly PTO allowance of one person (days). Empty clears it.
+export async function setDkAllowance(fd) {
+  const u = await need('dast');
+  const id = Number(s(fd, 'id'));
+  const year = Number(s(fd, 'year'));
+  const here = DAST + '/balances?y=' + (Number.isInteger(year) ? year : '');
+  const p = (await q(`SELECT id, name FROM pc2_hk_people WHERE id = $1 AND team = 'dast'`, [Number.isInteger(id) ? id : 0]))[0];
+  if (!p || !(year >= 2000 && year <= 2100)) back(here, 'That person was not found');
+  const raw = s(fd, 'days');
+  if (raw === '') {
+    await q(`DELETE FROM pc2_hk_allow WHERE person_id = $1 AND year = $2 AND kind = 'pto'`, [id, year]);
+    back(here, p.name + ': ' + year + ' PTO allowance cleared', true);
+  }
+  const days = Number(raw);
+  if (!(days >= 0 && days <= 365)) back(here, 'Days must be between 0 and 365');
+  await q(`INSERT INTO pc2_hk_allow (person_id, year, kind, days) VALUES ($1, $2, 'pto', $3) ON CONFLICT (person_id, year, kind) DO UPDATE SET days = EXCLUDED.days`, [id, year, days]);
+  await logEvent(u, 'edit', 'hk_person', id, p.name + ': ' + year + ' PTO allowance set to ' + days + ' days', null, null);
+  back(here, p.name + ': ' + year + ' PTO allowance is ' + days + ' days', true);
+}
+
+// Dastarkhawan: give everyone active the same yearly PTO allowance (days) for a year; each person can then be changed on their own.
+export async function setDkAllowanceAll(fd) {
+  const u = await need('dast');
+  const year = Number(s(fd, 'year'));
+  const days = Number(s(fd, 'days'));
+  const here = DAST + '/balances?y=' + (Number.isInteger(year) ? year : '');
+  if (!(year >= 2000 && year <= 2100) || s(fd, 'days') === '' || !(days >= 0 && days <= 365)) back(here, 'Enter the days (0 to 365)');
+  await q(
+    `INSERT INTO pc2_hk_allow (person_id, year, kind, days) SELECT id, $1, 'pto', $2 FROM pc2_hk_people WHERE active AND team = 'dast'
+     ON CONFLICT (person_id, year, kind) DO UPDATE SET days = EXCLUDED.days`,
+    [year, days]
+  );
+  await logEvent(u, 'edit', 'hk_person', null, 'Dastarkhawan: ' + year + ' PTO allowance set to ' + days + ' days for everyone active', null, null);
+  back(here, year + ' PTO allowance set to ' + days + ' days for everyone', true);
 }
 
 /* ---------- setup: allowances, hours per day, minimum cover, holidays ---------- */

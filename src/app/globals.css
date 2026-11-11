@@ -1931,3 +1931,19 @@ html[data-theme=dark] .otag.tc4{color:#c4e48a;border-color:#6a8f2e;background:#1
 html[data-theme=dark] .otag.tc5{color:#e0bd9a;border-color:#8a6444;background:#2a1d12}
 .dkpanel .dkp-diff{color:var(--warn);font-weight:600;font-size:13px}
 .dkpanel .dkp-form .muted,.dkpanel .dkp-form .dkp-diff{flex:1 1 220px;min-width:0}
+
+/* Inactive team members, status history and Dastarkhawan holidays lists. */
+.hk-hist{list-style:none;margin:10px 0 0;padding:0}
+.hk-hist li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.hk-hist li b{color:var(--ink);font-weight:600}
+.hk-hist .hk-act{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:0 6px;border-radius:3px;border:1px solid var(--line)}
+.hk-hist .hk-act.activate{color:var(--ok);background:var(--okbg);border-color:var(--ok)}
+.hk-hist .hk-act.deactivate{color:var(--bad);background:var(--badbg);border-color:var(--bad)}
+.hkstat > summary{cursor:pointer}
+.dkp-diff{color:var(--warn);font-weight:600;font-size:13px}
+
+/* Storage page: how full the database is. */
+.stbar{height:14px;border-radius:7px;background:var(--surface);border:1px solid var(--line);overflow:hidden;margin:6px 0 10px}
+.stbar i{display:block;height:100%;border-radius:7px;background:var(--ok)}
+.stbar.warn i{background:var(--gold)}
+.stbar.bad i{background:var(--bad)}

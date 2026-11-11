@@ -1,4 +1,4 @@
-import 'server-only';
+﻿import 'server-only';
 import { q } from './db';
 
 // Kinds of time-off a person can be given: [key, label, letter in the grid, colour].
@@ -75,6 +75,36 @@ export async function dkUnlinked() {
   const people = await q(`SELECT id, name FROM pc2_hk_people WHERE active AND team = 'dast' AND dk_emp_id IS NULL ORDER BY name`);
   const staff = await q(`SELECT s.emp_id, s.name, s.site FROM pc2_dk_staff s WHERE s.status = 'active' AND NOT EXISTS (SELECT 1 FROM pc2_hk_people p WHERE p.active AND p.dk_emp_id = s.emp_id) ORDER BY s.name`);
   return { people, staff };
+}
+
+/** Deactivated team members of one team, each with their latest status change (reason, remarks, date) and any date they will be re-activated. */
+export async function hkInactive(team) {
+  const rows = await q(
+    `SELECT p.id, p.name, p.role AS dept, p.site, o.code AS office, to_char(p.active_from, 'YYYY-MM-DD') AS active_from,
+            l.reason, l.remarks, to_char(l.eff_date, 'YYYY-MM-DD') AS eff,
+            (SELECT COALESCE(jsonb_agg(jsonb_build_object('site', ps.site, 'days', ps.weekdays) ORDER BY ps.site), '[]'::jsonb) FROM pc2_person_sites ps WHERE ps.person_id = p.id) AS sites
+       FROM pc2_hk_people p LEFT JOIN pc2_offices o ON o.id = p.office_id
+       LEFT JOIN LATERAL (SELECT reason, remarks, eff_date FROM pc2_hk_status_log WHERE person_id = p.id AND action = 'deactivate' ORDER BY id DESC LIMIT 1) l ON TRUE
+      WHERE NOT p.active AND p.team = $1 ORDER BY l.eff_date DESC NULLS LAST, p.name`,
+    [team === 'dast' ? 'dast' : 'support']
+  );
+  return rows.map((r) => ({ ...r, sites: typeof r.sites === 'string' ? JSON.parse(r.sites) : r.sites || [] }));
+}
+
+/** Every activation / deactivation of one team's people, newest first (up to 60). */
+export async function hkHistory(team) {
+  return q(
+    `SELECT l.id, p.name, l.action, l.reason, l.remarks, to_char(l.eff_date, 'YYYY-MM-DD') AS eff, to_char(l.at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD') AS on_day, u.name AS by_name
+       FROM pc2_hk_status_log l JOIN pc2_hk_people p ON p.id = l.person_id LEFT JOIN pc2_users u ON u.id = l.by_id
+      WHERE p.team = $1 ORDER BY l.id DESC LIMIT 60`,
+    [team === 'dast' ? 'dast' : 'support']
+  );
+}
+
+/** Dastarkhawan yearly PTO allowance per person for a year: Map person id -> days. */
+export async function dkAllowances(year) {
+  const r = await q(`SELECT person_id, days::float8 AS days FROM pc2_hk_allow WHERE year = $1 AND kind = 'pto'`, [year]);
+  return new Map(r.map((x) => [x.person_id, x.days]));
 }
 
 /** Dastarkhawan people linked to a facial-app staff record, with that record's name and site. */
@@ -176,7 +206,7 @@ export async function hkPeople({ office, who, team = 'support', site = '' } = {}
     cond.push('s.name ILIKE $' + params.length);
   }
   return q(
-    `SELECT s.id, s.name, s.role AS dept, s.site, s.team, s.phone, to_char(s.joined_on, 'YYYY-MM-DD') AS joined_on, to_char(s.birthday, 'YYYY-MM-DD') AS birthday, o.code AS office,
+    `SELECT s.id, s.name, s.role AS dept, s.site, s.team, s.phone, to_char(s.joined_on, 'YYYY-MM-DD') AS joined_on, to_char(s.active_to, 'YYYY-MM-DD') AS active_to, to_char(s.birthday, 'YYYY-MM-DD') AS birthday, o.code AS office,
        (SELECT COALESCE(jsonb_agg(jsonb_build_object('site', ps.site, 'days', ps.weekdays) ORDER BY ps.site), '[]'::jsonb) FROM pc2_person_sites ps WHERE ps.person_id = s.id) AS sites
      FROM pc2_hk_people s LEFT JOIN pc2_offices o ON o.id = s.office_id WHERE ${cond.join(' AND ')} ORDER BY o.code NULLS LAST, s.site, s.name`,
     params
@@ -224,8 +254,8 @@ export async function getSettings() {
 }
 
 /** Holidays between two dates as a Map of date -> name. */
-export async function holidaysBetween(from, to) {
-  const rows = await q(`SELECT to_char(day, 'YYYY-MM-DD') AS day, name FROM pc2_holidays WHERE day >= $1::date AND day <= $2::date ORDER BY day`, [from, to]);
+export async function holidaysBetween(from, to, team = 'support') {
+  const rows = await q(`SELECT to_char(day, 'YYYY-MM-DD') AS day, name FROM ${team === 'dast' ? 'pc2_dk_holidays' : 'pc2_holidays'} WHERE day >= $1::date AND day <= $2::date ORDER BY day`, [from, to]);
   return new Map(rows.map((r) => [r.day, r.name]));
 }
 
@@ -242,7 +272,7 @@ export async function usedByPerson(year, office, team = 'support', site = '') {
      WHERE ${cond.join(' AND ')}`,
     params
   );
-  const hol = await holidaysBetween(first, last);
+  const hol = await holidaysBetween(first, last, team);
   const { hpd } = await getSettings();
   const used = new Map();
   for (const r of rows) {
