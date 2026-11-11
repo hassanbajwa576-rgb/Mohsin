@@ -1,4 +1,4 @@
-:root{--gold:#e3ad21;--gold-d:#cb9328;--ink:#1a1a1a;--text:#0f0f0f;--slate:#2c3138;--mut:#6b7280;--line:#e6e6e6;--bg:#fff;--surface:#f7f7f5;--card:#fff;--ok:#067647;--okbg:#ecfdf3;--warn:#8a5a00;--warnbg:#fff7e0;--bad:#b42318;--badbg:#fef3f2;--info:#1d4ed8;--infobg:#eff4ff}
+﻿:root{--gold:#e3ad21;--gold-d:#cb9328;--ink:#1a1a1a;--text:#0f0f0f;--slate:#2c3138;--mut:#6b7280;--line:#e6e6e6;--bg:#fff;--surface:#f7f7f5;--card:#fff;--ok:#067647;--okbg:#ecfdf3;--warn:#8a5a00;--warnbg:#fff7e0;--bad:#b42318;--badbg:#fef3f2;--info:#1d4ed8;--infobg:#eff4ff}
 *{box-sizing:border-box}
 body{margin:0;background:var(--surface);color:var(--text);font-size:14.5px;line-height:1.55}
 h1{font-size:26px;font-weight:600;color:var(--ink);margin:0}
@@ -1831,18 +1831,17 @@ table.tx td.c-title{position:relative}
 .daychk{display:inline-flex!important;flex-direction:row!important;align-items:center;gap:6px;font-weight:500}
 .daychk input{width:auto!important}
 
-/* Top bar: with the Dastarkhawan button there are more links, so the bar uses a little more width and tighter spacing (Sign out stays in view). */
+/* Top bar: the less used manager links sit under "More" so the bar stays inside the page frame (same width as the content). */
+.toplinks .tl-more{position:relative}
+.toplinks .tl-morebtn{font:inherit;font-size:13.5px;font-weight:500;color:var(--mut);background:none;border:0;border-bottom:2px solid transparent;padding:8px 10px;cursor:pointer;white-space:nowrap}
+.toplinks .tl-morebtn:hover{color:var(--ink)}
+.toplinks .tl-morebtn.on{color:var(--ink);font-weight:600;border-bottom-color:var(--gold)}
+.toplinks .tl-pop{position:absolute;top:100%;right:0;z-index:80;min-width:170px;display:flex;flex-direction:column;padding:5px;background:var(--card);border:1px solid var(--line);border-radius:6px;box-shadow:0 12px 28px rgba(0,0,0,.18)}
+.toplinks .tl-pop a{display:block;padding:8px 12px;font-size:13.5px;font-weight:500;color:var(--ink);border-radius:3px;border-bottom:0;white-space:nowrap}
+.toplinks .tl-pop a:hover{background:var(--surface);color:var(--ink)}
+.toplinks .tl-pop a.on{background:var(--tint,#fbf1cf);font-weight:600;color:var(--ink)}
 @media (min-width:901px){
-  .nav-top{max-width:1480px;gap:12px}
   .toplinks{gap:2px;margin-right:10px}
-  .toplinks a{padding:8px 8px;font-size:13px}
-  .toplinks .top-er,.toplinks .top-tk,.toplinks .top-dk{padding:6px 11px}
-  .toplinks + .who{flex:0 0 auto}
-  .nav-top .who{gap:8px}
-  .nav-top .who b{white-space:nowrap}
-}
-@media (min-width:901px) and (max-width:1300px){
-  .toplinks a{padding:8px 6px;font-size:12.5px}
-  .toplinks .top-er,.toplinks .top-tk,.toplinks .top-dk{padding:6px 8px}
-  .nav-top .brand-name{font-size:17px}
+  .toplinks .top-er,.toplinks .top-tk,.toplinks .top-dk{padding:6px 12px}
+  .nav-top .who{gap:10px}
 }
