@@ -76,7 +76,7 @@ const FUEL_NEW = [
   ['Fuel Entry and Fuel Log', 'Record fuel and top-ups against a fuel card, and look back at what was recorded. Which cards you see depends on your access.'],
 ];
 const SUPPORT_NEW = [
-  ['Support', 'Record a complaint, follow the list of all complaints and see the dashboard. The Sr. Ops Manager and the Sr. Support Officer also see By Person.'],
+  ['Complaints', 'Record a complaint, follow the list of all complaints and see the dashboard. The Sr. Ops Manager and the Sr. Support Officer also see By Person.'],
 ];
 
 const EXPREV = [
@@ -192,7 +192,7 @@ export default async function GuidePage() {
   const fuel = hasAny(['/fuel', '/fuel/log', '/fuel/setup']);
   const support = hasAny(['/support', '/support/new', '/support/list', '/support/people']);
   const exprev = isOM && hasAny(['/exprev', '/exprev/entries', '/exprev/budget', '/exprev/analysis', '/exprev/import']);
-  const modules = [petty ? 'PettyTrack' : '', attend ? 'AttendTrack' : '', visitors ? 'VisitTrack' : '', fuel ? 'FuelTrack' : '', support ? 'Support' : '', exprev ? 'ExpRev' : ''].filter(Boolean);
+  const modules = [petty ? 'PettyTrack' : '', attend ? 'AttendTrack' : '', visitors ? 'VisitTrack' : '', fuel ? 'FuelTrack' : '', support ? 'Complaints' : '', exprev ? 'ExpRev' : ''].filter(Boolean);
   const mine = PAGE_GROUPS.map((g) => ({ label: g.label, names: g.pages.filter(([h]) => has(h)).map(([, l]) => l) })).filter((g) => g.names.length);
   const pages = PAGES.filter((p) => p.roles.includes(user.role)).map((p) => {
     let d = p.d;
@@ -323,7 +323,7 @@ export default async function GuidePage() {
 
       {support ? (
         <details className='card'>
-          <summary>Support</summary>
+          <summary>Complaints</summary>
           <Table head={['Feature', 'What it means']} rows={SUPPORT_NEW} />
         </details>
       ) : null}
