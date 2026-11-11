@@ -1846,12 +1846,18 @@ table.tx td.c-title{position:relative}
   .nav-top .who{gap:10px}
 }
 
-/* Phone header: the alphabold wordmark and "OpsTrack" are the same visual size (letter height) at every phone width. */
+/* Phone header: the alphabold wordmark and "OpsTrack" are the same visual size (letter height); the logo never gets squeezed by the buttons on the right. */
 @media (max-width:700px){
-  .nav-top .brandbox svg{height:34px}
-  .nav-top .brand-name{font-size:17px;line-height:1}
+  .nav-top .brandbox svg{height:30px;width:auto;flex:none}
+  .nav-top .brandbox .sep{display:none}
+  .nav-top .brand-name{font-size:15px;line-height:1;white-space:nowrap;flex:none}
+  .nav-top .who{gap:4px}
+  .nav-top .who .themebtn{width:34px;height:34px}
+  .nav-top .who .bell{padding:6px}
+  .nav-top .who .btn{padding:6px 9px}
 }
 @media (max-width:380px){
-  .nav-top .brandbox svg{height:30px}
-  .nav-top .brand-name{font-size:15px}
+  .nav-top{padding-left:10px;padding-right:10px;gap:6px}
+  .nav-top .brandbox svg{height:27px}
+  .nav-top .brand-name{font-size:13.5px}
 }
