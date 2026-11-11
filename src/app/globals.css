@@ -1909,3 +1909,23 @@ table.tx td.c-title{position:relative}
   .dkpanel .dkp-head form{width:100%}
   .dkpanel .dkp-head form .btn{width:100%}
 }
+
+/* Site tags (Dastarkhawan): one colour per site so they are easy to tell apart. LHR (gold) and ISB (slate) keep their office colours. */
+.otag.apl{color:#1d4ed8;border-color:#7aa2f0;background:#eaf1ff}
+.otag.oka{color:#0f6b3a;border-color:#5cc08a;background:#e7f7ee}
+.otag.manysites{color:#0e7490;border-color:#5bb5c9;background:#e5f6fa}
+.otag.tc0{color:#b42361;border-color:#e07aa6;background:#fdecf4}
+.otag.tc1{color:#b45309;border-color:#f0a45c;background:#fff3e5}
+.otag.tc2{color:#4338ca;border-color:#8f87ea;background:#eeecfd}
+.otag.tc3{color:#0f766e;border-color:#5cc0b6;background:#e4f6f4}
+.otag.tc4{color:#4d7c0f;border-color:#9bc653;background:#f1f8e4}
+.otag.tc5{color:#7c4a21;border-color:#c39770;background:#f6ede4}
+html[data-theme=dark] .otag.apl{color:#9ec0ff;border-color:#3d5fb0;background:#16213d}
+html[data-theme=dark] .otag.oka{color:#8fe3b3;border-color:#2f7d55;background:#0f2a1b}
+html[data-theme=dark] .otag.manysites{color:#8fd8ea;border-color:#2f7a8d;background:#0e2830}
+html[data-theme=dark] .otag.tc0{color:#f4a6c8;border-color:#a8466f;background:#321622}
+html[data-theme=dark] .otag.tc1{color:#f6c18b;border-color:#a8631a;background:#2e1f0d}
+html[data-theme=dark] .otag.tc2{color:#bdb7f6;border-color:#5a52b8;background:#1b1a38}
+html[data-theme=dark] .otag.tc3{color:#8fdcd2;border-color:#2f8077;background:#0e2a27}
+html[data-theme=dark] .otag.tc4{color:#c4e48a;border-color:#6a8f2e;background:#1c2810}
+html[data-theme=dark] .otag.tc5{color:#e0bd9a;border-color:#8a6444;background:#2a1d12}
