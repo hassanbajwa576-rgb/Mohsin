@@ -242,6 +242,13 @@ html[dir='rtl'] .module-badge{margin-left:0;margin-right:10px}
 .modseg a{white-space:nowrap}
 .tier-menu{flex:none}
 @media (max-width:700px){.nav-top .sep{display:none}.modseg a{padding:6px 10px;font-size:12.5px}.tier-sep{margin:0 6px}}
+/* Site picker (Dastarkhawan people): one row per site, the weekdays appear when the site is ticked. */
+.sitemap{display:grid;gap:8px}
+.smrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:8px 10px;border:1px solid var(--line);border-radius:6px}
+.smname{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;font-weight:600;min-width:72px;margin:0}
+.smname input,.smdays input{width:auto;min-height:0;margin:0}
+.smdays{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px}
+.smdays .daychk{display:inline-flex;align-items:center;gap:4px;margin:0;font-size:13px}
 /* New Hires: upcoming on the left, recently joined on the right; one under the other on narrower screens. */
 .hires2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .hires2>.card{min-width:0}

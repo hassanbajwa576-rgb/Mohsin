@@ -96,6 +96,9 @@ const DDL = [
   // Sites are a list managed in the app (a removed site is only switched off, so it is never brought back by this seed).
   `CREATE TABLE IF NOT EXISTS pc2_sites (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `INSERT INTO pc2_sites (name) VALUES ('APL'), ('LHR'), ('OKA'), ('ISB') ON CONFLICT (name) DO NOTHING`,
+  // A person can be at several sites, each on chosen weekdays (weekdays '' = every day; "1,3" = Mon and Wed).
+  `CREATE TABLE IF NOT EXISTS pc2_person_sites (person_id INTEGER NOT NULL REFERENCES pc2_hk_people(id) ON DELETE CASCADE, site TEXT NOT NULL, weekdays TEXT NOT NULL DEFAULT '', PRIMARY KEY (person_id, site))`,
+  `INSERT INTO pc2_person_sites (person_id, site) SELECT id, site FROM pc2_hk_people WHERE team = 'dast' AND site <> '' ON CONFLICT DO NOTHING`,
   `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved'`,
   `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS requested_by INTEGER`,
   `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS decided_by INTEGER`,
@@ -201,7 +204,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-11-3';
+const SCHEMA_VERSION = '2026-11-11-4';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

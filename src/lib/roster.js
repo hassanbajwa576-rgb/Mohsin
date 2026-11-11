@@ -48,8 +48,9 @@ function scope(params, cond, { office, team, site }) {
     cond.push('o.code = $' + params.length);
   }
   if (site) {
+    // Anyone mapped to the site (a person can be at several sites).
     params.push(site);
-    cond.push('s.site = $' + params.length);
+    cond.push('EXISTS (SELECT 1 FROM pc2_person_sites ps WHERE ps.person_id = s.id AND ps.site = $' + params.length + ')');
   }
 }
 
@@ -99,10 +100,11 @@ export async function hkPeople({ office, who, team = 'support', site = '' } = {}
     cond.push('s.name ILIKE $' + params.length);
   }
   return q(
-    `SELECT s.id, s.name, s.role AS dept, s.site, s.team, s.phone, to_char(s.joined_on, 'YYYY-MM-DD') AS joined_on, to_char(s.birthday, 'YYYY-MM-DD') AS birthday, o.code AS office
+    `SELECT s.id, s.name, s.role AS dept, s.site, s.team, s.phone, to_char(s.joined_on, 'YYYY-MM-DD') AS joined_on, to_char(s.birthday, 'YYYY-MM-DD') AS birthday, o.code AS office,
+       (SELECT COALESCE(jsonb_agg(jsonb_build_object('site', ps.site, 'days', ps.weekdays) ORDER BY ps.site), '[]'::jsonb) FROM pc2_person_sites ps WHERE ps.person_id = s.id) AS sites
      FROM pc2_hk_people s LEFT JOIN pc2_offices o ON o.id = s.office_id WHERE ${cond.join(' AND ')} ORDER BY o.code NULLS LAST, s.site, s.name`,
     params
-  );
+  ).then((rows) => rows.map((r) => ({ ...r, sites: typeof r.sites === 'string' ? JSON.parse(r.sites) : r.sites || [] })));
 }
 
 /** The sites Dastarkhawan people can be at (managed on the Sites tab). */
@@ -113,7 +115,7 @@ export async function siteList() {
 
 /** Active sites with how many active Dastarkhawan people are at each. */
 export async function siteCounts() {
-  return q(`SELECT st.id, st.name, (SELECT COUNT(*)::int FROM pc2_hk_people p WHERE p.active AND p.team = 'dast' AND p.site = st.name) AS people FROM pc2_sites st WHERE st.active ORDER BY st.name`);
+  return q(`SELECT st.id, st.name, (SELECT COUNT(DISTINCT ps.person_id)::int FROM pc2_person_sites ps JOIN pc2_hk_people p ON p.id = ps.person_id WHERE p.active AND p.team = 'dast' AND ps.site = st.name) AS people FROM pc2_sites st WHERE st.active ORDER BY st.name`);
 }
 export const rosterStaff = hkPeople;
 

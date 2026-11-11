@@ -69,7 +69,7 @@ export default async function BalancesPage({ searchParams }) {
                   const total = TYPES.reduce((a, [k]) => a + (u[k] || 0), 0);
                   return (
                     <tr key={p.id}>
-                      <td className='c-title'><OfficeTag o={dast && p.site ? p.site : p.office} /><b>{p.name}</b></td>
+                      <td className='c-title'><OfficeTag o={dast ? ((p.sites || []).length > 1 ? p.sites.length + ' sites' : (p.sites || [])[0] ? p.sites[0].site : p.site || '') : p.office} /><b>{p.name}</b></td>
                       {TYPES.map(([k]) => {
                         const v = u[k] || 0;
                         const cap = ALLOWED.includes(k) ? set[k] : 0;

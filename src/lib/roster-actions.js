@@ -9,7 +9,7 @@ import { notifyRoles, notifyUser } from './notify';
 import { ATT_ROLES, allOffices, validDate } from './att';
 import { TLABEL, ALLOWED, holidaysBetween, addDays, siteList } from './roster';
 import { OPD_LIMIT } from './hk-opd';
-import { teamOf, TEAM_NAME, TEAM_SHORT } from './teams';
+import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from './teams';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const ROOT = '/attendance/hk-roster';
@@ -130,9 +130,10 @@ export async function addHkPerson(fd) {
   const here = root(team);
   const name = s(fd, 'name').slice(0, 80);
   if (!name) back(here, 'Enter the name');
-  // Dastarkhawan people belong to a site from the Sites list, not to an office. Support people belong to an office.
-  const site = team === 'dast' ? s(fd, 'site') : '';
-  if (team === 'dast' && !(await siteList()).includes(site)) back(here, 'Choose the site');
+  // Dastarkhawan people are mapped to one or more sites from the Sites list (each on chosen weekdays), not to an office. Support people belong to an office.
+  const mapped = team === 'dast' ? readSites(fd, await siteList()) : [];
+  if (team === 'dast' && !mapped.length) back(here, 'Choose at least one site');
+  const site = mapped.length ? mapped[0].site : '';
   let off = null;
   if (team !== 'dast') {
     const code = allOffices(u) ? s(fd, 'office') : u.office_code;
@@ -145,11 +146,22 @@ export async function addHkPerson(fd) {
   const joined = dateOk(s(fd, 'joined')) ? s(fd, 'joined') : null;
   const bday = dateOk(s(fd, 'birthday')) ? s(fd, 'birthday') : null;
   const r = await q('INSERT INTO pc2_hk_people (name, office_id, role, created_by, phone, joined_on, birthday, team, site) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id', [name, off ? off.id : null, s(fd, 'role').slice(0, 60), u.id, s(fd, 'phone').slice(0, 30), joined, bday, team, site]);
-  await logEvent(u, 'create', 'hk_person', r[0].id, 'Added to the ' + TEAM_NAME[team] + ': ' + name + ' (' + (site || (off && off.code) || '') + ')', null, null);
+  if (team === 'dast') await saveSites(r[0].id, mapped);
+  await logEvent(u, 'create', 'hk_person', r[0].id, 'Added to the ' + TEAM_NAME[team] + ': ' + name + ' (' + (team === 'dast' ? siteText(mapped) : off.code) + ')', null, null);
   back(here, name + ' added to the ' + TEAM_NAME[team], true);
 }
 
 /* ---------- Dastarkhawan sites: added and removed from within the app ---------- */
+
+// The ticked sites of a form with the weekdays ticked for each (none ticked = every day). Only sites on the list count.
+function readSites(fd, valid) {
+  const picked = [...new Set(fd.getAll('site').map(String).filter((x) => valid.includes(x)))];
+  return picked.map((site) => ({ site, days: [...new Set(fd.getAll('days_' + site).map(String).filter((d) => /^[1-7]$/.test(d)))].sort().join(',') }));
+}
+async function saveSites(personId, list) {
+  await q('DELETE FROM pc2_person_sites WHERE person_id = $1', [personId]);
+  for (const x of list) await q('INSERT INTO pc2_person_sites (person_id, site, weekdays) VALUES ($1, $2, $3)', [personId, x.site, x.days]);
+}
 
 const SITES_PAGE = ROOT + '/sites?team=dast';
 
@@ -171,7 +183,7 @@ export async function removeSite(fd) {
   const id = Number(s(fd, 'id'));
   const st = (await q('SELECT id, name FROM pc2_sites WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
   if (!st) back(SITES_PAGE, 'That site is already removed');
-  const n = Number((await q(`SELECT COUNT(*)::int AS n FROM pc2_hk_people WHERE active AND team = 'dast' AND site = $1`, [st.name]))[0].n);
+  const n = Number((await q(`SELECT COUNT(DISTINCT ps.person_id)::int AS n FROM pc2_person_sites ps JOIN pc2_hk_people p ON p.id = ps.person_id WHERE p.active AND p.team = 'dast' AND ps.site = $1`, [st.name]))[0].n);
   if (n > 0) back(SITES_PAGE, st.name + ' still has ' + n + (n === 1 ? ' person' : ' people') + '. Move or remove them first.');
   await q('UPDATE pc2_sites SET active = FALSE WHERE id = $1', [st.id]);
   await logEvent(u, 'delete', 'site', st.id, 'Removed site ' + st.name, null, null);
@@ -192,9 +204,12 @@ export async function updateHkPerson(fd) {
   const joined = dateOk(s(fd, 'joined')) ? s(fd, 'joined') : null;
   const bday = dateOk(s(fd, 'birthday')) ? s(fd, 'birthday') : null;
   await q('UPDATE pc2_hk_people SET name = $1, role = $2, phone = $3, joined_on = $4, birthday = $5 WHERE id = $6', [name, s(fd, 'role').slice(0, 60), s(fd, 'phone').slice(0, 30), joined, bday, id]);
-  // A Dastarkhawan member can change site (any site on the Sites list).
-  if (p.team === 'dast' && (await siteList()).includes(s(fd, 'site'))) {
-    await q('UPDATE pc2_hk_people SET site = $1 WHERE id = $2', [s(fd, 'site'), id]);
+  // A Dastarkhawan member's sites and weekdays can be changed (any sites on the Sites list, one or more).
+  if (p.team === 'dast') {
+    const mapped = readSites(fd, await siteList());
+    if (!mapped.length) back(here, 'Choose at least one site');
+    await saveSites(id, mapped);
+    await q('UPDATE pc2_hk_people SET site = $1 WHERE id = $2', [mapped[0].site, id]);
   }
   await logEvent(u, 'edit', 'hk_person', id, 'Updated ' + TEAM_SHORT[p.team] + ' team member: ' + name, null, null);
   back(here, name + ' updated', true);

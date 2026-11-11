@@ -10,7 +10,8 @@ import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
 import ConfirmButton from '@/components/ConfirmButton';
 import HkTabs from '@/components/HkTabs';
-import { teamOf, TEAM_NAME, TEAM_SHORT } from '@/lib/teams';
+import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from '@/lib/teams';
+import SiteMap from '@/components/SiteMap';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,12 +39,14 @@ export default async function RosterPage({ searchParams }) {
   const everyone = sp.all === '1';
   const n = daysIn(month);
   const [y, mo] = month.split('-').map(Number);
-  const tag = (p) => (dast && p.site ? p.site : p.office);
+  // The tag next to a name: the office (Support), or the site (Dastarkhawan: "4 sites" when mapped to several).
+  const tag = (p) => (dast ? ((p.sites || []).length > 1 ? p.sites.length + ' sites' : (p.sites || [])[0] ? p.sites[0].site : p.site || '') : p.office);
 
   const entries = await monthOff({ month, office, who, team: tm, site });
   const team = await hkPeople({ office, team: tm, site });
   const people = everyone ? await hkPeople({ office, who, team: tm, site }) : [];
-  const rows = everyone ? people : [...new Map(entries.map((e) => [e.staff_id, { id: e.staff_id, name: e.name, dept: e.dept, office: e.office, site: e.site }])).values()];
+  const byId = new Map(team.map((p) => [p.id, p]));
+  const rows = everyone ? people : [...new Map(entries.map((e) => [e.staff_id, byId.get(e.staff_id) || { id: e.staff_id, name: e.name, dept: e.dept, office: e.office, site: e.site, sites: [] }])).values()];
   const settings = await getSettings();
   const hol = await holidaysBetween(month + '-01', month + '-' + String(n).padStart(2, '0'));
   const off = await offToday(today, office, tm, site);
@@ -135,7 +138,7 @@ export default async function RosterPage({ searchParams }) {
               <tbody>
                 {rows.map((p) => (
                   <tr key={p.id}>
-                    <td className='rn'><OfficeTag o={tag(p)} /><b>{p.name}</b>{p.dept ? <small className='muted'> {p.dept}</small> : null}</td>
+                    <td className='rn' title={dast ? siteText(p.sites) : undefined}><OfficeTag o={tag(p)} /><b>{p.name}</b>{p.dept ? <small className='muted'> {p.dept}</small> : null}</td>
                     {days.map((d) => {
                       const e = (grid.get(p.id) || {})[d];
                       const t = e ? TINFO[e.kind] : null;
@@ -160,7 +163,7 @@ export default async function RosterPage({ searchParams }) {
         <div className='card kpi'><span>Off today</span><b>{off.length}</b><small>{off.length ? off.slice(0, 6).map((e) => e.name).join(', ') + (off.length > 6 ? ' ...' : '') : 'Everyone is expected in'}</small></div>
         <div className='card kpi alt'><span>People off in {MONTHS[mo - 1]}</span><b>{new Set(entries.map((e) => e.staff_id)).size}</b></div>
         {dast ? (
-          <div className='card kpi alt'><span>Team members</span><b>{team.length}</b><small>{SITES.map((x) => x + ' ' + team.filter((p) => p.site === x).length).join(' · ')}</small></div>
+          <div className='card kpi alt'><span>Team members</span><b>{team.length}</b><small>{SITES.map((x) => x + ' ' + team.filter((p) => (p.sites || []).some((m) => m.site === x)).length).join(' · ')}</small></div>
         ) : (
           <div className={'card kpi alt' + (lowCover.size ? ' neg' : '')}><span>Days short of cover</span><b>{lowCover.size}</b><small>{lowCover.size ? 'Marked in red on the grid' : 'Set a minimum in Setup'}</small></div>
         )}
@@ -236,7 +239,7 @@ export default async function RosterPage({ searchParams }) {
             <label>Phone<input name='phone' type='tel' maxLength={30} placeholder='03xx xxxxxxx' /></label>
             <label>Joining date<input type='date' name='joined' /></label>
             <label>Birthday<input type='date' name='birthday' /></label>
-            {dast ? <label>Site<select name='site' defaultValue='' required><option value=''>{SITES.length ? 'Choose a site' : 'Add a site first (Sites tab)'}</option>{SITES.map((x) => <option key={x} value={x}>{x}</option>)}</select></label> : both ? <label>Office<select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select></label> : null}
+            {dast ? <SiteMap sites={SITES} /> : both ? <label>Office<select name='office' defaultValue={user.office_code}><option>LHR</option><option>ISB</option></select></label> : null}
             <button className='btn primary' type='submit'>Add team member</button>
           </form>
           {team.length ? (
@@ -247,7 +250,7 @@ export default async function RosterPage({ searchParams }) {
                   {team.map((p) => (
                     <tr key={p.id}>
                       <td className='c-title'><OfficeTag o={tag(p)} /><b>{p.name}</b></td>
-                      {dast ? <td className='c-meta'>{p.site || '-'}</td> : null}
+                      {dast ? <td className='c-meta'>{siteText(p.sites) || p.site || '-'}</td> : null}
                       <td className='c-meta'>{p.dept || '-'}</td>
                       <td className='c-meta'>{p.phone ? <a href={'tel:' + p.phone}>{p.phone}</a> : '-'}</td>
                       <td className='nw c-meta'>{p.joined_on || '-'}</td>
@@ -263,7 +266,7 @@ export default async function RosterPage({ searchParams }) {
                             <label>Phone<input name='phone' defaultValue={p.phone || ''} maxLength={30} /></label>
                             <label>Joining date<input type='date' name='joined' defaultValue={p.joined_on || ''} /></label>
                             <label>Birthday<input type='date' name='birthday' defaultValue={p.birthday || ''} /></label>
-                            {dast ? <label>Site<select name='site' defaultValue={p.site || ''}>{SITES.map((x) => <option key={x} value={x}>{x}</option>)}</select></label> : null}
+                            {dast ? <SiteMap sites={SITES} selected={p.sites} /> : null}
                             <button className='btn primary' type='submit'>Save</button>
                           </form>
                         </details>
@@ -291,7 +294,7 @@ export default async function RosterPage({ searchParams }) {
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id}>
-                    <td className='c-title'><OfficeTag o={dast && e.site ? e.site : e.office} /><b>{e.name}</b></td>
+                    <td className='c-title'><OfficeTag o={dast ? tag(byId.get(e.staff_id) || { sites: [], site: e.site }) : e.office} /><b>{e.name}</b></td>
                     <td className='c-meta'><span className='rostag' style={{ background: TINFO[e.kind].color }}>{TINFO[e.kind].label}</span></td>
                     <td className='nw c-meta'>{e.from_date}</td>
                     <td className='nw c-meta'>{e.to_date}</td>
