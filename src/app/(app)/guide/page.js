@@ -100,7 +100,7 @@ const TEAM_PAGES = [
 ];
 
 const ROSTER_NEW = [
-  ['Support Team', 'Everything about the Support team in one place, in four tabs: Roster, Time-off Balance, OPD and Setup. The Roster is the full team time off grid for the month: who is off and when, with PTO, PTO-M, Bereavement PTO, C-PTO, Unpaid and Other types. Time off can be in days or in hours. The list at the top shows who is off in the next 14 days and upcoming birthdays.'],
+  ['Teams', 'The Support team and the Dastarkhawan team in one place (switch at the top). Support has four tabs: Roster, Time-off Balance, OPD and Setup. Dastarkhawan has Roster and Time-off Balance, and each person has a site (APL, LHR, OKA or ISB) and a joining date. The Roster is the full team time off grid for the month: who is off and when, with PTO, PTO-M, Bereavement PTO, C-PTO, Unpaid and Other types. Time off can be in days or in hours. The list at the top shows who is off in the next 14 days and upcoming birthdays.'],
   ['Time Off Request', 'Anyone can ask for time off for a Support team member. The Sr. Ops Manager or the Sr. Support Officer approves or declines it and you are told the result.'],
   ['Time-off Balance', 'Days used and days left for each person against the yearly allowance, plus a yearly summary per type. Hours count as part of a day and holidays are not counted. Nothing carries forward.'],
   ['OPD', 'Every Support team member has Rs 120,000 of OPD a year (1 January to 31 December, no carry forward). Claims are recorded with the amount and the available balance updates. The Sr. Ops Manager and the Sr. Support Officer are alerted at 80% used and when the limit is reached.'],

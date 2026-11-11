@@ -36,19 +36,30 @@ export const shiftMonth = (month, n) => {
 };
 
 const COLS = `t.id, t.hk_id AS staff_id, t.hours::float8 AS hours, t.status, t.kind, t.note, t.created_by, to_char(t.from_date, 'YYYY-MM-DD') AS from_date, to_char(t.to_date, 'YYYY-MM-DD') AS to_date,
-  s.name, s.role AS dept, o.code AS office, u.name AS by_name, ru.name AS req_name`;
-const FROM = `FROM pc2_hk_off t JOIN pc2_hk_people s ON s.id = t.hk_id JOIN pc2_offices o ON o.id = s.office_id LEFT JOIN pc2_users u ON u.id = t.created_by LEFT JOIN pc2_users ru ON ru.id = t.requested_by`;
+  s.name, s.role AS dept, s.site, o.code AS office, u.name AS by_name, ru.name AS req_name`;
+const FROM = `FROM pc2_hk_off t JOIN pc2_hk_people s ON s.id = t.hk_id LEFT JOIN pc2_offices o ON o.id = s.office_id LEFT JOIN pc2_users u ON u.id = t.created_by LEFT JOIN pc2_users ru ON ru.id = t.requested_by`;
 
-/** Approved time off that touches the month, for the active support team, with optional office and name filters. */
-export async function monthOff({ month, office, who }) {
-  const first = month + '-01';
-  const last = month + '-' + String(daysIn(month)).padStart(2, '0');
-  const params = [first, last];
-  const cond = ["s.active", "t.status = 'approved'", 't.from_date <= $2::date', 't.to_date >= $1::date'];
+// Adds the team (Support or Dastarkhawan), office and site filters to a query. `params` already holds the leading values.
+function scope(params, cond, { office, team, site }) {
+  params.push(team === 'dast' ? 'dast' : 'support');
+  cond.push('s.team = $' + params.length);
   if (office) {
     params.push(office);
     cond.push('o.code = $' + params.length);
   }
+  if (site) {
+    params.push(site);
+    cond.push('s.site = $' + params.length);
+  }
+}
+
+/** Approved time off that touches the month, for the active people of one team, with optional office, site and name filters. */
+export async function monthOff({ month, office, who, team = 'support', site = '' }) {
+  const first = month + '-01';
+  const last = month + '-' + String(daysIn(month)).padStart(2, '0');
+  const params = [first, last];
+  const cond = ["s.active", "t.status = 'approved'", 't.from_date <= $2::date', 't.to_date >= $1::date'];
+  scope(params, cond, { office, team, site });
   if (who) {
     params.push('%' + String(who).replace(/[\\%_]/g, '').trim().slice(0, 60) + '%');
     cond.push('s.name ILIKE $' + params.length);
@@ -56,37 +67,53 @@ export async function monthOff({ month, office, who }) {
   return q(`SELECT ${COLS} ${FROM} WHERE ${cond.join(' AND ')} ORDER BY s.name, t.from_date`, params);
 }
 
-export async function offToday(day, office) {
-  return q(`SELECT ${COLS} ${FROM} WHERE s.active AND t.status = 'approved' AND t.from_date <= $1::date AND t.to_date >= $1::date ${office ? 'AND o.code = $2' : ''} ORDER BY s.name`, office ? [day, office] : [day]);
+export async function offToday(day, office, team = 'support', site = '') {
+  const params = [day];
+  const cond = ['s.active', "t.status = 'approved'", 't.from_date <= $1::date', 't.to_date >= $1::date'];
+  scope(params, cond, { office, team, site });
+  return q(`SELECT ${COLS} ${FROM} WHERE ${cond.join(' AND ')} ORDER BY s.name`, params);
 }
 
 /** Approved time off in the next few days. */
-export async function comingUp(from, days, office) {
-  const to = addDays(from, days);
-  return q(`SELECT ${COLS} ${FROM} WHERE s.active AND t.status = 'approved' AND t.from_date <= $2::date AND t.to_date >= $1::date ${office ? 'AND o.code = $3' : ''} ORDER BY t.from_date, s.name`, office ? [from, to, office] : [from, to]);
+export async function comingUp(from, days, office, team = 'support', site = '') {
+  const params = [from, addDays(from, days)];
+  const cond = ['s.active', "t.status = 'approved'", 't.from_date <= $2::date', 't.to_date >= $1::date'];
+  scope(params, cond, { office, team, site });
+  return q(`SELECT ${COLS} ${FROM} WHERE ${cond.join(' AND ')} ORDER BY t.from_date, s.name`, params);
 }
 
-export async function pendingRequests(office) {
-  return q(`SELECT ${COLS} ${FROM} WHERE s.active AND t.status = 'pending' ${office ? 'AND o.code = $1' : ''} ORDER BY t.from_date, s.name`, office ? [office] : []);
+export async function pendingRequests(office, team = 'support', site = '') {
+  const params = [];
+  const cond = ['s.active', "t.status = 'pending'"];
+  scope(params, cond, { office, team, site });
+  return q(`SELECT ${COLS} ${FROM} WHERE ${cond.join(' AND ')} ORDER BY t.from_date, s.name`, params);
 }
 
-/** The support team (people who are not on the Employees list), with their details. */
-export async function hkPeople({ office, who } = {}) {
+/** The people of one team (they are not on the Employees list), with their details. */
+export async function hkPeople({ office, who, team = 'support', site = '' } = {}) {
   const params = [];
   const cond = ['s.active'];
-  if (office) {
-    params.push(office);
-    cond.push('o.code = $' + params.length);
-  }
+  scope(params, cond, { office, team, site });
   if (who) {
     params.push('%' + String(who).replace(/[\\%_]/g, '').trim().slice(0, 60) + '%');
     cond.push('s.name ILIKE $' + params.length);
   }
   return q(
-    `SELECT s.id, s.name, s.role AS dept, s.phone, to_char(s.joined_on, 'YYYY-MM-DD') AS joined_on, to_char(s.birthday, 'YYYY-MM-DD') AS birthday, o.code AS office
-     FROM pc2_hk_people s JOIN pc2_offices o ON o.id = s.office_id WHERE ${cond.join(' AND ')} ORDER BY o.code, s.name`,
+    `SELECT s.id, s.name, s.role AS dept, s.site, s.team, s.phone, to_char(s.joined_on, 'YYYY-MM-DD') AS joined_on, to_char(s.birthday, 'YYYY-MM-DD') AS birthday, o.code AS office
+     FROM pc2_hk_people s LEFT JOIN pc2_offices o ON o.id = s.office_id WHERE ${cond.join(' AND ')} ORDER BY o.code NULLS LAST, s.site, s.name`,
     params
   );
+}
+
+/** The sites Dastarkhawan people can be at (managed on the Sites tab). */
+export async function siteList() {
+  const r = await q('SELECT name FROM pc2_sites WHERE active ORDER BY name');
+  return r.map((x) => x.name);
+}
+
+/** Active sites with how many active Dastarkhawan people are at each. */
+export async function siteCounts() {
+  return q(`SELECT st.id, st.name, (SELECT COUNT(*)::int FROM pc2_hk_people p WHERE p.active AND p.team = 'dast' AND p.site = st.name) AS people FROM pc2_sites st WHERE st.active ORDER BY st.name`);
 }
 export const rosterStaff = hkPeople;
 
@@ -125,15 +152,16 @@ export async function holidaysBetween(from, to) {
 }
 
 /** Days off used in a year, per person and kind. Holidays do not count; hours count as part of a day. */
-export async function usedByPerson(year, office) {
+export async function usedByPerson(year, office, team = 'support', site = '') {
   const first = year + '-01-01';
   const last = year + '-12-31';
   const params = [first, last];
-  if (office) params.push(office);
+  const cond = ['s.active', "t.status = 'approved'", 't.from_date <= $2::date', 't.to_date >= $1::date'];
+  scope(params, cond, { office, team, site });
   const rows = await q(
     `SELECT t.hk_id, t.kind, t.hours::float8 AS hours, to_char(t.from_date, 'YYYY-MM-DD') AS f, to_char(t.to_date, 'YYYY-MM-DD') AS t2
-     FROM pc2_hk_off t JOIN pc2_hk_people s ON s.id = t.hk_id JOIN pc2_offices o ON o.id = s.office_id
-     WHERE s.active AND t.status = 'approved' AND t.from_date <= $2::date AND t.to_date >= $1::date ${office ? 'AND o.code = $3' : ''}`,
+     FROM pc2_hk_off t JOIN pc2_hk_people s ON s.id = t.hk_id LEFT JOIN pc2_offices o ON o.id = s.office_id
+     WHERE ${cond.join(' AND ')}`,
     params
   );
   const hol = await holidaysBetween(first, last);

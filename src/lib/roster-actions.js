@@ -7,11 +7,17 @@ import { logEvent } from './audit';
 import { can } from './perms';
 import { notifyRoles, notifyUser } from './notify';
 import { ATT_ROLES, allOffices, validDate } from './att';
-import { TLABEL, ALLOWED, holidaysBetween, addDays } from './roster';
+import { TLABEL, ALLOWED, holidaysBetween, addDays, siteList } from './roster';
 import { OPD_LIMIT } from './hk-opd';
+import { teamOf, TEAM_NAME, TEAM_SHORT } from './teams';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const ROOT = '/attendance/hk-roster';
+// The roster page of a team, with optional extra query values (month...).
+const root = (team, extra = {}) => {
+  const p = new URLSearchParams({ ...(team === 'dast' ? { team: 'dast' } : {}), ...extra }).toString();
+  return ROOT + (p ? '?' + p : '');
+};
 
 // Only the Sr. Ops Manager and the Sr. Support Officer manage the roster.
 async function need() {
@@ -35,7 +41,7 @@ function back(path, msg, ok) {
 const dateOk = (d) => validDate(String(d || ''));
 
 // Validate the time off fields and find the team member. Returns { st, kind, from, to, hrs, note } or redirects with an error.
-async function readTimeOff(fd, u, here) {
+async function readTimeOff(fd, u, here, team = 'support') {
   const name = s(fd, 'name');
   const kind = s(fd, 'kind');
   const from = s(fd, 'from');
@@ -45,9 +51,9 @@ async function readTimeOff(fd, u, here) {
   if (hrs !== null && !(hrs > 0 && hrs <= 24)) back(here, 'Hours must be more than 0 and at most 24');
   if (!dateOk(from) || !dateOk(to) || to < from) back(here, 'Choose valid dates (the last day cannot be before the first)');
   if ((new Date(to) - new Date(from)) / 864e5 > 120) back(here, 'Time off can be at most 120 days at once');
-  const found = await q('SELECT s.id, s.name, s.office_id FROM pc2_hk_people s WHERE s.active AND lower(s.name) = lower($1)', [name]);
-  if (!found.length) back(here, 'Nobody in the Support team is called "' + name + '". Pick a name from the list.');
-  if (found.length > 1) back(here, 'More than one Support team member is called "' + name + '". Ask Mohsin to make the names different.');
+  const found = await q('SELECT s.id, s.name, s.office_id FROM pc2_hk_people s WHERE s.active AND s.team = $2 AND lower(s.name) = lower($1)', [name, team]);
+  if (!found.length) back(here, 'Nobody in the ' + TEAM_SHORT[team] + ' team is called "' + name + '". Pick a name from the list.');
+  if (found.length > 1) back(here, 'More than one ' + TEAM_SHORT[team] + ' team member is called "' + name + '". Ask Mohsin to make the names different.');
   const st = found[0];
   if (!allOffices(u) && st.office_id !== u.office_id) back(here, 'You can only record time off for your own office');
   // A range made only of holidays needs no time off.
@@ -69,8 +75,9 @@ const span = (a) => a.from + (a.to !== a.from ? ' to ' + a.to : '') + (a.hrs !==
 export async function addTimeOff(fd) {
   const u = await need();
   const m = s(fd, 'month');
-  const here = ROOT + (m ? '?m=' + m : '');
-  const a = await readTimeOff(fd, u, here);
+  const team = teamOf(s(fd, 'team'));
+  const here = root(team, m ? { m } : {});
+  const a = await readTimeOff(fd, u, here, team);
   const r = await q(`INSERT INTO pc2_hk_off (hk_id, from_date, to_date, kind, note, created_by, hours, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved') RETURNING id`, [a.st.id, a.from, a.to, a.kind, a.note, u.id, a.hrs]);
   await logEvent(u, 'create', 'timeoff', r[0].id, 'Time off: ' + a.st.name + ' ' + TLABEL[a.kind] + ' ' + span(a), null, { kind: a.kind });
   back(here, a.st.name + ': ' + TLABEL[a.kind] + (a.hrs !== null ? ' ' + a.hrs + ' h' : '') + ' recorded', true);
@@ -107,8 +114,8 @@ export async function deleteTimeOff(fd) {
   const u = await need();
   const id = Number(s(fd, 'id'));
   const m = s(fd, 'month');
-  const here = ROOT + (m ? '?m=' + m : '');
-  const r = (await q(`SELECT t.id, t.kind, to_char(t.from_date, 'YYYY-MM-DD') AS f, to_char(t.to_date, 'YYYY-MM-DD') AS t2, s.name, s.office_id FROM pc2_hk_off t JOIN pc2_hk_people s ON s.id = t.hk_id WHERE t.id = $1`, [Number.isInteger(id) ? id : 0]))[0];
+  const r = (await q(`SELECT t.id, t.kind, to_char(t.from_date, 'YYYY-MM-DD') AS f, to_char(t.to_date, 'YYYY-MM-DD') AS t2, s.name, s.office_id, s.team FROM pc2_hk_off t JOIN pc2_hk_people s ON s.id = t.hk_id WHERE t.id = $1`, [Number.isInteger(id) ? id : 0]))[0];
+  const here = root(r ? r.team : teamOf(s(fd, 'team')), m ? { m } : {});
   if (!r) back(here, 'That entry no longer exists');
   if (!allOffices(u) && r.office_id !== u.office_id) back(here, 'You can only change time off for your own office');
   await q('DELETE FROM pc2_hk_off WHERE id = $1', [id]);
@@ -119,47 +126,91 @@ export async function deleteTimeOff(fd) {
 // Add someone to the support team (they are not on the Employees list and have no attendance entries).
 export async function addHkPerson(fd) {
   const u = await need();
+  const team = teamOf(s(fd, 'team'));
+  const here = root(team);
   const name = s(fd, 'name').slice(0, 80);
-  if (!name) back(ROOT, 'Enter the name');
-  const code = allOffices(u) ? s(fd, 'office') : u.office_code;
-  const off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [code]))[0];
-  if (!off) back(ROOT, 'Choose the office');
-  const dup = await q('SELECT id FROM pc2_hk_people WHERE active AND lower(name) = lower($1)', [name]);
-  if (dup.length) back(ROOT, name + ' is already in the Support team');
+  if (!name) back(here, 'Enter the name');
+  // Dastarkhawan people belong to a site from the Sites list, not to an office. Support people belong to an office.
+  const site = team === 'dast' ? s(fd, 'site') : '';
+  if (team === 'dast' && !(await siteList()).includes(site)) back(here, 'Choose the site');
+  let off = null;
+  if (team !== 'dast') {
+    const code = allOffices(u) ? s(fd, 'office') : u.office_code;
+    off = (await q('SELECT id, code FROM pc2_offices WHERE code = $1', [code]))[0];
+    if (!off) back(here, 'Choose the office');
+    if (!allOffices(u) && off.code !== u.office_code) back(here, 'You can only add people for your own office');
+  }
+  const dup = await q('SELECT id FROM pc2_hk_people WHERE active AND team = $2 AND lower(name) = lower($1)', [name, team]);
+  if (dup.length) back(here, name + ' is already in the ' + TEAM_SHORT[team] + ' team');
   const joined = dateOk(s(fd, 'joined')) ? s(fd, 'joined') : null;
   const bday = dateOk(s(fd, 'birthday')) ? s(fd, 'birthday') : null;
-  const r = await q('INSERT INTO pc2_hk_people (name, office_id, role, created_by, phone, joined_on, birthday) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id', [name, off.id, s(fd, 'role').slice(0, 60), u.id, s(fd, 'phone').slice(0, 30), joined, bday]);
-  await logEvent(u, 'create', 'hk_person', r[0].id, 'Added to the Support team: ' + name + ' (' + off.code + ')', null, null);
-  back(ROOT, name + ' added to the Support team', true);
+  const r = await q('INSERT INTO pc2_hk_people (name, office_id, role, created_by, phone, joined_on, birthday, team, site) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id', [name, off ? off.id : null, s(fd, 'role').slice(0, 60), u.id, s(fd, 'phone').slice(0, 30), joined, bday, team, site]);
+  await logEvent(u, 'create', 'hk_person', r[0].id, 'Added to the ' + TEAM_NAME[team] + ': ' + name + ' (' + (site || (off && off.code) || '') + ')', null, null);
+  back(here, name + ' added to the ' + TEAM_NAME[team], true);
+}
+
+/* ---------- Dastarkhawan sites: added and removed from within the app ---------- */
+
+const SITES_PAGE = ROOT + '/sites?team=dast';
+
+export async function addSite(fd) {
+  const u = await need();
+  const name = s(fd, 'name').replace(/\s+/g, ' ').slice(0, 30);
+  if (!name) back(SITES_PAGE, 'Enter the site name');
+  const ex = (await q('SELECT id, name, active FROM pc2_sites WHERE lower(name) = lower($1)', [name]))[0];
+  if (ex && ex.active) back(SITES_PAGE, ex.name + ' is already a site');
+  if (ex) await q('UPDATE pc2_sites SET active = TRUE WHERE id = $1', [ex.id]);
+  else await q('INSERT INTO pc2_sites (name) VALUES ($1)', [name]);
+  await logEvent(u, 'create', 'site', null, 'Added site ' + name, null, null);
+  back(SITES_PAGE, name + ' added', true);
+}
+
+// A site can be removed once nobody active is at it (move or remove those people first).
+export async function removeSite(fd) {
+  const u = await need();
+  const id = Number(s(fd, 'id'));
+  const st = (await q('SELECT id, name FROM pc2_sites WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
+  if (!st) back(SITES_PAGE, 'That site is already removed');
+  const n = Number((await q(`SELECT COUNT(*)::int AS n FROM pc2_hk_people WHERE active AND team = 'dast' AND site = $1`, [st.name]))[0].n);
+  if (n > 0) back(SITES_PAGE, st.name + ' still has ' + n + (n === 1 ? ' person' : ' people') + '. Move or remove them first.');
+  await q('UPDATE pc2_sites SET active = FALSE WHERE id = $1', [st.id]);
+  await logEvent(u, 'delete', 'site', st.id, 'Removed site ' + st.name, null, null);
+  back(SITES_PAGE, st.name + ' removed', true);
 }
 
 // Change a team member's details.
 export async function updateHkPerson(fd) {
   const u = await need();
   const id = Number(s(fd, 'id'));
-  const p = (await q('SELECT id, name, office_id FROM pc2_hk_people WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
-  if (!p) back(ROOT, 'That person is no longer in the team');
-  if (!allOffices(u) && p.office_id !== u.office_id) back(ROOT, 'You can only change your own office');
+  const p = (await q('SELECT id, name, office_id, team FROM pc2_hk_people WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
+  const here = root(p ? p.team : teamOf(s(fd, 'team')));
+  if (!p) back(here, 'That person is no longer in the team');
+  if (!allOffices(u) && p.office_id !== u.office_id) back(here, 'You can only change your own office');
   const name = s(fd, 'name').slice(0, 80) || p.name;
-  const dup = await q('SELECT id FROM pc2_hk_people WHERE active AND lower(name) = lower($1) AND id <> $2', [name, id]);
-  if (dup.length) back(ROOT, 'Someone else in the team is already called ' + name);
+  const dup = await q('SELECT id FROM pc2_hk_people WHERE active AND team = $3 AND lower(name) = lower($1) AND id <> $2', [name, id, p.team]);
+  if (dup.length) back(here, 'Someone else in the team is already called ' + name);
   const joined = dateOk(s(fd, 'joined')) ? s(fd, 'joined') : null;
   const bday = dateOk(s(fd, 'birthday')) ? s(fd, 'birthday') : null;
   await q('UPDATE pc2_hk_people SET name = $1, role = $2, phone = $3, joined_on = $4, birthday = $5 WHERE id = $6', [name, s(fd, 'role').slice(0, 60), s(fd, 'phone').slice(0, 30), joined, bday, id]);
-  await logEvent(u, 'edit', 'hk_person', id, 'Updated Support team member: ' + name, null, null);
-  back(ROOT, name + ' updated', true);
+  // A Dastarkhawan member can change site (any site on the Sites list).
+  if (p.team === 'dast' && (await siteList()).includes(s(fd, 'site'))) {
+    await q('UPDATE pc2_hk_people SET site = $1 WHERE id = $2', [s(fd, 'site'), id]);
+  }
+  await logEvent(u, 'edit', 'hk_person', id, 'Updated ' + TEAM_SHORT[p.team] + ' team member: ' + name, null, null);
+  back(here, name + ' updated', true);
 }
 
 // Remove someone from the team (their past time off stays in the database but is out of view).
 export async function removeHkPerson(fd) {
   const u = await need();
   const id = Number(s(fd, 'id'));
-  const p = (await q('SELECT id, name, office_id FROM pc2_hk_people WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
-  if (!p) back(ROOT, 'That person is no longer in the team');
-  if (!allOffices(u) && p.office_id !== u.office_id) back(ROOT, 'You can only change your own office');
+  const p = (await q('SELECT id, name, office_id, team FROM pc2_hk_people WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
+  const here = root(p ? p.team : teamOf(s(fd, 'team')));
+  if (!p) back(here, 'That person is no longer in the team');
+  if (!allOffices(u) && p.office_id !== u.office_id) back(here, 'You can only change your own office');
   await q('UPDATE pc2_hk_people SET active = FALSE WHERE id = $1', [id]);
-  await logEvent(u, 'delete', 'hk_person', id, 'Removed from the Support team: ' + p.name, null, null);
-  back(ROOT, p.name + ' removed from the Support team', true);
+  await logEvent(u, 'delete', 'hk_person', id, 'Removed from the ' + TEAM_NAME[p.team] + ': ' + p.name, null, null);
+  back(here, p.name + ' removed from the ' + TEAM_NAME[p.team], true);
 }
 
 /* ---------- setup: allowances, hours per day, minimum cover, holidays ---------- */

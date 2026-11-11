@@ -88,6 +88,14 @@ const DDL = [
   `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS joined_on DATE`,
   `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS birthday DATE`,
+  // Teams: 'support' (the original) and 'dast' (Dastarkhawan). Dastarkhawan people also have a site: APL, LHR, OKA or ISB.
+  `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS team TEXT NOT NULL DEFAULT 'support'`,
+  `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS site TEXT NOT NULL DEFAULT ''`,
+  // Dastarkhawan people belong to a site, not to an office, so the office is optional.
+  `ALTER TABLE pc2_hk_people ALTER COLUMN office_id DROP NOT NULL`,
+  // Sites are a list managed in the app (a removed site is only switched off, so it is never brought back by this seed).
+  `CREATE TABLE IF NOT EXISTS pc2_sites (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `INSERT INTO pc2_sites (name) VALUES ('APL'), ('LHR'), ('OKA'), ('ISB') ON CONFLICT (name) DO NOTHING`,
   `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved'`,
   `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS requested_by INTEGER`,
   `ALTER TABLE pc2_hk_off ADD COLUMN IF NOT EXISTS decided_by INTEGER`,
@@ -193,7 +201,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-11-1';
+const SCHEMA_VERSION = '2026-11-11-3';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

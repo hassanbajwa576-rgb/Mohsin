@@ -2,11 +2,12 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings } from '@/lib/roster';
+import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings, siteList } from '@/lib/roster';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
 import HkTabs from '@/components/HkTabs';
+import { teamOf, TEAM_SHORT } from '@/lib/teams';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,11 +21,15 @@ export default async function BalancesPage({ searchParams }) {
   const thisYear = Number(todayKey().slice(0, 4));
   const year = /^\d{4}$/.test(sp.y || '') ? Number(sp.y) : thisYear;
   const both = allOffices(user);
-  const office = both ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
-  const team = await hkPeople({ office });
-  const used = await usedByPerson(year, office);
+  const tm = teamOf(sp.team);
+  const dast = tm === 'dast';
+  const office = dast ? '' : both ? (['LHR', 'ISB'].includes(sp.office) ? sp.office : '') : user.office_code;
+  const SITES = dast ? await siteList() : [];
+  const site = dast && SITES.includes(sp.site) ? sp.site : '';
+  const team = await hkPeople({ office, team: tm, site });
+  const used = await usedByPerson(year, office, tm, site);
   const set = await getSettings();
-  const yq = (y) => '/attendance/hk-roster/balances?' + new URLSearchParams({ y: String(y), ...(office && both ? { office } : {}) }).toString();
+  const yq = (y) => '/attendance/hk-roster/balances?' + new URLSearchParams({ y: String(y), ...(dast ? { team: 'dast' } : {}), ...(site ? { site } : {}), ...(office && both ? { office } : {}) }).toString();
   const totals = Object.fromEntries(TYPES.map(([k]) => [k, team.reduce((a, p) => a + ((used.get(p.id) || {})[k] || 0), 0)]));
   const anySet = ALLOWED.some((k) => set[k] > 0);
 
@@ -32,11 +37,11 @@ export default async function BalancesPage({ searchParams }) {
     <>
       <div className='head'>
         <div>
-          <h1>Support Time-off Balance</h1>
+          <h1>{TEAM_SHORT[tm]} Time-off Balance</h1>
           <p className='muted'>Days off used in {year} against the yearly allowance. Hours count as part of a day ({set.hpd} hours = 1 day) and holidays are not counted. Allowances do not carry forward.</p>
         </div>
       </div>
-      <HkTabs active='balances' />
+      <HkTabs active='balances' team={tm} />
       <Flash sp={sp} />
       <div className='card rosnav'>
         <Link className='btn' href={yq(year - 1)}>&lt; {year - 1}</Link>
@@ -44,8 +49,8 @@ export default async function BalancesPage({ searchParams }) {
         <Link className='btn' href={yq(year + 1)}>{year + 1} &gt;</Link>
         {year !== thisYear ? <Link className='btn ghost' href={yq(thisYear)}>This year</Link> : null}
       </div>
-      {both ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]} /> : null}
-      {!anySet ? <p className='muted'>No yearly allowance is set yet, so only the days used are shown. Set them on the Setup tab.</p> : null}
+      {dast ? <AutoFilters hidden={{ y: String(year), team: 'dast' }} fields={[{ name: 'site', label: 'Site', value: site, options: [['', 'All sites'], ...SITES.map((x) => [x, x])] }]} /> : both ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]} /> : null}
+      {!anySet ? <p className='muted'>No yearly allowance is set yet, so only the days used are shown. Set them on the Setup tab of the Support team.</p> : dast ? <p className='muted'>The yearly allowances are the same as the Support team's (set on its Setup tab).</p> : null}
 
       <div className='card'>
         {team.length ? (
@@ -64,7 +69,7 @@ export default async function BalancesPage({ searchParams }) {
                   const total = TYPES.reduce((a, [k]) => a + (u[k] || 0), 0);
                   return (
                     <tr key={p.id}>
-                      <td className='c-title'><OfficeTag o={p.office} /><b>{p.name}</b></td>
+                      <td className='c-title'><OfficeTag o={dast && p.site ? p.site : p.office} /><b>{p.name}</b></td>
                       {TYPES.map(([k]) => {
                         const v = u[k] || 0;
                         const cap = ALLOWED.includes(k) ? set[k] : 0;
@@ -92,7 +97,7 @@ export default async function BalancesPage({ searchParams }) {
               </tfoot>
             </table>
           </div>
-        ) : <p className='muted'>No Support team members yet. Add them on the Roster tab.</p>}
+        ) : <p className='muted'>No {TEAM_SHORT[tm]} team members yet. Add them on the Roster tab.</p>}
       </div>
     </>
   );
