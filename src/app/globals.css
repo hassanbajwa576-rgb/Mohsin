@@ -1830,3 +1830,19 @@ table.tx td.c-title{position:relative}
 .tkdays small{flex:1 1 100%}
 .daychk{display:inline-flex!important;flex-direction:row!important;align-items:center;gap:6px;font-weight:500}
 .daychk input{width:auto!important}
+
+/* Top bar: with the Dastarkhawan button there are more links, so the bar uses a little more width and tighter spacing (Sign out stays in view). */
+@media (min-width:901px){
+  .nav-top{max-width:1480px;gap:12px}
+  .toplinks{gap:2px;margin-right:10px}
+  .toplinks a{padding:8px 8px;font-size:13px}
+  .toplinks .top-er,.toplinks .top-tk,.toplinks .top-dk{padding:6px 11px}
+  .toplinks + .who{flex:0 0 auto}
+  .nav-top .who{gap:8px}
+  .nav-top .who b{white-space:nowrap}
+}
+@media (min-width:901px) and (max-width:1300px){
+  .toplinks a{padding:8px 6px;font-size:12.5px}
+  .toplinks .top-er,.toplinks .top-tk,.toplinks .top-dk{padding:6px 8px}
+  .nav-top .brand-name{font-size:17px}
+}

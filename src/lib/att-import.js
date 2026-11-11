@@ -57,6 +57,7 @@ function sheetFor(wb, year, month) {
 // Breaks: one record per employee, day and break number with out / in (an employee has one row per break).
 function readSheet(ws, year, month, from, to, mode, problems) {
   const cols = {};
+  const loose = {};
   // The date number sometimes sits only above the first of a day's columns; a blank header under the same weekday belongs to that day.
   let lastDay = NaN;
   let lastWeekday = '';
@@ -77,11 +78,22 @@ function readSheet(ws, year, month, from, to, mode, problems) {
     // "Check In", "Check-in", "Checkin", "check out"...
     const raw = String(val(ws.getRow(3).getCell(c)) || '').toLowerCase().replace(/[^a-z]/g, '');
     const lab = raw === 'checkin' ? 'check in' : raw === 'checkout' ? 'check out' : '';
-    if (!(day >= 1 && day <= 31) || !lab) continue;
+    if (!(day >= 1 && day <= 31)) continue;
     const date = year + '-' + pad(month) + '-' + pad(day);
     if (date < from || date > to || !validDate(date)) continue;
+    if (!lab) {
+      // Saturday (and Sunday) columns often have no Check In / Check Out label: one column per day holding the time.
+      if (raw === '') (loose[date] = loose[date] || []).push(c);
+      continue;
+    }
     if (!cols[date]) cols[date] = {};
     if (cols[date][lab] == null) cols[date][lab] = c;
+  }
+  // An unlabelled day: the first column is the check in, a second one (if any) the check out.
+  for (const [date, list] of Object.entries(loose)) {
+    if (cols[date]) continue;
+    cols[date] = { 'check in': list[0] };
+    if (list[1] != null) cols[date]['check out'] = list[1];
   }
   // Say so when a day in the range has no columns on the sheet (instead of silently importing nothing for it).
   for (let d = from; d <= to; d = addDay(d, 1)) {
