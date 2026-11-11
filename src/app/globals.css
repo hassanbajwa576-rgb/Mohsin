@@ -1873,3 +1873,16 @@ table.tx td.c-title{position:relative}
   .nav-top .brandbox .sep{display:block;height:18px}
   .nav-top .who{gap:3px}
 }
+
+/* The divider never shrinks away when the header is crowded. */
+.nav-top .brandbox .sep{flex:none}
+@media (max-width:440px){
+  .nav-top{padding-left:10px;padding-right:10px;gap:5px}
+  .nav-top .brandbox{gap:5px}
+  .nav-top .brandbox svg{height:27px}
+  .nav-top .brand-name{font-size:13.5px}
+  .nav-top .brandbox .sep{display:block;height:18px}
+  .nav-top .who{gap:3px}
+  .nav-top .who .themebtn{width:32px;height:32px}
+  .nav-top .who .btn{padding:6px 7px}
+}
