@@ -38,6 +38,45 @@ export async function checkedInDays(from, to) {
   return m;
 }
 
+/** Dastarkhawan people who checked in (facial app) on each day from..to: Map date -> Set of lower-case names. */
+export async function dkCheckedInDays(from, to) {
+  const r = await q(
+    `SELECT to_char(c.day, 'YYYY-MM-DD') AS d, lower(p.name) AS n FROM pc2_dk_checkins c JOIN pc2_hk_people p ON p.dk_emp_id = c.emp_id AND p.active AND p.team = 'dast'
+     WHERE c.day >= $1::date AND c.day <= $2::date AND COALESCE(c.check_in, '') <> ''`,
+    [from, to]
+  );
+  const m = new Map();
+  for (const x of r) {
+    if (!m.has(x.d)) m.set(x.d, new Set());
+    m.get(x.d).add(x.n);
+  }
+  return m;
+}
+
+/** Today's check-ins of the Dastarkhawan staff, with the times, and how many are in the team. */
+export async function dkToday(day) {
+  const rows = await q(
+    `SELECT p.id, p.name, c.check_in, c.check_out, c.status, c.method, s.site
+       FROM pc2_dk_checkins c JOIN pc2_hk_people p ON p.dk_emp_id = c.emp_id AND p.active AND p.team = 'dast' LEFT JOIN pc2_dk_staff s ON s.emp_id = c.emp_id
+      WHERE c.day = $1::date AND COALESCE(c.check_in, '') <> '' ORDER BY p.name`,
+    [day]
+  );
+  // Earliest check in first ("06:58 AM" style text is turned into minutes for sorting).
+  const mins = (t) => {
+    const m = String(t || '').match(/^(\d{1,2}):(\d{2})\s*([AP]M)?$/i);
+    if (!m) return 9999;
+    return ((Number(m[1]) % 12) + (/p/i.test(m[3] || '') ? 12 : 0)) * 60 + Number(m[2]);
+  };
+  return rows.sort((a, b) => mins(a.check_in) - mins(b.check_in) || a.name.localeCompare(b.name));
+}
+
+/** People of the team not yet linked to the facial app, and the facial-app staff nobody is linked to. */
+export async function dkUnlinked() {
+  const people = await q(`SELECT id, name FROM pc2_hk_people WHERE active AND team = 'dast' AND dk_emp_id IS NULL ORDER BY name`);
+  const staff = await q(`SELECT s.emp_id, s.name, s.site FROM pc2_dk_staff s WHERE s.status = 'active' AND NOT EXISTS (SELECT 1 FROM pc2_hk_people p WHERE p.active AND p.dk_emp_id = s.emp_id) ORDER BY s.name`);
+  return { people, staff };
+}
+
 /** Lower-case names of employees with a check in on the given day (Karachi time). Roster people are matched to them by name. */
 export async function checkedInToday(day) {
   const r = await q(

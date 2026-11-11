@@ -1886,3 +1886,26 @@ table.tx td.c-title{position:relative}
   .nav-top .who .themebtn{width:32px;height:32px}
   .nav-top .who .btn{padding:6px 7px}
 }
+
+/* Dastarkhawan: today's check-ins from the facial attendance app. */
+.dkpanel{margin-bottom:14px}
+.dkpanel .dkp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.dkpanel h3{margin:0 0 2px;font-size:17px;font-weight:600;color:var(--ink)}
+.dkpanel .dkp-head p{margin:0;font-size:13px}
+.dkpanel .dkp-err{margin:10px 0 0;padding:8px 10px;border-radius:4px;background:var(--warnbg);color:var(--warn);font-size:13px}
+.dkpanel .dkp-list{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:6px 22px}
+.dkpanel .dkp-list li{display:grid;grid-template-columns:1fr auto auto;align-items:baseline;gap:4px 10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.dkpanel .dkp-list li b{color:var(--ink);font-weight:600;min-width:0;overflow-wrap:anywhere}
+.dkpanel .dkp-list li > .muted{grid-column:1;grid-row:2;font-size:12px}
+.dkpanel .dkp-t{font-size:13px;white-space:nowrap;color:var(--slate)}
+.dkpanel .dkp-t.dkp-on{color:var(--ok);font-weight:600}
+.dkpanel .dkp-link{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.dkpanel .dkp-link summary{cursor:pointer;font-weight:600;color:var(--ink)}
+.dkpanel .dkp-form{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.dkpanel .dkp-form b{min-width:140px;color:var(--ink)}
+.dkpanel .dkp-form select{flex:1 1 200px;min-width:0}
+@media (max-width:700px){
+  .dkpanel .dkp-list{grid-template-columns:1fr}
+  .dkpanel .dkp-head form{width:100%}
+  .dkpanel .dkp-head form .btn{width:100%}
+}

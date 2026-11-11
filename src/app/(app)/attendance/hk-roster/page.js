@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInDays } from '@/lib/roster';
+import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInDays, dkCheckedInDays, dkToday, dkUnlinked } from '@/lib/roster';
 import { addTimeOff, deleteTimeOff, addHkPerson, updateHkPerson, removeHkPerson, decideTimeOff } from '@/lib/roster-actions';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
@@ -12,6 +12,8 @@ import ConfirmButton from '@/components/ConfirmButton';
 import HkTabs from '@/components/HkTabs';
 import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from '@/lib/teams';
 import SiteMap from '@/components/SiteMap';
+import DkPanel from '@/components/DkPanel';
+import { syncDk, dkStatus } from '@/lib/dk-sync';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +66,22 @@ export default async function RosterPage({ searchParams, forceTeam }) {
   const people = everyone ? await hkPeople({ office, who, team: tm, site }) : [];
   // Live link with attendance: on every day up to today, anyone who checked in (and has no time off) shows W (worked).
   const checked = from <= today ? await checkedInDays(from, to < today ? to : today) : new Map();
+  // Dastarkhawan: bring in the latest check-ins from the facial attendance app (at most every 5 minutes) and add them to the W marks.
+  let dkRows = [];
+  let dkStat = { at: '', error: '' };
+  let dkUn = { people: [], staff: [] };
+  if (dast) {
+    await syncDk();
+    dkStat = await dkStatus();
+    dkRows = await dkToday(today);
+    if (edit) dkUn = await dkUnlinked();
+    if (from <= today) {
+      for (const [d, set] of await dkCheckedInDays(from, to < today ? to : today)) {
+        if (checked.has(d)) set.forEach((n) => checked.get(d).add(n));
+        else checked.set(d, new Set(set));
+      }
+    }
+  }
   const byId = new Map(team.map((p) => [p.id, p]));
   const rows = everyone ? people : [...new Map(entries.map((e) => [e.staff_id, byId.get(e.staff_id) || { id: e.staff_id, name: e.name, dept: e.dept, office: e.office, site: e.site, sites: [] }])).values()];
   const settings = await getSettings();
@@ -124,6 +142,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
       </div>
       <HkTabs active='roster' team={tm} />
       <Flash sp={sp} />
+      {dast ? <DkPanel rows={dkRows} teamSize={team.length} status={dkStat} unlinked={dkUn} edit={edit} /> : null}
 
       <div className='card rosnav'>
         {rangeMode ? (

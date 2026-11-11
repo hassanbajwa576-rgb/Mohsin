@@ -10,6 +10,7 @@ import { ATT_ROLES, allOffices, validDate } from './att';
 import { TLABEL, ALLOWED, holidaysBetween, addDays, siteList } from './roster';
 import { OPD_LIMIT } from './hk-opd';
 import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from './teams';
+import { syncDk } from './dk-sync';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const ROOT = '/attendance/hk-roster';
@@ -170,6 +171,31 @@ async function saveSites(personId, list) {
 }
 
 const SITES_PAGE = DAST + '/sites';
+
+// Fetch the latest check-ins from the facial attendance app right now.
+export async function refreshDk() {
+  await need('dast');
+  const r = await syncDk({ force: true });
+  if (r.error) back(DAST, 'Could not reach the facial attendance app (' + r.error + ')');
+  back(DAST, 'Check-ins updated: ' + r.records + ' records from ' + r.staff + ' staff', true);
+}
+
+// Link a Dastarkhawan person to their staff record in the facial app (matched by name automatically when the names are the same).
+export async function linkDkPerson(fd) {
+  const u = await need('dast');
+  const id = Number(s(fd, 'id'));
+  const emp = s(fd, 'emp');
+  const p = (await q(`SELECT id, name FROM pc2_hk_people WHERE id = $1 AND active AND team = 'dast'`, [Number.isInteger(id) ? id : 0]))[0];
+  if (!p) back(DAST, 'That person is no longer in the team');
+  if (!emp) back(DAST, 'Choose the facial app staff member for ' + p.name);
+  const st = (await q('SELECT emp_id, name FROM pc2_dk_staff WHERE emp_id = $1', [emp]))[0];
+  if (!st) back(DAST, 'That facial app staff member was not found');
+  const taken = await q(`SELECT name FROM pc2_hk_people WHERE active AND dk_emp_id = $1 AND id <> $2`, [emp, id]);
+  if (taken.length) back(DAST, st.name + ' is already linked to ' + taken[0].name);
+  await q('UPDATE pc2_hk_people SET dk_emp_id = $1 WHERE id = $2', [emp, id]);
+  await logEvent(u, 'edit', 'hk_person', id, 'Linked ' + p.name + ' to facial app staff ' + st.emp_id, null, null);
+  back(DAST, p.name + ' linked to ' + st.name + ' (' + st.emp_id + ')', true);
+}
 
 export async function addSite(fd) {
   const u = await need('dast');

@@ -191,6 +191,11 @@ const DDL = [
   // Zubair manages the Dastarkhawan team: the permission (switchable on the Team page) and, if his pages were picked by hand, the three pages.
   `UPDATE pc2_users SET perms = CASE WHEN perms IS NULL OR perms = '' THEN 'dast_edit' WHEN position('dast_edit' in perms) > 0 THEN perms ELSE perms || ',dast_edit' END WHERE name = 'Muhammad Zubair'`,
   `UPDATE pc2_users SET pages = pages || ',/dastarkhawan,/dastarkhawan/balances,/dastarkhawan/sites' WHERE name = 'Muhammad Zubair' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan,%'`,
+  // Check-ins of the Dastarkhawan staff, brought in from the facial attendance app.
+  `ALTER TABLE pc2_hk_people ADD COLUMN IF NOT EXISTS dk_emp_id TEXT`,
+  `CREATE TABLE IF NOT EXISTS pc2_dk_staff (emp_id TEXT PRIMARY KEY, name TEXT NOT NULL, site TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active')`,
+  `CREATE TABLE IF NOT EXISTS pc2_dk_checkins (emp_id TEXT NOT NULL, day DATE NOT NULL, check_in TEXT, check_out TEXT, status TEXT, method TEXT, PRIMARY KEY (emp_id, day))`,
+  `CREATE TABLE IF NOT EXISTS pc2_dk_sync (id INTEGER PRIMARY KEY, synced_at TIMESTAMPTZ, error TEXT, rows INTEGER)`,
   `UPDATE pc2_users SET pages = pages || ',/visitors/hires' WHERE role = 'guard' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
   `UPDATE pc2_roles SET pages = pages || ',/visitors/hires' WHERE sys_key = 'guard' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
   `UPDATE pc2_users SET pages = pages || ',/visitors/hires' WHERE role = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
@@ -210,7 +215,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-11-6';
+const SCHEMA_VERSION = '2026-11-12-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
