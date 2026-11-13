@@ -673,6 +673,8 @@ html[data-theme=dark] table.rost th.hol small{color:#9db4c9}
 table.rost td{font-size:11px;font-weight:600}
 
 table.rost td small{display:block;font-size:9px;font-weight:400;line-height:1}
+table.rost td .rtime{font-size:10px;font-weight:600;letter-spacing:-.2px;white-space:nowrap}
+table.rost th:not(.rn):not(.rsum),table.rost td:not(.rn):not(.rsum){min-width:38px;width:38px}
 
 .opdbar{height:8px;background:#ece9df;border-radius:4px;overflow:hidden;margin-bottom:3px}.opdbar span{display:block;height:100%;background:#E3AD21}
 

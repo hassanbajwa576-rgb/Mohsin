@@ -23,33 +23,42 @@ export const TINFO = {
 // Shown in today's cell for someone who has checked in today (not a type of time-off).
 export const WORKING = { label: 'Working (checked in today)', letter: 'W', color: '#c8ecd3' };
 
-/** For each day from..to (Karachi time): the lower-case names of employees who checked in. Roster people are matched by name. */
+/** Check-in text ("06:58 AM", "18:05") as 24-hour "HH:MM"; '' when it cannot be read. */
+function hhmm(t) {
+  const m = String(t || '').match(/^(\d{1,2}):(\d{2})\s*([AP]M)?$/i);
+  if (!m) return '';
+  const h = (Number(m[1]) % 12) + (/p/i.test(m[3] || '') ? 12 : 0);
+  return String(m[3] ? h : Number(m[1])).padStart(2, '0') + ':' + m[2];
+}
+
+function putTime(m, d, n, t) {
+  if (!m.has(d)) m.set(d, new Map());
+  const day = m.get(d);
+  if (!day.has(n) || (t && (!day.get(n) || t < day.get(n)))) day.set(n, t);
+}
+
+/** For each day from..to (Karachi time): Map lower-case name -> earliest check-in time "HH:MM". Roster people are matched by name. */
 export async function checkedInDays(from, to) {
   const r = await q(
-    `SELECT DISTINCT to_char(a.at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD') AS d, lower(s.name) AS n FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id
-     WHERE a.kind = 'in' AND a.at >= ($1::date::timestamp AT TIME ZONE 'Asia/Karachi') AND a.at < (($2::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi')`,
+    `SELECT to_char(a.at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD') AS d, lower(s.name) AS n, to_char(MIN(a.at AT TIME ZONE 'Asia/Karachi'), 'HH24:MI') AS t FROM pc2_attendance a JOIN pc2_staff s ON s.id = a.staff_id
+     WHERE a.kind = 'in' AND a.at >= ($1::date::timestamp AT TIME ZONE 'Asia/Karachi') AND a.at < (($2::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi')
+     GROUP BY 1, 2`,
     [from, to]
   );
   const m = new Map();
-  for (const x of r) {
-    if (!m.has(x.d)) m.set(x.d, new Set());
-    m.get(x.d).add(x.n);
-  }
+  for (const x of r) putTime(m, x.d, x.n, x.t);
   return m;
 }
 
-/** Dastarkhawan people who checked in (facial app) on each day from..to: Map date -> Set of lower-case names. */
+/** Dastarkhawan people who checked in (facial app) on each day from..to: Map date -> Map(lower-case name -> "HH:MM", '' if unreadable). */
 export async function dkCheckedInDays(from, to) {
   const r = await q(
-    `SELECT to_char(c.day, 'YYYY-MM-DD') AS d, lower(p.name) AS n FROM pc2_dk_checkins c JOIN pc2_hk_people p ON p.dk_emp_id = c.emp_id AND p.active AND p.team = 'dast'
+    `SELECT to_char(c.day, 'YYYY-MM-DD') AS d, lower(p.name) AS n, c.check_in AS t FROM pc2_dk_checkins c JOIN pc2_hk_people p ON p.dk_emp_id = c.emp_id AND p.active AND p.team = 'dast'
      WHERE c.day >= $1::date AND c.day <= $2::date AND COALESCE(c.check_in, '') <> ''`,
     [from, to]
   );
   const m = new Map();
-  for (const x of r) {
-    if (!m.has(x.d)) m.set(x.d, new Set());
-    m.get(x.d).add(x.n);
-  }
+  for (const x of r) putTime(m, x.d, x.n, hhmm(x.t));
   return m;
 }
 
