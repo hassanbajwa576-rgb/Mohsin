@@ -19,8 +19,12 @@ function Kpi({ label, value, sub, tone }) {
   );
 }
 
-export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today }) {
-  const qs = (o) => new URLSearchParams({ m: month, ...(who ? { who: String(who) } : {}), ...o }).toString();
+export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, siteDays, siteOpts, siteStats, multi }) {
+  const qs = (o) => {
+    const e = { m: month, ...(view !== 'grid' ? { v: view } : {}), ...(who ? { who: String(who) } : {}), ...o };
+    return new URLSearchParams(Object.entries(e).filter(([, x]) => x !== '')).toString();
+  };
+  const multiSet = new Set(multi);
   const tTotal = people.reduce((a, p) => a + p.total, 0);
   const tOver = people.reduce((a, p) => a + p.over, 0);
   const tShort = people.reduce((a, p) => a + p.short, 0);
@@ -40,19 +44,24 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
       </div>
       <Flash sp={sp} />
 
+      <div className='chips dka-tabs'>
+        {[['grid', 'Overview'], ['sites', 'Days per site'], ['ot', 'Overtime and PTO']].map(([k, l]) => <Link key={k} className={'chip' + (view === k ? ' on' : '')} href={'?' + qs({ v: k === 'grid' ? '' : k })}>{l}</Link>)}
+      </div>
+
       <div className='chips' style={{ marginBottom: 12, alignItems: 'center' }}>
         <Link className='chip' href={'?' + qs({ m: prev })}>&larr; {prev}</Link>
         <b style={{ padding: '0 8px' }}>{month}</b>
         <Link className='chip' href={'?' + qs({ m: next })}>{next} &rarr;</Link>
-        <Link className={'chip' + (!who ? ' on' : '')} href={'?' + new URLSearchParams({ m: month }).toString()}>Everyone</Link>
+        <Link className={'chip' + (!who ? ' on' : '')} href={'?' + qs({ who: '' })}>Everyone</Link>
         {team.map((p) => <Link key={p.id} className={'chip' + (who === p.id ? ' on' : '')} href={'?' + qs({ who: String(p.id) })}>{p.name}</Link>)}
       </div>
 
       <details id='addtime' className='dka-card' open={!!fix.p}>
         <summary>+ Add or correct a time by hand</summary>
-        <p className='muted' style={{ margin: '8px 0' }}>For when the facial app has no time or a wrong one. A time typed here replaces the facial-app time for that day; leave a field empty to keep the facial-app value. It is saved separately, so the facial app never overwrites it, and it counts as present on the roster.</p>
+        <p className='muted' style={{ margin: '8px 0' }}>For when the facial app has no time or a wrong one. A time typed here replaces the facial-app time for that day; leave a field empty to keep the facial-app value. It is saved separately, so the facial app never overwrites it, and it counts as present on the roster. For an incharge who works at several sites, also pick the site they were at that day (the site alone can be saved without any time).</p>
         <form action={save} className='dka-form'>
           <input type='hidden' name='m' value={month} />
+          <input type='hidden' name='v' value={view === 'grid' ? '' : view} />
           <label>Team member
             <select name='id' required defaultValue={fix.p || ''}>
               <option value='' disabled>Pick a person</option>
@@ -62,6 +71,15 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           <label>Date<input type='date' name='day' required max={today} defaultValue={fix.d || ''} /></label>
           <label>Check in<input type='time' name='in' defaultValue={fix.in || ''} /></label>
           <label>Check out<input type='time' name='out' defaultValue={fix.out || ''} /></label>
+          {siteOpts.length ? (
+            <label>Site (incharges)
+              <select name='site' defaultValue={fix.site || ''}>
+                <option value=''>No change</option>
+                {siteOpts.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value='-'>Remove the site</option>
+              </select>
+            </label>
+          ) : null}
           <label style={{ flex: '1 1 180px' }}>Note (optional)<input name='note' maxLength={200} placeholder='e.g. facial app was down' defaultValue={fix.note || ''} /></label>
           <button type='submit' className='btn'>Save time</button>
         </form>
@@ -69,6 +87,8 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
 
       {people.length ? (
         <>
+          {view === 'grid' ? (
+            <>
           <div className='dka-kpis'>
             <Kpi label='Team duty time' value={hm(tTotal)} sub={people.length + ' ' + (people.length === 1 ? 'person' : 'people') + ' in ' + month} />
             <Kpi label='Overtime this month' value={tOver ? hm(tOver) : '-'} sub='time beyond 8 h a day' tone={tOver ? 'good' : ''} />
@@ -76,7 +96,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
             <Kpi label='Overtime to convert' value={h1(tLeft) + ' h'} sub={tDays ? '= ' + tDays + ' PTO day' + (tDays === 1 ? '' : 's') + ' ready' : 'under ' + OT_BLOCK_H + ' h each'} tone={tDays ? 'good' : ''} />
           </div>
 
-          <h2 className='dka-h'>Day by day</h2>
+          
           <div className='dkg-wrap'>
             <table className='dkg'>
               <thead>
@@ -101,9 +121,10 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                       {dates.map((key) => {
                         const d = by.get(key);
                         const we = dow(key) === 0 || dow(key) === 6;
+                        const site = multiSet.has(p.id) ? siteDays[p.id + '|' + key] : '';
                         let cls = '';
                         let txt = '';
-                        let tip = p.name + ', ' + DOW[dow(key)] + ' ' + key.slice(8);
+                        let tip = p.name + ', ' + DOW[dow(key)] + ' ' + key.slice(8) + (site ? ' at ' + site : '');
                         if (d) {
                           if (d.mins == null) {
                             cls = 'am';
@@ -115,10 +136,13 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                             tip += ': ' + d.check_in + ' to ' + d.check_out + ' = ' + hm(d.mins) + (d.mins > DUTY_MIN ? ' (+' + hm(d.mins - DUTY_MIN) + ' overtime)' : '');
                           }
                           tip += d.manual ? ' (typed by hand' + (d.note ? ': ' + d.note : '') + ')' : ' (facial app)';
-                        } else if (key <= today) tip += ': no time. Click to add one.';
+                        } else {
+                          if (site) cls = 'sg';
+                          if (key <= today) tip += ': no time. Click to add one.';
+                        }
                         return (
                           <td key={key} className={'c ' + cls + (we ? ' we' : '') + (d && d.manual ? ' man' : '')} title={tip}>
-                            {key <= today ? <Link href={'?' + qs({ p: String(p.id), d: key }) + '#addtime'}>{txt || '\u00a0'}</Link> : null}
+                            {key <= today ? <Link href={'?' + qs({ p: String(p.id), d: key }) + '#addtime'}>{txt || (site ? '' : '\u00a0')}{site ? <small className='st'>{site}</small> : null}</Link> : null}
                           </td>
                         );
                       })}
@@ -137,7 +161,8 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
             <span><i className='r' />under 8 h</span>
             <span><i className='am' />no check out yet</span>
             <span><i className='man' />typed by hand</span>
-            <span className='muted'>Numbers are duty hours. Click any day to add or correct a time; click a name for in and out times. Totals are in hours.</span>
+            <span><i className='sg' />site only, no time</span>
+            <span className='muted'>Numbers are duty hours; the small code under them is the site an incharge was at. Click any day to add or correct a time or pick a site; click a name for in and out times. Totals are in hours.</span>
           </div>
 
           {who ? <h2 className='dka-h'>In and out times</h2> : null}
@@ -191,6 +216,10 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
             </details>
           )) : null}
 
+            </>
+          ) : null}
+          {view === 'ot' ? (
+            <>
           <h2 className='dka-h'>Overtime and PTO</h2>
           <div className='rostable'>
             <table className='tx dka-sum'>
@@ -216,8 +245,44 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
               </tbody>
             </table>
           </div>
+            </>
+          ) : null}
         </>
-      ) : <p className='muted'>No check-ins for {month}. Use the form above to add a time by hand.</p>}
+      ) : null}
+      {view === 'sites' ? (
+        <>
+          <h2 className='dka-h'>Days per site</h2>
+          {siteStats.length ? (
+            <>
+              <p className='muted' style={{ margin: '0 0 10px' }}>For people who work at several sites: the days of {month} they spent at each site, as picked on the Overview (click a day and choose the site). {siteStats.some((r) => r.unset) ? 'Days they were present but no site was picked show under Not set.' : ''}</p>
+              <div className='rostable'>
+                <table className='tx dka-sum'>
+                  <thead><tr><th>Team member</th>{siteOpts.map((c) => <th key={c}>{c}</th>)}<th>Days with a site</th><th>Not set</th></tr></thead>
+                  <tbody>
+                    {siteStats.map((r) => (
+                      <tr key={r.id}>
+                        <td className='c-title'><b>{r.name}</b></td>
+                        {siteOpts.map((c) => (
+                          <td key={c} className={'c-meta' + (c in r.counts ? '' : ' hide-m')}>
+                            <small className='dklbl'>{c} </small>
+                            {c in r.counts ? <b className={'dka-days' + (r.counts[c] ? ' on' : '')}>{r.counts[c]}</b> : <span className='muted'>-</span>}
+                          </td>
+                        ))}
+                        <td className='c-meta'><small className='dklbl'>With a site </small><b>{r.set}</b></td>
+                        <td className='c-meta'>
+                          <small className='dklbl'>Not set </small>
+                          {r.unset ? <Link href={'?' + qs({ v: '', who: String(r.id) })} title='Open the Overview and click those days to pick the site'><span className='dka-pill warn'>{r.unset} day{r.unset === 1 ? '' : 's'}</span></Link> : <span className='muted'>-</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : <p className='muted'>Nobody here is mapped to more than one site. Map an incharge to several sites on the roster to track the days they spend at each.</p>}
+        </>
+      ) : null}
+      {!people.length && view !== 'sites' ? <p className='muted'>No check-ins for {month}. Use the form above to add a time by hand.</p> : null}
     </>
   );
 }

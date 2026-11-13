@@ -2059,3 +2059,12 @@ html[data-theme=dark] table.dkg td.c.we:not(.g):not(.r):not(.am){background:rgba
   table.dkg td.rn .dkg-site{font-size:9px;padding:0 4px;margin:0 0 1px}
   table.dkg td.c a{padding:9px 0}
 }
+
+/* Dastarkhawan attendance: tabs, site tags and days per site */
+.dka-tabs{margin-bottom:12px}
+table.dkg td.c small.st{display:block;font-size:8px;line-height:1;font-weight:700;margin-top:-4px;padding-bottom:3px;opacity:.95}
+table.dkg td.sg{background:#5a6a85;color:#fff}
+.dkg-legend i.sg{background:#5a6a85}
+.dka-days{display:inline-block;min-width:26px;text-align:center;padding:2px 6px;border-radius:6px;background:rgba(128,128,128,.18)}
+.dka-days.on{background:rgba(47,111,219,.22);color:#1f4fa8}
+html[data-theme=dark] .dka-days.on{color:#8db4ff}
