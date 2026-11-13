@@ -1959,3 +1959,55 @@ html[data-theme=dark] table.rost td[style*='#ddd6ee'],html[data-theme=dark] .ros
 html[data-theme=dark] table.rost td[style*='#d3efdb'],html[data-theme=dark] .roslegend i[style*='#d3efdb']{background:#12908e!important;background-image:none!important;color:#fff!important}
 html[data-theme=dark] table.rost td[style*='#fbeab5'],html[data-theme=dark] .roslegend i[style*='#fbeab5']{background:#d99a00!important;background-image:none!important;color:#1a1205!important}
 html[data-theme=dark] table.rost td[style*='#e4e4e4'],html[data-theme=dark] .roslegend i[style*='#e4e4e4']{background:#6b7280!important;background-image:none!important;color:#fff!important}
+
+/* Dastarkhawan attendance page */
+.dka-t.g{color:#17753a}.dka-t.r{color:#a01818}.dka-t{font-weight:700}
+.dka-card,.dka-person,.dka-kpi{background:var(--card,#fff);border:1px solid var(--line);border-radius:10px}
+.dka-card{padding:10px 14px;margin-bottom:16px}
+.dka-card>summary{cursor:pointer;font-weight:600}
+.dka-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.dka-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:0 0 18px}
+.dka-kpi{padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+.dka-kpi span{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
+.dka-kpi b{font-size:22px;line-height:1.2}
+.dka-kpi small{font-size:12px;color:var(--mut)}
+.dka-kpi.good b{color:#17753a}.dka-kpi.bad b{color:#a01818}
+.dka-h{margin:22px 0 8px;font-size:17px}
+.dka-pill{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(128,128,128,.2);white-space:nowrap}
+.dka-pill.ok{background:rgba(31,138,76,.2);color:#17753a}
+.dka-pill.man{background:rgba(217,154,0,.28)}
+.dka-pill.warn{background:rgba(194,59,59,.18);color:#a01818;margin-left:0}
+.dka-person{margin-bottom:12px;overflow:hidden}
+.dka-person>summary{list-style:none;cursor:pointer;padding:11px 14px;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center}
+.dka-person>summary::-webkit-details-marker{display:none}
+.dka-person>summary::before{content:'\25B8';color:var(--mut);margin-right:-6px}
+.dka-person[open]>summary::before{content:'\25BE'}
+.dka-stat{font-size:13px;color:var(--mut)}
+.dka-row{display:grid;grid-template-columns:78px 200px minmax(170px,1fr) 80px 160px 150px;gap:6px 14px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:13px}
+.dka-head{background:var(--surface,#f1efe8);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);padding-top:6px;padding-bottom:6px}
+.dka-date b{font-size:15px}
+.dka-times i{font-style:normal;color:var(--mut);padding:0 4px}
+.dka-barcell{display:flex;align-items:center;gap:10px}
+.dka-bar{position:relative;flex:1;height:10px;border-radius:5px;background:rgba(128,128,128,.22)}
+.dka-bar .dka-f{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+.dka-bar .dka-f.g{background:#1f8a4c}.dka-bar .dka-f.r{background:#c23b3b}
+.dka-bar u{position:absolute;top:-3px;bottom:-3px;left:66.667%;width:2px;background:var(--ink,#000);opacity:.6;text-decoration:none}
+.dka-barcell .dka-t{min-width:58px;text-align:right}
+.dka-src{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.dka-src .dka-pill{margin-left:0}
+.dka-act{display:flex;gap:10px;align-items:center}
+.dka-act form{display:inline}
+.btn.sm{padding:2px 8px;font-size:12px}
+.dka-sum td .dka-pill{margin-left:8px}
+html[data-theme=dark] .dka-t.g,html[data-theme=dark] .dka-kpi.good b,html[data-theme=dark] .dka-pill.ok{color:#4ade80}
+html[data-theme=dark] .dka-t.r,html[data-theme=dark] .dka-kpi.bad b,html[data-theme=dark] .dka-pill.warn{color:#f87171}
+@media (max-width:720px){
+  .dka-head{display:none}
+  .dka-row{grid-template-columns:1fr auto;padding:10px 12px;gap:6px 10px}
+  .dka-date{grid-column:1;font-size:14px}
+  .dka-act{grid-column:2;grid-row:1;justify-self:end}
+  .dka-times,.dka-barcell{grid-column:1/-1}
+  .dka-ot{grid-column:1}
+  .dka-ot .muted{display:none}
+  .dka-src{grid-column:2;align-items:flex-end}
+}
