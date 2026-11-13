@@ -194,7 +194,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
         <div className='roslegend'>
           {(dast ? TYPES.filter(([k]) => k === 'pto') : TYPES).map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{letter}</i>{l}</span>)}
           <span><i className='hollegend'>H</i>Holiday</span>
-          <span><i style={{ background: WORKING.color }}>{WORKING.letter}</i>Worked (shows the check-in time{dast ? ': facial app or OpsTrack attendance, hover to see which' : ''})</span>
+          <span><i style={{ background: WORKING.color }}>{WORKING.letter}</i>Worked (checked in{dast ? ': facial app or OpsTrack attendance, hover to see which' : ''})</span>
           <Link href={base + '?' + qp({ only: onlyOff ? '' : '1' })} className='rosall'>{onlyOff ? 'Show the whole team' : 'Show only people with time-off'}</Link>
         </div>
         {rows.length ? (
@@ -221,13 +221,12 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                     const inApp = !!checked.get(key) && checked.get(key).has(lname);
                     const inDk = !!dkDays.get(key) && dkDays.get(key).has(lname);
                     const w = !t && key <= today && (inApp || inDk);
-                    const at = w ? [inApp ? checked.get(key).get(lname) : '', inDk ? dkDays.get(key).get(lname) : ''].filter(Boolean).sort()[0] || '' : '';
                     const src = inApp && inDk ? 'facial app and OpsTrack attendance' : inDk ? 'facial app' : 'OpsTrack attendance';
                     if (w) worked += 1;
                     if (t && e.hours == null) offDays += 1;
                     return (
-                      <td key={key} className={(wd(key) === 0 || wd(key) === 6 ? 'we ' : '') + (h && !t && !w ? 'hol' : '')} style={t ? { background: t.color } : w ? { background: WORKING.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : w ? p.name + ': ' + WORKING.label + (at ? ' at ' + at : '') + ', ' + shortDay(key) + (dast ? ' (from the ' + src + ')' : '') : h ? hol.get(key) : undefined}>
-                        {t ? t.letter : w ? (at ? <span className='rtime'>{at}</span> : WORKING.letter) : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
+                      <td key={key} className={(wd(key) === 0 || wd(key) === 6 ? 'we ' : '') + (h && !t && !w ? 'hol' : '')} style={t ? { background: t.color } : w ? { background: WORKING.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : w ? p.name + ': ' + WORKING.label + ', ' + shortDay(key) + (dast ? ' (from the ' + src + ')' : '') : h ? hol.get(key) : undefined}>
+                        {t ? t.letter : w ? WORKING.letter : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
                       </td>
                     );
                   });
