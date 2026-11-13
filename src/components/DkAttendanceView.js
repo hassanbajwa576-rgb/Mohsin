@@ -4,6 +4,7 @@ import Flash from '@/components/Flash';
 import ConfirmButton from '@/components/ConfirmButton';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DOW1 = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // one letter in the grid header keeps the columns narrow
 const dow = (d) => new Date(d + 'T00:00:00Z').getUTCDay();
 const h1 = (v) => String(Math.round(v * 10) / 10);
 const pct = (m) => Math.max(0, Math.min(100, (m / 720) * 100)); // the bar runs 0 to 12 hours; the line sits at 8
@@ -81,7 +82,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
               <thead>
                 <tr>
                   <th className='rn'>Team member</th>
-                  {dates.map((key) => <th key={key} className={(dow(key) === 0 || dow(key) === 6 ? 'we ' : '') + (key === today ? 'tod' : '')}>{Number(key.slice(8))}<small>{DOW[dow(key)]}</small></th>)}
+                  {dates.map((key) => <th key={key} title={DOW[dow(key)] + ' ' + key.slice(8)} className={(dow(key) === 0 || dow(key) === 6 ? 'we ' : '') + (key === today ? 'tod' : '')}>{Number(key.slice(8))}<small>{DOW1[dow(key)]}</small></th>)}
                   <th className='sum' title='Days with a check in'>Days</th>
                   <th className='sum' title='Total duty time'>Total</th>
                   <th className='sum' title='Overtime (time beyond 8 hours a day)'>OT</th>
