@@ -1951,14 +1951,19 @@ html[data-theme=dark] .otag.tc5{color:#e0bd9a;border-color:#8a6444;background:#2
 .dklbl{display:none}
 @media (max-width:720px){.dklbl{display:inline;color:var(--mut);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}}
 
-/* Roster, dark theme: every cell colour is vivid and different, so W (worked) and each time-off type read at a glance. */
-html[data-theme=dark] table.rost td[style*='#c8ecd3'],html[data-theme=dark] .roslegend i[style*='#c8ecd3']{background:#1f8a4c!important;background-image:none!important;color:#fff!important}
-html[data-theme=dark] table.rost td[style*='#cfe3fb'],html[data-theme=dark] .roslegend i[style*='#cfe3fb']{background:#2f6fdb!important;background-image:none!important;color:#fff!important}
-html[data-theme=dark] table.rost td[style*='#f9d3d3'],html[data-theme=dark] .roslegend i[style*='#f9d3d3']{background:#c23b3b!important;background-image:none!important;color:#fff!important}
-html[data-theme=dark] table.rost td[style*='#ddd6ee'],html[data-theme=dark] .roslegend i[style*='#ddd6ee']{background:#7b4fc4!important;background-image:none!important;color:#fff!important}
-html[data-theme=dark] table.rost td[style*='#d3efdb'],html[data-theme=dark] .roslegend i[style*='#d3efdb']{background:#12908e!important;background-image:none!important;color:#fff!important}
-html[data-theme=dark] table.rost td[style*='#fbeab5'],html[data-theme=dark] .roslegend i[style*='#fbeab5']{background:#d99a00!important;background-image:none!important;color:#1a1205!important}
-html[data-theme=dark] table.rost td[style*='#e4e4e4'],html[data-theme=dark] .roslegend i[style*='#e4e4e4']{background:#6b7280!important;background-image:none!important;color:#fff!important}
+/* Roster, dark theme: vivid distinct colours per type. Keyed on classes (rk-*), not the inline colour text, which the browser rewrites to rgb() after in-app navigation. */
+html[data-theme=dark] table.rost td.rk-w,html[data-theme=dark] .roslegend i.rk-w{background:#1f8a4c!important;background-image:none!important;color:#fff!important}
+html[data-theme=dark] table.rost td.rk-pto,html[data-theme=dark] .roslegend i.rk-pto{background:#2f6fdb!important;background-image:none!important;color:#fff!important}
+html[data-theme=dark] table.rost td.rk-annual,html[data-theme=dark] .roslegend i.rk-annual{background:#2f6fdb!important;background-image:none!important;color:#fff!important}
+html[data-theme=dark] table.rost td.rk-ptom,html[data-theme=dark] .roslegend i.rk-ptom{background:#c23b3b!important;background-image:none!important;color:#fff!important}
+html[data-theme=dark] table.rost td.rk-sick,html[data-theme=dark] .roslegend i.rk-sick{background:#c23b3b!important;background-image:none!important;color:#fff!important}
+html[data-theme=dark] table.rost td.rk-bereavement,html[data-theme=dark] .roslegend i.rk-bereavement{background:#7b4fc4!important;background-image:none!important;color:#fff!important}
+html[data-theme=dark] table.rost td.rk-cpto,html[data-theme=dark] .roslegend i.rk-cpto{background:#12908e!important;background-image:none!important;color:#fff!important}
+html[data-theme=dark] table.rost td.rk-weekly,html[data-theme=dark] .roslegend i.rk-weekly{background:#12908e!important;background-image:none!important;color:#fff!important}
+html[data-theme=dark] table.rost td.rk-wfh,html[data-theme=dark] .roslegend i.rk-wfh{background:#12908e!important;background-image:none!important;color:#fff!important}
+html[data-theme=dark] table.rost td.rk-unpaid,html[data-theme=dark] .roslegend i.rk-unpaid{background:#d99a00!important;background-image:none!important;color:#1a1205!important}
+html[data-theme=dark] table.rost td.rk-casual,html[data-theme=dark] .roslegend i.rk-casual{background:#d99a00!important;background-image:none!important;color:#1a1205!important}
+html[data-theme=dark] table.rost td.rk-other,html[data-theme=dark] .roslegend i.rk-other{background:#6b7280!important;background-image:none!important;color:#fff!important}
 
 /* Dastarkhawan attendance page */
 .dka-t.g{color:#17753a}.dka-t.r{color:#a01818}.dka-t{font-weight:700}
