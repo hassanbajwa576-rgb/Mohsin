@@ -192,7 +192,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
 
       <div className='card'>
         <div className='roslegend'>
-          {(dast ? TYPES.filter(([k]) => k === 'pto') : TYPES).map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{letter}</i>{l}</span>)}
+          {(dast ? TYPES.filter(([k]) => k === 'pto') : TYPES).map(([k, l, letter, color]) => <span key={k}><i style={{ background: color }}>{dast && k === 'pto' ? 'L' : letter}</i>{dast && k === 'pto' ? 'PTO (Leave)' : l}</span>)}
           <span><i className='hollegend'>H</i>Holiday</span>
           <span><i style={{ background: WORKING.color }}>{WORKING.letter}</i>Worked (checked in{dast ? ': facial app or OpsTrack attendance, hover to see which' : ''})</span>
           <Link href={base + '?' + qp({ only: onlyOff ? '' : '1' })} className='rosall'>{onlyOff ? 'Show the whole team' : 'Show only people with time-off'}</Link>
@@ -226,7 +226,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                     if (t && e.hours == null) offDays += 1;
                     return (
                       <td key={key} className={(wd(key) === 0 || wd(key) === 6 ? 'we ' : '') + (h && !t && !w ? 'hol' : '')} style={t ? { background: t.color } : w ? { background: WORKING.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : w ? p.name + ': ' + WORKING.label + ', ' + shortDay(key) + (dast ? ' (from the ' + src + ')' : '') : h ? hol.get(key) : undefined}>
-                        {t ? t.letter : w ? WORKING.letter : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
+                        {t ? (dast && e.kind === 'pto' ? 'L' : t.letter) : w ? WORKING.letter : dast && h ? 'H' : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
                       </td>
                     );
                   });
