@@ -4,8 +4,8 @@ import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey } from '@/lib/att';
 import { validMonth, shiftMonth, hkPeople, addDays } from '@/lib/roster';
 import { syncDk } from '@/lib/dk-sync';
-import { dkDayRows, dkOvertime, DUTY_MIN } from '@/lib/dk-hours';
-import { convertOvertime } from '@/lib/roster-actions';
+import { dkDayRows, dkOvertime, DUTY_MIN, to24 } from '@/lib/dk-hours';
+import { convertOvertime, saveDkTime, clearDkTime } from '@/lib/roster-actions';
 import DkAttendanceView from '@/components/DkAttendanceView';
 
 export const dynamic = 'force-dynamic';
@@ -38,5 +38,10 @@ export default async function DastarkhawanAttendance({ searchParams }) {
     const short = done.reduce((a, d) => a + Math.max(0, DUTY_MIN - d.mins), 0);
     return { ...p, present: p.days.length, counted: done.length, total, over, short, bank: ot.get(p.id) || { earned: 0, used: 0, left: 0, days: 0 } };
   });
-  return <DkAttendanceView sp={sp} month={month} prev={shiftMonth(month, -1)} next={shiftMonth(month, 1)} who={who} team={team} people={people} om={om} convert={convertOvertime} />;
+  // "Add time" / "Edit" on a row opens the form for that person and day, with the current times filled in.
+  const hit = rows.find((r) => String(r.person_id) === String(sp.p) && r.day === sp.d);
+  const fix = team.some((p) => String(p.id) === String(sp.p)) && /^\d{4}-\d{2}-\d{2}$/.test(sp.d || '')
+    ? { p: String(sp.p), d: sp.d, in: hit ? to24(hit.check_in) : '', out: hit ? to24(hit.check_out) : '', note: hit && hit.manual ? hit.note || '' : '' }
+    : {};
+  return <DkAttendanceView sp={sp} month={month} prev={shiftMonth(month, -1)} next={shiftMonth(month, 1)} who={who} team={team} people={people} om={om} convert={convertOvertime} save={saveDkTime} clear={clearDkTime} fix={fix} today={today} />;
 }

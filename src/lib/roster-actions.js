@@ -12,7 +12,7 @@ import { TLABEL, ALLOWED, holidaysBetween, addDays, siteList } from './roster';
 import { OPD_LIMIT } from './hk-opd';
 import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from './teams';
 import { syncDk } from './dk-sync';
-import { dkOvertime, OT_BLOCK_H } from './dk-hours';
+import { dkOvertime, OT_BLOCK_H, fmt12 } from './dk-hours';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const ROOT = '/attendance/hk-roster';
@@ -466,4 +466,41 @@ export async function convertOvertime(fd) {
   await q(`INSERT INTO pc2_hk_allow (person_id, year, kind, days) VALUES ($1, $2, 'pto', $3) ON CONFLICT (person_id, year, kind) DO UPDATE SET days = pc2_hk_allow.days + EXCLUDED.days`, [id, year, ot.days]);
   await logEvent(u, 'edit', 'hk_person', id, p.name + ': ' + hours + ' overtime hours converted to ' + ot.days + ' PTO day(s) for ' + year, null, null);
   back(here, p.name + ': ' + hours + ' overtime hours converted to ' + ot.days + ' PTO day(s) (' + year + ' allowance)', true);
+}
+
+// Dastarkhawan: type in (or correct) the check in / check out of one person for one day, for when the facial app has no time.
+export async function saveDkTime(fd) {
+  const u = await need('dast');
+  const m = s(fd, 'm');
+  const here = DAST + '/attendance?m=' + encodeURIComponent(m);
+  const id = Number(s(fd, 'id'));
+  const p = (await q(`SELECT id, name FROM pc2_hk_people WHERE id = $1 AND team = 'dast'`, [Number.isInteger(id) ? id : 0]))[0];
+  if (!p) back(here, 'Pick a team member');
+  const day = s(fd, 'day');
+  if (!dateOk(day) || day > todayKey()) back(here, 'Pick a date that is not in the future');
+  const ci = s(fd, 'in') ? fmt12(s(fd, 'in')) : '';
+  const co = s(fd, 'out') ? fmt12(s(fd, 'out')) : '';
+  if ((s(fd, 'in') && !ci) || (s(fd, 'out') && !co)) back(here, 'That time is not valid');
+  if (!ci && !co) back(here, 'Enter a check in time, a check out time, or both');
+  const note = s(fd, 'note').slice(0, 200);
+  await q(
+    `INSERT INTO pc2_dk_manual (person_id, day, check_in, check_out, note, by_id, at) VALUES ($1, $2::date, $3, $4, $5, $6, now())
+     ON CONFLICT (person_id, day) DO UPDATE SET check_in = EXCLUDED.check_in, check_out = EXCLUDED.check_out, note = EXCLUDED.note, by_id = EXCLUDED.by_id, at = now()`,
+    [id, day, ci, co, note, u.id]
+  );
+  await logEvent(u, 'edit', 'hk_person', id, p.name + ': ' + day + ' time entered by hand (in ' + (ci || '-') + ', out ' + (co || '-') + ')' + (note ? ' - ' + note : ''), null, null);
+  back(DAST + '/attendance?m=' + encodeURIComponent(day.slice(0, 7)), p.name + ': ' + day + ' saved (' + (ci || '-') + ' to ' + (co || '-') + ')', true);
+}
+
+// Dastarkhawan: removes a hand-typed time, so the facial-app time (if any) shows again.
+export async function clearDkTime(fd) {
+  const u = await need('dast');
+  const day = s(fd, 'day');
+  const here = DAST + '/attendance?m=' + encodeURIComponent(day.slice(0, 7));
+  const id = Number(s(fd, 'id'));
+  const p = (await q(`SELECT id, name FROM pc2_hk_people WHERE id = $1 AND team = 'dast'`, [Number.isInteger(id) ? id : 0]))[0];
+  if (!p || !dateOk(day)) back(here, 'That entry was not found');
+  await q(`DELETE FROM pc2_dk_manual WHERE person_id = $1 AND day = $2::date`, [id, day]);
+  await logEvent(u, 'delete', 'hk_person', id, p.name + ': ' + day + ' hand-typed time removed', null, null);
+  back(here, p.name + ': ' + day + ' hand-typed time removed', true);
 }

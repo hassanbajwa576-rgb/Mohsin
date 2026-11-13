@@ -22,13 +22,38 @@ export function dutyMin(ci, co) {
 
 export const hm = (min) => (min == null ? '-' : Math.floor(min / 60) + 'h ' + String(Math.round(min % 60)).padStart(2, '0') + 'm');
 
-/** Every stored day of the active Dastarkhawan people (linked to the facial app) in from..to (YYYY-MM-DD). */
+/** "09:05" (24-hour, from a time input) as "09:05 AM", the same text the facial app uses. */
+export function fmt12(hhmm) {
+  const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return '';
+  const h = Number(m[1]);
+  return String((h % 12) || 12).padStart(2, '0') + ':' + m[2] + ' ' + (h < 12 ? 'AM' : 'PM');
+}
+
+/** Text like "09:05 AM" back to "09:05" for a time input. */
+export function to24(t) {
+  const n = toMin(t);
+  return n == null ? '' : String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+}
+
+/** Every stored day of the active Dastarkhawan people in from..to (YYYY-MM-DD): facial-app times, with times typed in by hand taking over (or filling in) per field. */
 export async function dkDayRows(from, to, personId = 0) {
   const r = await q(
-    `SELECT p.id AS person_id, p.name, to_char(c.day, 'YYYY-MM-DD') AS day, c.check_in, c.check_out, s.site
-       FROM pc2_dk_checkins c JOIN pc2_hk_people p ON p.dk_emp_id = c.emp_id AND p.active AND p.team = 'dast' LEFT JOIN pc2_dk_staff s ON s.emp_id = c.emp_id
-      WHERE c.day >= $1::date AND c.day <= $2::date AND COALESCE(c.check_in, '') <> '' AND ($3::int = 0 OR p.id = $3::int)
-      ORDER BY p.name, c.day`,
+    `WITH f AS (
+       SELECT p.id AS pid, p.name, c.day, c.check_in, c.check_out, s.site
+         FROM pc2_dk_checkins c JOIN pc2_hk_people p ON p.dk_emp_id = c.emp_id AND p.active AND p.team = 'dast' LEFT JOIN pc2_dk_staff s ON s.emp_id = c.emp_id
+        WHERE c.day >= $1::date AND c.day <= $2::date AND COALESCE(c.check_in, '') <> '' AND ($3::int = 0 OR p.id = $3::int)
+     ), m AS (
+       SELECT p.id AS pid, p.name, m.day, m.check_in, m.check_out, m.note, p.site
+         FROM pc2_dk_manual m JOIN pc2_hk_people p ON p.id = m.person_id AND p.active AND p.team = 'dast'
+        WHERE m.day >= $1::date AND m.day <= $2::date AND ($3::int = 0 OR p.id = $3::int)
+     )
+     SELECT COALESCE(f.pid, m.pid) AS person_id, COALESCE(f.name, m.name) AS name, to_char(COALESCE(f.day, m.day), 'YYYY-MM-DD') AS day,
+            COALESCE(NULLIF(m.check_in, ''), f.check_in, '') AS check_in, COALESCE(NULLIF(m.check_out, ''), f.check_out, '') AS check_out,
+            COALESCE(f.site, m.site, '') AS site, (m.pid IS NOT NULL) AS manual, m.note,
+            COALESCE(f.check_in, '') AS app_in, COALESCE(f.check_out, '') AS app_out
+       FROM f FULL JOIN m ON m.pid = f.pid AND m.day = f.day
+      ORDER BY 2, 3`,
     [from, to, personId]
   );
   return r.map((x) => ({ ...x, mins: dutyMin(x.check_in, x.check_out) }));

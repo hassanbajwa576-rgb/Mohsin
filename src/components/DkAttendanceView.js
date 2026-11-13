@@ -7,7 +7,7 @@ const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dow = (d) => new Date(d + 'T00:00:00Z').getUTCDay();
 const h1 = (v) => String(Math.round(v * 10) / 10);
 
-export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert }) {
+export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today }) {
   const qs = (o) => new URLSearchParams({ m: month, ...(who ? { who: String(who) } : {}), ...o }).toString();
 
   return (
@@ -27,6 +27,25 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
         <Link className={'chip' + (!who ? ' on' : '')} href={'?' + new URLSearchParams({ m: month }).toString()}>Everyone</Link>
         {team.map((p) => <Link key={p.id} className={'chip' + (who === p.id ? ' on' : '')} href={'?' + qs({ who: String(p.id) })}>{p.name}</Link>)}
       </div>
+
+      <details id='addtime' className='card' open={!!fix.p} style={{ marginBottom: 16, padding: 12 }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Add or correct a time by hand</summary>
+        <p className='muted' style={{ margin: '8px 0' }}>Use this when the facial app has no time or a wrong one. A time typed here replaces the facial-app time for that day; leave a field empty to keep the facial-app value. It is saved separately, so the facial app never overwrites it, and it counts as present on the roster.</p>
+        <form action={save} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+          <input type='hidden' name='m' value={month} />
+          <label>Team member
+            <select name='id' required defaultValue={fix.p || ''}>
+              <option value='' disabled>Pick a person</option>
+              {team.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </label>
+          <label>Date<input type='date' name='day' required max={today} defaultValue={fix.d || ''} /></label>
+          <label>Check in<input type='time' name='in' defaultValue={fix.in || ''} /></label>
+          <label>Check out<input type='time' name='out' defaultValue={fix.out || ''} /></label>
+          <label style={{ flex: '1 1 180px' }}>Note (optional)<input name='note' maxLength={200} placeholder='e.g. facial app was down' defaultValue={fix.note || ''} /></label>
+          <button type='submit' className='btn'>Save time</button>
+        </form>
+      </details>
 
       {people.length ? (
         <>
@@ -63,7 +82,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           <h2 style={{ marginTop: 24 }}>Daily attendance</h2>
           <div className='rostable'>
             <table className='tx'>
-              <thead><tr><th>Team member</th><th>Date</th><th>Check in</th><th>Check out</th><th>Duty time</th><th>Overtime</th></tr></thead>
+              <thead><tr><th>Team member</th><th>Date</th><th>Check in</th><th>Check out</th><th>Duty time</th><th>Overtime</th><th>Source</th><th></th></tr></thead>
               <tbody>
                 {people.flatMap((p) => [
                   ...p.days.map((d) => (
@@ -74,19 +93,31 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                       <td className='c-meta'><small className='dklbl'>Out </small>{d.check_out || <span className='muted'>(no check out)</span>}</td>
                       <td className='c-meta' style={{ fontWeight: 600, color: d.mins == null ? undefined : d.mins >= DUTY_MIN ? '#17753a' : '#a01818' }}><small className='dklbl'>Duty </small>{hm(d.mins)}</td>
                       <td className='c-meta'><small className='dklbl'>OT </small>{d.mins != null && d.mins > DUTY_MIN ? hm(d.mins - DUTY_MIN) : '-'}</td>
+                      <td className='c-meta' title={d.note || undefined}>{d.manual ? (d.app_in || d.app_out ? 'Facial app + manual' : 'Manual') : 'Facial app'}{d.manual && d.note ? <small className='muted'> {d.note}</small> : null}</td>
+                      <td className='c-meta'>
+                        <Link href={'?' + qs({ p: String(p.id), d: d.day }) + '#addtime'}>{!d.check_out ? 'Add time' : 'Edit'}</Link>
+                        {d.manual ? (
+                          <form action={clear} style={{ display: 'inline', marginLeft: 8 }}>
+                            <input type='hidden' name='id' value={p.id} />
+                            <input type='hidden' name='day' value={d.day} />
+                            <ConfirmButton className='btn' message={'Remove the hand-typed time of ' + p.name + ' on ' + d.day + '?'}>Remove</ConfirmButton>
+                          </form>
+                        ) : null}
+                      </td>
                     </tr>
                   )),
                   <tr key={p.id + 'tot'} style={{ background: 'var(--surface,#f1efe8)' }}>
                     <td colSpan={4}><b>{p.name}: total for {month}</b></td>
                     <td><b>{hm(p.total)}</b></td>
                     <td><b>{p.over ? hm(p.over) : '-'}</b></td>
+                    <td colSpan={2}></td>
                   </tr>,
                 ])}
               </tbody>
             </table>
           </div>
         </>
-      ) : <p className='muted'>No check-ins from the facial app for {month}.</p>}
+      ) : <p className='muted'>No check-ins for {month}. Use the form above to add a time by hand.</p>}
     </>
   );
 }

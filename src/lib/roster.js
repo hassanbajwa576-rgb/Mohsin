@@ -45,8 +45,14 @@ export async function dkCheckedInDays(from, to) {
      WHERE c.day >= $1::date AND c.day <= $2::date AND COALESCE(c.check_in, '') <> ''`,
     [from, to]
   );
+  // Times typed in by hand (when the facial app has none) count as a check in too.
+  const man = await q(
+    `SELECT to_char(m.day, 'YYYY-MM-DD') AS d, lower(p.name) AS n FROM pc2_dk_manual m JOIN pc2_hk_people p ON p.id = m.person_id AND p.active AND p.team = 'dast'
+     WHERE m.day >= $1::date AND m.day <= $2::date AND COALESCE(m.check_in, '') <> ''`,
+    [from, to]
+  );
   const m = new Map();
-  for (const x of r) {
+  for (const x of [...r, ...man]) {
     if (!m.has(x.d)) m.set(x.d, new Set());
     m.get(x.d).add(x.n);
   }

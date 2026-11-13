@@ -206,6 +206,8 @@ const DDL = [
   // Per-person yearly allowance (Dastarkhawan: PTO only).
   `CREATE TABLE IF NOT EXISTS pc2_hk_allow (person_id INTEGER NOT NULL, year INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'pto', days NUMERIC(6,2) NOT NULL DEFAULT 0, PRIMARY KEY (person_id, year, kind))`,
   // Dastarkhawan overtime converted to PTO (8 overtime hours = 1 day), and the new Attendance page for the people who already have the section.
+  // Check in / out times typed in by hand for days the facial app missed (kept apart so the facial-app sync never overwrites them).
+  `CREATE TABLE IF NOT EXISTS pc2_dk_manual (person_id INTEGER NOT NULL, day DATE NOT NULL, check_in TEXT, check_out TEXT, note TEXT, by_id INTEGER, at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (person_id, day))`,
   `CREATE TABLE IF NOT EXISTS pc2_hk_ot_conv (id SERIAL PRIMARY KEY, person_id INTEGER NOT NULL, year INTEGER NOT NULL, hours NUMERIC(7,2) NOT NULL, days NUMERIC(6,2) NOT NULL, by_id INTEGER, at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `UPDATE pc2_users SET pages = pages || ',/dastarkhawan/attendance' WHERE (role = 'sso' OR name = 'Muhammad Zubair') AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/attendance,%'`,
   `UPDATE pc2_roles SET pages = pages || ',/dastarkhawan/attendance' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/attendance,%'`,
@@ -230,7 +232,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-13-1';
+const SCHEMA_VERSION = '2026-11-13-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
