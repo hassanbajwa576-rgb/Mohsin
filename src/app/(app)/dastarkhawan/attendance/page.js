@@ -31,12 +31,14 @@ export default async function DastarkhawanAttendance({ searchParams }) {
     if (!by.has(r.person_id)) by.set(r.person_id, { id: r.person_id, name: r.name, site: r.site || '', days: [] });
     by.get(r.person_id).days.push(r);
   }
+  // Short site codes (APL, LHR...) as set on the Sites tab, instead of the facial app's own site text.
+  const siteOf = new Map(team.map((t) => [t.id, (t.sites || []).map((x) => x.site).join(' \u00b7 ')]));
   const people = [...by.values()].map((p) => {
     const done = p.days.filter((d) => d.mins != null);
     const total = done.reduce((a, d) => a + d.mins, 0);
     const over = done.reduce((a, d) => a + Math.max(0, d.mins - DUTY_MIN), 0);
     const short = done.reduce((a, d) => a + Math.max(0, DUTY_MIN - d.mins), 0);
-    return { ...p, present: p.days.length, counted: done.length, total, over, short, bank: ot.get(p.id) || { earned: 0, used: 0, left: 0, days: 0 } };
+    return { ...p, site: siteOf.get(p.id) || p.site, present: p.days.length, counted: done.length, total, over, short, bank: ot.get(p.id) || { earned: 0, used: 0, left: 0, days: 0 } };
   });
   // "Add time" / "Edit" on a row opens the form for that person and day, with the current times filled in.
   const hit = rows.find((r) => String(r.person_id) === String(sp.p) && r.day === sp.d);

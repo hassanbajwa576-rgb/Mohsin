@@ -25,14 +25,16 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
   const tShort = people.reduce((a, p) => a + p.short, 0);
   const tLeft = people.reduce((a, p) => a + p.bank.left, 0);
   const tDays = people.reduce((a, p) => a + p.bank.days, 0);
-  const open = !!who || people.length <= 2;
+  const open = true;
+  const [yy, mm] = month.split('-').map(Number);
+  const dates = Array.from({ length: new Date(yy, mm, 0).getDate() }, (_, i) => month + '-' + String(i + 1).padStart(2, '0'));
 
   return (
     <>
       <div className='head'>
         <div>
           <h1>Dastarkhawan Attendance</h1>
-          <p className='muted'>Check in, check out and duty time from the facial attendance app (or typed in by hand). The bar shows duty time against 8 hours: <b className='dka-t g'>green</b> from 8 hours, <b className='dka-t r'>red</b> under 8. Time beyond 8 hours is overtime; every {OT_BLOCK_H} overtime hours convert to 1 PTO day.</p>
+          <p className='muted'>Duty hours per day from the facial attendance app (or typed in by hand). <b className='dka-t g'>Green</b> is 8 hours or more, <b className='dka-t r'>red</b> is under 8. Time beyond 8 hours is overtime; every {OT_BLOCK_H} overtime hours convert to 1 PTO day. Click a name to see check in and check out times.</p>
         </div>
       </div>
       <Flash sp={sp} />
@@ -73,41 +75,72 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
             <Kpi label='Overtime to convert' value={h1(tLeft) + ' h'} sub={tDays ? '= ' + tDays + ' PTO day' + (tDays === 1 ? '' : 's') + ' ready' : 'under ' + OT_BLOCK_H + ' h each'} tone={tDays ? 'good' : ''} />
           </div>
 
-          <h2 className='dka-h'>Who has what</h2>
-          <div className='rostable'>
-            <table className='tx dka-sum'>
-              <thead><tr><th>Team member</th><th>Days</th><th>Total duty</th><th>Avg / day</th><th>Overtime</th><th>Short</th><th>Already converted</th><th>Available overtime</th><th></th></tr></thead>
+          <h2 className='dka-h'>Day by day</h2>
+          <div className='dkg-wrap'>
+            <table className='dkg'>
+              <thead>
+                <tr>
+                  <th className='rn'>Team member</th>
+                  {dates.map((key) => <th key={key} className={(dow(key) === 0 || dow(key) === 6 ? 'we ' : '') + (key === today ? 'tod' : '')}>{Number(key.slice(8))}<small>{DOW[dow(key)]}</small></th>)}
+                  <th className='sum' title='Days with a check in'>Days</th>
+                  <th className='sum' title='Total duty time'>Total</th>
+                  <th className='sum' title='Overtime (time beyond 8 hours a day)'>OT</th>
+                  <th className='sum' title='Short (time under 8 hours a day)'>Short</th>
+                </tr>
+              </thead>
               <tbody>
                 {people.map((p) => {
-                  const avg = p.counted ? Math.round(p.total / p.counted) : null;
+                  const by = new Map(p.days.map((d) => [d.day, d]));
                   return (
                     <tr key={p.id}>
-                      <td className='c-title'><b>{p.name}</b>{p.site ? <span className='dka-pill'>{p.site}</span> : null}</td>
-                      <td className='c-meta'><small className='dklbl'>Days </small>{p.present}</td>
-                      <td className='c-meta'><small className='dklbl'>Total </small>{hm(p.total)}</td>
-                      <td className={'c-meta dka-t ' + (avg == null ? '' : avg >= DUTY_MIN ? 'g' : 'r')}><small className='dklbl'>Avg/day </small>{avg == null ? '-' : hm(avg)}</td>
-                      <td className={'c-meta dka-t ' + (p.over ? 'g' : '')}><small className='dklbl'>OT </small>{p.over ? hm(p.over) : '-'}</td>
-                      <td className={'c-meta ' + (p.short ? 'dka-t r' : '')}><small className='dklbl'>Short </small>{p.short ? hm(p.short) : '-'}</td>
-                      <td className='c-meta'><small className='dklbl'>Converted </small>{p.bank.used ? h1(p.bank.used) + ' h' : '-'}</td>
-                      <td className='c-meta'><small className='dklbl'>Available </small><b>{h1(p.bank.left)} h</b>{p.bank.days ? <span className='dka-pill ok'>= {p.bank.days} PTO day{p.bank.days === 1 ? '' : 's'}</span> : null}</td>
-                      <td>
-                        {om && p.bank.days >= 1 ? (
-                          <form action={convert}>
-                            <input type='hidden' name='id' value={p.id} />
-                            <input type='hidden' name='m' value={month} />
-                            <ConfirmButton className='btn' message={'Convert ' + p.bank.days * OT_BLOCK_H + ' overtime hours of ' + p.name + ' to ' + p.bank.days + ' PTO day(s)?'}>Convert to PTO</ConfirmButton>
-                          </form>
-                        ) : null}
+                      <td className='rn'>
+                        {p.site ? <span className='dkg-site'>{p.site}</span> : null}
+                        <Link href={'?' + qs({ who: String(p.id) })} title='Open the in and out times of this person'><b>{p.name}</b></Link>
                       </td>
+                      {dates.map((key) => {
+                        const d = by.get(key);
+                        const we = dow(key) === 0 || dow(key) === 6;
+                        let cls = '';
+                        let txt = '';
+                        let tip = p.name + ', ' + DOW[dow(key)] + ' ' + key.slice(8);
+                        if (d) {
+                          if (d.mins == null) {
+                            cls = 'am';
+                            txt = '..';
+                            tip += ': in ' + d.check_in + ', no check out yet';
+                          } else {
+                            cls = d.mins >= DUTY_MIN ? 'g' : 'r';
+                            txt = (d.mins / 60).toFixed(1);
+                            tip += ': ' + d.check_in + ' to ' + d.check_out + ' = ' + hm(d.mins) + (d.mins > DUTY_MIN ? ' (+' + hm(d.mins - DUTY_MIN) + ' overtime)' : '');
+                          }
+                          tip += d.manual ? ' (typed by hand' + (d.note ? ': ' + d.note : '') + ')' : ' (facial app)';
+                        } else if (key <= today) tip += ': no time. Click to add one.';
+                        return (
+                          <td key={key} className={'c ' + cls + (we ? ' we' : '') + (d && d.manual ? ' man' : '')} title={tip}>
+                            {key <= today ? <Link href={'?' + qs({ p: String(p.id), d: key }) + '#addtime'}>{txt || '\u00a0'}</Link> : null}
+                          </td>
+                        );
+                      })}
+                      <td className='sum'>{p.present || '-'}</td>
+                      <td className='sum'>{p.total ? h1(p.total / 60) : '-'}</td>
+                      <td className={'sum' + (p.over ? ' dka-t g' : '')}>{p.over ? h1(p.over / 60) : '-'}</td>
+                      <td className={'sum' + (p.short ? ' dka-t r' : '')}>{p.short ? h1(p.short / 60) : '-'}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+          <div className='dkg-legend'>
+            <span><i className='g' />8 h or more</span>
+            <span><i className='r' />under 8 h</span>
+            <span><i className='am' />no check out yet</span>
+            <span><i className='man' />typed by hand</span>
+            <span className='muted'>Numbers are duty hours. Click any day to add or correct a time; click a name for in and out times. Totals are in hours.</span>
+          </div>
 
-          <h2 className='dka-h'>Day by day</h2>
-          {people.map((p) => (
+          {who ? <h2 className='dka-h'>In and out times</h2> : null}
+          {who ? people.map((p) => (
             <details key={p.id} className='dka-person' open={open}>
               <summary>
                 <b>{p.name}</b>
@@ -155,7 +188,33 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                 );
               })}
             </details>
-          ))}
+          )) : null}
+
+          <h2 className='dka-h'>Overtime and PTO</h2>
+          <div className='rostable'>
+            <table className='tx dka-sum'>
+              <thead><tr><th>Team member</th><th>Overtime this month</th><th>Already converted</th><th>Available overtime</th><th></th></tr></thead>
+              <tbody>
+                {people.map((p) => (
+                  <tr key={p.id}>
+                    <td className='c-title'><b>{p.name}</b>{p.site ? <span className='dka-pill'>{p.site}</span> : null}</td>
+                    <td className={'c-meta dka-t ' + (p.over ? 'g' : '')}><small className='dklbl'>This month </small>{p.over ? hm(p.over) : '-'}</td>
+                    <td className='c-meta'><small className='dklbl'>Converted </small>{p.bank.used ? h1(p.bank.used) + ' h' : '-'}</td>
+                    <td className='c-meta'><small className='dklbl'>Available </small><b>{h1(p.bank.left)} h</b>{p.bank.days ? <span className='dka-pill ok'>= {p.bank.days} PTO day{p.bank.days === 1 ? '' : 's'}</span> : null}</td>
+                    <td>
+                      {om && p.bank.days >= 1 ? (
+                        <form action={convert}>
+                          <input type='hidden' name='id' value={p.id} />
+                          <input type='hidden' name='m' value={month} />
+                          <ConfirmButton className='btn' message={'Convert ' + p.bank.days * OT_BLOCK_H + ' overtime hours of ' + p.name + ' to ' + p.bank.days + ' PTO day(s)?'}>Convert to PTO</ConfirmButton>
+                        </form>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       ) : <p className='muted'>No check-ins for {month}. Use the form above to add a time by hand.</p>}
     </>
