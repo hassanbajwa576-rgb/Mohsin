@@ -12,6 +12,7 @@ import { TLABEL, ALLOWED, holidaysBetween, addDays, siteList } from './roster';
 import { OPD_LIMIT } from './hk-opd';
 import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from './teams';
 import { syncDk } from './dk-sync';
+import { dkOvertime, OT_BLOCK_H } from './dk-hours';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const ROOT = '/attendance/hk-roster';
@@ -447,4 +448,22 @@ export async function deleteOpdClaim(fd) {
   await q('DELETE FROM pc2_hk_opd WHERE id = $1', [id]);
   await logEvent(u, 'delete', 'hk_opd', id, 'Removed OPD claim: ' + c.name + ' PKR ' + c.amount.toLocaleString('en-US') + ' on ' + c.d, null, null);
   back(here, 'Claim removed', true);
+}
+
+// Dastarkhawan: turns a person's available overtime into PTO days (every 8 overtime hours = 1 day) for the current year. Sr. Ops Manager only.
+export async function convertOvertime(fd) {
+  const u = await need('dast');
+  const here = DAST + '/attendance?m=' + encodeURIComponent(s(fd, 'm'));
+  if (u.role !== 'om') back(here, 'Only the Sr. Ops Manager can convert overtime to PTO');
+  const id = Number(s(fd, 'id'));
+  const p = (await q(`SELECT id, name FROM pc2_hk_people WHERE id = $1 AND team = 'dast'`, [Number.isInteger(id) ? id : 0]))[0];
+  if (!p) back(here, 'That person was not found');
+  const ot = (await dkOvertime()).get(id);
+  if (!ot || ot.days < 1) back(here, p.name + ' has less than ' + OT_BLOCK_H + ' overtime hours to convert');
+  const year = Number(todayKey().slice(0, 4));
+  const hours = ot.days * OT_BLOCK_H;
+  await q(`INSERT INTO pc2_hk_ot_conv (person_id, year, hours, days, by_id) VALUES ($1, $2, $3, $4, $5)`, [id, year, hours, ot.days, u.id]);
+  await q(`INSERT INTO pc2_hk_allow (person_id, year, kind, days) VALUES ($1, $2, 'pto', $3) ON CONFLICT (person_id, year, kind) DO UPDATE SET days = pc2_hk_allow.days + EXCLUDED.days`, [id, year, ot.days]);
+  await logEvent(u, 'edit', 'hk_person', id, p.name + ': ' + hours + ' overtime hours converted to ' + ot.days + ' PTO day(s) for ' + year, null, null);
+  back(here, p.name + ': ' + hours + ' overtime hours converted to ' + ot.days + ' PTO day(s) (' + year + ' allowance)', true);
 }

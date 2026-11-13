@@ -168,7 +168,7 @@ export default function ModuleTier({ role, access = [], reviews = 0, approvals =
   const fuK = keep(fu);
   const suK = keep(su);
   const erK = keep(er);
-  const dkK = keep([page('/dastarkhawan', 'Roster'), page('/dastarkhawan/balances', 'Time-off Balance'), page('/dastarkhawan/sites', 'Sites')]);
+  const dkK = keep([page('/dastarkhawan', 'Roster'), page('/dastarkhawan/attendance', 'Attendance'), page('/dastarkhawan/balances', 'Time-off Balance'), page('/dastarkhawan/sites', 'Sites')]);
   const menu = dastPg ? dkK : exr ? erK : sup ? suK : fuel ? fuK : visit ? visK : guard || attend ? attK : pettyK;
   // Every page of a module, for the dropdown under its name.
   const all = (list) => list.flatMap((m) => (m.items ? m.items : [m]));

@@ -1947,3 +1947,6 @@ html[data-theme=dark] .otag.tc5{color:#e0bd9a;border-color:#8a6444;background:#2
 .stbar i{display:block;height:100%;border-radius:7px;background:var(--ok)}
 .stbar.warn i{background:var(--gold)}
 .stbar.bad i{background:var(--bad)}
+
+.dklbl{display:none}
+@media (max-width:720px){.dklbl{display:inline;color:var(--mut);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}}

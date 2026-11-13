@@ -205,6 +205,10 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS pc2_dk_holidays (day DATE PRIMARY KEY, name TEXT NOT NULL, by_id INTEGER)`,
   // Per-person yearly allowance (Dastarkhawan: PTO only).
   `CREATE TABLE IF NOT EXISTS pc2_hk_allow (person_id INTEGER NOT NULL, year INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'pto', days NUMERIC(6,2) NOT NULL DEFAULT 0, PRIMARY KEY (person_id, year, kind))`,
+  // Dastarkhawan overtime converted to PTO (8 overtime hours = 1 day), and the new Attendance page for the people who already have the section.
+  `CREATE TABLE IF NOT EXISTS pc2_hk_ot_conv (id SERIAL PRIMARY KEY, person_id INTEGER NOT NULL, year INTEGER NOT NULL, hours NUMERIC(7,2) NOT NULL, days NUMERIC(6,2) NOT NULL, by_id INTEGER, at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `UPDATE pc2_users SET pages = pages || ',/dastarkhawan/attendance' WHERE (role = 'sso' OR name = 'Muhammad Zubair') AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/attendance,%'`,
+  `UPDATE pc2_roles SET pages = pages || ',/dastarkhawan/attendance' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/attendance,%'`,
   `ALTER TABLE pc2_dk_sync ADD COLUMN IF NOT EXISTS ok_at TIMESTAMPTZ`,
   `UPDATE pc2_dk_sync SET ok_at = synced_at WHERE ok_at IS NULL AND error IS NULL`,
   `UPDATE pc2_users SET pages = pages || ',/visitors/hires' WHERE role = 'guard' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/visitors/hires,%'`,
@@ -226,7 +230,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-12-3';
+const SCHEMA_VERSION = '2026-11-13-1';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);
