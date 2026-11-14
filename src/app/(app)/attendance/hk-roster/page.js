@@ -129,14 +129,10 @@ export default async function RosterPage({ searchParams, forceTeam }) {
 
   return (
     <>
-      <div className='head'>
-        <div>
-          <h1>{TEAM_NAME[tm]}</h1>
-          <p className='muted'>Who in the {TEAM_SHORT[tm]} team will be off, and when (full days or a number of hours){dast ? ', with the site and joining date of each person' : ''}. Only the Sr. Ops Manager and the Sr. Support Officer can see and change it.</p>
-        </div>
-        <div className='inline'>
-          <a href={base + '/xlsx?' + qp()} className='btn primary'>Download Excel (.xlsx)</a>
-        </div>
+      <div className='head rosthead'>
+        <h1>{TEAM_NAME[tm]}</h1>
+        <a href={base + '/xlsx?' + qp()} className='btn primary'>Download Excel (.xlsx)</a>
+        <p className='muted'>Who in the {TEAM_SHORT[tm]} team will be off, and when (full days or a number of hours){dast ? ', with the site and joining date of each person' : ''}. Only the Sr. Ops Manager and the Sr. Support Officer can see and change it.</p>
       </div>
       <HkTabs active='roster' team={tm} />
       <Flash sp={sp} />
@@ -159,6 +155,17 @@ export default async function RosterPage({ searchParams, forceTeam }) {
           <Link key={label} className={'btn ' + (rangeMode && from === a && to === b ? 'primary' : 'ghost')} href={base + '?' + qp({ from: a, to: b })}>{label}</Link>
         ))}
         <Link className={'btn ' + (!rangeMode && month === today.slice(0, 7) ? 'primary' : 'ghost')} href={monthLink(today.slice(0, 7))}>This month</Link>
+        {dast ? (
+          <AutoFilters
+            hidden={{ ...(rangeMode ? { from, to } : { m: month }), who, only: onlyOff ? '1' : '' }}
+            fields={[{ name: 'site', label: 'Site', value: site, options: [['', 'All sites'], ...SITES.map((x) => [x, x])] }]}
+          />
+        ) : both ? (
+          <AutoFilters
+            hidden={{ ...(rangeMode ? { from, to } : { m: month }), who, only: onlyOff ? '1' : '' }}
+            fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]}
+          />
+        ) : null}
         <form method='get' className='rosrange'>
           {Object.entries({ ...(site ? { site } : {}), ...(office && both ? { office } : {}), ...(who ? { who } : {}), ...(onlyOff ? { only: '1' } : {}) }).map(([k, v]) => <input key={k} type='hidden' name={k} value={v} />)}
           <label>From<input type='date' name='from' defaultValue={from} required /></label>
@@ -166,17 +173,6 @@ export default async function RosterPage({ searchParams, forceTeam }) {
           <button className='btn' type='submit'>Show</button>
         </form>
       </div>
-      {dast ? (
-        <AutoFilters
-          hidden={{ ...(rangeMode ? { from, to } : { m: month }), who, only: onlyOff ? '1' : '' }}
-          fields={[{ name: 'site', label: 'Site', value: site, options: [['', 'All sites'], ...SITES.map((x) => [x, x])] }]}
-        />
-      ) : both ? (
-        <AutoFilters
-          hidden={{ ...(rangeMode ? { from, to } : { m: month }), who, only: onlyOff ? '1' : '' }}
-          fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]}
-        />
-      ) : null}
 
       <div className='card'>
         <div className='roslegend'>
