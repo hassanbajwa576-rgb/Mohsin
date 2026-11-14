@@ -2324,3 +2324,33 @@ tr.dka-today td.c-title,tr.dka-today td:first-child{box-shadow:inset 3px 0 0 var
 }
 .dka-ahead{margin-top:12px}
 .dka-ahead>summary{cursor:pointer;font-size:13px;color:var(--mut)}
+/* Phones: Days per site and Plan vs actual keep the same linear table as Today's board and Leaves (no stacked cards). */
+.pn::before{content:none}
+@media (max-width:720px){
+  table.dka-pv th,table.dka-pv td{padding:5px 3px!important;font-size:10.5px!important}
+  table.dka-pv th{font-size:9px!important}
+  table.dka-pv td:first-child,table.dka-pv th:first-child{min-width:0!important;max-width:58px!important;width:auto}
+  table.dka-pv td:first-child b{display:inline;font-size:10.5px}
+  table.dka-pv .dw{display:block;font-size:9px}
+  table.dka-pv .otag{font-size:8.5px;padding:0 3px;margin:0}
+  table.dka-pv .dka-pill{font-size:9px;padding:1px 5px;white-space:normal}
+  table.dka-pv td.c-meta{white-space:nowrap}
+  table.dka-pv td:last-child{white-space:normal}
+  table.dka-pv .dka-fix{display:block;margin:2px 0 0;font-size:10px}
+  .pn .lg{display:none}
+  .pn::before{content:'/'}
+  table.dka-pv .dklbl{display:none}
+}
+.sm{display:none}
+@media (max-width:720px){
+  .dka-pv .lg{display:none}
+  .dka-pv .sm{display:inline}
+  table.dka-pv th{white-space:normal!important;line-height:1.1;letter-spacing:0!important}
+  table.dka-pv td.c-meta{white-space:normal}
+  table.dka-pv td.nw{white-space:nowrap}
+  table.dka-pvs td:first-child,table.dka-pvs th:first-child{max-width:84px!important}
+}
+@media (max-width:720px){
+  /* Fit the screen: columns share the width and their headings wrap, instead of each taking its full text width. */
+  table.dka-pv{width:100%!important;min-width:0!important}
+}

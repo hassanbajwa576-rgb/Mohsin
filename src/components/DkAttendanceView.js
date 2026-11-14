@@ -9,6 +9,7 @@ import NavOffset from '@/components/NavOffset';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DOW1 = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // one letter in the grid header keeps the columns narrow
+const tc = (t) => { const m = String(t || '').match(/^(\d{1,2}):(\d{2})\s*([AP])M$/i); return m ? Number(m[1]) + ':' + m[2] + m[3].toLowerCase() : t; };
 const dow = (d) => new Date(d + 'T00:00:00Z').getUTCDay();
 const h1 = (v) => String(Math.round(v * 10) / 10);
 const pct = (m) => Math.max(0, Math.min(100, (m / 720) * 100)); // the bar runs 0 to 12 hours; the line sits at 8
@@ -298,9 +299,9 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           {siteStats.length ? (
             <>
               <p className='muted' style={{ margin: '0 0 10px' }}>For people who work at several sites: the days {custom ? 'from ' + from + ' to ' + to : 'of ' + month} they spent at each site, as picked on the Overview (click a day and choose the site). {siteStats.some((r) => r.unset) ? 'Days they were present but no site was picked show under Not set.' : ''}</p>
-              <div className='rostable'>
-                <table className='tx dka-sum'>
-                  <thead><tr><th>Team member</th>{siteOpts.map((c) => <th key={c}>{c}</th>)}<th>Days with a site</th><th>Not set</th><th title='Travel-only days in the rotation'>Travel days (plan)</th></tr></thead>
+              <div className='tablewrap'>
+                <table className='tx dka-sum dkt dkt-fit dka-pv'>
+                  <thead><tr><th>Team member</th>{siteOpts.map((c) => <th key={c}>{c}</th>)}<th className='hide-m'>Days with a site</th><th>Not set</th><th className='hide-m' title='Travel-only days in the rotation'>Travel days (plan)</th></tr></thead>
                   <tbody>
                     {siteStats.map((r) => (
                       <tr key={r.id}>
@@ -308,10 +309,10 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                         {siteOpts.map((c) => (
                           <td key={c} className={'c-meta' + (c in r.counts ? '' : ' hide-m')}>
                             <small className='dklbl'>{c} </small>
-                            {c in r.counts ? <b className={'dka-days' + (r.counts[c] ? ' on' : '')}>{r.counts[c]}</b> : <span className='muted'>-</span>}{r.plan && c in r.counts ? <small className='muted'> of {r.plan.counts[c] || 0} planned</small> : null}
+                            {c in r.counts ? <b className={'dka-days' + (r.counts[c] ? ' on' : '')}>{r.counts[c]}</b> : <span className='muted'>-</span>}{r.plan && c in r.counts ? <small className='muted pn'><span className='lg'> of </span>{r.plan.counts[c] || 0}<span className='lg'> planned</span></small> : null}
                           </td>
                         ))}
-                        <td className='c-meta'><small className='dklbl'>With a site </small><b>{r.set}</b></td>
+                        <td className='c-meta hide-m'><small className='dklbl'>With a site </small><b>{r.set}</b></td>
                         <td className='c-meta'>
                           <small className='dklbl'>Not set </small>
                           {r.unset ? <Link href={'?' + qs({ v: '', who: String(r.id) })} title='Open the Overview and click those days to pick the site'><span className='dka-pill warn'>{r.unset} day{r.unset === 1 ? '' : 's'}</span></Link> : <span className='muted'>-</span>}
@@ -348,8 +349,8 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                 <Kpi label='No check-in' value={v.miss} sub='planned duty days with no time' tone={v.miss ? 'bad' : ''} />
                 <Kpi label='Duty time so far' value={hm(v.hours)} sub={v.hoursPlanned ? 'of ' + hm(v.hoursPlanned) + ' for the planned duty days' : ''} />
               </div>
-              <div className='rostable'>
-                <table className='tx dka-sum'>
+              <div className='tablewrap'>
+                <table className='tx dka-sum dkt dkt-fit dka-pv dka-pvs'>
                   <thead><tr><th>Site</th><th>Planned (whole period)</th><th>Planned so far</th><th>Actual so far</th><th>Difference</th></tr></thead>
                   <tbody>
                     {v.sites.map((c) => {
@@ -370,7 +371,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                       <td className='c-title'><b>Travel-only days</b></td>
                       <td className='c-meta'>{v.planned.travel}</td>
                       <td className='c-meta'>{v.sofar.travel}</td>
-                      <td className='c-meta'><small className='muted'>checked in on one: {v.travelIn}</small></td>
+                      <td className='c-meta'><small className='muted'><span className='lg'>checked in on one: </span>{v.travelIn}</small></td>
                       <td className='c-meta'></td>
                     </tr>
                     <tr>
@@ -386,18 +387,18 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
               <h3 className='dka-h' style={{ marginTop: 16 }}>Day by day</h3>
               <NavOffset />
               <div className='tablewrap dk-sticky'>
-                <table className='tx dka-sum'>
+                <table className='tx dka-sum dkt dkt-fit dka-pv'>
                   <thead><tr><th>Date</th><th>Planned</th><th>Actual site</th><th>In</th><th>Out</th><th>Hours</th><th>Result</th></tr></thead>
                   <tbody>
                     {pastDays.map((d) => {
                       const r = RES[d.res] || ['', ''];
                       return (
                         <tr key={d.day} className={d.day === today ? 'dka-today' : ''}>
-                          <td className='c-title'><b>{dd(d.day)}</b> <small className='muted'>{DOW[dow(d.day)]}</small></td>
+                          <td className='c-title'><b>{dd(d.day)}</b> <small className='muted dw'>{DOW[dow(d.day)]}</small></td>
                           <td className='c-meta'>{d.plan === 'T' ? <span className='muted'>Travel day</span> : d.plan ? <OfficeTag o={d.plan} /> : <span className='muted'>-</span>}</td>
                           <td className='c-meta'>{d.site ? <OfficeTag o={d.site} /> : <span className='muted'>-</span>}</td>
-                          <td className='c-meta nw'><small className='dklbl'>In </small>{d.in || <span className='muted'>-</span>}</td>
-                          <td className='c-meta nw'><small className='dklbl'>Out </small>{d.out || <span className='muted'>-</span>}</td>
+                          <td className='c-meta nw'><small className='dklbl'>In </small>{d.in ? <><span className='lg'>{d.in}</span><span className='sm'>{tc(d.in)}</span></> : <span className='muted'>-</span>}</td>
+                          <td className='c-meta nw'><small className='dklbl'>Out </small>{d.out ? <><span className='lg'>{d.out}</span><span className='sm'>{tc(d.out)}</span></> : <span className='muted'>-</span>}</td>
                           <td className={'c-meta nw' + (d.mins == null ? '' : d.mins >= v.dutyMin ? ' dka-t g' : ' dka-t r')}><small className='dklbl'>Hours </small>{d.mins == null ? '-' : hm(d.mins)}</td>
                           <td className='c-meta'>
                             {r[0] ? <span className={'dka-pill ' + r[1]}>{r[0]}{d.res === 'leave' && d.leave ? ' (' + d.leave + ')' : ''}</span> : null}
@@ -412,13 +413,13 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
               {aheadDays.length ? (
                 <details className='dka-ahead'>
                   <summary>Planned ahead ({aheadDays.length} day{aheadDays.length === 1 ? '' : 's'})</summary>
-                  <div className='rostable'>
-                    <table className='tx dka-sum'>
+                  <div className='tablewrap'>
+                    <table className='tx dka-sum dkt dkt-fit dka-pv'>
                       <thead><tr><th>Date</th><th>Planned</th></tr></thead>
                       <tbody>
                         {aheadDays.map((d) => (
                           <tr key={d.day}>
-                            <td className='c-title'><b>{dd(d.day)}</b> <small className='muted'>{DOW[dow(d.day)]}</small></td>
+                            <td className='c-title'><b>{dd(d.day)}</b> <small className='muted dw'>{DOW[dow(d.day)]}</small></td>
                             <td className='c-meta'>{d.plan === 'T' ? <span className='muted'>Travel day</span> : <OfficeTag o={d.plan} />}</td>
                           </tr>
                         ))}
