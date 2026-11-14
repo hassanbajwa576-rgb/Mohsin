@@ -74,44 +74,47 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
       <div className='head'>
         <div>
           <h1>{dast ? 'Dastarkhawan Leaves' : TEAM_SHORT[tm] + ' Time-off Balance'}</h1>
-          <p className='muted'>Days off used in {year} against the yearly allowance. Hours count as part of a day ({set.hpd} hours = 1 day) and holidays are not counted. Allowances do not carry forward.</p>
+          <p className='muted'>Days off used in {year} against what is allocated. {set.hpd} hours = 1 day; holidays are not counted.</p>
         </div>
       </div>
       <HkTabs active='balances' team={tm} />
       <Flash sp={sp} />
-      <div className='card rosnav'>
-        <Link className='btn' href={yq(year - 1)}>&lt; {year - 1}</Link>
-        <b>{year}</b>
-        <Link className='btn' href={yq(year + 1)}>{year + 1} &gt;</Link>
+      <div className='card lvbar'>
+        <AutoFilters fields={[
+          { name: 'y', label: 'Year', value: String(year), options: Array.from({ length: Math.max(thisYear + 1, year) - Math.min(thisYear - 3, year) + 1 }, (_, i) => String(Math.min(thisYear - 3, year) + i)).map((y) => [y, y]) },
+          ...(dast ? [{ name: 'site', label: 'Site', value: site, options: [['', 'All sites'], ...SITES.map((x) => [x, x])] }] : both ? [{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }] : []),
+        ]} />
         {year !== thisYear ? <Link className='btn ghost' href={yq(thisYear)}>This year</Link> : null}
+        {dast ? (
+          <details className='lvhow'>
+            <summary>How it works</summary>
+            <p className='muted'>For the Dastarkhawan team only PTO applies. Give each person PTO as a yearly number, month by month, or both (they add up). The days used come from the time-off recorded on the roster; "Left" is what has been given so far minus what was used. Allowances do not carry forward.</p>
+          </details>
+        ) : !anySet ? <span className='muted'>No yearly allowance is set yet, so only the days used are shown. Set them on the Setup tab of the Support team.</span> : null}
       </div>
-      {dast ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'site', label: 'Site', value: site, options: [['', 'All sites'], ...SITES.map((x) => [x, x])] }]} /> : both ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]} /> : null}
-      {dast ? (
-        <p className='muted'>For the Dastarkhawan team only PTO applies. Give each person PTO as a yearly number, month by month, or both (they add up). The days used come from the time-off recorded on the roster; "Left" is what has been given so far minus what was used.</p>
-      ) : !anySet ? <p className='muted'>No yearly allowance is set yet, so only the days used are shown. Set them on the Setup tab of the Support team.</p> : null}
 
+      <div className='lvtools'>
       {dast && editDk ? (
-        <form action={setDkAllowanceAll} className='card filters'>
+        <form action={setDkAllowanceAll} className='card lvq' title={'Gives everyone the same yearly number for ' + year + '. You can still change each person below.'}>
           <input type='hidden' name='year' value={year} />
-          <label>Same PTO for everyone in {year} (days)<input type='number' name='days' min='0' max='365' step='0.5' placeholder='For example: 14' required /></label>
-          <button className='btn' type='submit'>Apply to all</button>
-          <span className='muted'>You can still change each person below.</span>
+          <label>Same PTO for all<input type='number' name='days' min='0' max='365' step='0.5' placeholder='14' required /></label>
+          <button className='btn' type='submit'>Apply</button>
         </form>
       ) : null}
 
       {dast && editDk ? (
-        <form action={setDkAuto} className='card filters'>
-          <label>Automatic PTO a month, for everyone (days)<input type='number' name='days' min='0.5' max='31' step='0.5' placeholder='For example: 4' defaultValue={auto ? auto.days : ''} /></label>
-          <label>Starting from<input type='month' name='from' defaultValue={auto ? auto.from : thisYear + '-' + String(new Date().getMonth() + 1).padStart(2, '0')} /></label>
+        <form action={setDkAuto} className='card lvq' title='Gives everyone these days for each month from the starting month, counted when the month arrives and from the month a person joined. A month typed in the month grid replaces the automatic number.'>
+          <label>Auto PTO a month<input type='number' name='days' min='0.5' max='31' step='0.5' placeholder='4' defaultValue={auto ? auto.days : ''} /></label>
+          <label>From<input type='month' name='from' defaultValue={auto ? auto.from : thisYear + '-' + String(new Date().getMonth() + 1).padStart(2, '0')} /></label>
           <button className='btn' type='submit'>{auto ? 'Update' : 'Turn on'}</button>
           {auto ? <button className='btn ghost' type='submit' name='off' value='1'>Turn off</button> : null}
-          <span className='muted'>{auto ? 'On: ' + d1(auto.days) + ' days every month from ' + auto.from + ', counted when the month arrives and from the month a person joined. ' : ''}Where a month needs a different number, type it in the month grid below; that replaces the automatic number for that month.</span>
+          {auto ? <span className='muted lvon'>On: {d1(auto.days)} a month from {auto.from}</span> : null}
         </form>
       ) : null}
 
       {dast && editDk ? (
         <details className='card'>
-          <summary>Give PTO month by month ({year})</summary>
+          <summary>Give PTO by month</summary>
           <p className='muted' style={{ margin: '8px 0' }}>For example 2 days every month. Monthly days add to the yearly number, and "Left" counts the months up to the current one, so leave given for later months is not available yet. Leave a month empty to give nothing for it.</p>
           <form action={setDkMonthlyAll} className='filters'>
             <input type='hidden' name='year' value={year} />
@@ -150,7 +153,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
 
       {dast && editDk ? (
         <details className='card'>
-          <summary>Leaves taken by month ({year})</summary>
+          <summary>Leaves taken by month</summary>
           <p className='muted' style={{ margin: '8px 0' }}>Leave taken in each month when there are no dates to enter on the roster (for example from the paper register). These days count as PTO used. Leave a month empty for none.</p>
           <form action={saveDkTaken}>
             <input type='hidden' name='year' value={year} />
@@ -179,11 +182,12 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
 
       {dast && editDk ? (
         <details className='card'>
-          <summary>Paste monthly figures ({year})</summary>
+          <summary>Paste monthly figures</summary>
           <p className='muted' style={{ margin: '8px 0' }}>Import PTO given or leave taken for any months, for example from a paper register or a spreadsheet, now or later. Check the preview, then import.</p>
           <LeaveImport people={team.map((p) => ({ id: p.id, name: p.name }))} year={year} action={importMonthlyLeaves} />
         </details>
       ) : null}
+      </div>
 
       {dast ? (
         <div className='card'>

@@ -2245,3 +2245,32 @@ table.dkg td.c.lv a{color:#fff}
   html[data-theme=dark] .tablewrap table.dkt tfoot tr{background:transparent}
   html[data-theme=dark] .tablewrap table.dkt tfoot td{background-color:#151514;background-image:linear-gradient(var(--tint),var(--tint))}
 }
+/* Leaves page: year and site filters in one slim bar; the tools (same PTO, automatic PTO, month grids, paste) share rows and a panel opens full width. */
+.lvbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;margin-bottom:8px}
+.lvbar .autof{margin:0;display:flex;gap:12px;flex-wrap:wrap}
+.lvbar .autof label{display:flex;align-items:center;gap:6px;font-size:12px;min-width:0}
+.lvbar select{height:32px;min-height:32px;padding:2px 8px;font-size:13px;width:auto}
+.lvbar .btn{min-height:32px;padding:4px 10px}
+.lvhow{flex:1 1 auto}
+.lvhow>summary{cursor:pointer;font-size:12px;color:var(--mut)}
+.lvhow[open]{flex:1 1 100%}
+.lvhow p{margin:6px 0 0}
+.lvtools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;align-items:stretch}
+.lvtools>.card{margin:0;padding:6px 12px}
+.lvtools>details.card{flex:0 1 auto}
+.lvtools>details.card[open]{flex:1 1 100%;padding:10px 12px}
+.lvtools>details.card>summary{font-size:13px;cursor:pointer;white-space:nowrap}
+.lvq{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lvq label{display:flex;align-items:center;gap:6px;font-size:12px;min-width:0;white-space:nowrap}
+.lvq input{width:64px;min-height:32px;height:32px;padding:2px 6px}
+.lvq input[type=month]{width:132px}
+.lvq .btn{min-height:32px;padding:4px 10px}
+.lvq .lvon{font-size:12px;flex:none}
+.lvbar label,.lvq label{flex-direction:row!important;align-items:center!important;gap:6px!important;margin:0!important}
+.lvbar .autof select{width:auto!important;min-width:84px;max-width:150px}
+.lvq input{width:64px!important;flex:none}
+.lvq input[type=month]{width:140px!important}
+.lvtools{align-items:flex-start}
+.lvtools>.card{display:flex}
+.lvtools>details.card{display:block}
+.lvbar,.lvtools>.card{min-height:0}
