@@ -1,6 +1,6 @@
 import 'server-only';
 import { q } from './db';
-import { todayKey, allOffices, dayBoard, stateOf, LATE_AFTER, EARLY_BEFORE, fmtTime, fmt12, fmtDur, sessionsOf } from './att';
+import { todayKey, allOffices, dayBoard, stateOf, LATE_AFTER, EARLY_BEFORE, fmtTime, fmt12, fmtDur, sessionsOf, to12 } from './att';
 import { can } from './perms';
 import { MONTHS, MON3, pkr, officeCosts, budgetByHead, erYears, headcount } from './exprev';
 import { fundSummary, soAccount } from './queries';
@@ -275,11 +275,32 @@ async function extraTopics(user, n, nowY, nowM, today, found) {
       );
       return { text: lines(head, ...ss.map(one)), ctx: ctxOut };
     }
+    // Averages of one employee: usual check in time, check out time and the span between them (first check in to last check out of each day).
+    if (who && has(n, /\bavg\b|average|typical|usually|usual|on average/) && has(n, /check ?in|check ?out|timing|timings|arriv|come|came|shift|hours?|time|leave|leaves/)) {
+      const all = has(n, /all time|ever|overall|since (the )?(start|beginning)|whole|total/);
+      const wAv = when(n, nowY, nowM);
+      const [vF, vT] = all ? ['2000-01-01', today] : range(wAv);
+      const r = (await q("WITH d AS (SELECT (a.at AT TIME ZONE 'Asia/Karachi')::date AS day, MIN(a.at) FILTER (WHERE a.kind = 'in') AS fin, MAX(a.at) FILTER (WHERE a.kind = 'out') AS fout FROM pc2_attendance a WHERE a.staff_id = $1 AND a.at >= (($2::date)::timestamp AT TIME ZONE 'Asia/Karachi') AND a.at < (($3::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi') GROUP BY 1) SELECT COUNT(*) FILTER (WHERE fin IS NOT NULL)::int AS days_in, COUNT(*) FILTER (WHERE fin IS NOT NULL AND fout > fin)::int AS days_both, AVG(EXTRACT(EPOCH FROM ((fin AT TIME ZONE 'Asia/Karachi')::time)))::float8 AS avg_in, AVG(EXTRACT(EPOCH FROM ((fout AT TIME ZONE 'Asia/Karachi')::time))) FILTER (WHERE fout > fin)::float8 AS avg_out, AVG(EXTRACT(EPOCH FROM (fout - fin))) FILTER (WHERE fout > fin)::float8 AS avg_span, to_char(MIN(day), 'DD Mon YYYY') AS first_day FROM d", [who.id, vF, vT]))[0] || {};
+      const ctxAvg = { topic: 'person', who: who.name, day: today, all };
+      if (!r.days_in) return { text: who.name + ' (' + who.office + ') has no check-ins ' + (all ? 'recorded.' : 'in ' + wAv.label + '.'), ctx: ctxAvg };
+      const clock = (sec) => { const m = Math.round(sec / 60); return to12(String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0')); };
+      return {
+        text: lines(
+          who.name + ' (' + who.office + '), averages ' + (all ? 'of all time (since ' + r.first_day + ')' : 'in ' + wAv.label) + ':',
+          ...(has(n, /shift|hours?|span|long/) && r.days_both ? ['  Usual day, first check in to last check out: ' + fmtDur(Math.round(r.avg_span * 1000)) + ' (over ' + r.days_both + ' day' + (r.days_both === 1 ? '' : 's') + ')'] : []),
+          '  Usual check in: ' + clock(r.avg_in) + ' (over ' + r.days_in + ' day' + (r.days_in === 1 ? '' : 's') + ')',
+          r.days_both ? '  Usual check out: ' + clock(r.avg_out) + ' (over ' + r.days_both + ' day' + (r.days_both === 1 ? '' : 's') + ' with a check out)' : '  No days with a check out to average.',
+          ...(!has(n, /shift|hours?|span|long/) && r.days_both ? ['  Usual day, first check in to last check out: ' + fmtDur(Math.round(r.avg_span * 1000))] : [])
+        ),
+        ctx: ctxAvg,
+      };
+    }
     if (who && has(n, /attendance|\bstats?\b|statistics|late|early|present|days|check ?in|check ?out|breaks?|performance/)) {
-      const wA = when(n, nowY, nowM);
-      const [aF, aT] = range(wA);
+      const allT = has(n, /all time|ever|overall|since (the )?(start|beginning)/);
+      const wA = allT ? { label: 'all time' } : when(n, nowY, nowM);
+      const [aF, aT] = allT ? ['2000-01-01', today] : range(wA);
       const r = (await q("SELECT COUNT(DISTINCT (a.at AT TIME ZONE 'Asia/Karachi')::date) FILTER (WHERE a.kind = 'in')::int AS days, COUNT(*) FILTER (WHERE a.kind = 'in' AND to_char(a.at AT TIME ZONE 'Asia/Karachi', 'HH24:MI') > $3)::int AS late, COUNT(*) FILTER (WHERE a.kind = 'out' AND to_char(a.at AT TIME ZONE 'Asia/Karachi', 'HH24:MI') < $4)::int AS early, COUNT(*) FILTER (WHERE a.kind = 'break_out')::int AS breaks FROM pc2_attendance a WHERE a.staff_id = $1 AND a.at >= (($2::date)::timestamp AT TIME ZONE 'Asia/Karachi') AND a.at < (($5::date + 1)::timestamp AT TIME ZONE 'Asia/Karachi')", [who.id, aF, LATE_AFTER, EARLY_BEFORE, aT]))[0];
-      return lines(who.name + ' (' + who.office + '), ' + wA.label + ':', '  Days checked in: ' + r.days, '  Late check-ins (after ' + LATE_AFTER + '): ' + r.late, '  Early check-outs (before ' + EARLY_BEFORE + '): ' + r.early, '  Breaks taken: ' + r.breaks);
+      return { text: lines(who.name + ' (' + who.office + '), ' + wA.label + ':', '  Days checked in: ' + r.days, '  Late check-ins (after ' + LATE_AFTER + '): ' + r.late, '  Early check-outs (before ' + EARLY_BEFORE + '): ' + r.early, '  Breaks taken: ' + r.breaks), ctx: { topic: 'person', who: who.name, day: today, all: allT } };
     }
   }
   // Attendance: who is in
@@ -768,6 +789,8 @@ export async function opsbotAnswer(user, text, ctx = null) {
   if (personCtx && short && (hasDay || dayCarry) && noTopicWords) {
     const named = (await resolveNames(n0)).best > 0;
     n = (named ? n0 : norm(ctx.who || '') + ' ' + n0) + ' check in' + (hasDay ? '' : ' ' + dayText(ctx.day));
+  } else if (personCtx && ctx.who && short && has(n0, /\bavg\b|average|usually|typical/) && (await resolveNames(n0)).best === 0) {
+    n = norm(ctx.who) + ' ' + n0 + (ctx.all ? ' all time' : '');
   } else if (!!ctx && !!ctx.topic && !personCtx && short && n0.split(' ').length <= 8 && hasDay && noTopicWords) {
     n = (ctx.topic === 'dast' ? 'dastarkhawan ' : 'attendance ') + n0;
   }

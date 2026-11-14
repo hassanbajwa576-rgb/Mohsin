@@ -5,7 +5,7 @@ OpsBot has two layers: the rule-based engine (`src/lib/opsbot.js`, free) and the
 ## Taught so far
 - Roman Urdu bridge (`urduBridge`): aaj, kal (yesterday after a past-tense word, tomorrow otherwise), kaun, kahan, kitna, kharcha, chutti, aaya/gaya, ghante, paisa, baqi, hazri, mehman, shikayat, nahi, sab, din, "is mahine", "pichle mahine", "is saal".
 - Dastarkhawan without the word "Dastarkhawan": overtime, duty hours/time, short hours, "worked less than N hours", rotation.
-- New answers: short time this month, average duty day, "thanks", petty cash balance, temporary guards on duty today (Guard Duty permission), new joiners in the last 60 days (Dastarkhawan and office), Dastarkhawan days with a check in but no check out (last 14 days).
+- New answers: short time this month, average duty day, "thanks", petty cash balance, temporary guards on duty today (Guard Duty permission), new joiners in the last 60 days (Dastarkhawan and office), Dastarkhawan days with a check in but no check out (last 14 days), and averages for one office employee: usual check in, check out and day length ("avg check in of X all time", then "avg shift hours?" as a follow-up; "all time" is understood in the attendance counts too).
 - Site rotation: "where should Zeeshan be on 20 Nov", "who is supposed to be at Okara tomorrow", "plan vs actual".
 - AI system prompt: glossary (PTO, Leaves, OT, short, sites, rotation) and a Roman Urdu cheat-sheet, plus a tool-choice guide.
 
