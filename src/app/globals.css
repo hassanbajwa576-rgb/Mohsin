@@ -2071,3 +2071,7 @@ html[data-theme=dark] .dka-days.on{color:#8db4ff}
 
 /* Roster, light theme: a stronger blue for PTO (L / P) so it stands out from the page. The dark theme has its own colours above. */
 html:not([data-theme=dark]) table.rost td.rk-pto,html:not([data-theme=dark]) .roslegend i.rk-pto,html:not([data-theme=dark]) table.rost td.rk-annual,html:not([data-theme=dark]) .roslegend i.rk-annual{background:#7fb0f0!important;color:#0b2a5b!important;font-weight:700}
+
+/* Team table: the heading row stays in view just under the top bar while the page scrolls. */
+.tablewrap.dk-sticky{overflow:visible}
+.dk-sticky table thead th{position:sticky;top:var(--navh,0px);z-index:5;background:var(--card,#fff);box-shadow:inset 0 -2px 0 var(--gold)}

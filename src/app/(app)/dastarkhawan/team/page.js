@@ -6,6 +6,7 @@ import { ATT_ROLES, todayKey } from '@/lib/att';
 import { hkPeople, hkInactive, dkLinked, dkAllowances } from '@/lib/roster';
 import { sortSites } from '@/lib/dk-sites';
 import { siteText } from '@/lib/teams';
+import NavOffset from '@/components/NavOffset';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,10 +33,11 @@ export default async function DastarkhawanTeam() {
         </div>
       </div>
 
+      <NavOffset />
       <div className='card'>
         <h3 style={{ marginTop: 0 }}>Active members ({team.length})</h3>
         {team.length ? (
-          <div className='tablewrap'>
+          <div className='tablewrap dk-sticky'>
             <table className='tx'>
               <thead><tr><th>Team member</th><th>Sites</th><th>Joined</th><th>Phone</th><th>Facial app</th><th className='r'>Leaves {year}</th></tr></thead>
               <tbody>
@@ -65,7 +67,7 @@ export default async function DastarkhawanTeam() {
       {inactive.length ? (
         <div className='card'>
           <h3 style={{ marginTop: 0 }}>Inactive members ({inactive.length})</h3>
-          <div className='tablewrap'>
+          <div className='tablewrap dk-sticky'>
             <table className='tx'>
               <thead><tr><th>Team member</th><th>Sites</th><th>Since</th><th>Reason</th></tr></thead>
               <tbody>
