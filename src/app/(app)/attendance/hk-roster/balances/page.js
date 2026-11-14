@@ -177,7 +177,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
         <div className='card'>
           {team.length ? (
             <div className='tablewrap'>
-              <table className='tx'>
+              <table className='tx dka-lv'>
                 <thead>
                   <tr><th>Team member</th><th className='r'>Yearly / extra</th><th className='r'>Allowed in {year}</th><th className='r'>Given so far</th><th className='r'>Used</th><th className='r'>Left</th></tr>
                 </thead>
@@ -196,7 +196,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                         <td className='c-title'><OfficeTag o={siteTag((p.sites || []).map((x) => x.site), SITES) || p.site || ''} /><b>{p.name}</b></td>
                         <td className='r nw c-meta'>
                           {editDk ? (
-                            <form action={setDkAllowance} className='inline'>
+                            <form action={setDkAllowance} className='inline' style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
                               <input type='hidden' name='id' value={p.id} />
                               <input type='hidden' name='year' value={year} />
                               <input type='number' name='days' min='0' max='365' step='0.5' defaultValue={d && d.hasAnnual ? d.annual : ''} placeholder='None' style={{ width: 90 }} />
@@ -219,7 +219,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                     <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((allow.get(p.id) || {}).total || 0), 0))}</b></td>
                     <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((allow.get(p.id) || {}).sofar || 0), 0))}</b></td>
                     <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((used.get(p.id) || {}).pto || 0), 0))}</b></td>
-                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + (allow.get(p.id) ? allow.get(p.id).sofar - ((used.get(p.id) || {}).pto || 0) : 0), 0))}</b></td>
+                    <td className='r nw'><b>{(() => { const t = team.reduce((a, p) => a + (allow.get(p.id) ? allow.get(p.id).sofar - ((used.get(p.id) || {}).pto || 0) : 0), 0); return t < 0 ? d1(-t) + ' over' : d1(t); })()}</b></td>
                   </tr>
                 </tfoot>
               </table>
