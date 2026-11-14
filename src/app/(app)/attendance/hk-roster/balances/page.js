@@ -47,7 +47,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
     <>
       <div className='head'>
         <div>
-          <h1>{TEAM_SHORT[tm]} Time-off Balance</h1>
+          <h1>{dast ? 'Dastarkhawan Leaves' : TEAM_SHORT[tm] + ' Time-off Balance'}</h1>
           <p className='muted'>Days off used in {year} against the yearly allowance. Hours count as part of a day ({set.hpd} hours = 1 day) and holidays are not counted. Allowances do not carry forward.</p>
         </div>
       </div>
