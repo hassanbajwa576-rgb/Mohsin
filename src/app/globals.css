@@ -2272,8 +2272,9 @@ table.rost td.rot-t{background:repeating-linear-gradient(45deg,rgba(128,128,128,
 .rot-set label.rot-pat{flex:1 1 280px}
 .rot-set input[type=checkbox]{width:auto}
 /* Attendance grid, rotation: planned site code (faint), travel-only day (T), and an amber outline when the check-in was at another site than planned. */
-table.dkg td.c small.st.pl{opacity:.5;font-weight:600;margin-top:0;padding-bottom:0}
-table.dkg td.tv{background:repeating-linear-gradient(45deg,rgba(128,128,128,.30) 0 3px,transparent 3px 6px);color:var(--mut)}
+table.dkg td.c .plc{display:block;font-size:9px;font-weight:700;line-height:1.2;opacity:.55;padding:0}
+table.dkg td.c .plc.fut{padding:8px 0}
+table.dkg td.tv{background:repeating-linear-gradient(45deg,rgba(128,128,128,.30) 0 3px,transparent 3px 6px)}
 table.dkg td.pm{box-shadow:inset 0 0 0 2px #f59e0b}
 .dkg-legend i.tv{background:repeating-linear-gradient(45deg,#8a8f98 0 3px,#cfd2d8 3px 6px)}
 .dkg-legend i.pm{background:transparent;box-shadow:inset 0 0 0 2px #f59e0b}

@@ -174,13 +174,13 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                         if (pl) {
                           tip += '. Planned: ' + (pl === 'T' ? 'travel-only day' : pl);
                           if (d && pl !== 'T' && site && site !== pl) { mismatch = true; tip += ' (was at ' + site + ')'; }
-                          if (!d && !lv && pl === 'T') { cls = 'tv'; txt = 'T'; }
+                          if (!d && !lv && pl === 'T') cls = 'tv';
                         }
                         if (lv && d) tip += '. Also on leave' + (lv.hours != null ? ' for ' + lv.hours + ' h' : '') + ' (' + lv.label + ')';
                         if (lv && !d && lv.hours != null) tip += '. Leave for ' + lv.hours + ' h (' + lv.label + ')';
                         return (
                           <td key={key} className={'c ' + cls + (we ? ' we' : '') + (d && d.manual ? ' man' : '') + (mismatch ? ' pm' : '')} title={tip}>
-                            {key <= today ? <Link href={'?' + qs({ p: String(p.id), d: key }) + '#addtime'}>{txt || (site || (pl && pl !== 'T') ? '' : '\u00a0')}{site ? <small className='st'>{site}</small> : pl && pl !== 'T' && !d && !lv ? <small className='st pl'>{pl}</small> : null}</Link> : pl && pl !== 'T' ? <small className='st pl'>{pl}</small> : pl === 'T' ? <small className='st pl'>T</small> : null}
+                            {key <= today ? <Link href={'?' + qs({ p: String(p.id), d: key }) + '#addtime'}>{pl && !d && !lv ? <span className='plc'>{pl}</span> : <>{txt || (site ? '' : '\u00a0')}{site ? <small className='st'>{site}</small> : null}</>}</Link> : pl && !lv ? <span className='plc fut'>{pl}</span> : null}
                           </td>
                         );
                       })}
