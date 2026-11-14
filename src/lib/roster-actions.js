@@ -13,7 +13,7 @@ import { OPD_LIMIT } from './hk-opd';
 import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from './teams';
 import { syncDk } from './dk-sync';
 import { dkOvertime, OT_BLOCK_H, fmt12 } from './dk-hours';
-import { REGISTER, REGISTER_YEAR } from './dk-register';
+import { parseFigures, matchPerson } from './dk-paste';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const ROOT = '/attendance/hk-roster';
@@ -500,38 +500,43 @@ export async function saveDkTaken(fd) {
   back(here, year + ' leave taken by month saved', true);
 }
 
-// Dastarkhawan: loads the paper register of January to October (PTO given and leave taken per month). Only fills months that are empty,
-// so nothing already entered is overwritten, and it says which names it could not find. Sr. Ops Manager only.
-export async function importDkRegister() {
+// Dastarkhawan: monthly figures pasted or typed (PTO given or leave taken) for any months of a year. By default only empty months are filled;
+// "replace" overwrites months that already have a number. Names are matched to the team, and the ones not found are reported.
+export async function importMonthlyLeaves(fd) {
   const u = await need('dast');
-  const here = DAST + '/balances?y=' + REGISTER_YEAR;
-  if (u.role !== 'om') back(here, 'Only the Sr. Ops Manager can import the register');
+  const year = Number(s(fd, 'year'));
+  const here = DAST + '/balances?y=' + (Number.isInteger(year) ? year : '');
+  if (!(year >= 2000 && year <= 2100)) back(here, 'That year is not valid');
+  const kind = s(fd, 'kind') === 'taken' ? 'taken' : 'given';
+  const from = Number(s(fd, 'from'));
+  if (!(from >= 1 && from <= 12)) back(here, 'Choose the first month');
+  const overwrite = s(fd, 'overwrite') === '1';
+  const { rows } = parseFigures(String(fd.get('text') ?? '').slice(0, 20000), from);
   const people = await q(`SELECT id, name FROM pc2_hk_people WHERE active AND team = 'dast'`);
-  const key = (n) => String(n).toLowerCase().replace(/\s+/g, ' ').trim();
-  const byName = new Map(people.map((p) => [key(p.name), p.id]));
-  const give = { p: [], m: [], d: [] };
-  const take = { p: [], m: [], d: [] };
-  const found = [];
+  const cells = new Map();
+  const matched = new Set();
   const missing = [];
-  for (const r of REGISTER) {
-    const id = byName.get(key(r.name));
-    if (!id) { missing.push(r.name); continue; }
-    found.push(r.name);
-    for (let i = 0; i < 10; i++) {
-      give.p.push(id); give.m.push(i + 1); give.d.push(r.given[i]);
-      take.p.push(id); take.m.push(i + 1); take.d.push(r.taken[i]);
+  for (const r of rows) {
+    const m = matchPerson(r.name, people);
+    if (!m.person) { missing.push(r.name + (m.error === 'more than one' ? ' (more than one match)' : '')); continue; }
+    for (const c of r.cells) {
+      if (!(c.days >= 0 && c.days <= 31)) back(here, r.name + ': each month must be between 0 and 31 days');
+      cells.set(m.person.id + '|' + c.month, { p: m.person.id, m: c.month, d: c.days });
     }
+    if (r.cells.length) matched.add(m.person.id);
   }
-  let added = 0;
-  let addedTaken = 0;
-  if (give.p.length) {
-    const a = await q(`WITH ins AS (INSERT INTO pc2_hk_allow_m (person_id, year, month, days) SELECT p, $1, m, d FROM unnest($2::int[], $3::int[], $4::numeric[]) AS t(p, m, d) ON CONFLICT (person_id, year, month) DO NOTHING RETURNING 1) SELECT COUNT(*)::int AS n FROM ins`, [REGISTER_YEAR, give.p, give.m, give.d]);
-    const b = await q(`WITH ins AS (INSERT INTO pc2_hk_taken_m (person_id, year, month, days) SELECT p, $1, m, d FROM unnest($2::int[], $3::int[], $4::numeric[]) AS t(p, m, d) ON CONFLICT (person_id, year, month) DO NOTHING RETURNING 1) SELECT COUNT(*)::int AS n FROM ins`, [REGISTER_YEAR, take.p, take.m, take.d]);
-    added = a[0].n;
-    addedTaken = b[0].n;
-  }
-  await logEvent(u, 'create', 'hk_person', null, 'Dastarkhawan: paper register Jan-Oct ' + REGISTER_YEAR + ' imported for ' + found.length + ' people (' + added + ' allocation months, ' + addedTaken + ' leave months added)', null, null);
-  back(here, 'Register imported for ' + found.length + ' people: ' + added + ' allocation months and ' + addedTaken + ' leave months added (months already filled were kept).' + (missing.length ? ' Not found in the team: ' + missing.join(', ') + '.' : ''), true);
+  const list = [...cells.values()];
+  if (!list.length) back(here, 'Nothing to import: no numbers matched a team member.' + (missing.length ? ' Not found: ' + missing.join(', ') + '.' : ''));
+  const table = kind === 'taken' ? 'pc2_hk_taken_m' : 'pc2_hk_allow_m';
+  const r = await q(
+    `WITH ins AS (INSERT INTO ${table} (person_id, year, month, days) SELECT p, $1, m, d FROM unnest($2::int[], $3::int[], $4::numeric[]) AS t(p, m, d)
+       ON CONFLICT (person_id, year, month) DO ${overwrite ? 'UPDATE SET days = EXCLUDED.days' : 'NOTHING'} RETURNING 1) SELECT COUNT(*)::int AS n FROM ins`,
+    [year, list.map((x) => x.p), list.map((x) => x.m), list.map((x) => x.d)]
+  );
+  const saved = r[0].n;
+  const label = kind === 'taken' ? 'leave taken' : 'PTO given';
+  await logEvent(u, 'edit', 'hk_person', null, 'Dastarkhawan: ' + year + ' ' + label + ' imported for ' + matched.size + ' people (' + saved + ' month entries' + (overwrite ? ', replacing' : '') + ')', null, null);
+  back(here, saved + ' month entries of ' + label + ' saved for ' + matched.size + ' people in ' + year + '.' + (saved < list.length ? ' ' + (list.length - saved) + ' already had a number and were kept.' : '') + (missing.length ? ' Not found in the team: ' + missing.join(', ') + '.' : ''), true);
 }
 
 /* ---------- setup: allowances, hours per day, minimum cover, holidays ---------- */

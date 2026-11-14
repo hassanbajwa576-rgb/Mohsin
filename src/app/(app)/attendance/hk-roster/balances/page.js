@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
 import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings, siteList, dkAllowDetail, dkTakenMonthly } from '@/lib/roster';
-import { setDkAllowance, setDkAllowanceAll, saveDkMonthly, setDkMonthlyAll, saveDkTaken, importDkRegister } from '@/lib/roster-actions';
-import { REGISTER, REGISTER_YEAR, sum as regSum } from '@/lib/dk-register';
+import { setDkAllowance, setDkAllowanceAll, saveDkMonthly, setDkMonthlyAll, saveDkTaken, importMonthlyLeaves } from '@/lib/roster-actions';
+import LeaveImport from '@/components/LeaveImport';
 import { applyHkDates } from '@/lib/hk-dates';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
@@ -146,31 +146,11 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
         </details>
       ) : null}
 
-      {dast && user.role === 'om' && year === REGISTER_YEAR ? (
+      {dast && editDk ? (
         <details className='card'>
-          <summary>Import the paper register, January to October {REGISTER_YEAR}</summary>
-          <p className='muted' style={{ margin: '8px 0' }}>The attendance register read from the scan: PTO given and leave taken in each month, January to October. Check the totals below against the register, then import. Months that already have a number are kept, and nothing else is touched. November and later are not included.</p>
-          <div className='tablewrap'>
-            <table className='tx'>
-              <thead><tr><th>Team member</th><th className='r'>Given Jan-Oct</th><th className='r'>Taken Jan-Oct</th><th className='r'>Left at end of Oct</th></tr></thead>
-              <tbody>
-                {REGISTER.map((r) => {
-                  const bal = regSum(r.given) - regSum(r.taken);
-                  return (
-                    <tr key={r.name}>
-                      <td className='c-title'><b>{r.name}</b></td>
-                      <td className='r nw c-meta'>{d1(regSum(r.given))}</td>
-                      <td className='r nw c-meta'>{d1(regSum(r.taken))}</td>
-                      <td className='r nw c-meta'><b style={{ color: bal < 0 ? '#b3261e' : undefined }}>{bal < 0 ? d1(-bal) + ' over' : d1(bal)}</b></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <form action={importDkRegister} style={{ marginTop: 10 }}>
-            <button className='btn primary' type='submit'>Import the register</button>
-          </form>
+          <summary>Paste monthly figures ({year})</summary>
+          <p className='muted' style={{ margin: '8px 0' }}>Import PTO given or leave taken for any months, for example from a paper register or a spreadsheet, now or later. Check the preview, then import.</p>
+          <LeaveImport people={team.map((p) => ({ id: p.id, name: p.name }))} year={year} action={importMonthlyLeaves} />
         </details>
       ) : null}
 
