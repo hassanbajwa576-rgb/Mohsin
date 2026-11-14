@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { hm, DUTY_MIN, OT_BLOCK_H } from '@/lib/dk-hours';
 import Flash from '@/components/Flash';
 import ConfirmButton from '@/components/ConfirmButton';
+import DkPersonPicker from '@/components/DkPersonPicker';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DOW1 = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // one letter in the grid header keeps the columns narrow
@@ -19,9 +20,9 @@ function Kpi({ label, value, sub, tone }) {
   );
 }
 
-export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, siteDays, siteOpts, siteStats, multi }) {
+export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, from, to, custom, dates, siteDays, siteOpts, siteStats, multi }) {
   const qs = (o) => {
-    const e = { m: month, ...(view !== 'grid' ? { v: view } : {}), ...(who ? { who: String(who) } : {}), ...o };
+    const e = { ...(custom ? { from, to } : { m: month }), ...(view !== 'grid' ? { v: view } : {}), ...(who ? { who: String(who) } : {}), ...o };
     return new URLSearchParams(Object.entries(e).filter(([, x]) => x !== '')).toString();
   };
   const multiSet = new Set(multi);
@@ -31,8 +32,9 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
   const tLeft = people.reduce((a, p) => a + p.bank.left, 0);
   const tDays = people.reduce((a, p) => a + p.bank.days, 0);
   const open = true;
-  const [yy, mm] = month.split('-').map(Number);
-  const dates = Array.from({ length: new Date(yy, mm, 0).getDate() }, (_, i) => month + '-' + String(i + 1).padStart(2, '0'));
+  const period = custom ? from + ' to ' + to : month;
+  const per = custom ? 'in this period' : 'this month';
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   return (
     <>
@@ -49,18 +51,37 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
       </div>
 
       <div className='chips' style={{ marginBottom: 12, alignItems: 'center' }}>
-        <Link className='chip' href={'?' + qs({ m: prev })}>&larr; {prev}</Link>
-        <b style={{ padding: '0 8px' }}>{month}</b>
-        <Link className='chip' href={'?' + qs({ m: next })}>{next} &rarr;</Link>
-        <Link className={'chip' + (!who ? ' on' : '')} href={'?' + qs({ who: '' })}>Everyone</Link>
-        {team.map((p) => <Link key={p.id} className={'chip' + (who === p.id ? ' on' : '')} href={'?' + qs({ who: String(p.id) })}>{p.name}</Link>)}
+        {custom ? (
+          <>
+            <b style={{ padding: '0 8px' }}>{from} to {to}</b>
+            <Link className='chip' href={'?' + new URLSearchParams(Object.entries({ m: month, ...(view !== 'grid' ? { v: view } : {}), ...(who ? { who: String(who) } : {}) })).toString()}>Back to months</Link>
+          </>
+        ) : (
+          <>
+            <Link className='chip' href={'?' + qs({ m: prev })}>&larr; {prev}</Link>
+            <b style={{ padding: '0 8px' }}>{month}</b>
+            <Link className='chip' href={'?' + qs({ m: next })}>{next} &rarr;</Link>
+          </>
+        )}
+        <DkPersonPicker people={team.map((p) => ({ id: p.id, name: p.name, href: '?' + qs({ who: String(p.id) }) }))} selected={who} everyoneHref={'?' + qs({ who: '' })} />
       </div>
+
+      <form method='get' className='dka-range'>
+        {view !== 'grid' ? <input type='hidden' name='v' value={view} /> : null}
+        {who ? <input type='hidden' name='who' value={who} /> : null}
+        <span className='muted'>Custom dates</span>
+        <label>From<input type='date' name='from' required defaultValue={from} /></label>
+        <label>To<input type='date' name='to' required defaultValue={to} /></label>
+        <button type='submit' className='btn'>Show</button>
+      </form>
 
       <details id='addtime' className='dka-card' open={!!fix.p}>
         <summary>+ Add or correct a time by hand</summary>
         <p className='muted' style={{ margin: '8px 0' }}>For when the facial app has no time or a wrong one. A time typed here replaces the facial-app time for that day; leave a field empty to keep the facial-app value. It is saved separately, so the facial app never overwrites it, and it counts as present on the roster. For an incharge who works at several sites, also pick the site they were at that day (the site alone can be saved without any time).</p>
         <form action={save} className='dka-form'>
           <input type='hidden' name='m' value={month} />
+          {custom ? <input type='hidden' name='from' value={from} /> : null}
+          {custom ? <input type='hidden' name='to' value={to} /> : null}
           <input type='hidden' name='v' value={view === 'grid' ? '' : view} />
           <label>Team member
             <select name='id' required defaultValue={fix.p || ''}>
@@ -90,9 +111,9 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           {view === 'grid' ? (
             <>
           <div className='dka-kpis'>
-            <Kpi label='Team duty time' value={hm(tTotal)} sub={people.length + ' ' + (people.length === 1 ? 'person' : 'people') + ' in ' + month} />
-            <Kpi label='Overtime this month' value={tOver ? hm(tOver) : '-'} sub='time beyond 8 h a day' tone={tOver ? 'good' : ''} />
-            <Kpi label='Short this month' value={tShort ? hm(tShort) : '-'} sub='time under 8 h a day' tone={tShort ? 'bad' : ''} />
+            <Kpi label='Team duty time' value={hm(tTotal)} sub={people.length + ' ' + (people.length === 1 ? 'person' : 'people') + ' ' + (custom ? 'in this period' : 'in ' + month)} />
+            <Kpi label={'Overtime ' + per} value={tOver ? hm(tOver) : '-'} sub='time beyond 8 h a day' tone={tOver ? 'good' : ''} />
+            <Kpi label={'Short ' + per} value={tShort ? hm(tShort) : '-'} sub='time under 8 h a day' tone={tShort ? 'bad' : ''} />
             <Kpi label='Overtime to convert' value={h1(tLeft) + ' h'} sub={tDays ? '= ' + tDays + ' PTO day' + (tDays === 1 ? '' : 's') + ' ready' : 'under ' + OT_BLOCK_H + ' h each'} tone={tDays ? 'good' : ''} />
           </div>
 
@@ -102,7 +123,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
               <thead>
                 <tr>
                   <th className='rn'>Team member</th>
-                  {dates.map((key) => <th key={key} title={DOW[dow(key)] + ' ' + key.slice(8)} className={(dow(key) === 0 || dow(key) === 6 ? 'we ' : '') + (key === today ? 'tod' : '')}>{Number(key.slice(8))}<small>{DOW1[dow(key)]}</small></th>)}
+                  {dates.map((key) => <th key={key} title={DOW[dow(key)] + ' ' + key.slice(8)} className={(dow(key) === 0 || dow(key) === 6 ? 'we ' : '') + (key === today ? 'tod' : '')}>{custom && (key === dates[0] || key.slice(8) === '01') ? <span className='mo'>{MON[Number(key.slice(5, 7)) - 1]}</span> : null}{Number(key.slice(8))}<small>{DOW1[dow(key)]}</small></th>)}
                   <th className='sum' title='Days with a check in'>Days</th>
                   <th className='sum' title='Total duty time'>Total</th>
                   <th className='sum' title='Overtime (time beyond 8 hours a day)'>OT</th>
@@ -223,12 +244,12 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           <h2 className='dka-h'>Overtime and PTO</h2>
           <div className='rostable'>
             <table className='tx dka-sum'>
-              <thead><tr><th>Team member</th><th>Overtime this month</th><th>Already converted</th><th>Available overtime</th><th></th></tr></thead>
+              <thead><tr><th>Team member</th><th>Overtime {per}</th><th>Already converted</th><th>Available overtime</th><th></th></tr></thead>
               <tbody>
                 {people.map((p) => (
                   <tr key={p.id}>
                     <td className='c-title'><b>{p.name}</b>{p.site ? <span className='dka-pill'>{p.site}</span> : null}</td>
-                    <td className={'c-meta dka-t ' + (p.over ? 'g' : '')}><small className='dklbl'>This month </small>{p.over ? hm(p.over) : '-'}</td>
+                    <td className={'c-meta dka-t ' + (p.over ? 'g' : '')}><small className='dklbl'>Overtime </small>{p.over ? hm(p.over) : '-'}</td>
                     <td className='c-meta'><small className='dklbl'>Converted </small>{p.bank.used ? h1(p.bank.used) + ' h' : '-'}</td>
                     <td className='c-meta'><small className='dklbl'>Available </small><b>{h1(p.bank.left)} h</b>{p.bank.days ? <span className='dka-pill ok'>= {p.bank.days} PTO day{p.bank.days === 1 ? '' : 's'}</span> : null}</td>
                     <td>
@@ -254,7 +275,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           <h2 className='dka-h'>Days per site</h2>
           {siteStats.length ? (
             <>
-              <p className='muted' style={{ margin: '0 0 10px' }}>For people who work at several sites: the days of {month} they spent at each site, as picked on the Overview (click a day and choose the site). {siteStats.some((r) => r.unset) ? 'Days they were present but no site was picked show under Not set.' : ''}</p>
+              <p className='muted' style={{ margin: '0 0 10px' }}>For people who work at several sites: the days {custom ? 'from ' + from + ' to ' + to : 'of ' + month} they spent at each site, as picked on the Overview (click a day and choose the site). {siteStats.some((r) => r.unset) ? 'Days they were present but no site was picked show under Not set.' : ''}</p>
               <div className='rostable'>
                 <table className='tx dka-sum'>
                   <thead><tr><th>Team member</th>{siteOpts.map((c) => <th key={c}>{c}</th>)}<th>Days with a site</th><th>Not set</th></tr></thead>
@@ -282,7 +303,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           ) : <p className='muted'>Nobody here is mapped to more than one site. Map an incharge to several sites on the roster to track the days they spend at each.</p>}
         </>
       ) : null}
-      {!people.length && view !== 'sites' ? <p className='muted'>No check-ins for {month}. Use the form above to add a time by hand.</p> : null}
+      {!people.length && view !== 'sites' ? <p className='muted'>No check-ins for {period}. Use the form above to add a time by hand.</p> : null}
     </>
   );
 }

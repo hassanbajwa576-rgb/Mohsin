@@ -12,15 +12,30 @@ import DkAttendanceView from '@/components/DkAttendanceView';
 
 export const dynamic = 'force-dynamic';
 
+const isDayStr = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '') && !Number.isNaN(Date.parse(d));
+
 // Dastarkhawan attendance: check in, check out and duty time per day (red under 8 hours, green from 8), monthly totals and overtime that can be converted to PTO.
 export default async function DastarkhawanAttendance({ searchParams }) {
   const user = await requireUser(ATT_ROLES);
   if (!['om', 'sso', 'so'].includes(user.role) || !can(user, 'dast_edit')) redirect('/');
   const sp = await searchParams;
   const today = todayKey();
-  const month = validMonth(sp.m) ? sp.m : today.slice(0, 7);
-  const from = month + '-01';
-  const to = addDays(shiftMonth(month, 1) + '-01', -1);
+  const monthParam = validMonth(sp.m) ? sp.m : today.slice(0, 7);
+  const month = isDayStr(sp.from) && isDayStr(sp.to) ? (sp.from <= sp.to ? sp.from : sp.to).slice(0, 7) : monthParam;
+  let from = month + '-01';
+  let to = addDays(shiftMonth(month, 1) + '-01', -1);
+  // Custom dates (From / To) replace the month; at most about three months, so the grid stays readable.
+  const custom = isDayStr(sp.from) && isDayStr(sp.to);
+  if (custom) {
+    let f = sp.from;
+    let t = sp.to;
+    if (t < f) [f, t] = [t, f];
+    if (t > addDays(f, 91)) t = addDays(f, 91);
+    from = f;
+    to = t;
+  }
+  const dates = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) dates.push(d);
   await syncDk();
   const team = await hkPeople({ team: 'dast' });
   const who = team.some((p) => String(p.id) === String(sp.who)) ? Number(sp.who) : 0;
@@ -64,5 +79,5 @@ export default async function DastarkhawanAttendance({ searchParams }) {
   const fix = team.some((p) => String(p.id) === String(sp.p)) && /^\d{4}-\d{2}-\d{2}$/.test(sp.d || '')
     ? { p: String(sp.p), d: sp.d, in: hit ? to24(hit.check_in) : '', out: hit ? to24(hit.check_out) : '', note: hit && hit.manual ? hit.note || '' : '', site: siteDays[sp.p + '|' + sp.d] || '' }
     : {};
-  return <DkAttendanceView sp={sp} month={month} prev={shiftMonth(month, -1)} next={shiftMonth(month, 1)} who={who} team={team} people={people} om={om} convert={convertOvertime} save={saveDkTime} clear={clearDkTime} fix={fix} today={today} view={view} siteDays={siteDays} siteOpts={siteOpts} siteStats={siteStats} multi={multi.map((t) => t.id)} />;
+  return <DkAttendanceView sp={sp} month={month} prev={shiftMonth(month, -1)} next={shiftMonth(month, 1)} who={who} team={team} people={people} om={om} convert={convertOvertime} save={saveDkTime} clear={clearDkTime} fix={fix} today={today} view={view} from={from} to={to} custom={custom} dates={dates} siteDays={siteDays} siteOpts={siteOpts} siteStats={siteStats} multi={multi.map((t) => t.id)} />;
 }

@@ -474,7 +474,8 @@ export async function saveDkTime(fd) {
   const u = await need('dast');
   const m = s(fd, 'm');
   const v = ['sites', 'ot'].includes(s(fd, 'v')) ? '&v=' + s(fd, 'v') : '';
-  const here = DAST + '/attendance?m=' + encodeURIComponent(m) + v;
+  const range = dateOk(s(fd, 'from')) && dateOk(s(fd, 'to')) ? '&from=' + s(fd, 'from') + '&to=' + s(fd, 'to') : '';
+  const here = DAST + '/attendance?m=' + encodeURIComponent(m) + range + v;
   const id = Number(s(fd, 'id'));
   const p = (await q(`SELECT id, name FROM pc2_hk_people WHERE id = $1 AND team = 'dast'`, [Number.isInteger(id) ? id : 0]))[0];
   if (!p) back(here, 'Pick a team member');
@@ -486,7 +487,7 @@ export async function saveDkTime(fd) {
   const site = s(fd, 'site');
   if (!ci && !co && !site) back(here, 'Enter a check in time, a check out time, a site, or a combination');
   const note = s(fd, 'note').slice(0, 200);
-  const where = DAST + '/attendance?m=' + encodeURIComponent(day.slice(0, 7)) + v;
+  const where = range ? here : DAST + '/attendance?m=' + encodeURIComponent(day.slice(0, 7)) + v;
   const said = [];
   if (ci || co) {
     await q(
