@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { hm, DUTY_MIN, OT_BLOCK_H } from '@/lib/dk-hours';
 import Flash from '@/components/Flash';
 import ConfirmButton from '@/components/ConfirmButton';
+import DkPersonPicker from '@/components/DkPersonPicker';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DOW1 = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // one letter in the grid header keeps the columns narrow
@@ -52,8 +53,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
         <Link className='chip' href={'?' + qs({ m: prev })}>&larr; {prev}</Link>
         <b style={{ padding: '0 8px' }}>{month}</b>
         <Link className='chip' href={'?' + qs({ m: next })}>{next} &rarr;</Link>
-        <Link className={'chip' + (!who ? ' on' : '')} href={'?' + qs({ who: '' })}>Everyone</Link>
-        {team.map((p) => <Link key={p.id} className={'chip' + (who === p.id ? ' on' : '')} href={'?' + qs({ who: String(p.id) })}>{p.name}</Link>)}
+        <DkPersonPicker people={team.map((p) => ({ id: p.id, name: p.name, href: '?' + qs({ who: String(p.id) }) }))} selected={who} everyoneHref={'?' + qs({ who: '' })} />
       </div>
 
       <details id='addtime' className='dka-card' open={!!fix.p}>
