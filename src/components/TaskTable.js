@@ -2,8 +2,9 @@ import Link from 'next/link';
 import ConfirmButton from '@/components/ConfirmButton';
 import { toggleTask, deleteTask } from '@/lib/task-actions';
 import { PRIORITY, SOURCE, DOMAIN, REPEAT_SHORT, dueLabel, daysFrom } from '@/lib/tasks';
+import { firstName } from '@/lib/names';
 
-const short = (n) => String(n || '').trim().split(/\s+/).slice(-1)[0];
+const short = firstName;
 
 // Whose task it is, and who gave it: shown only when it is not simply the viewer's own.
 function Owner({ t, me }) {

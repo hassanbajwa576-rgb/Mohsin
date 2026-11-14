@@ -13,11 +13,12 @@ import TaskTable from '@/components/TaskTable';
 import TaskAddPanel from '@/components/TaskAddPanel';
 import Flash from '@/components/Flash';
 import ConfirmButton from '@/components/ConfirmButton';
+import { firstName } from '@/lib/names';
 
 export const dynamic = 'force-dynamic';
 
 // "Muhammad Imran" -> "Imran"
-const short = (n) => String(n || '').trim().split(/\s+/).slice(-1)[0];
+const short = firstName;
 
 export default async function TasksPage({ searchParams }) {
   const user = await requireUser(['om', 'sso', 'so']);

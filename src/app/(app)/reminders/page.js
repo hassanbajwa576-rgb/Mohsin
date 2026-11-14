@@ -8,10 +8,11 @@ import { daysText } from '@/lib/weekdays';
 import ReminderForm from '@/components/ReminderForm';
 import ConfirmButton from '@/components/ConfirmButton';
 import Flash from '@/components/Flash';
+import { firstName } from '@/lib/names';
 
 export const dynamic = 'force-dynamic';
 
-const short = (n) => String(n || '').trim().split(/\s+/).slice(-1)[0];
+const short = firstName;
 const hourText = (h, m) => (h % 12 || 12) + ':' + String(m || 0).padStart(2, '0') + (h >= 12 ? ' PM' : ' AM');
 const when = (r) => (r.kind === 'once' ? 'Once, ' + r.on_date : r.kind === 'daily' ? 'Every day' : r.kind === 'days' ? 'Every ' + daysText(r.weekdays) : r.kind === 'm15' ? 'On the 15th of each month' : 'Last working day of each month') + ' at ' + hourText(r.hour, r.minute);
 
