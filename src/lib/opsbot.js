@@ -6,6 +6,11 @@ import { MONTHS, MON3, pkr, officeCosts, budgetByHead, erYears, headcount } from
 import { fundSummary, soAccount } from './queries';
 import { visitorRows, insideNow, VLABEL } from './visitors';
 import { FUNDS } from './fmt';
+import { hkPeople, dkToday, dkAllowances, offToday, usedByPerson, siteList, TLABEL } from './roster';
+import { dkDayRows, dkOvertime, hm, DUTY_MIN, OT_BLOCK_H } from './dk-hours';
+import { comparePeople, siteLabel, sortSites } from './dk-sites';
+import { taskPeople, taskRows, dueLabel } from './tasks';
+import { firstName } from './names';
 
 // OpsBot without any AI service: it reads the question, works out what is asked (period, office, head, topic) and answers from the
 // app's own data, for the person's own access only.
@@ -15,9 +20,9 @@ const has = (n, re) => re.test(n);
 const pc = (a, b) => (b ? ((a / b) * 100).toFixed(1) + '%' : '-');
 const MONWORDS = MONTHS.flatMap((m, i) => [[m.toLowerCase(), i + 1], [m.slice(0, 3).toLowerCase(), i + 1]]).concat([['sept', 9]]);
 const monthOf = (w) => (MONWORDS.find(([k]) => k === w) || [])[1] || 0;
-const SUGGEST_OM = ['How much did we spend this year?', 'ISB spend by month', 'Top heads this year', 'Compare with last year', 'Budget vs actual year to date', 'Who holds the cash?', 'Who is on duty today?', 'How many employees in ISB?', 'Open complaints', 'Find 18376'];
-const IDEAS_OM = ['SPENDING: How much did we spend this year? | ISB spend by month | Top heads in Q2 | Travel from March to June | Cost per employee | Highest month this year | Biggest vendors', 'COMPARE: Compare with last year | Year by year for office rent', 'BUDGET: Budget vs actual year to date | Budget for Bank Fees', 'CASH: Who holds the cash? | Advances outstanding | Funds received this month | Cash returned this year | Latest batches', 'PETTY: Zubair expenses this month | Rejected expenses | Expenses by category | Biggest expenses this month | Find 18376', 'PEOPLE: Who is on duty today? | How many employees in ISB? | Who is off this week? | Who is Imran?', 'OTHER: Visitors today | Visitors still expected | Open complaints | What needs my attention? | What changed today?'];
-const SUGGEST_OTHER = ['What is my cash in hand?', 'How many expenses are waiting?', 'Visitors today', 'Advances outstanding', 'Open complaints'];
+const SUGGEST_OM = ['How much did we spend this year?', 'ISB spend by month', 'Top heads this year', 'Compare with last year', 'Budget vs actual year to date', 'Who holds the cash?', 'Who is on duty today?', 'How many employees in ISB?', 'Open complaints', 'Find 18376', 'Dastarkhawan today', 'My open tasks'];
+const IDEAS_OM = ['SPENDING: How much did we spend this year? | ISB spend by month | Top heads in Q2 | Travel from March to June | Cost per employee | Highest month this year | Biggest vendors', 'COMPARE: Compare with last year | Year by year for office rent', 'BUDGET: Budget vs actual year to date | Budget for Bank Fees', 'CASH: Who holds the cash? | Advances outstanding | Funds received this month | Cash returned this year | Latest batches', 'PETTY: Zubair expenses this month | Rejected expenses | Expenses by category | Biggest expenses this month | Find 18376', 'PEOPLE: Who is on duty today? | How many employees in ISB? | Who is off this week? | Who is Imran?', 'OTHER: Visitors today | Visitors still expected | Open complaints | What needs my attention? | What changed today?', 'DASTARKHAWAN: Dastarkhawan today | Who is at Okara? | Hafiz Zeeshan | Dastarkhawan overtime | Dastarkhawan leaves balance | Days per site', 'TASKS: My open tasks | Overdue tasks | Tasks due today | Zubair tasks | All tasks'];
+const SUGGEST_OTHER = ['What is my cash in hand?', 'How many expenses are waiting?', 'Visitors today', 'Advances outstanding', 'Open complaints', 'My open tasks'];
 
 // The period asked for: a year plus a range of months.
 function when(n, nowY, nowM) {
@@ -403,6 +408,146 @@ async function extraTopics(user, n, nowY, nowM, today) {
   return null;
 }
 
+
+// ---- Dastarkhawan: the team, today's check-ins, hours and overtime, leaves, sites and the days an incharge spends at each ----
+const NAME_PREFIX = /^(muhammad|mohammad|mohammed|muhammed|mohd|md)$/;
+const nameWords = (full) => norm(full).split(' ').filter((w) => w.length >= 3 && !NAME_PREFIX.test(w));
+const h1 = (v) => String(Math.round(v * 10) / 10);
+
+async function dastTopics(user, n, today) {
+  const people = await hkPeople({ team: 'dast' });
+  const money = has(n, /expens|spend|spent|advance|cash|budget|receipt/);
+  const otherModule = has(n, /office|visitor|complaint|fuel|expens|spend|task/);
+  // Whose name was typed: the people matching the most words of it ("Ali Asgher" beats the other Alis; plain "Ali" lists them all).
+  const score = (p) => nameWords(p.name).filter((w) => new RegExp('\\b' + w + '\\b').test(n)).length;
+  const best = money || otherModule ? 0 : Math.max(0, ...people.map(score));
+  const matched = best ? people.filter((p) => score(p) === best) : [];
+  const cue = has(n, /dastarkhawan|dastarkhwan|dasterkhawan|\bdk\b|\bbd\b|\boka\b|okara|\bapl\b|incharge|in charge|days per site|site days/);
+  if (!cue && !matched.length) return null;
+  const allowed = user.role === 'om' || user.role === 'sso' || can(user, 'dast_edit');
+  if (!allowed) return cue ? 'Dastarkhawan details are available to the Sr. Ops Manager, the Sr. Support Officer and people given the Dastarkhawan permission.' : null;
+
+  const year = Number(today.slice(0, 4));
+  const monthFrom = today.slice(0, 8) + '01';
+  const monthName = MONTHS[Number(today.slice(5, 7)) - 1];
+  const codes = (p) => (p.sites || []).map((x) => x.site);
+  const allSites = await siteList();
+  const label = (p) => siteLabel(codes(p), allSites) || '-';
+  const sorted = [...people].sort((a, b) => comparePeople({ name: a.name, codes: codes(a) }, { name: b.name, codes: codes(b) }));
+  const inRows = await dkToday(today);
+  const inMap = new Map(inRows.map((r) => [r.id, r]));
+
+  // One person
+  if (matched.length) {
+    const bank = await dkOvertime();
+    const allow = await dkAllowances(year);
+    const used = await usedByPerson(year, '', 'dast');
+    const off = await offToday(today, '', 'dast');
+    const out = [];
+    for (const p of matched.slice(0, 3)) {
+      const rows = (await dkDayRows(monthFrom, today, p.id)).filter((r) => r.mins != null);
+      const total = rows.reduce((a, r) => a + r.mins, 0);
+      const over = rows.reduce((a, r) => a + Math.max(0, r.mins - DUTY_MIN), 0);
+      const short = rows.reduce((a, r) => a + Math.max(0, DUTY_MIN - r.mins), 0);
+      const t = inMap.get(p.id);
+      const o = off.find((x) => x.staff_id === p.id);
+      const b = bank.get(p.id) || { left: 0, days: 0 };
+      const usedDays = Object.values(used.get(p.id) || {}).reduce((a, x) => a + x, 0);
+      const a = allow.get(p.id);
+      out.push(lines(
+        p.name + (p.dept ? ' (' + p.dept + ')' : '') + ' - Dastarkhawan, ' + label(p) + (p.joined_on ? ', joined ' + p.joined_on : '') + '.',
+        'Today: ' + (t ? 'checked in at ' + t.check_in + (t.check_out ? ', left at ' + t.check_out : ', still on site') : o ? 'on leave (' + (TLABEL[o.kind] || o.kind) + ')' : 'not checked in yet') + '.',
+        rows.length ? monthName + ': ' + rows.length + ' day(s) with full times, ' + hm(total) + ' on duty (' + hm(Math.round(total / rows.length)) + ' a day), overtime ' + hm(over) + ', short ' + hm(short) + '.' : monthName + ': no complete check-in and check-out yet.',
+        'Overtime available to convert to PTO: ' + h1(b.left) + ' h' + (b.days ? ' (= ' + b.days + ' PTO day' + (b.days === 1 ? '' : 's') + ')' : '') + '.',
+        'Leaves ' + year + ': ' + (a != null ? 'allowance ' + h1(a) + ' days, used ' + h1(usedDays) + ', left ' + h1(a - usedDays) + '.' : 'used ' + h1(usedDays) + ' days (no allowance set).')
+      ));
+    }
+    return out.join('\n\n');
+  }
+
+  // Overtime
+  if (has(n, /overtime|\bot\b|extra hours|convert/)) {
+    const bank = await dkOvertime();
+    const list = [];
+    let tot = 0;
+    for (const p of sorted) {
+      const rows = (await dkDayRows(monthFrom, today, p.id)).filter((r) => r.mins != null);
+      const over = rows.reduce((a, r) => a + Math.max(0, r.mins - DUTY_MIN), 0);
+      tot += over;
+      const b = bank.get(p.id) || { left: 0, days: 0 };
+      if (over || b.left) list.push({ txt: p.name + ': ' + hm(over) + ' in ' + monthName + ', ' + h1(b.left) + ' h available' + (b.days ? ' (= ' + b.days + ' PTO day' + (b.days === 1 ? '' : 's') + ')' : ''), over });
+    }
+    list.sort((a, b) => b.over - a.over);
+    return list.length ? lines('Dastarkhawan overtime (time beyond ' + OT_BLOCK_H + ' hours a day), ' + monthName + ': ' + hm(tot) + ' in total. Every ' + OT_BLOCK_H + ' available hours convert to 1 PTO day.', names(list.map((x) => x.txt))) : 'Nobody has Dastarkhawan overtime in ' + monthName + ' yet.';
+  }
+
+  // Leaves
+  if (has(n, /leave|pto|time off|off today|who is off|who s off|balance|holiday/)) {
+    const off = await offToday(today, '', 'dast');
+    if (has(n, /today|now|who is off|who s off|off today/) || !has(n, /balance|allowance|left|remaining|used/)) {
+      return off.length ? lines('On leave today (' + off.length + '):', names(off.map((o) => o.name + ' (' + (TLABEL[o.kind] || o.kind) + ')'))) : 'Nobody in the Dastarkhawan team is on leave today.';
+    }
+    const allow = await dkAllowances(year);
+    const used = await usedByPerson(year, '', 'dast');
+    const list = sorted.map((p) => {
+      const u = Object.values(used.get(p.id) || {}).reduce((a, x) => a + x, 0);
+      const a = allow.get(p.id);
+      return p.name + ': ' + (a != null ? h1(a - u) + ' left of ' + h1(a) + ' days' : h1(u) + ' used (no allowance set)');
+    });
+    return lines('Dastarkhawan leaves ' + year + ':', names(list, 20));
+  }
+
+  // Days an incharge spent at each site
+  if (has(n, /days per site|site days|days at|incharge|in charge|which site|spent at/)) {
+    const r = await q(`SELECT p.name, d.site, COUNT(*)::int AS n FROM pc2_dk_sitedays d JOIN pc2_hk_people p ON p.id = d.person_id WHERE d.day >= $1::date AND d.day <= $2::date AND p.team = 'dast' GROUP BY p.name, d.site ORDER BY p.name, d.site`, [monthFrom, today]);
+    if (!r.length) return 'No site days have been picked for ' + monthName + ' yet. On Dastarkhawan > Attendance, click a day and choose the site for an incharge.';
+    const by = new Map();
+    for (const x of r) by.set(x.name, (by.get(x.name) || []).concat(x.site + ' ' + x.n));
+    return lines('Days at each site, ' + monthName + ' (as picked on the attendance page):', names([...by.entries()].map(([name, a]) => name + ': ' + sortSites(a.map((z) => z.split(' ')[0])).map((c) => a.find((z) => z.startsWith(c + ' '))).join(', '))));
+  }
+
+  // Today: who is in, who has left, who has not come yet
+  if (has(n, /today|now|checked in|check in|on site|present|absent|not in|who is in|who s in|came|late|attendance|board/)) {
+    const on = sorted.filter((p) => inMap.has(p.id) && !inMap.get(p.id).check_out);
+    const left = sorted.filter((p) => inMap.has(p.id) && inMap.get(p.id).check_out);
+    const off = await offToday(today, '', 'dast');
+    const offIds = new Set(off.map((o) => o.staff_id));
+    const not = sorted.filter((p) => !inMap.has(p.id) && !offIds.has(p.id));
+    return lines(
+      'Dastarkhawan today: ' + (on.length + left.length) + ' of ' + people.length + ' checked in (' + on.length + ' still on site, ' + left.length + ' left).',
+      on.length ? 'On site:' : '', on.length ? names(on.map((p) => p.name + ' (' + label(p) + ', in ' + inMap.get(p.id).check_in + ')'), 20) : '',
+      left.length ? 'Left:' : '', left.length ? names(left.map((p) => p.name + ' (' + inMap.get(p.id).check_in + ' to ' + inMap.get(p.id).check_out + ')'), 20) : '',
+      off.length ? 'On leave:' : '', off.length ? names(off.map((o) => o.name), 20) : '',
+      not.length ? 'Not in yet:' : '', not.length ? names(not.map((p) => p.name + ' (' + label(p) + ')'), 20) : ''
+    );
+  }
+
+  // The team and its sites (all, or one site)
+  const siteAsked = (allSites.find((c) => new RegExp('\\b' + c.toLowerCase() + '\\b').test(n)) || (has(n, /okara/) ? 'OKA' : '') || '');
+  const pick = siteAsked ? sorted.filter((p) => codes(p).includes(siteAsked)) : sorted;
+  if (siteAsked) return pick.length ? lines(siteAsked + ' has ' + pick.length + ' team member' + (pick.length === 1 ? '' : 's') + ':', names(pick.map((p) => p.name + (codes(p).length > 1 ? ' (also ' + sortSites(codes(p).filter((c) => c !== siteAsked)).join(', ') + ')' : '')), 25)) : 'Nobody is mapped to ' + siteAsked + ' right now.';
+  const per = allSites.length ? sortSites(allSites).map((c) => c + ' ' + sorted.filter((p) => codes(p).includes(c)).length).join(', ') : '';
+  return lines('The Dastarkhawan team has ' + people.length + ' active member' + (people.length === 1 ? '' : 's') + (per ? ' (' + per + ')' : '') + '. ' + (inRows.length) + ' checked in so far today.', names(sorted.map((p) => p.name + ' - ' + label(p)), 20));
+}
+
+// ---- Tasks: yours, a person's (for those who can follow them), overdue, due today, high priority, done ----
+async function tasksTopic(user, n, today) {
+  if (!has(n, /\btasks?\b|to do list|todo list|\bto dos?\b/)) return null;
+  if (!can(user, 'tasks')) return 'The Tasks page is not available to you.';
+  const people = await taskPeople(user);
+  const asked = people.find((p) => nameWords(p.name).some((w) => new RegExp('\\b' + w + '\\b').test(n)));
+  const everyone = !asked && people.length && has(n, /\ball\b|everyone|everybody|team|each person/);
+  const ids = asked ? [asked.id] : everyone ? [user.id, ...people.map((p) => p.id)] : [user.id];
+  const who = asked ? firstName(asked.name) + "'s" : everyone ? 'All' : 'Your';
+  const kind = has(n, /overdue|late/) ? 'overdue' : has(n, /today|due today/) ? 'today' : has(n, /high|urgent|priority|important/) ? 'high' : '';
+  const show = has(n, /done|completed|finished/) ? 'done' : 'open';
+  const rows = await taskRows(ids, show, '', kind, today);
+  const what = (show === 'done' ? 'completed' : kind === 'overdue' ? 'overdue' : kind === 'today' ? 'due today' : kind === 'high' ? 'high priority' : 'open') + ' tasks';
+  if (!rows.length) return who + ' ' + what + ': none.';
+  const line = (t) => t.title + (ids.length > 1 ? ' - ' + firstName(t.owner_name) : '') + ' - ' + dueLabel(t, today).text + (t.priority === 'high' ? ' - high priority' : '');
+  return lines(who + ' ' + what + ' (' + rows.length + '):', names(rows.map(line), 12));
+}
+
 export async function opsbotAnswer(user, text, ctx = null) {
   const n = norm(text);
   const today = todayKey();
@@ -416,6 +561,10 @@ export async function opsbotAnswer(user, text, ctx = null) {
   if (has(n, /^(hi|hello|hey|salam|help)\b|who are you|how do i ask/)) {
     return { reply: om ? 'I am OpsBot. I answer from the data in OpsTrack. Ask about spending by office, head or month, the budget, year against year, cash in hand, advances, the expenses of one person ("Zubair expenses this month"), expenses in a stage ("rejected expenses"), attendance ("who is on duty today"), headcount, complaints, time-off requests, fuel refills, the team, visitors, or find an amount ("find 18376"). Name a month, a year, an office or a head. I only know what is in the app.' : 'I am OpsBot. I answer from the data in OpsTrack that you can open: your cash in hand, advances, expenses and visitors.', suggestions: sugg };
   }
+  const taskReply = await tasksTopic(user, n, today);
+  if (taskReply) return { reply: taskReply, suggestions: [] };
+  const dastReply = await dastTopics(user, n, today);
+  if (dastReply) return { reply: dastReply, suggestions: [] };
   const extra = await extraTopics(user, n, nowY, nowM, today);
   if (extra) return { reply: extra, suggestions: [] };
   if (has(n, /visitor|inside now|who is in\b|who is inside/)) return { reply: await visitorsAnswer(user, n, nowY, nowM, today), suggestions: [] };
