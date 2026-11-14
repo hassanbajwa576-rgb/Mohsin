@@ -3,7 +3,7 @@ import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey } from '@/lib/att';
 import { validMonth, shiftMonth, hkPeople, addDays, siteList } from '@/lib/roster';
-import { sortSites, siteLabel, comparePeople } from '@/lib/dk-sites';
+import { sortSites, siteTag, comparePeople } from '@/lib/dk-sites';
 import { syncDk } from '@/lib/dk-sync';
 import { dkDayRows, dkOvertime, DUTY_MIN, to24 } from '@/lib/dk-hours';
 import { q } from '@/lib/db';
@@ -65,7 +65,7 @@ export default async function DastarkhawanAttendance({ searchParams }) {
   // Short site codes (APL, LHR...) as set on the Sites tab, instead of the facial app's own site text.
   const allSites = await siteList();
   const codesOf = new Map(team.map((t) => [t.id, (t.sites || []).map((x) => x.site)]));
-  const siteOf = new Map(team.map((t) => [t.id, siteLabel(codesOf.get(t.id), allSites)]));
+  const siteOf = new Map(team.map((t) => [t.id, siteTag(codesOf.get(t.id), allSites)]));
   const people = [...by.values()].map((p) => {
     const done = p.days.filter((d) => d.mins != null);
     const total = done.reduce((a, d) => a + d.mins, 0);

@@ -8,6 +8,7 @@ import { addHkPerson } from '@/lib/roster-actions';
 import { sortSites } from '@/lib/dk-sites';
 import { siteText } from '@/lib/teams';
 import NavOffset from '@/components/NavOffset';
+import OfficeTag from '@/components/OfficeTag';
 import SiteMap from '@/components/SiteMap';
 import Flash from '@/components/Flash';
 
@@ -67,7 +68,7 @@ export default async function DastarkhawanTeam({ searchParams }) {
                   return (
                     <tr key={p.id}>
                       <td className='c-title'><b>{p.name}</b>{p.dept ? <small className='muted'> {p.dept}</small> : null}</td>
-                      <td className='c-meta'><small className='dklbl'>Sites </small>{sitesOf(p) || '-'}</td>
+                      <td className='c-meta'><small className='dklbl'>Sites </small>{(p.sites || []).length ? sortSites((p.sites || []).map((x) => x.site)).map((c) => { const x = (p.sites || []).find((y) => y.site === c); return <span key={c} title={x && x.days ? siteText([x]) : undefined}><OfficeTag o={c} />{x && x.days ? <small className='muted'>{siteText([x]).replace(c, '').trim()} </small> : null}</span>; }) : '-'}</td>
                       <td className='c-meta nw'><small className='dklbl'>Joined </small>{p.joined_on || '-'}</td>
                       <td className='c-meta nw'><small className='dklbl'>Phone </small>{p.phone || '-'}</td>
                       <td className='c-meta'>
@@ -94,7 +95,7 @@ export default async function DastarkhawanTeam({ searchParams }) {
                 {inactive.map((p) => (
                   <tr key={p.id}>
                     <td className='c-title'><b>{p.name}</b></td>
-                    <td className='c-meta'><small className='dklbl'>Sites </small>{sitesOf(p) || '-'}</td>
+                    <td className='c-meta'><small className='dklbl'>Sites </small>{(p.sites || []).length ? sortSites((p.sites || []).map((x) => x.site)).map((c) => { const x = (p.sites || []).find((y) => y.site === c); return <span key={c} title={x && x.days ? siteText([x]) : undefined}><OfficeTag o={c} />{x && x.days ? <small className='muted'>{siteText([x]).replace(c, '').trim()} </small> : null}</span>; }) : '-'}</td>
                     <td className='c-meta nw'><small className='dklbl'>Since </small>{p.eff || '-'}</td>
                     <td className='c-meta'><small className='dklbl'>Reason </small>{p.reason || '-'}{p.remarks ? <small className='muted'> {p.remarks}</small> : null}{p.active_from ? <small className='muted'> (back on {p.active_from})</small> : null}</td>
                   </tr>

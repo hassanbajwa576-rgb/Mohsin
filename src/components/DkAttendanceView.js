@@ -3,6 +3,7 @@ import { hm, DUTY_MIN, OT_BLOCK_H } from '@/lib/dk-hours';
 import Flash from '@/components/Flash';
 import ConfirmButton from '@/components/ConfirmButton';
 import DkPersonPicker from '@/components/DkPersonPicker';
+import OfficeTag from '@/components/OfficeTag';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DOW1 = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // one letter in the grid header keeps the columns narrow
@@ -134,7 +135,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                   return (
                     <tr key={p.id}>
                       <td className='rn'>
-                        {p.site ? <span className='dkg-site'>{p.site}</span> : null}
+                        {p.site ? <span title={(p.codes || []).join(' \u00b7 ')}><OfficeTag o={p.site} /></span> : null}
                         <Link href={'?' + qs({ who: String(p.id) })} title='Open the in and out times of this person'><b>{p.name}</b></Link>
                       </td>
                       {dates.map((key) => {
@@ -189,7 +190,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
             <details key={p.id} className='dka-person' open={open}>
               <summary>
                 <b>{p.name}</b>
-                {p.site ? <span className='dka-pill'>{p.site}</span> : null}
+                {p.site ? <span title={(p.codes || []).join(' \u00b7 ')}><OfficeTag o={p.site} /></span> : null}
                 <span className='dka-stat'>{p.present} day{p.present === 1 ? '' : 's'}</span>
                 <span className='dka-stat'>{hm(p.total)} total</span>
                 {p.over ? <span className='dka-stat dka-t g'>+{hm(p.over)} overtime</span> : null}
@@ -246,7 +247,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
               <tbody>
                 {people.map((p) => (
                   <tr key={p.id}>
-                    <td className='c-title'><b>{p.name}</b>{p.site ? <span className='dka-pill'>{p.site}</span> : null}</td>
+                    <td className='c-title'><b>{p.name}</b>{p.site ? <span title={(p.codes || []).join(' \u00b7 ')}><OfficeTag o={p.site} /></span> : null}</td>
                     <td className={'c-meta dka-t ' + (p.over ? 'g' : '')}><small className='dklbl'>Overtime </small>{p.over ? hm(p.over) : '-'}</td>
                     <td className='c-meta'><small className='dklbl'>Converted </small>{p.bank.used ? h1(p.bank.used) + ' h' : '-'}</td>
                     <td className='c-meta'><small className='dklbl'>Available </small><b>{h1(p.bank.left)} h</b>{p.bank.days ? <span className='dka-pill ok'>= {p.bank.days} PTO day{p.bank.days === 1 ? '' : 's'}</span> : null}</td>

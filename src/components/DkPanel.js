@@ -1,9 +1,10 @@
-import { refreshDk, linkDkPerson, unlinkDkPerson } from '@/lib/roster-actions';
-import { siteLabel, comparePeople } from '@/lib/dk-sites';
+import { refreshDk, linkDkPerson, unlinkDkPerson, saveDkTime } from '@/lib/roster-actions';
+import { siteTag, comparePeople, sortSites } from '@/lib/dk-sites';
+import OfficeTag from '@/components/OfficeTag';
 
 // Dastarkhawan: who has checked in today (from the facial attendance app), when the data was last updated,
 // and people not yet linked to their facial app record.
-export default function DkPanel({ rows, team = [], allSites = [], teamSize, status, unlinked, linked = [], edit }) {
+export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}, todayKey = '', teamSize, status, unlinked, linked = [], edit }) {
   const out = rows.filter((r) => r.check_out).length;
   const inNow = rows.length - out;
   // One line per team member, in site order (ISB, LHR, OKA, APL): when they came, when they left, and where they are now.
@@ -34,10 +35,33 @@ export default function DkPanel({ rows, team = [], allSites = [], teamSize, stat
             <tbody>
               {list.map((p) => {
                 const t = p.t;
-                const site = siteLabel(p.codes, allSites);
+                const site = siteTag(p.codes, allSites);
                 return (
                   <tr key={p.id}>
-                    <td className='c-title'>{site ? <span className='dkg-site'>{site}</span> : null}<b>{p.name}</b></td>
+                    <td className='c-title'>
+                      {site ? <span title={sortSites(p.codes).join(' \u00b7 ')}><OfficeTag o={site} /></span> : null}<b>{p.name}</b>
+                      {p.codes.length > 1 && t ? (
+                        <>
+                          {siteToday[p.id] ? <span className='dka-pill ok'>at {siteToday[p.id]}</span> : <span className='dka-pill warn'>site not picked</span>}
+                          {edit ? (
+                            <details className='dkp-change'>
+                              <summary>{siteToday[p.id] ? 'change' : 'pick site'}</summary>
+                              <form action={saveDkTime} className='dkp-site'>
+                                <input type='hidden' name='id' value={p.id} />
+                                <input type='hidden' name='day' value={todayKey} />
+                                <input type='hidden' name='m' value={todayKey.slice(0, 7)} />
+                                <input type='hidden' name='back' value='today' />
+                                <select name='site' defaultValue={siteToday[p.id] || ''} aria-label={'Site of ' + p.name + ' today'}>
+                                  <option value=''>Pick the site</option>
+                                  {sortSites(p.codes).map((c) => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                                <button className='btn' type='submit'>Save</button>
+                              </form>
+                            </details>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </td>
                     <td className='c-meta nw'><small className='dklbl'>In </small>{t ? t.check_in : <span className='muted'>-</span>}</td>
                     <td className='c-meta nw'><small className='dklbl'>Out </small>{t && t.check_out ? t.check_out : <span className='muted'>-</span>}</td>
                     <td className='c-meta'>

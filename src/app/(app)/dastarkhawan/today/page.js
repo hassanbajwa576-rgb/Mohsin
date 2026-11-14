@@ -4,6 +4,7 @@ import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey } from '@/lib/att';
 import { hkPeople, dkToday, dkUnlinked, dkLinked, siteList } from '@/lib/roster';
 import { syncDk, dkStatus } from '@/lib/dk-sync';
+import { q } from '@/lib/db';
 import DkPanel from '@/components/DkPanel';
 import Flash from '@/components/Flash';
 import NavOffset from '@/components/NavOffset';
@@ -22,6 +23,8 @@ export default async function DastarkhawanToday({ searchParams }) {
   const rows = await dkToday(today);
   const team = await hkPeople({ team: 'dast' });
   const allSites = await siteList();
+  const sd = await q('SELECT person_id, site FROM pc2_dk_sitedays WHERE day = $1::date', [today]);
+  const siteToday = Object.fromEntries(sd.map((x) => [x.person_id, x.site]));
   const unlinked = edit ? await dkUnlinked() : { people: [], staff: [] };
   const linked = edit ? await dkLinked() : [];
 
@@ -35,7 +38,7 @@ export default async function DastarkhawanToday({ searchParams }) {
       </div>
       <Flash sp={sp} />
       <NavOffset />
-      <DkPanel rows={rows} team={team} allSites={allSites} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} />
+      <DkPanel rows={rows} team={team} allSites={allSites} siteToday={siteToday} todayKey={today} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} />
     </>
   );
 }
