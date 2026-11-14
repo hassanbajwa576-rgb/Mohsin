@@ -490,6 +490,26 @@ export async function setDkMonthlyAll(fd) {
   back(here, days + ' PTO days a month given to everyone for ' + year + ' (from month ' + from + ')', true);
 }
 
+// Dastarkhawan: automatic monthly PTO. Everyone active gets "days" for each month from "from" (YYYY-MM), unless a month is typed in by hand.
+export async function setDkAuto(fd) {
+  const u = await need('dast');
+  const here = DAST + '/balances';
+  if (s(fd, 'off')) {
+    await q(`DELETE FROM pc2_hk_settings WHERE key IN ('dast_auto_days', 'dast_auto_from')`);
+    await logEvent(u, 'edit', 'hk_person', null, 'Dastarkhawan: automatic monthly PTO turned off', null, null);
+    back(here, 'Automatic monthly PTO is off. Months already counted by it are no longer counted.', true);
+  }
+  const days = Number(s(fd, 'days'));
+  const from = s(fd, 'from');
+  if (s(fd, 'days') === '' || !(days > 0 && days <= 31)) back(here, 'Enter the days a month (more than 0, up to 31)');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(from)) back(here, 'Choose the first month');
+  for (const [k, v] of [['dast_auto_days', String(days)], ['dast_auto_from', from]]) {
+    await q(`INSERT INTO pc2_hk_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, [k, v]);
+  }
+  await logEvent(u, 'edit', 'hk_person', null, 'Dastarkhawan: automatic monthly PTO set to ' + days + ' days a month from ' + from, null, null);
+  back(here + '?y=' + from.slice(0, 4), days + ' PTO days a month are now given automatically from ' + from + '. A month typed in by hand replaces it.', true);
+}
+
 // Dastarkhawan: leave taken month by month for a year (counts as PTO used). Fields t_<person>_<month>: a number sets the month, empty clears it.
 export async function saveDkTaken(fd) {
   const u = await need('dast');

@@ -116,16 +116,40 @@ export async function dkAllowDetail(year) {
   const upTo = year < Number(nowKarachi.slice(0, 4)) ? 12 : year > Number(nowKarachi.slice(0, 4)) ? 0 : Number(nowKarachi.slice(5, 7));
   const out = new Map();
   const get = (id) => {
-    if (!out.has(id)) out.set(id, { annual: 0, hasAnnual: false, monthly: Array(12).fill(null), total: 0, sofar: 0 });
+    if (!out.has(id)) out.set(id, { annual: 0, hasAnnual: false, monthly: Array(12).fill(null), auto: Array(12).fill(null), autoSum: 0, total: 0, sofar: 0 });
     return out.get(id);
   };
   for (const x of a) { const r = get(x.person_id); r.annual = x.days; r.hasAnnual = true; }
   for (const x of m) get(x.person_id).monthly[x.month - 1] = x.days;
+  // Automatic monthly PTO (a team setting: days a month from a first month): every active member gets it for each month that has arrived,
+  // from the month they joined, unless that month is typed in by hand (even as 0), which always wins.
+  const auto = await dkAutoSetting();
+  if (auto) {
+    const people = await q(`SELECT id, to_char(joined_on, 'YYYY-MM') AS jm FROM pc2_hk_people WHERE active AND team = 'dast'`);
+    for (const p of people) {
+      const r = get(p.id);
+      for (let mm = 1; mm <= upTo; mm++) {
+        const ym = year + '-' + String(mm).padStart(2, '0');
+        if (ym < auto.from || (p.jm && ym < p.jm) || r.monthly[mm - 1] != null) continue;
+        r.auto[mm - 1] = auto.days;
+      }
+    }
+  }
   for (const r of out.values()) {
-    r.total = r.annual + r.monthly.reduce((t, v) => t + (v || 0), 0);
-    r.sofar = r.annual + r.monthly.slice(0, upTo).reduce((t, v) => t + (v || 0), 0);
+    r.autoSum = r.auto.reduce((t, v) => t + (v || 0), 0);
+    r.total = r.annual + r.monthly.reduce((t, v) => t + (v || 0), 0) + r.autoSum;
+    r.sofar = r.annual + r.monthly.slice(0, upTo).reduce((t, v) => t + (v || 0), 0) + r.autoSum;
   }
   return out;
+}
+
+/** The automatic monthly PTO setting of the Dastarkhawan team: { days, from: 'YYYY-MM' }, or null when it is off. */
+export async function dkAutoSetting() {
+  const rows = await q(`SELECT key, value FROM pc2_hk_settings WHERE key IN ('dast_auto_days', 'dast_auto_from')`);
+  const v = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const days = Number(v.dast_auto_days);
+  if (!(days > 0) || !/^\d{4}-(0[1-9]|1[0-2])$/.test(v.dast_auto_from || '')) return null;
+  return { days, from: v.dast_auto_from };
 }
 
 /** Dastarkhawan PTO allowed for the whole year per person: Map person id -> days (yearly number plus the monthly allocations). */

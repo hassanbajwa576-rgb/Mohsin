@@ -2,8 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings, siteList, dkAllowDetail, dkTakenMonthly } from '@/lib/roster';
-import { setDkAllowance, setDkAllowanceAll, saveDkMonthly, setDkMonthlyAll, saveDkTaken, importMonthlyLeaves } from '@/lib/roster-actions';
+import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings, siteList, dkAllowDetail, dkTakenMonthly, dkAutoSetting } from '@/lib/roster';
+import { setDkAllowance, setDkAllowanceAll, saveDkMonthly, setDkMonthlyAll, saveDkTaken, importMonthlyLeaves, setDkAuto } from '@/lib/roster-actions';
 import LeaveImport from '@/components/LeaveImport';
 import { applyHkDates } from '@/lib/hk-dates';
 import Flash from '@/components/Flash';
@@ -26,8 +26,9 @@ const basis = (d, monthSum) => {
   if (!d) return null;
   const parts = [];
   if (d.hasAnnual && d.annual) parts.push('yearly ' + d1(d.annual));
-  const doneM = d.sofar - (d.annual || 0);
+  const doneM = d.sofar - (d.annual || 0) - (d.autoSum || 0);
   if (doneM) parts.push('monthly ' + d1(doneM));
+  if (d.autoSum) parts.push('automatic ' + d1(d.autoSum));
   const later = d.total - d.sofar;
   return (
     <>
@@ -61,6 +62,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
   const set = await getSettings();
   const allow = dast ? await dkAllowDetail(year) : new Map();
   const taken = dast ? await dkTakenMonthly(year) : new Map();
+  const auto = dast ? await dkAutoSetting() : null;
   const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const editDk = dast && can(user, 'dast_edit');
   const yq = (y) => base + '?' + new URLSearchParams({ y: String(y), ...(site ? { site } : {}), ...(office && both ? { office } : {}) }).toString();
@@ -98,6 +100,16 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
       ) : null}
 
       {dast && editDk ? (
+        <form action={setDkAuto} className='card filters'>
+          <label>Automatic PTO a month, for everyone (days)<input type='number' name='days' min='0.5' max='31' step='0.5' placeholder='For example: 4' defaultValue={auto ? auto.days : ''} /></label>
+          <label>Starting from<input type='month' name='from' defaultValue={auto ? auto.from : thisYear + '-' + String(new Date().getMonth() + 1).padStart(2, '0')} /></label>
+          <button className='btn' type='submit'>{auto ? 'Update' : 'Turn on'}</button>
+          {auto ? <button className='btn ghost' type='submit' name='off' value='1'>Turn off</button> : null}
+          <span className='muted'>{auto ? 'On: ' + d1(auto.days) + ' days every month from ' + auto.from + ', counted when the month arrives and from the month a person joined. ' : ''}Where a month needs a different number, type it in the month grid below; that replaces the automatic number for that month.</span>
+        </form>
+      ) : null}
+
+      {dast && editDk ? (
         <details className='card'>
           <summary>Give PTO month by month ({year})</summary>
           <p className='muted' style={{ margin: '8px 0' }}>For example 2 days every month. Monthly days add to the yearly number, and "Left" counts the months up to the current one, so leave given for later months is not available yet. Leave a month empty to give nothing for it.</p>
@@ -123,7 +135,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                     return (
                       <tr key={p.id}>
                         <td className='n'><b>{p.name}</b></td>
-                        {MON3.map((m, i) => <td key={m}><input type='number' name={'m_' + p.id + '_' + (i + 1)} min='0' max='31' step='0.5' defaultValue={mo[i] == null ? '' : mo[i]} aria-label={p.name + ' ' + m} /></td>)}
+                        {MON3.map((m, i) => <td key={m}><input type='number' name={'m_' + p.id + '_' + (i + 1)} min='0' max='31' step='0.5' defaultValue={mo[i] == null ? '' : mo[i]} placeholder={d && d.auto[i] != null ? String(d.auto[i]) : ''} aria-label={p.name + ' ' + m} /></td>)}
                         <td><b>{d1(mo.reduce((a, v) => a + (v || 0), 0))}</b></td>
                       </tr>
                     );
