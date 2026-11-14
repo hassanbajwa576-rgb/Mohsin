@@ -62,7 +62,7 @@ export default function OpsBot({ role }) {
     setMsgs((m) => [...m, { from: 'me', t: hhmm(), text: v }]);
     setBusy(true);
     try {
-      const r = await fetch('/api/opsbot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: v, ctx: ctxRef.current }) });
+      const r = await fetch('/api/opsbot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: v, ctx: ctxRef.current, history: msgs.slice(-8).map((m) => ({ from: m.from, text: m.text })) }) });
       const j = await r.json();
       setMsgs((m) => [...m, { from: 'bot', t: hhmm(), text: j.reply || 'I could not find an answer.' }]);
       setChips(j.suggestions || []);
