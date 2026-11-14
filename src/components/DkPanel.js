@@ -4,7 +4,7 @@ import OfficeTag from '@/components/OfficeTag';
 
 // Dastarkhawan: who has checked in today (from the facial attendance app), when the data was last updated,
 // and people not yet linked to their facial app record.
-export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}, todayKey = '', teamSize, status, unlinked, linked = [], edit }) {
+export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}, leaveToday = {}, todayKey = '', teamSize, status, unlinked, linked = [], edit }) {
   const out = rows.filter((r) => r.check_out).length;
   const inNow = rows.length - out;
   // One line per team member, in site order (ISB, LHR, OKA, APL): when they came, when they left, and where they are now.
@@ -12,13 +12,14 @@ export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}
   const list = team
     .map((p) => ({ ...p, codes: (p.sites || []).map((x) => x.site), t: today.get(p.id) }))
     .sort(comparePeople);
+  const onLeave = list.filter((p) => !p.t && leaveToday[p.id] && leaveToday[p.id].hours == null).length;
   return (
     <div className='card dkpanel'>
       <div className='dkp-head'>
         <div>
           <h3>Checked in today</h3>
           <p className='muted'>
-            From the facial attendance app{status.at ? ', updated ' + status.at : ''}. {rows.length} of {teamSize} checked in{rows.length ? ' (' + inNow + ' still on site, ' + out + ' left)' : ''}.
+            From the facial attendance app{status.at ? ', updated ' + status.at : ''}. {rows.length} of {teamSize} checked in{rows.length ? ' (' + inNow + ' still on site, ' + out + ' left)' : ''}{onLeave ? ', ' + onLeave + ' on leave' : ''}.
           </p>
         </div>
         {edit ? (
@@ -71,7 +72,7 @@ export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}
                     <td className='c-meta nw'><small className='dklbl'>In </small>{t ? t.check_in : <span className='muted'>-</span>}</td>
                     <td className='c-meta nw'><small className='dklbl'>Out </small>{t && t.check_out ? t.check_out : <span className='muted'>-</span>}</td>
                     <td className='c-meta'>
-                      {!t ? <span className='dka-pill'>Not in yet</span> : t.check_out ? <span className='dka-pill'>Left</span> : <span className='dka-pill ok'>On site</span>}
+                      {!t ? (leaveToday[p.id] && leaveToday[p.id].hours == null ? <span className='dka-pill leave' title={leaveToday[p.id].label}>On leave</span> : <><span className='dka-pill'>Not in yet</span>{leaveToday[p.id] ? <small className='muted'> leave {leaveToday[p.id].hours} h</small> : null}</>) : t.check_out ? <span className='dka-pill'>Left</span> : <span className='dka-pill ok'>On site</span>}
                     </td>
                   </tr>
                 );

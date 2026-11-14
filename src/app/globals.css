@@ -2134,3 +2134,7 @@ table.mgrid input{width:52px;min-height:28px;height:28px;padding:2px 4px;font-si
   table.mgrid td::before{display:none}
   table.mgrid .n{min-width:110px;white-space:normal}
 }
+
+/* Today's board: on leave */
+.dka-pill.leave{background:rgba(47,111,219,.2);color:#1f4fa8}
+html[data-theme=dark] .dka-pill.leave{color:#8db4ff}
