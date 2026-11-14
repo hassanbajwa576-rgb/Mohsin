@@ -2232,3 +2232,12 @@ html[data-theme=dark] .lvb.bad{background:rgba(239,68,68,.30);color:#ffb4b4;font
 table.dkg td.c.lv,table.dkg td.c.lv.we{background:#3f6fb5!important;color:#fff}
 table.dkg td.c.lv a{color:#fff}
 .dkg-legend i.lv{background:#3f6fb5}
+/* Task details: a + before the heading opens the details under it. */
+.tk-det>summary{list-style:none;cursor:pointer;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.tk-det>summary::-webkit-details-marker{display:none}
+.tk-plus{flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1px solid var(--line);border-radius:4px;font-size:15px;font-weight:700;line-height:1;color:var(--ink);background:var(--card)}
+.tk-plus::before{content:'+'}
+.tk-det[open] .tk-plus::before{content:'\2212'}
+.tk-det>summary:hover .tk-plus{border-color:var(--gold)}
+.tk-detail{margin:6px 0 2px 26px}
+.tk-nop{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;padding-left:26px}

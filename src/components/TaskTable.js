@@ -36,7 +36,14 @@ export default function TaskTable({ rows, today, me, view = '', show = '', who =
             const urg = n === null ? (t.status === 'open' && t.priority === 'high' ? 'high' : '') : n < 0 ? 'late' : n <= 1 ? 'now' : n <= 7 ? 'soon' : '';
             return (
               <tr key={t.id} className={(t.status === 'done' ? 'tk-row-done' : '') + (urg ? ' tk-u-' + urg : '')}>
-                <td className='c-title'><b>{t.title}</b><Owner t={t} me={me} />{t.repeat_every ? <span className='tk-own tk-rep'>Repeats {REPEAT_SHORT[t.repeat_every]}</span> : null}{t.details ? <div className='muted' style={{ whiteSpace: 'pre-line' }}>{t.details}</div> : null}</td>
+                <td className='c-title'>
+                  {t.details ? (
+                    <details className='tk-det'>
+                      <summary title='Show or hide the details'><span className='tk-plus' aria-hidden='true' /><b>{t.title}</b><Owner t={t} me={me} />{t.repeat_every ? <span className='tk-own tk-rep'>Repeats {REPEAT_SHORT[t.repeat_every]}</span> : null}</summary>
+                      <div className='muted tk-detail' style={{ whiteSpace: 'pre-line' }}>{t.details}</div>
+                    </details>
+                  ) : <span className='tk-nop'><b>{t.title}</b><Owner t={t} me={me} />{t.repeat_every ? <span className='tk-own tk-rep'>Repeats {REPEAT_SHORT[t.repeat_every]}</span> : null}</span>}
+                </td>
                 <td className='c-meta hide-m'><span className='tk-dom'>{DOMAIN[t.domain] || t.domain}</span></td>
                 <td className='c-meta hide-m'><span className={'tk-pri tk-' + t.priority}>{PRIORITY[t.priority]}</span></td>
                 <td className={'r nw c-amt ' + d.cls}><b>{d.text}</b>{n !== null && n >= 2 ? <small className='tk-in'>in {n} days</small> : null}</td>
