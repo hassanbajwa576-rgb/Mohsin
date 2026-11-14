@@ -5,7 +5,7 @@ export const PAGE_GROUPS = [
   { key: 'fuel', label: 'Fuel', pages: [['/fuel', 'Fuel Entry'], ['/fuel/log', 'Fuel Log'], ['/fuel/setup', 'Setup']] },
   { key: 'support', label: 'Complaints', pages: [['/support', 'Dashboard'], ['/support/new', 'Record Complaint'], ['/support/list', 'All Complaints'], ['/support/people', 'By Person']] },
   { key: 'exprev', label: 'ExpRev', pages: [['/exprev', 'Dashboard'], ['/exprev/entries', 'Expenditures'], ['/exprev/budget', 'Budget vs Actual'], ['/exprev/analysis', 'Analysis'], ['/exprev/import', 'Import']] },
-  { key: 'dastarkhawan', label: 'Dastarkhawan', pages: [['/dastarkhawan', 'Roster'], ['/dastarkhawan/attendance', 'Attendance'], ['/dastarkhawan/today', "Today's board"], ['/dastarkhawan/balances', 'Leaves'], ['/dastarkhawan/sites', 'Sites']] },
+  { key: 'dastarkhawan', label: 'Dastarkhawan', pages: [['/dastarkhawan', 'Roster'], ['/dastarkhawan/attendance', 'Attendance'], ['/dastarkhawan/today', "Today's board"], ['/dastarkhawan/balances', 'Leaves'], ['/dastarkhawan/team', 'Team'], ['/dastarkhawan/sites', 'Sites']] },
   { key: 'general', label: 'Manager pages', pages: [['/approvals', 'Approvals'], ['/team', 'Team'], ['/logs', 'Audit log'], ['/tasks', 'Tasks'], ['/guide', 'Guide']] },
 ];
 export const ALL_PAGES = PAGE_GROUPS.flatMap((g) => g.pages.map(([h]) => h));
@@ -51,7 +51,7 @@ export function defaultPages(role, perms = [], rolePerms = {}) {
   if (can('guard_duty')) L.push('/visitors/guards');
   if (can('hire_view')) L.push('/visitors/hires');
   if (can('tasks')) L.push('/tasks');
-  if (om || sso || can('dast_edit')) L.push('/dastarkhawan', '/dastarkhawan/attendance', '/dastarkhawan/today', '/dastarkhawan/balances', '/dastarkhawan/sites');
+  if (om || sso || can('dast_edit')) L.push('/dastarkhawan', '/dastarkhawan/attendance', '/dastarkhawan/today', '/dastarkhawan/balances', '/dastarkhawan/team', '/dastarkhawan/sites');
   if (can('fuel_use')) {
     L.push('/fuel', '/fuel/log');
     if (om) L.push('/fuel/setup');

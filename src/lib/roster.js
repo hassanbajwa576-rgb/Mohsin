@@ -229,6 +229,16 @@ export async function siteList() {
 export async function siteCounts() {
   return q(`SELECT st.id, st.name, (SELECT COUNT(DISTINCT ps.person_id)::int FROM pc2_person_sites ps JOIN pc2_hk_people p ON p.id = ps.person_id WHERE p.active AND p.team = 'dast' AND ps.site = st.name) AS people FROM pc2_sites st WHERE st.active ORDER BY st.name`);
 }
+/** Every Dastarkhawan site (active first): people active at it now, and how many records mention it (people, hand-picked days) so a used site is never deleted. */
+export async function siteAll() {
+  return q(
+    `SELECT st.id, st.name, st.active,
+       (SELECT COUNT(DISTINCT ps.person_id)::int FROM pc2_person_sites ps JOIN pc2_hk_people p ON p.id = ps.person_id WHERE p.active AND p.team = 'dast' AND ps.site = st.name) AS people,
+       ((SELECT COUNT(*) FROM pc2_person_sites ps WHERE ps.site = st.name) + (SELECT COUNT(*) FROM pc2_dk_sitedays d WHERE d.site = st.name) + (SELECT COUNT(*) FROM pc2_hk_people hp WHERE hp.team = 'dast' AND hp.site = st.name))::int AS refs
+       FROM pc2_sites st ORDER BY st.active DESC, st.name`
+  );
+}
+
 export const rosterStaff = hkPeople;
 
 /** Birthdays in the next few days (by month and day). */

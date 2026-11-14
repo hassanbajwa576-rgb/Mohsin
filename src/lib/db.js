@@ -213,6 +213,9 @@ const DDL = [
   // The Dastarkhawan Today's board page for the people who already have the section.
   `UPDATE pc2_users SET pages = pages || ',/dastarkhawan/today' WHERE (role = 'sso' OR name = 'Muhammad Zubair') AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/today,%'`,
   `UPDATE pc2_roles SET pages = pages || ',/dastarkhawan/today' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/today,%'`,
+  // The Dastarkhawan Team page (under Manage) for the people who already have the section.
+  `UPDATE pc2_users SET pages = pages || ',/dastarkhawan/team' WHERE (role = 'sso' OR name = 'Muhammad Zubair') AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/team,%'`,
+  `UPDATE pc2_roles SET pages = pages || ',/dastarkhawan/team' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/team,%'`,
   `CREATE TABLE IF NOT EXISTS pc2_hk_ot_conv (id SERIAL PRIMARY KEY, person_id INTEGER NOT NULL, year INTEGER NOT NULL, hours NUMERIC(7,2) NOT NULL, days NUMERIC(6,2) NOT NULL, by_id INTEGER, at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `UPDATE pc2_users SET pages = pages || ',/dastarkhawan/attendance' WHERE (role = 'sso' OR name = 'Muhammad Zubair') AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/attendance,%'`,
   `UPDATE pc2_roles SET pages = pages || ',/dastarkhawan/attendance' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/attendance,%'`,
@@ -237,7 +240,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-14-1';
+const SCHEMA_VERSION = '2026-11-14-2';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

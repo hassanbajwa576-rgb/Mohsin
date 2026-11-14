@@ -223,17 +223,68 @@ export async function addSite(fd) {
   back(SITES_PAGE, name + ' added', true);
 }
 
-// A site can be removed once nobody active is at it (move or remove those people first).
+// A site can be deactivated once nobody active is at it (move or remove those people first). It stays in the records and can be reactivated.
 export async function removeSite(fd) {
   const u = await need('dast');
   const id = Number(s(fd, 'id'));
   const st = (await q('SELECT id, name FROM pc2_sites WHERE id = $1 AND active', [Number.isInteger(id) ? id : 0]))[0];
-  if (!st) back(SITES_PAGE, 'That site is already removed');
+  if (!st) back(SITES_PAGE, 'That site is already inactive');
   const n = Number((await q(`SELECT COUNT(DISTINCT ps.person_id)::int AS n FROM pc2_person_sites ps JOIN pc2_hk_people p ON p.id = ps.person_id WHERE p.active AND p.team = 'dast' AND ps.site = $1`, [st.name]))[0].n);
   if (n > 0) back(SITES_PAGE, st.name + ' still has ' + n + (n === 1 ? ' person' : ' people') + '. Move or remove them first.');
   await q('UPDATE pc2_sites SET active = FALSE WHERE id = $1', [st.id]);
-  await logEvent(u, 'delete', 'site', st.id, 'Removed site ' + st.name, null, null);
-  back(SITES_PAGE, st.name + ' removed', true);
+  await logEvent(u, 'edit', 'site', st.id, 'Deactivated site ' + st.name, null, null);
+  back(SITES_PAGE, st.name + ' deactivated', true);
+}
+
+// Brings an inactive site back, so it can be picked for people again.
+export async function reactivateSite(fd) {
+  const u = await need('dast');
+  const id = Number(s(fd, 'id'));
+  const st = (await q('SELECT id, name FROM pc2_sites WHERE id = $1 AND NOT active', [Number.isInteger(id) ? id : 0]))[0];
+  if (!st) back(SITES_PAGE, 'That site is already active');
+  await q('UPDATE pc2_sites SET active = TRUE WHERE id = $1', [st.id]);
+  await logEvent(u, 'edit', 'site', st.id, 'Reactivated site ' + st.name, null, null);
+  back(SITES_PAGE, st.name + ' is active again', true);
+}
+
+// Renames a site everywhere it is used (people, hand-picked site days) in one statement, so nothing is left under the old name.
+export async function renameSite(fd) {
+  const u = await need('dast');
+  const id = Number(s(fd, 'id'));
+  const name = s(fd, 'name').replace(/\s+/g, ' ').slice(0, 30);
+  const st = (await q('SELECT id, name FROM pc2_sites WHERE id = $1', [Number.isInteger(id) ? id : 0]))[0];
+  if (!st) back(SITES_PAGE, 'That site was not found');
+  if (!name) back(SITES_PAGE, 'Enter the new name of ' + st.name);
+  if (name === st.name) back(SITES_PAGE, st.name + ' already has that name');
+  const clash = (await q('SELECT name FROM pc2_sites WHERE lower(name) = lower($1) AND id <> $2', [name, st.id]))[0];
+  if (clash) back(SITES_PAGE, clash.name + ' is already a site');
+  await q(
+    `WITH a AS (UPDATE pc2_sites SET name = $2 WHERE id = $1 RETURNING 1),
+          b AS (UPDATE pc2_person_sites SET site = $2 WHERE site = $3 RETURNING 1),
+          c AS (UPDATE pc2_dk_sitedays SET site = $2 WHERE site = $3 RETURNING 1),
+          d AS (UPDATE pc2_hk_people SET site = $2 WHERE team = 'dast' AND site = $3 RETURNING 1)
+     SELECT (SELECT COUNT(*) FROM a) AS n`,
+    [st.id, name, st.name]
+  );
+  await logEvent(u, 'edit', 'site', st.id, 'Renamed site ' + st.name + ' to ' + name, null, null);
+  back(SITES_PAGE, st.name + ' renamed to ' + name, true);
+}
+
+// Deletes an inactive site that nothing refers to. A site with history is only deactivated, never deleted.
+export async function deleteSite(fd) {
+  const u = await need('dast');
+  const id = Number(s(fd, 'id'));
+  const st = (await q('SELECT id, name, active FROM pc2_sites WHERE id = $1', [Number.isInteger(id) ? id : 0]))[0];
+  if (!st) back(SITES_PAGE, 'That site was not found');
+  if (st.active) back(SITES_PAGE, 'Deactivate ' + st.name + ' first, then it can be deleted');
+  const refs = Number((await q(
+    `SELECT ((SELECT COUNT(*) FROM pc2_person_sites WHERE site = $1) + (SELECT COUNT(*) FROM pc2_dk_sitedays WHERE site = $1) + (SELECT COUNT(*) FROM pc2_hk_people WHERE team = 'dast' AND site = $1))::int AS n`,
+    [st.name]
+  ))[0].n);
+  if (refs > 0) back(SITES_PAGE, st.name + ' is used in past records, so it can only stay deactivated');
+  await q('DELETE FROM pc2_sites WHERE id = $1 AND NOT active', [st.id]);
+  await logEvent(u, 'delete', 'site', st.id, 'Deleted site ' + st.name, null, null);
+  back(SITES_PAGE, st.name + ' deleted', true);
 }
 
 // Change a team member's details.
