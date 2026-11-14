@@ -6,7 +6,7 @@ import { MONTHS, MON3, pkr, officeCosts, budgetByHead, erYears, headcount } from
 import { fundSummary, soAccount } from './queries';
 import { visitorRows, insideNow, VLABEL } from './visitors';
 import { FUNDS } from './fmt';
-import { hkPeople, dkToday, dkAllowances, offToday, usedByPerson, siteList, TLABEL } from './roster';
+import { hkPeople, dkToday, dkAllowDetail, offToday, usedByPerson, siteList, TLABEL } from './roster';
 import { dkDayRows, dkOvertime, hm, DUTY_MIN, OT_BLOCK_H } from './dk-hours';
 import { comparePeople, siteLabel, sortSites } from './dk-sites';
 import { taskPeople, taskRows, dueLabel } from './tasks';
@@ -473,7 +473,7 @@ async function dastTopics(user, n, today) {
   // One person
   if (matched.length) {
     const bank = await dkOvertime();
-    const allow = await dkAllowances(year);
+    const allow = await dkAllowDetail(year);
     const used = await usedByPerson(year, '', 'dast');
     const off = await offToday(today, '', 'dast');
     const out = [];
@@ -486,13 +486,15 @@ async function dastTopics(user, n, today) {
       const o = off.find((x) => x.staff_id === p.id);
       const b = bank.get(p.id) || { left: 0, days: 0 };
       const usedDays = Object.values(used.get(p.id) || {}).reduce((a, x) => a + x, 0);
-      const a = allow.get(p.id);
+      const al = allow.get(p.id);
+      const a = al ? al.total : null;
+      const left = al ? al.sofar - usedDays : null;
       out.push(lines(
         p.name + (p.dept ? ' (' + p.dept + ')' : '') + ' - Dastarkhawan, ' + label(p) + (p.joined_on ? ', joined ' + p.joined_on : '') + '.',
         'Today: ' + (t ? 'checked in at ' + t.check_in + (t.check_out ? ', left at ' + t.check_out : ', still on site') : o ? 'on leave (' + (TLABEL[o.kind] || o.kind) + ')' : 'not checked in yet') + '.',
         rows.length ? monthName + ': ' + rows.length + ' day(s) with full times, ' + hm(total) + ' on duty (' + hm(Math.round(total / rows.length)) + ' a day), overtime ' + hm(over) + ', short ' + hm(short) + '.' : monthName + ': no complete check-in and check-out yet.',
         'Overtime available to convert to PTO: ' + h1(b.left) + ' h' + (b.days ? ' (= ' + b.days + ' PTO day' + (b.days === 1 ? '' : 's') + ')' : '') + '.',
-        'Leaves ' + year + ': ' + (a != null ? 'allowance ' + h1(a) + ' days, used ' + h1(usedDays) + ', left ' + h1(a - usedDays) + '.' : 'used ' + h1(usedDays) + ' days (no allowance set).')
+        'Leaves ' + year + ': ' + (a != null ? 'allowance ' + h1(a) + ' days' + (al.sofar !== a ? ' (' + h1(al.sofar) + ' given so far)' : '') + ', used ' + h1(usedDays) + ', left ' + h1(left) + '.' : 'used ' + h1(usedDays) + ' days (no allowance set).')
       ));
     }
     return out.join('\n\n');
@@ -520,12 +522,12 @@ async function dastTopics(user, n, today) {
     if (has(n, /today|now|who is off|who s off|off today/) || !has(n, /balance|allowance|left|remaining|used/)) {
       return off.length ? lines('On leave today (' + off.length + '):', names(off.map((o) => o.name + ' (' + (TLABEL[o.kind] || o.kind) + ')'))) : 'Nobody in the Dastarkhawan team is on leave today.';
     }
-    const allow = await dkAllowances(year);
+    const allow = await dkAllowDetail(year);
     const used = await usedByPerson(year, '', 'dast');
     const list = sorted.map((p) => {
       const u = Object.values(used.get(p.id) || {}).reduce((a, x) => a + x, 0);
-      const a = allow.get(p.id);
-      return p.name + ': ' + (a != null ? h1(a - u) + ' left of ' + h1(a) + ' days' : h1(u) + ' used (no allowance set)');
+      const al = allow.get(p.id);
+      return p.name + ': ' + (al ? h1(al.sofar - u) + ' left (' + h1(al.total) + ' days in ' + year + (al.sofar !== al.total ? ', ' + h1(al.sofar) + ' given so far' : '') + ')' : h1(u) + ' used (no allowance set)');
     });
     return lines('Dastarkhawan leaves ' + year + ':', names(list, 20));
   }

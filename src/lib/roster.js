@@ -107,10 +107,31 @@ export async function hkHistory(team) {
   );
 }
 
-/** Dastarkhawan yearly PTO allowance per person for a year: Map person id -> days. */
+/** Dastarkhawan PTO given to each person for a year: the yearly number plus the months allocated. Map person id -> { annual, monthly[12], total, sofar }.
+ *  sofar is what has been allocated up to now: the yearly number in full, plus the months up to the current one (all 12 for a past year, none yet for a future one). */
+export async function dkAllowDetail(year) {
+  const a = await q(`SELECT person_id, days::float8 AS days FROM pc2_hk_allow WHERE year = $1 AND kind = 'pto'`, [year]);
+  const m = await q(`SELECT person_id, month, days::float8 AS days FROM pc2_hk_allow_m WHERE year = $1`, [year]);
+  const nowKarachi = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+  const upTo = year < Number(nowKarachi.slice(0, 4)) ? 12 : year > Number(nowKarachi.slice(0, 4)) ? 0 : Number(nowKarachi.slice(5, 7));
+  const out = new Map();
+  const get = (id) => {
+    if (!out.has(id)) out.set(id, { annual: 0, hasAnnual: false, monthly: Array(12).fill(null), total: 0, sofar: 0 });
+    return out.get(id);
+  };
+  for (const x of a) { const r = get(x.person_id); r.annual = x.days; r.hasAnnual = true; }
+  for (const x of m) get(x.person_id).monthly[x.month - 1] = x.days;
+  for (const r of out.values()) {
+    r.total = r.annual + r.monthly.reduce((t, v) => t + (v || 0), 0);
+    r.sofar = r.annual + r.monthly.slice(0, upTo).reduce((t, v) => t + (v || 0), 0);
+  }
+  return out;
+}
+
+/** Dastarkhawan PTO allowed for the whole year per person: Map person id -> days (yearly number plus the monthly allocations). */
 export async function dkAllowances(year) {
-  const r = await q(`SELECT person_id, days::float8 AS days FROM pc2_hk_allow WHERE year = $1 AND kind = 'pto'`, [year]);
-  return new Map(r.map((x) => [x.person_id, x.days]));
+  const d = await dkAllowDetail(year);
+  return new Map([...d.entries()].map(([id, r]) => [id, r.total]));
 }
 
 /** Dastarkhawan people linked to a facial-app staff record, with that record's name and site. */

@@ -417,6 +417,57 @@ export async function setDkAllowanceAll(fd) {
   back(here, year + ' PTO allowance set to ' + days + ' days for everyone', true);
 }
 
+// Dastarkhawan: PTO given month by month for a year. Fields m_<person>_<month>: a number sets that month, empty clears it.
+export async function saveDkMonthly(fd) {
+  const u = await need('dast');
+  const year = Number(s(fd, 'year'));
+  const here = DAST + '/balances?y=' + (Number.isInteger(year) ? year : '');
+  if (!(year >= 2000 && year <= 2100)) back(here, 'That year is not valid');
+  // Only the people shown in the table (it can be filtered by site) are touched.
+  const shown = new Set(s(fd, 'ids').split(',').map(Number).filter((x) => Number.isInteger(x) && x > 0));
+  const people = (await q(`SELECT id FROM pc2_hk_people WHERE active AND team = 'dast'`)).map((r) => r.id).filter((id) => shown.has(id));
+  const up = { p: [], m: [], d: [] };
+  const del = { p: [], m: [] };
+  for (const id of people) {
+    for (let mm = 1; mm <= 12; mm++) {
+      const raw = s(fd, 'm_' + id + '_' + mm);
+      if (raw === '') { del.p.push(id); del.m.push(mm); continue; }
+      const v = Number(raw);
+      if (!(v >= 0 && v <= 31)) back(here, 'Each month must be between 0 and 31 days');
+      up.p.push(id); up.m.push(mm); up.d.push(v);
+    }
+  }
+  if (up.p.length) {
+    await q(
+      `INSERT INTO pc2_hk_allow_m (person_id, year, month, days) SELECT p, $1, m, d FROM unnest($2::int[], $3::int[], $4::numeric[]) AS t(p, m, d)
+       ON CONFLICT (person_id, year, month) DO UPDATE SET days = EXCLUDED.days`,
+      [year, up.p, up.m, up.d]
+    );
+  }
+  if (del.p.length) await q(`DELETE FROM pc2_hk_allow_m WHERE year = $1 AND (person_id, month) IN (SELECT p, m FROM unnest($2::int[], $3::int[]) AS t(p, m))`, [year, del.p, del.m]);
+  await logEvent(u, 'edit', 'hk_person', null, 'Dastarkhawan: ' + year + ' PTO allocated by month (' + up.p.length + ' month entries)', null, null);
+  back(here, year + ' monthly PTO saved', true);
+}
+
+// Dastarkhawan: the same days every month for everyone active, from a month to December.
+export async function setDkMonthlyAll(fd) {
+  const u = await need('dast');
+  const year = Number(s(fd, 'year'));
+  const days = Number(s(fd, 'days'));
+  const from = Number(s(fd, 'from'));
+  const here = DAST + '/balances?y=' + (Number.isInteger(year) ? year : '');
+  if (!(year >= 2000 && year <= 2100) || s(fd, 'days') === '' || !(days >= 0 && days <= 31)) back(here, 'Enter the days per month (0 to 31)');
+  if (!(from >= 1 && from <= 12)) back(here, 'Choose the first month');
+  await q(
+    `INSERT INTO pc2_hk_allow_m (person_id, year, month, days)
+     SELECT p.id, $1, g, $2 FROM pc2_hk_people p CROSS JOIN generate_series($3::int, 12) AS g WHERE p.active AND p.team = 'dast'
+     ON CONFLICT (person_id, year, month) DO UPDATE SET days = EXCLUDED.days`,
+    [year, days, from]
+  );
+  await logEvent(u, 'edit', 'hk_person', null, 'Dastarkhawan: ' + year + ' PTO ' + days + ' days a month for everyone, from month ' + from, null, null);
+  back(here, days + ' PTO days a month given to everyone for ' + year + ' (from month ' + from + ')', true);
+}
+
 /* ---------- setup: allowances, hours per day, minimum cover, holidays ---------- */
 
 export async function saveSettings(fd) {

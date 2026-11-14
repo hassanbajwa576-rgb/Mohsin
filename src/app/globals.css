@@ -2116,3 +2116,21 @@ html[data-theme=dark] table.dkg td.sum.g,html[data-theme=dark] table.dkg td.sum.
 .dkp-site{display:inline-flex;gap:6px;align-items:center;margin-left:6px}
 .dkp-site select{height:28px;min-height:28px;padding:2px 6px;font-size:12px;width:auto;min-width:0}
 .dkp-site .btn{padding:3px 10px;min-height:28px;font-size:12px}
+
+/* Leaves: PTO given month by month */
+.mgrid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+table.mgrid{border-collapse:collapse;font-size:12px;width:max-content;min-width:100%}
+table.mgrid th,table.mgrid td{border:1px solid var(--line);padding:3px 4px;text-align:center}
+table.mgrid th{background:var(--gold);color:#000;font-size:11px}
+table.mgrid .n{min-width:150px;text-align:left;position:sticky;left:0;z-index:1;background:var(--card,#fff);white-space:nowrap;padding:3px 8px}
+table.mgrid th.n{background:var(--gold)}
+table.mgrid input{width:52px;min-height:28px;height:28px;padding:2px 4px;font-size:12px;text-align:center}
+@media (max-width:720px){
+  table.mgrid{display:table}
+  table.mgrid thead{display:table-header-group}
+  table.mgrid tbody{display:table-row-group}
+  table.mgrid tr{display:table-row;border:0;padding:0;margin:0;background:none}
+  table.mgrid th,table.mgrid td{display:table-cell;width:auto;border:1px solid var(--line);padding:3px 4px}
+  table.mgrid td::before{display:none}
+  table.mgrid .n{min-width:110px;white-space:normal}
+}

@@ -2,14 +2,15 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings, siteList, dkAllowances } from '@/lib/roster';
-import { setDkAllowance, setDkAllowanceAll } from '@/lib/roster-actions';
+import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings, siteList, dkAllowDetail } from '@/lib/roster';
+import { setDkAllowance, setDkAllowanceAll, saveDkMonthly, setDkMonthlyAll } from '@/lib/roster-actions';
 import { applyHkDates } from '@/lib/hk-dates';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
 import AutoFilters from '@/components/AutoFilters';
 import HkTabs from '@/components/HkTabs';
 import { TEAM_SHORT } from '@/lib/teams';
+import { siteTag } from '@/lib/dk-sites';
 import { can } from '@/lib/perms';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +38,8 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
   const team = await hkPeople({ office, team: tm, site });
   const used = await usedByPerson(year, office, tm, site);
   const set = await getSettings();
-  const allow = dast ? await dkAllowances(year) : new Map();
+  const allow = dast ? await dkAllowDetail(year) : new Map();
+  const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const editDk = dast && can(user, 'dast_edit');
   const yq = (y) => base + '?' + new URLSearchParams({ y: String(y), ...(site ? { site } : {}), ...(office && both ? { office } : {}) }).toString();
   const totals = Object.fromEntries(TYPES.map(([k]) => [k, team.reduce((a, p) => a + ((used.get(p.id) || {})[k] || 0), 0)]));
@@ -61,7 +63,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
       </div>
       {dast ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'site', label: 'Site', value: site, options: [['', 'All sites'], ...SITES.map((x) => [x, x])] }]} /> : both ? <AutoFilters hidden={{ y: String(year) }} fields={[{ name: 'office', label: 'Office', value: office, options: [['', 'Both offices'], ['LHR', 'LHR'], ['ISB', 'ISB']] }]} /> : null}
       {dast ? (
-        <p className='muted'>For the Dastarkhawan team only PTO applies. Give each person their yearly PTO allowance below; the days used come from the time-off recorded on the roster, and the days left are worked out for you.</p>
+        <p className='muted'>For the Dastarkhawan team only PTO applies. Give each person PTO as a yearly number, month by month, or both (they add up). The days used come from the time-off recorded on the roster; "Left" is what has been given so far minus what was used.</p>
       ) : !anySet ? <p className='muted'>No yearly allowance is set yet, so only the days used are shown. Set them on the Setup tab of the Support team.</p> : null}
 
       {dast && editDk ? (
@@ -73,33 +75,77 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
         </form>
       ) : null}
 
+      {dast && editDk ? (
+        <details className='card'>
+          <summary>Give PTO month by month ({year})</summary>
+          <p className='muted' style={{ margin: '8px 0' }}>For example 2 days every month. Monthly days add to the yearly number, and "Left" counts the months up to the current one, so leave given for later months is not available yet. Leave a month empty to give nothing for it.</p>
+          <form action={setDkMonthlyAll} className='filters'>
+            <input type='hidden' name='year' value={year} />
+            <label>Days a month, for everyone<input type='number' name='days' min='0' max='31' step='0.5' placeholder='For example: 2' required /></label>
+            <label>From
+              <select name='from' defaultValue='1'>{MON3.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
+            </label>
+            <button className='btn' type='submit'>Give to everyone</button>
+            <span className='muted'>to December. You can change single months below.</span>
+          </form>
+          <form action={saveDkMonthly}>
+            <input type='hidden' name='year' value={year} />
+            <input type='hidden' name='ids' value={team.map((p) => p.id).join(',')} />
+            <div className='mgrid-wrap'>
+              <table className='mgrid'>
+                <thead><tr><th className='n'>Team member</th>{MON3.map((m) => <th key={m}>{m}</th>)}<th>Total</th></tr></thead>
+                <tbody>
+                  {team.map((p) => {
+                    const d = allow.get(p.id);
+                    const mo = d ? d.monthly : Array(12).fill(null);
+                    return (
+                      <tr key={p.id}>
+                        <td className='n'><b>{p.name}</b></td>
+                        {MON3.map((m, i) => <td key={m}><input type='number' name={'m_' + p.id + '_' + (i + 1)} min='0' max='31' step='0.5' defaultValue={mo[i] == null ? '' : mo[i]} aria-label={p.name + ' ' + m} /></td>)}
+                        <td><b>{d1(mo.reduce((a, v) => a + (v || 0), 0))}</b></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <button className='btn primary' type='submit' style={{ marginTop: 10 }}>Save monthly PTO</button>
+          </form>
+        </details>
+      ) : null}
+
       {dast ? (
         <div className='card'>
           {team.length ? (
             <div className='tablewrap'>
               <table className='tx'>
                 <thead>
-                  <tr><th>Team member</th><th className='r'>PTO allowed ({year})</th><th className='r'>Used</th><th className='r'>Left</th></tr>
+                  <tr><th>Team member</th><th className='r'>Yearly / extra</th><th className='r'>Allowed in {year}</th><th className='r'>Given so far</th><th className='r'>Used</th><th className='r'>Left</th></tr>
                 </thead>
                 <tbody>
                   {team.map((p) => {
                     const v = (used.get(p.id) || {}).pto || 0;
-                    const cap = allow.get(p.id);
-                    const left = cap == null ? null : cap - v;
-                    const low = cap != null && left < 0.2 * cap;
+                    const d = allow.get(p.id);
+                    const cap = d ? d.total : null;
+                    const sofar = d ? d.sofar : null;
+                    const left = sofar == null ? null : sofar - v;
+                    const low = sofar != null && left < 0.2 * sofar;
+                    const monthSum = d ? d.monthly.reduce((a, x) => a + (x || 0), 0) : 0;
                     return (
                       <tr key={p.id}>
-                        <td className='c-title'><OfficeTag o={(p.sites || []).length > 1 ? p.sites.length + ' sites' : (p.sites || [])[0] ? p.sites[0].site : p.site || ''} /><b>{p.name}</b></td>
+                        <td className='c-title'><OfficeTag o={siteTag((p.sites || []).map((x) => x.site), SITES) || p.site || ''} /><b>{p.name}</b></td>
                         <td className='r nw c-meta'>
                           {editDk ? (
                             <form action={setDkAllowance} className='inline'>
                               <input type='hidden' name='id' value={p.id} />
                               <input type='hidden' name='year' value={year} />
-                              <input type='number' name='days' min='0' max='365' step='0.5' defaultValue={cap == null ? '' : cap} placeholder='Not set' style={{ width: 90 }} />
+                              <input type='number' name='days' min='0' max='365' step='0.5' defaultValue={d && d.hasAnnual ? d.annual : ''} placeholder='None' style={{ width: 90 }} />
                               <button className='btn' type='submit'>Save</button>
                             </form>
-                          ) : cap == null ? 'Not set' : d1(cap)}
+                          ) : d && d.hasAnnual ? d1(d.annual) : 'None'}
                         </td>
+                        <td className='r nw c-meta'>{cap == null ? 'Not set' : d1(cap)}{monthSum ? <small className='muted'> ({d1(monthSum)} by month)</small> : null}</td>
+                        <td className='r nw c-meta'>{sofar == null ? '-' : d1(sofar)}</td>
                         <td className='r nw c-meta'>{v ? d1(v) : '0'}</td>
                         <td className='r nw'>{left == null ? <span className='muted'>-</span> : <b style={{ color: low ? '#b3261e' : '#1b6e34', background: low ? '#fbd3d3' : '#d9f1df', padding: '0 6px', borderRadius: 3 }}>{d1(left)} left</b>}</td>
                       </tr>
@@ -109,9 +155,11 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                 <tfoot>
                   <tr>
                     <td><b>Total</b></td>
-                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + (allow.get(p.id) || 0), 0))}</b></td>
+                    <td></td>
+                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((allow.get(p.id) || {}).total || 0), 0))}</b></td>
+                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((allow.get(p.id) || {}).sofar || 0), 0))}</b></td>
                     <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((used.get(p.id) || {}).pto || 0), 0))}</b></td>
-                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + (allow.get(p.id) == null ? 0 : allow.get(p.id) - ((used.get(p.id) || {}).pto || 0)), 0))}</b></td>
+                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + (allow.get(p.id) ? allow.get(p.id).sofar - ((used.get(p.id) || {}).pto || 0) : 0), 0))}</b></td>
                   </tr>
                 </tfoot>
               </table>
