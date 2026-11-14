@@ -1,6 +1,6 @@
 import 'server-only';
 import { q } from './db';
-import { todayKey, allOffices, dayBoard, stateOf, LATE_AFTER, EARLY_BEFORE, fmtTime } from './att';
+import { todayKey, allOffices, dayBoard, stateOf, LATE_AFTER, EARLY_BEFORE, fmtTime, fmt12, fmtDur, sessionsOf } from './att';
 import { can } from './perms';
 import { MONTHS, MON3, pkr, officeCosts, budgetByHead, erYears, headcount } from './exprev';
 import { fundSummary, soAccount } from './queries';
@@ -242,6 +242,22 @@ async function extraTopics(user, n, nowY, nowM, today) {
     }
     const staffRows = await q('SELECT s.id, s.name, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active');
     const who = staffRows.find((s) => norm(s.name).split(' ').some((w) => w.length >= 3 && new RegExp('\\b' + w + '\\b').test(n)));
+    // One employee on one day ("Habiba check in on 11 Nov"): when they came, when they left, hours and breaks.
+    const dayQ = who ? dayAsked(n, today) : null;
+    if (who && dayQ && !has(n, /\bstats?\b|statistics|how many days/)) {
+      if (dayQ.day > today) return 'That day has not happened yet, so there is nothing to show. Ask about today or an earlier day.';
+      const { by } = await dayBoard(dayQ.day, '');
+      const ss = sessionsOf(by.get(who.id) || []);
+      const head = who.name + ' (' + who.office + '), ' + dayQ.label.replace(/^on /, '') + ':';
+      const ctxOut = { topic: 'person', who: who.name };
+      if (!ss.length) return { text: head + '\n  No entry on that day.', ctx: ctxOut };
+      const one = (x, i) => lines(
+        (ss.length > 1 ? '  Shift ' + (i + 1) + ': ' : '  ') + 'checked in ' + fmt12(x.start) + (fmtTime(x.start) > LATE_AFTER ? ' (late, after ' + LATE_AFTER + ')' : ''),
+        '  ' + (x.end ? 'checked out ' + fmt12(x.end) + (fmtTime(x.end) < EARLY_BEFORE ? ' (early, before ' + EARLY_BEFORE + ')' : '') : x.live ? 'still on duty' : 'no check out recorded'),
+        x.end ? '  worked ' + fmtDur(x.workedMs) + (x.breakCount ? ', ' + x.breakCount + ' break' + (x.breakCount === 1 ? '' : 's') + ' (' + fmtDur(x.breakMs) + ')' : ', no breaks') : ''
+      );
+      return { text: lines(head, ...ss.map(one)), ctx: ctxOut };
+    }
     if (who && has(n, /attendance|\bstats?\b|statistics|late|early|present|days|check ?in|check ?out|breaks?|performance/)) {
       const wA = when(n, nowY, nowM);
       const [aF, aT] = range(wA);
@@ -484,6 +500,8 @@ async function dastTopics(user, n, today) {
       const short = rows.reduce((a, r) => a + Math.max(0, DUTY_MIN - r.mins), 0);
       const t = inMap.get(p.id);
       const o = off.find((x) => x.staff_id === p.id);
+      const dq = dayAsked(n, today);
+      const dr = dq && dq.day <= today ? (await dkDayRows(dq.day, dq.day, p.id))[0] : null;
       const b = bank.get(p.id) || { left: 0, days: 0 };
       const usedDays = Object.values(used.get(p.id) || {}).reduce((a, x) => a + x, 0);
       const al = allow.get(p.id);
@@ -491,13 +509,13 @@ async function dastTopics(user, n, today) {
       const left = al ? al.sofar - usedDays : null;
       out.push(lines(
         p.name + (p.dept ? ' (' + p.dept + ')' : '') + ' - Dastarkhawan, ' + label(p) + (p.joined_on ? ', joined ' + p.joined_on : '') + '.',
-        'Today: ' + (t ? 'checked in at ' + t.check_in + (t.check_out ? ', left at ' + t.check_out : ', still on site') : o ? 'on leave (' + (TLABEL[o.kind] || o.kind) + ')' : 'not checked in yet') + '.',
+        dq ? (dq.day > today ? 'That day has not happened yet.' : dr ? dq.label.replace(/^on /, '') + ': checked in at ' + dr.check_in + (dr.check_out ? ', left at ' + dr.check_out + ' (duty ' + hm(dr.mins) + ')' : ', no check out recorded') + '.' : dq.label.replace(/^on /, '') + ': no check-in.') : 'Today: ' + (t ? 'checked in at ' + t.check_in + (t.check_out ? ', left at ' + t.check_out : ', still on site') : o ? 'on leave (' + (TLABEL[o.kind] || o.kind) + ')' : 'not checked in yet') + '.',
         rows.length ? monthName + ': ' + rows.length + ' day(s) with full times, ' + hm(total) + ' on duty (' + hm(Math.round(total / rows.length)) + ' a day), overtime ' + hm(over) + ', short ' + hm(short) + '.' : monthName + ': no complete check-in and check-out yet.',
         'Overtime available to convert to PTO: ' + h1(b.left) + ' h' + (b.days ? ' (= ' + b.days + ' PTO day' + (b.days === 1 ? '' : 's') + ')' : '') + '.',
         'Leaves ' + year + ': ' + (a != null ? 'allowance ' + h1(a) + ' days' + (al.sofar !== a ? ' (' + h1(al.sofar) + ' given so far)' : '') + ', used ' + h1(usedDays) + ', left ' + h1(left) + '.' : 'used ' + h1(usedDays) + ' days (no allowance set).')
       ));
     }
-    return out.join('\n\n');
+    return { text: out.join('\n\n'), ctx: { topic: 'dastperson', who: matched[0].name } };
   }
 
   // Overtime
@@ -590,8 +608,9 @@ async function tasksTopic(user, n, today) {
 export async function opsbotAnswer(user, text, ctx = null) {
   const n0 = norm(text);
   const today = todayKey();
-  // A bare "Yesterday" / "Monday" / "12 Nov" continues the last attendance question.
-  const n = ctx && ctx.topic && n0.split(' ').length <= 4 && dayAsked(n0, today) && !has(n0, /attendance|present|absent|dastarkhawan/) ? (ctx.topic === 'dast' ? 'dastarkhawan ' : 'attendance ') + n0 : n0;
+  // A bare "Yesterday" / "Monday" / "11th Nov?" continues the last attendance question (a team, or one person).
+  const followDay = !!(ctx && ctx.topic) && n0.split(' ').length <= 8 && !!dayAsked(n0, today) && !has(n0, /attendance|present|absent|dastarkhawan|visitor|expens|spend/);
+  const n = followDay ? (ctx.topic === 'dast' ? 'dastarkhawan ' : ctx.topic === 'person' || ctx.topic === 'dastperson' ? norm(ctx.who || '') + ' check in ' : 'attendance ') + n0 : n0;
   const nowY = Number(today.slice(0, 4));
   const nowM = Number(today.slice(5, 7));
   const om = user.role === 'om';
@@ -605,8 +624,9 @@ export async function opsbotAnswer(user, text, ctx = null) {
   const taskReply = await tasksTopic(user, n, today);
   if (taskReply) return { reply: taskReply, suggestions: [] };
   const dastReply = await dastTopics(user, n, today);
-  if (dastReply) return { reply: dastReply, suggestions: [], ctx: { topic: 'dast' } };
+  if (dastReply) return { reply: typeof dastReply === 'string' ? dastReply : dastReply.text, suggestions: [], ctx: typeof dastReply === 'string' ? { topic: 'dast' } : dastReply.ctx };
   const extra = await extraTopics(user, n, nowY, nowM, today);
+  if (extra && typeof extra !== 'string') return { reply: extra.text, suggestions: [], ctx: extra.ctx };
   if (extra) return { reply: extra, suggestions: [], ...(has(n, /attendance|present|absent|on duty|on break|checked in|who is in today|staff in|employees in|who was (in|present|absent)|who came/) && !has(n, /visitor/) ? { ctx: { topic: 'attendance' } } : {}) };
   if (has(n, /visitor|inside now|who is in\b|who is inside/)) return { reply: await visitorsAnswer(user, n, nowY, nowM, today), suggestions: [] };
   // A short follow-up ("and ISB?", "what about last year?") continues the last question.
