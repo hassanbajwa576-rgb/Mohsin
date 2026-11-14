@@ -3,7 +3,7 @@ import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey } from '@/lib/att';
 import { validMonth, shiftMonth, hkPeople, addDays, siteList } from '@/lib/roster';
-import { sortSites, siteTag, comparePeople } from '@/lib/dk-sites';
+import { sortSites, siteTag, comparePeople, matchSite } from '@/lib/dk-sites';
 import { syncDk } from '@/lib/dk-sync';
 import { dkDayRows, dkOvertime, DUTY_MIN, to24 } from '@/lib/dk-hours';
 import { q } from '@/lib/db';
@@ -47,12 +47,19 @@ export default async function DastarkhawanAttendance({ searchParams }) {
   // Incharges (people mapped to several sites) pick the site they spent each day at; days per site are counted from that.
   const sd = await q(`SELECT person_id, to_char(day, 'YYYY-MM-DD') AS day, site FROM pc2_dk_sitedays WHERE day >= $1::date AND day <= $2::date AND ($3::int = 0 OR person_id = $3::int)`, [from, to, who]);
   const siteDays = Object.fromEntries(sd.map((x) => [x.person_id + '|' + x.day, x.site]));
+  // A day with no hand-picked site takes the site the facial app sent with that check-in (when it sends one).
+  const knownSites = await siteList();
+  for (const r of rows) {
+    const k = r.person_id + '|' + r.day;
+    const auto = matchSite(r.app_site, knownSites);
+    if (!siteDays[k] && auto) siteDays[k] = auto;
+  }
   const multi = team.filter((t) => (t.sites || []).length > 1 && (!who || t.id === who));
   const siteOpts = sortSites([...new Set(team.filter((t) => (t.sites || []).length > 1).flatMap((t) => t.sites.map((x) => x.site)))]);
   const siteStats = [...multi].sort((a, b) => comparePeople({ name: a.name, codes: a.sites.map((x) => x.site) }, { name: b.name, codes: b.sites.map((x) => x.site) })).map((t) => {
     const codes = sortSites(t.sites.map((x) => x.site));
     const counts = Object.fromEntries(codes.map((c) => [c, 0]));
-    for (const x of sd) if (x.person_id === t.id && x.site in counts) counts[x.site] += 1;
+    for (const [k, site] of Object.entries(siteDays)) if (k.startsWith(t.id + '|') && site in counts) counts[site] += 1;
     const present = rows.filter((r) => r.person_id === t.id);
     return { id: t.id, name: t.name, codes, counts, set: Object.values(counts).reduce((a, n) => a + n, 0), present: present.length, unset: present.filter((r) => !siteDays[t.id + '|' + r.day]).length };
   });

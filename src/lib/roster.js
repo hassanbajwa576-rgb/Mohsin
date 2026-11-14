@@ -62,7 +62,7 @@ export async function dkCheckedInDays(from, to) {
 /** Today's check-ins of the Dastarkhawan staff, with the times, and how many are in the team. */
 export async function dkToday(day) {
   const rows = await q(
-    `SELECT p.id, p.name, c.check_in, c.check_out, c.status, c.method, s.site
+    `SELECT p.id, p.name, c.check_in, c.check_out, c.status, c.method, s.site, c.site AS app_site
        FROM pc2_dk_checkins c JOIN pc2_hk_people p ON p.dk_emp_id = c.emp_id AND p.active AND p.team = 'dast' LEFT JOIN pc2_dk_staff s ON s.emp_id = c.emp_id
       WHERE c.day = $1::date AND COALESCE(c.check_in, '') <> '' ORDER BY p.name`,
     [day]

@@ -218,6 +218,8 @@ const DDL = [
   `UPDATE pc2_roles SET pages = pages || ',/dastarkhawan/team' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/team,%'`,
   // Dastarkhawan PTO given month by month (adds to the yearly number in pc2_hk_allow).
   `CREATE TABLE IF NOT EXISTS pc2_hk_allow_m (person_id INTEGER NOT NULL, year INTEGER NOT NULL, month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12), days NUMERIC(6,2) NOT NULL DEFAULT 0, PRIMARY KEY (person_id, year, month))`,
+  // The site of a check-in, when the facial app sends one (otherwise the site on the person's facial app staff record is used).
+  `ALTER TABLE pc2_dk_checkins ADD COLUMN IF NOT EXISTS site TEXT`,
   `CREATE TABLE IF NOT EXISTS pc2_hk_ot_conv (id SERIAL PRIMARY KEY, person_id INTEGER NOT NULL, year INTEGER NOT NULL, hours NUMERIC(7,2) NOT NULL, days NUMERIC(6,2) NOT NULL, by_id INTEGER, at TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `UPDATE pc2_users SET pages = pages || ',/dastarkhawan/attendance' WHERE (role = 'sso' OR name = 'Muhammad Zubair') AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/attendance,%'`,
   `UPDATE pc2_roles SET pages = pages || ',/dastarkhawan/attendance' WHERE sys_key = 'sso' AND pages <> '' AND (',' || pages || ',') NOT LIKE '%,/dastarkhawan/attendance,%'`,
@@ -242,7 +244,7 @@ let ready;
 
 // Bump this whenever DDL changes. The statements above only run when the stored version differs,
 // so a cold start costs one query instead of a couple of dozen.
-const SCHEMA_VERSION = '2026-11-14-3';
+const SCHEMA_VERSION = '2026-11-14-4';
 
 async function init() {
   const c = neon(process.env.DATABASE_URL);

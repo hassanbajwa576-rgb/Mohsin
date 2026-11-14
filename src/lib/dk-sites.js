@@ -32,3 +32,14 @@ export function siteTag(codes, allSites = []) {
   if (allSites.length > 1 && allSites.every((x) => c.includes(x))) return 'All sites';
   return c.length + ' sites';
 }
+
+/** Turns the site text of the facial app ("BOLDDastarkhawan Lahore", "OKA") into one of our site codes, or '' when it cannot be told. */
+export function matchSite(text, allSites = []) {
+  const t = String(text || '').toLowerCase();
+  if (!t) return '';
+  const hit = allSites.find((c) => new RegExp('\\b' + c.toLowerCase() + '\\b').test(t));
+  if (hit) return hit;
+  const alias = { lahore: 'LHR', okara: 'OKA', islamabad: 'ISB' };
+  for (const [w, c] of Object.entries(alias)) if (t.includes(w) && allSites.includes(c)) return c;
+  return '';
+}

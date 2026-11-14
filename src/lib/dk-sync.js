@@ -42,9 +42,9 @@ export async function syncDk({ force = false } = {}) {
     const a = [...new Map(att.filter((x) => clean(x.empId) && dayKey(x.date) && dayKey(x.date) >= from).map((x) => [clean(x.empId) + '|' + dayKey(x.date), x])).values()];
     if (a.length) {
       await q(
-        `INSERT INTO pc2_dk_checkins (emp_id, day, check_in, check_out, status, method) SELECT e, d::date, ci, co, st, m FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[]) AS t(e, d, ci, co, st, m)
-         ON CONFLICT (emp_id, day) DO UPDATE SET check_in = EXCLUDED.check_in, check_out = EXCLUDED.check_out, status = EXCLUDED.status, method = EXCLUDED.method`,
-        [a.map((x) => clean(x.empId)), a.map((x) => dayKey(x.date)), a.map((x) => clean(x.checkIn)), a.map((x) => clean(x.checkOut)), a.map((x) => clean(x.status)), a.map((x) => clean(x.checkInMethod))]
+        `INSERT INTO pc2_dk_checkins (emp_id, day, check_in, check_out, status, method, site) SELECT e, d::date, ci, co, st, m, si FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[]) AS t(e, d, ci, co, st, m, si)
+         ON CONFLICT (emp_id, day) DO UPDATE SET check_in = EXCLUDED.check_in, check_out = EXCLUDED.check_out, status = EXCLUDED.status, method = EXCLUDED.method, site = COALESCE(NULLIF(EXCLUDED.site, ''), pc2_dk_checkins.site)`,
+        [a.map((x) => clean(x.empId)), a.map((x) => dayKey(x.date)), a.map((x) => clean(x.checkIn)), a.map((x) => clean(x.checkOut)), a.map((x) => clean(x.status)), a.map((x) => clean(x.checkInMethod)), a.map((x) => clean(x.site || x.siteName || x.checkInSite || x.location || x.branch || x.siteId))]
       );
     }
 

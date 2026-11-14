@@ -40,7 +40,7 @@ export function to24(t) {
 export async function dkDayRows(from, to, personId = 0) {
   const r = await q(
     `WITH f AS (
-       SELECT p.id AS pid, p.name, c.day, c.check_in, c.check_out, s.site
+       SELECT p.id AS pid, p.name, c.day, c.check_in, c.check_out, s.site, c.site AS app_site
          FROM pc2_dk_checkins c JOIN pc2_hk_people p ON p.dk_emp_id = c.emp_id AND p.active AND p.team = 'dast' LEFT JOIN pc2_dk_staff s ON s.emp_id = c.emp_id
         WHERE c.day >= $1::date AND c.day <= $2::date AND COALESCE(c.check_in, '') <> '' AND ($3::int = 0 OR p.id = $3::int)
      ), m AS (
@@ -51,7 +51,7 @@ export async function dkDayRows(from, to, personId = 0) {
      SELECT COALESCE(f.pid, m.pid) AS person_id, COALESCE(f.name, m.name) AS name, to_char(COALESCE(f.day, m.day), 'YYYY-MM-DD') AS day,
             COALESCE(NULLIF(m.check_in, ''), f.check_in, '') AS check_in, COALESCE(NULLIF(m.check_out, ''), f.check_out, '') AS check_out,
             COALESCE(f.site, m.site, '') AS site, (m.pid IS NOT NULL) AS manual, m.note,
-            COALESCE(f.check_in, '') AS app_in, COALESCE(f.check_out, '') AS app_out
+            COALESCE(f.check_in, '') AS app_in, COALESCE(f.check_out, '') AS app_out, COALESCE(f.app_site, '') AS app_site
        FROM f FULL JOIN m ON m.pid = f.pid AND m.day = f.day
       ORDER BY 2, 3`,
     [from, to, personId]
