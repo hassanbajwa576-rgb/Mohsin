@@ -2056,7 +2056,7 @@ html[data-theme=dark] table.dkg td.c.we:not(.g):not(.r):not(.am){background:rgba
   table.dkg th.sum,table.dkg td.sum{width:38px;min-width:38px}
   table.dkg th.rn,table.dkg td.rn{width:112px;min-width:112px;white-space:normal;text-align:left;padding:3px 5px;font-size:11px;line-height:1.25}
   table.dkg td.rn b{display:block;font-size:11px}
-  table.dkg td.rn .dkg-site{font-size:9px;padding:0 4px;margin:0 0 1px}
+  table.dkg td.rn .dkg-site,table.dkg td.rn .otag{font-size:9px;padding:0 4px;margin:0 0 1px}
   table.dkg td.c a{padding:9px 0}
 }
 
@@ -2109,3 +2109,10 @@ table.dkg th .mo{display:block;font-size:8px;font-weight:700;line-height:1;text-
 /* Attendance grid, dark theme: numbers on the green / red cells stay white (the dark text-colour rules for .dka-t must not reach them). */
 html[data-theme=dark] table.dkg td.g,html[data-theme=dark] table.dkg td.r{color:#fff}
 html[data-theme=dark] table.dkg td.sum.g,html[data-theme=dark] table.dkg td.sum.r{font-weight:700}
+
+/* Today's board: where an incharge checked in */
+.dkp-change{display:inline-block;margin-left:8px;vertical-align:middle}
+.dkp-change summary{cursor:pointer;font-size:12px;color:var(--mut);text-decoration:underline}
+.dkp-site{display:inline-flex;gap:6px;align-items:center;margin-left:6px}
+.dkp-site select{height:28px;min-height:28px;padding:2px 6px;font-size:12px;width:auto;min-width:0}
+.dkp-site .btn{padding:3px 10px;min-height:28px;font-size:12px}

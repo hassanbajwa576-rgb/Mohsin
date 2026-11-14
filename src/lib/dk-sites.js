@@ -23,3 +23,12 @@ export function comparePeople(a, b) {
   const rb = cb.length ? rank(cb[0]) : SITE_ORDER.length + 1;
   return ra - rb || cb.length - ca.length || String(a.name).localeCompare(String(b.name));
 }
+
+/** The tag text for a person on every list: the site ("ISB"), "All sites" when they are on every active site, otherwise "3 sites". */
+export function siteTag(codes, allSites = []) {
+  const c = [...new Set(codes || [])];
+  if (!c.length) return '';
+  if (c.length === 1) return c[0];
+  if (allSites.length > 1 && allSites.every((x) => c.includes(x))) return 'All sites';
+  return c.length + ' sites';
+}

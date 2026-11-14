@@ -7,6 +7,7 @@ import { sortSites } from '@/lib/dk-sites';
 import { addSite, removeSite, renameSite, reactivateSite, deleteSite } from '@/lib/roster-actions';
 import Flash from '@/components/Flash';
 import ConfirmButton from '@/components/ConfirmButton';
+import OfficeTag from '@/components/OfficeTag';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +52,7 @@ export default async function SitesPage({ searchParams }) {
               <tbody>
                 {active.map((st) => (
                   <tr key={st.id}>
-                    <td className='c-title'><b>{st.name}</b></td>
+                    <td className='c-title'><OfficeTag o={st.name} /><b>{st.name}</b></td>
                     <td className='r nw c-amt'><b>{st.people}</b> <span className='muted'>{st.people === 1 ? 'person' : 'people'}</span></td>
                     {edit ? (
                       <td className='c-meta'>
@@ -87,7 +88,7 @@ export default async function SitesPage({ searchParams }) {
               <tbody>
                 {inactive.map((st) => (
                   <tr key={st.id}>
-                    <td className='c-title'><b>{st.name}</b> <span className='muted'>{st.refs ? 'used in past records' : 'never used'}</span></td>
+                    <td className='c-title'><OfficeTag o={st.name} /><b>{st.name}</b> <span className='muted'>{st.refs ? 'used in past records' : 'never used'}</span></td>
                     {edit ? (
                       <td className='act'>
                         <form action={reactivateSite} className='inline'>

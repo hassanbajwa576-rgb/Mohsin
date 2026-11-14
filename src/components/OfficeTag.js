@@ -9,7 +9,7 @@ const hash = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7)
 export default function OfficeTag({ o }) {
   if (!o) return null;
   const key = String(o).trim().toLowerCase();
-  const cls = KNOWN.includes(key) ? key : /^\d+ sites?$/.test(key) ? 'manysites' : 'tc' + (hash(key) % 6);
+  const cls = KNOWN.includes(key) ? key : /^(\d+ sites?|all sites)$/.test(key) ? 'manysites' : 'tc' + (hash(key) % 6);
   return <span className={'otag ' + cls}>{o}</span>;
 }
 

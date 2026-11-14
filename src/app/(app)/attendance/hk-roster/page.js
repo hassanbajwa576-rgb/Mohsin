@@ -13,6 +13,7 @@ import AutoFilters from '@/components/AutoFilters';
 import ConfirmButton from '@/components/ConfirmButton';
 import HkTabs from '@/components/HkTabs';
 import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from '@/lib/teams';
+import { siteTag } from '@/lib/dk-sites';
 import SiteMap from '@/components/SiteMap';
 import { syncDk } from '@/lib/dk-sync';
 
@@ -61,7 +62,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
   const [y, mo] = from.slice(0, 7).split('-').map(Number);
   const rangeLabel = rangeMode ? shortDay(from) + ' to ' + shortDay(to) : MONTHS[mo - 1] + ' ' + y;
   // The tag next to a name: the office (Support), or the site (Dastarkhawan: "4 sites" when mapped to several).
-  const tag = (p) => (dast ? ((p.sites || []).length > 1 ? p.sites.length + ' sites' : (p.sites || [])[0] ? p.sites[0].site : p.site || '') : p.office);
+  const tag = (p) => (dast ? siteTag((p.sites || []).map((x) => x.site), SITES) || p.site || '' : p.office);
 
   const entries = await monthOff({ month, from, to, office, who, team: tm, site });
   const team = await hkPeople({ office, team: tm, site });
