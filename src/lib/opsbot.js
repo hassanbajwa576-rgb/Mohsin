@@ -170,6 +170,34 @@ const officeAsked = (n, user) => (allOffices(user) ? (has(n, /\bisb\b|islamabad/
 const names = (list, max = 15) => list.slice(0, max).map((x) => '  ' + x).join('\n') + (list.length > max ? '\n  and ' + (list.length - max) + ' more' : '');
 const range = (w) => [w.year + '-' + String(w.from).padStart(2, '0') + '-01', w.year + '-' + String(w.to).padStart(2, '0') + '-' + String(new Date(Date.UTC(w.year, w.to, 0)).getUTCDate()).padStart(2, '0')];
 
+
+// Which day a question is about: "yesterday", "day before yesterday", a weekday name ("Monday", "last Friday") or a date ("12 Nov", "Nov 12").
+function dayAsked(n, today) {
+  const add = (d, k) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + k); return t.toISOString().slice(0, 10); };
+  const nice = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const pack = (d, w) => ({ day: d, label: w && /yesterday|tomorrow/.test(w) ? w + ' (' + nice(d) + ')' : w === 'today' ? 'today' : 'on ' + nice(d) });
+  if (has(n, /day before yesterday/)) return pack(add(today, -2), 'the day before yesterday');
+  if (has(n, /\byesterday\b/)) return pack(add(today, -1), 'yesterday');
+  if (has(n, /\btomorrow\b/)) return pack(add(today, 1), 'tomorrow');
+  const wk = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].findIndex((w) => new RegExp('\\b' + w + '\\b').test(n));
+  if (wk >= 0) {
+    const cur = new Date(today + 'T00:00:00Z').getUTCDay();
+    let back = (cur - wk + 7) % 7;
+    if (back === 0 && has(n, /\blast\b/)) back = 7;
+    return pack(add(today, -back), back === 0 ? 'today' : has(n, /\blast\b/) ? 'last ' + nice(add(today, -back)).split(' ')[0] : 'on ' + nice(add(today, -back)).split(' ')[0]);
+  }
+  const year = Number(today.slice(0, 4));
+  const a = /\b(\d{1,2})(?:st|nd|rd|th)? ([a-z]{3,9})\b/.exec(n);
+  const b = /\b([a-z]{3,9}) (\d{1,2})(?:st|nd|rd|th)?\b/.exec(n);
+  const day = a && monthOf(a[2]) ? [Number(a[1]), monthOf(a[2])] : b && monthOf(b[1]) ? [Number(b[2]), monthOf(b[1])] : null;
+  if (day && day[0] >= 1 && day[0] <= 31) {
+    let d = year + '-' + String(day[1]).padStart(2, '0') + '-' + String(day[0]).padStart(2, '0');
+    if (d > today) d = (year - 1) + d.slice(4);
+    if (!Number.isNaN(Date.parse(d))) return pack(d, 'on');
+  }
+  return null;
+}
+
 async function extraTopics(user, n, nowY, nowM, today) {
   const om = user.role === 'om';
   const sup = om || user.role === 'sso';
@@ -222,9 +250,13 @@ async function extraTopics(user, n, nowY, nowM, today) {
     }
   }
   // Attendance: who is in
-  if (has(n, /attendance|present|absent|on duty|on break|checked in|not in yet|who is in today|staff in|employees in/) && !has(n, /visitor/)) {
+  if (has(n, /attendance|present|absent|on duty|on break|checked in|not in yet|who is in today|staff in|employees in|who was (in|present|absent)|who came/) && !has(n, /visitor/)) {
     if (!can(user, 'att_view')) return 'You do not have access to the attendance board, so I cannot answer that.';
-    const { staff, by } = await dayBoard(today, office);
+    const asked = dayAsked(n, today);
+    const day = asked ? asked.day : today;
+    if (day > today) return 'That day has not happened yet, so there is nothing to show. Ask about today or an earlier day.';
+    const past = day < today;
+    const { staff, by } = await dayBoard(day, office);
     const on = [];
     const brk = [];
     const out = [];
@@ -238,7 +270,7 @@ async function extraTopics(user, n, nowY, nowM, today) {
       }
     }
     const wantList = has(n, /\bwho\b|list|names/);
-    return lines('Attendance today' + (office ? ' in ' + office : '') + ' (' + staff.length + ' active employees):', '  On duty: ' + on.length, '  On break: ' + brk.length, '  Checked out: ' + out.length, '  No entry yet: ' + none.length, wantList && on.length ? 'On duty:\n' + names(on) : '', wantList && none.length && has(n, /absent|not in|no entry/) ? 'No entry yet:\n' + names(none) : '');
+    return lines('Attendance ' + (asked ? asked.label : 'today') + (office ? ' in ' + office : '') + ' (' + staff.length + ' active employees):', past ? '  No check out recorded: ' + (on.length + brk.length) : '  On duty: ' + on.length, past ? '' : '  On break: ' + brk.length, '  Checked out: ' + out.length, past ? '  No entry: ' + none.length : '  No entry yet: ' + none.length, wantList && on.length ? (past ? 'No check out recorded:\n' : 'On duty:\n') + names(on) : '', wantList && none.length && has(n, /absent|not in|no entry/) ? (past ? 'No entry:\n' : 'No entry yet:\n') + names(none) : '');
   }
   if (has(n, /how many (employees|staff|people)|headcount|strength|number of (employees|staff)/)) {
     if (!sup && !can(user, 'att_view')) return 'Headcount is available to managers.';
@@ -435,7 +467,8 @@ async function dastTopics(user, n, today) {
   const label = (p) => siteLabel(codes(p), allSites) || '-';
   const sorted = [...people].sort((a, b) => comparePeople({ name: a.name, codes: codes(a) }, { name: b.name, codes: codes(b) }));
   const inRows = await dkToday(today);
-  const inMap = new Map(inRows.map((r) => [r.id, r]));
+  const inMapToday = new Map(inRows.map((r) => [r.id, r]));
+  const inMap = inMapToday;
 
   // One person
   if (matched.length) {
@@ -506,15 +539,19 @@ async function dastTopics(user, n, today) {
     return lines('Days at each site, ' + monthName + ' (as picked on the attendance page):', names([...by.entries()].map(([name, a]) => name + ': ' + sortSites(a.map((z) => z.split(' ')[0])).map((c) => a.find((z) => z.startsWith(c + ' '))).join(', '))));
   }
 
-  // Today: who is in, who has left, who has not come yet
-  if (has(n, /today|now|checked in|check in|on site|present|absent|not in|who is in|who s in|came|late|attendance|board/)) {
+  // One day: who is in, who has left, who has not come yet (today, or the day asked: yesterday, a weekday, a date)
+  const dayQ = dayAsked(n, today);
+  if (dayQ || has(n, /today|now|checked in|check in|on site|present|absent|not in|who is in|who s in|came|late|attendance|board/)) {
+    const day = dayQ ? dayQ.day : today;
+    if (day > today) return 'That day has not happened yet, so there is nothing to show. Ask about today or an earlier day.';
+    const inMap = day === today ? inMapToday : new Map((await dkToday(day)).map((r) => [r.id, r]));
     const on = sorted.filter((p) => inMap.has(p.id) && !inMap.get(p.id).check_out);
     const left = sorted.filter((p) => inMap.has(p.id) && inMap.get(p.id).check_out);
-    const off = await offToday(today, '', 'dast');
+    const off = await offToday(day, '', 'dast');
     const offIds = new Set(off.map((o) => o.staff_id));
     const not = sorted.filter((p) => !inMap.has(p.id) && !offIds.has(p.id));
     return lines(
-      'Dastarkhawan today: ' + (on.length + left.length) + ' of ' + people.length + ' checked in (' + on.length + ' still on site, ' + left.length + ' left).',
+      'Dastarkhawan ' + (dayQ ? dayQ.label : 'today') + ': ' + (on.length + left.length) + ' of ' + people.length + ' checked in (' + on.length + ' still on site, ' + left.length + ' left).',
       on.length ? 'On site:' : '', on.length ? names(on.map((p) => p.name + ' (' + label(p) + ', in ' + inMap.get(p.id).check_in + ')'), 20) : '',
       left.length ? 'Left:' : '', left.length ? names(left.map((p) => p.name + ' (' + inMap.get(p.id).check_in + ' to ' + inMap.get(p.id).check_out + ')'), 20) : '',
       off.length ? 'On leave:' : '', off.length ? names(off.map((o) => o.name), 20) : '',
@@ -549,8 +586,10 @@ async function tasksTopic(user, n, today) {
 }
 
 export async function opsbotAnswer(user, text, ctx = null) {
-  const n = norm(text);
+  const n0 = norm(text);
   const today = todayKey();
+  // A bare "Yesterday" / "Monday" / "12 Nov" continues the last attendance question.
+  const n = ctx && ctx.topic && n0.split(' ').length <= 4 && dayAsked(n0, today) && !has(n0, /attendance|present|absent|dastarkhawan/) ? (ctx.topic === 'dast' ? 'dastarkhawan ' : 'attendance ') + n0 : n0;
   const nowY = Number(today.slice(0, 4));
   const nowM = Number(today.slice(5, 7));
   const om = user.role === 'om';
@@ -564,9 +603,9 @@ export async function opsbotAnswer(user, text, ctx = null) {
   const taskReply = await tasksTopic(user, n, today);
   if (taskReply) return { reply: taskReply, suggestions: [] };
   const dastReply = await dastTopics(user, n, today);
-  if (dastReply) return { reply: dastReply, suggestions: [] };
+  if (dastReply) return { reply: dastReply, suggestions: [], ctx: { topic: 'dast' } };
   const extra = await extraTopics(user, n, nowY, nowM, today);
-  if (extra) return { reply: extra, suggestions: [] };
+  if (extra) return { reply: extra, suggestions: [], ...(has(n, /attendance|present|absent|on duty|on break|checked in|who is in today|staff in|employees in|who was (in|present|absent)|who came/) && !has(n, /visitor/) ? { ctx: { topic: 'attendance' } } : {}) };
   if (has(n, /visitor|inside now|who is in\b|who is inside/)) return { reply: await visitorsAnswer(user, n, nowY, nowM, today), suggestions: [] };
   // A short follow-up ("and ISB?", "what about last year?") continues the last question.
   const follow = !!ctx && (has(n, /^(and|what about|how about|same|also|now|then|ok|okay|for|in)\b/) || n.split(' ').length <= 4);
