@@ -484,7 +484,7 @@ async function dastTopics(user, n, today, found) {
   const money = has(n, /expens|spend|spent|advance|cash|budget|receipt/);
   const otherModule = has(n, /office|visitor|complaint|fuel|expens|spend|task/);
   const matched = money || otherModule ? [] : found.dast;
-  const cue = has(n, /dastarkhawan|dastarkhwan|dasterkhawan|\bdk\b|\bbd\b|\boka\b|okara|\bapl\b|incharge|in charge|days per site|site days/);
+  const cue = has(n, /dastarkhawan|dastarkhwan|dasterkhawan|\bdk\b|\bbd\b|\boka\b|okara|\bapl\b|incharge|in charge|days per site|site days|overtime|duty hours|duty time|short hours|rotation|worked less|less than \d+ hours?|under \d+ hours?/);
   if (!cue && !matched.length) return null;
   const allowed = user.role === 'om' || user.role === 'sso' || can(user, 'dast_edit');
   if (!allowed) return cue ? 'Dastarkhawan details are available to the Sr. Ops Manager, the Sr. Support Officer and people given the Dastarkhawan permission.' : null;
@@ -604,6 +604,29 @@ async function dastTopics(user, n, today, found) {
     return { text: out.join('\n\n'), ctx: { topic: 'dastperson', who: matched[0].name, day: (dayAsked(n, today) || { day: today }).day } };
   }
 
+  // Short time and the average duty day (this month, from the days with full times)
+  if (has(n, /\bshort\b|worked less|less than \d+ hours?|under \d+ hours?|average|\bavg\b/) && has(n, /hours?|duty|time|short/)) {
+    const avgAsked = has(n, /average|\bavg\b/);
+    const rowsBy = [];
+    for (const p of sorted) {
+      const rows = (await dkDayRows(monthFrom, today, p.id)).filter((r) => r.mins != null);
+      if (!rows.length) continue;
+      const total = rows.reduce((a, r) => a + r.mins, 0);
+      const short = rows.reduce((a, r) => a + Math.max(0, r.duty - r.mins), 0);
+      rowsBy.push({ p, days: rows.length, total, short, duty: rows[0].duty });
+    }
+    if (!rowsBy.length) return 'There are no days with full check in and check out times for ' + monthName + ' yet.';
+    if (avgAsked) {
+      const days = rowsBy.reduce((a, x) => a + x.days, 0);
+      const tot = rowsBy.reduce((a, x) => a + x.total, 0);
+      return lines('Average duty day in ' + monthName + ': ' + hm(Math.round(tot / days)) + ' across ' + days + ' day(s) with full times.', names(rowsBy.map((x) => x.p.name + ': ' + hm(Math.round(x.total / x.days)) + ' a day over ' + x.days + ' day(s)'), 20));
+    }
+    const list = rowsBy.filter((x) => x.short > 0).sort((a, b) => b.short - a.short);
+    return list.length
+      ? lines('Short time in ' + monthName + ' (time under the duty hours of a day), most first:', names(list.map((x) => x.p.name + ': ' + hm(x.short) + ' short over ' + x.days + ' day(s) (duty day ' + hm(x.duty) + ')'), 20))
+      : 'Nobody has short time in ' + monthName + ': every day with full times reached the duty hours.';
+  }
+
   // Overtime
   if (has(n, /overtime|\bot\b|extra hours|convert/)) {
     const bank = await dkOvertime();
@@ -691,6 +714,17 @@ async function tasksTopic(user, n, today) {
   return lines(who + ' ' + what + ' (' + rows.length + '):', names(rows.map(line), 12));
 }
 
+
+// Roman Urdu: the English words for common Urdu words are added to the question (the Urdu words stay, so names still match),
+// so "aaj kaun kaun aaya" is read like "today who came". "kal" means yesterday after a past-tense word, tomorrow otherwise.
+const URDU = [[/\baaj\b/, 'today'], [/\bkon\b|\bkaun\b|\bkoun\b/, 'who'], [/\bkahan\b|\bkidhar\b|\bkahaan\b/, 'where'], [/\bkitna\b|\bkitne\b|\bkitni\b/, 'how many how much'], [/\bkharcha\b|\bkharch\b|\bkharchay\b|\bkharche\b/, 'spend expenses'], [/\bchutti\b|\bchhutti\b|\bchuti\b/, 'leave off'], [/\baaya\b|\baya\b|\baye\b|\baayi\b|\baaye\b/, 'checked in came'], [/\bgaya\b|\bchala gaya\b|\bnikla\b/, 'checked out left'], [/\bghanta\b|\bghante\b|\bghanty\b/, 'hours'], [/\bpaisa\b|\bpaise\b|\braqam\b|\bpaisay\b/, 'cash money'], [/\bbaqi\b|\bbaaki\b|\bbacha\b|\bbachay\b/, 'left balance'], [/\bhaz[ai]ri\b|\bhaazri\b/, 'attendance'], [/\bmehman\b|\bmulaqati\b/, 'visitor'], [/\bshikayat\b|\bshikayaat\b/, 'complaint'], [/\bnahi\b|\bnahin\b/, 'not'], [/\bsab\b/, 'all'], [/\bdin\b/, 'days'], [/\bpichle mahine\b|\bpichhle mahine\b/, 'last month'], [/\bis mahine\b|\bis mahinay\b/, 'this month'], [/\bis saal\b|\bis sal\b/, 'this year']];
+function urduBridge(n) {
+  let add = '';
+  for (const [re, en] of URDU) if (re.test(n)) add += ' ' + en;
+  if (/\bkal\b/.test(n)) add += /\b(aaya|aya|aye|gaya|tha|thay|hua|huwa|huay)\b/.test(n) ? ' yesterday' : ' tomorrow';
+  return add ? n + add : n;
+}
+
 export async function opsbotAnswer(user, text, ctx = null) {
   const n0 = norm(text);
   const today = todayKey();
@@ -710,6 +744,7 @@ export async function opsbotAnswer(user, text, ctx = null) {
   } else if (!!ctx && !!ctx.topic && !personCtx && short && n0.split(' ').length <= 8 && hasDay && noTopicWords) {
     n = (ctx.topic === 'dast' ? 'dastarkhawan ' : 'attendance ') + n0;
   }
+  n = urduBridge(n);
   const nowY = Number(today.slice(0, 4));
   const nowM = Number(today.slice(5, 7));
   const om = user.role === 'om';
@@ -717,6 +752,7 @@ export async function opsbotAnswer(user, text, ctx = null) {
   if (!n) return { reply: 'Ask me something about the app.', suggestions: sugg };
   if (has(n, /what can i ask|ideas|examples|what can you do|show me questions|list of questions|topics/) && om) return { reply: 'You can ask me things like:\n' + IDEAS_OM.map((x) => '- ' + x).join('\n'), suggestions: SUGGEST_OM };
   if (has(n, /what can i ask|ideas|examples|what can you do/) && !om) return { reply: 'You can ask me things like:\n- What is my cash in hand?\n- How many expenses are waiting?\n- Advances outstanding\n- Visitors today\n- Open complaints\n- Who is on duty today? (if you can see attendance)', suggestions: SUGGEST_OTHER };
+  if (has(n, /^(thanks|thank you|thx|shukriya|shukria|ok thanks|okay thanks|great|good job|acha|theek hai)\b/)) return { reply: 'You are welcome. Ask me anything else about the app.', suggestions: sugg };
   if (has(n, /^(hi|hello|hey|salam|help)\b|who are you|how do i ask/)) {
     return { reply: om ? 'I am OpsBot. I answer from the data in OpsTrack. Ask about spending by office, head or month, the budget, year against year, cash in hand, advances, the expenses of one person ("Zubair expenses this month"), expenses in a stage ("rejected expenses"), attendance ("who is on duty today"), headcount, complaints, time-off requests, fuel refills, the team, visitors, or find an amount ("find 18376"). Name a month, a year, an office or a head. I only know what is in the app.' : 'I am OpsBot. I answer from the data in OpsTrack that you can open: your cash in hand, advances, expenses and visitors.', suggestions: sugg };
   }
@@ -738,7 +774,7 @@ export async function opsbotAnswer(user, text, ctx = null) {
   // A short follow-up ("and ISB?", "what about last year?") continues the last question.
   const follow = !!ctx && (has(n, /^(and|what about|how about|same|also|now|then|ok|okay|for|in)\b/) || n.split(' ').length <= 4);
   const money = (follow && ctx && ctx.intent) || has(n, /spend|spent|cost|expens|paid|how much|total|budget|variance|compare|versus|\bvs\b|head|office|isb|lhr|travel|rent|month|share|percent|top|biggest/);
-  const pettyTopic = has(n, /cash in hand|cih|holding|who has|who holds|advance|outstanding|ready for accounts|awaiting|pending|waiting|approval|my cash|my expenses/);
+  const pettyTopic = has(n, /cash in hand|cash balance|petty cash (balance|left)|cih|holding|who has|who holds|advance|outstanding|ready for accounts|awaiting|pending|waiting|approval|my cash|my expenses/);
   if (pettyTopic && !has(n, /budget|isb|lhr|head|month|compare|travel|rent/)) return { reply: await pettyAnswer(user, n), suggestions: [] };
   if (!om) {
     if (money) return { reply: await pettyAnswer(user, n), suggestions: sugg };
