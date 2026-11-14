@@ -3,20 +3,25 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey } from '@/lib/att';
-import { hkPeople, hkInactive, dkLinked, dkAllowances } from '@/lib/roster';
+import { hkPeople, hkInactive, dkLinked, dkAllowances, siteList } from '@/lib/roster';
+import { addHkPerson } from '@/lib/roster-actions';
 import { sortSites } from '@/lib/dk-sites';
 import { siteText } from '@/lib/teams';
 import NavOffset from '@/components/NavOffset';
+import SiteMap from '@/components/SiteMap';
+import Flash from '@/components/Flash';
 
 export const dynamic = 'force-dynamic';
 
 const clean = (v) => String(v || '').replace(/^BOLDDastarkhawan\s*/i, '');
 
 // Manage > Team: the details of every Dastarkhawan team member (sites, joining date, facial app link, leave allowance) and who is inactive.
-export default async function DastarkhawanTeam() {
+export default async function DastarkhawanTeam({ searchParams }) {
   const user = await requireUser(ATT_ROLES);
   if (!['om', 'sso', 'so'].includes(user.role) || !can(user, 'dast_edit')) redirect('/');
+  const sp = await searchParams;
   const year = Number(todayKey().slice(0, 4));
+  const sites = sortSites(await siteList());
   const [team, inactive, linked, allow] = await Promise.all([hkPeople({ team: 'dast' }), hkInactive('dast'), dkLinked(), dkAllowances(year)]);
   const link = new Map(linked.map((l) => [l.id, l]));
   const sitesOf = (p) => {
@@ -29,9 +34,24 @@ export default async function DastarkhawanTeam() {
       <div className='head'>
         <div>
           <h1>Dastarkhawan Team</h1>
-          <p className='muted'>Everyone in the Dastarkhawan team with their sites, joining date, facial attendance app link and {year} leave allowance. To add, edit or deactivate a member, use the <Link href='/dastarkhawan'>Roster</Link> page.</p>
+          <p className='muted'>Everyone in the Dastarkhawan team with their sites, joining date, facial attendance app link and {year} leave allowance. To edit or deactivate a member, use the <Link href='/dastarkhawan'>Roster</Link> page.</p>
         </div>
       </div>
+
+      <Flash sp={sp} />
+      <details className='card' open={!!(sp && (sp.err || sp.ok))}>
+        <summary>Add team member</summary>
+        <form action={addHkPerson} className='form'>
+          <input type='hidden' name='team' value='dast' />
+          <label>Name<input name='name' required maxLength={80} placeholder='Team member name' autoComplete='off' /></label>
+          <label>Role (optional)<input name='role' maxLength={60} placeholder='For example: cook, helper' /></label>
+          <label>Phone<input name='phone' type='tel' maxLength={30} placeholder='03xx xxxxxxx' /></label>
+          <label>Joining date<input type='date' name='joined' /></label>
+          <label>Birthday<input type='date' name='birthday' /></label>
+          <SiteMap sites={sites} />
+          <button className='btn primary' type='submit'>Add team member</button>
+        </form>
+      </details>
 
       <NavOffset />
       <div className='card'>
