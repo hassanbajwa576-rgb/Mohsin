@@ -6,6 +6,7 @@ import { hkPeople, dkToday, dkUnlinked, dkLinked, siteList } from '@/lib/roster'
 import { syncDk, dkStatus } from '@/lib/dk-sync';
 import DkPanel from '@/components/DkPanel';
 import Flash from '@/components/Flash';
+import NavOffset from '@/components/NavOffset';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,7 @@ export default async function DastarkhawanToday({ searchParams }) {
         </div>
       </div>
       <Flash sp={sp} />
+      <NavOffset />
       <DkPanel rows={rows} team={team} allSites={allSites} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} />
     </>
   );
