@@ -177,11 +177,32 @@ async function saveSites(personId, list) {
 const SITES_PAGE = DAST + '/sites';
 
 // Fetch the latest check-ins from the facial attendance app right now.
-export async function refreshDk() {
-  await need('dast');
-  const r = await syncDk({ force: true });
-  if (r.error) back(DAST + '/today', 'Could not reach the facial attendance app (' + r.error + ')');
-  back(DAST + '/today', 'Check-ins updated: ' + r.records + ' records from ' + r.staff + ' staff', true);
+export async function refreshDk(fd) {
+  const u = await need('dast');
+  const page = s(fd, 'back') === 'attendance' ? '/attendance' : '/today';
+  const mode = s(fd, 'mode') || 'today';
+  const t = todayKey();
+  let range = {};
+  let what = 'today';
+  if (mode === 'days') { what = 'the last 60 days'; }
+  else if (mode === 'all') {
+    if (u.role !== 'om') back(DAST + page, 'Only the Sr. Ops Manager can load all time');
+    range = { from: '1970-01-01' };
+    what = 'all time';
+  } else if (mode === 'custom') {
+    let f = s(fd, 'from');
+    let to = s(fd, 'to');
+    if (!validDate(f) || !validDate(to)) back(DAST + page, 'Pick both dates to load a range');
+    if (to < f) [f, to] = [to, f];
+    range = { from: f, to };
+    what = f === to ? f : f + ' to ' + to;
+  } else {
+    range = { from: t, to: t };
+  }
+  const r = await syncDk({ force: true, ...range });
+  if (r.error) back(DAST + page, 'Could not reach the facial attendance app (' + r.error + ')');
+  await logEvent(u, 'edit', 'dk_refresh', null, 'Refreshed Dastarkhawan check-ins from the facial app for ' + what).catch(() => {});
+  back(DAST + page, 'Check-ins updated for ' + what + ': ' + r.records + ' record' + (r.records === 1 ? '' : 's') + ' from ' + r.staff + ' staff', true);
 }
 
 // Remove the link between a Dastarkhawan person and a facial-app staff record (their check-ins from that record stop showing).

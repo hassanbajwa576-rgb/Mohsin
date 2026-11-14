@@ -19,7 +19,7 @@ const clean = (v) => String(v == null ? '' : v).trim();
 const dayKey = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(clean(d)) ? clean(d) : '');
 
 /** Pull the latest staff and attendance from the facial app. Skipped when done in the last 5 minutes (unless forced). Never throws. */
-export async function syncDk({ force = false, maxAgeMs = FRESH_MS } = {}) {
+export async function syncDk({ force = false, maxAgeMs = FRESH_MS, from: fromDay = '', to: toDay = '' } = {}) {
   try {
     const last = (await q('SELECT synced_at FROM pc2_dk_sync WHERE id = 1'))[0];
     if (!force && last && last.synced_at && Date.now() - new Date(last.synced_at).getTime() < maxAgeMs) return { skipped: true };
@@ -38,8 +38,10 @@ export async function syncDk({ force = false, maxAgeMs = FRESH_MS } = {}) {
       );
     }
 
-    const from = new Date(Date.now() - DAYS * 864e5).toISOString().slice(0, 10);
-    const a = [...new Map(att.filter((x) => clean(x.empId) && dayKey(x.date) && dayKey(x.date) >= from).map((x) => [clean(x.empId) + '|' + dayKey(x.date), x])).values()];
+    // Normally the last 60 days; a refresh can ask for another range (today only, everything, or chosen dates).
+    const from = dayKey(fromDay) || new Date(Date.now() - DAYS * 864e5).toISOString().slice(0, 10);
+    const to = dayKey(toDay) || '9999-12-31';
+    const a = [...new Map(att.filter((x) => clean(x.empId) && dayKey(x.date) && dayKey(x.date) >= from && dayKey(x.date) <= to).map((x) => [clean(x.empId) + '|' + dayKey(x.date), x])).values()];
     if (a.length) {
       await q(
         `INSERT INTO pc2_dk_checkins (emp_id, day, check_in, check_out, status, method, site) SELECT e, d::date, ci, co, st, m, si FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[]) AS t(e, d, ci, co, st, m, si)
@@ -55,7 +57,7 @@ export async function syncDk({ force = false, maxAgeMs = FRESH_MS } = {}) {
          AND NOT EXISTS (SELECT 1 FROM pc2_hk_people p2 WHERE p2.active AND p2.dk_emp_id = s.emp_id)`
     );
     await q(`INSERT INTO pc2_dk_sync (id, synced_at, ok_at, error, rows) VALUES (1, now(), now(), NULL, $1) ON CONFLICT (id) DO UPDATE SET synced_at = now(), ok_at = now(), error = NULL, rows = EXCLUDED.rows`, [a.length]);
-    return { ok: true, staff: s.length, records: a.length };
+    return { ok: true, staff: s.length, records: a.length, from, to };
   } catch (e) {
     // Try again in about a minute; the page keeps working with what is already stored.
     try {

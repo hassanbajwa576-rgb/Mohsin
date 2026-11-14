@@ -1,10 +1,11 @@
-import { refreshDk, linkDkPerson, unlinkDkPerson, saveDkTime } from '@/lib/roster-actions';
+import { linkDkPerson, unlinkDkPerson, saveDkTime } from '@/lib/roster-actions';
 import { siteTag, comparePeople, sortSites, matchSite } from '@/lib/dk-sites';
 import OfficeTag from '@/components/OfficeTag';
+import DkRefresh from '@/components/DkRefresh';
 
 // Dastarkhawan: who has checked in today (from the facial attendance app), when the data was last updated,
 // and people not yet linked to their facial app record.
-export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}, leaveToday = {}, todayKey = '', teamSize, status, unlinked, linked = [], edit }) {
+export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}, leaveToday = {}, todayKey = '', teamSize, status, unlinked, linked = [], edit, canAll = false }) {
   const out = rows.filter((r) => r.check_out).length;
   const inNow = rows.length - out;
   // One line per team member, in site order (ISB, LHR, OKA, APL): when they came, when they left, and where they are now.
@@ -23,9 +24,7 @@ export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}
           </p>
         </div>
         {edit ? (
-          <form action={refreshDk}>
-            <button className='btn' type='submit'>Refresh now</button>
-          </form>
+          <DkRefresh back='today' canAll={canAll} />
         ) : null}
       </div>
       {status.error ? <p className='dkp-err'>Could not reach the facial attendance app just now ({status.error}). Showing what was last received.</p> : null}

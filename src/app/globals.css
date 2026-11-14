@@ -2216,3 +2216,15 @@ html[data-theme=dark] .lvb.bad{background:rgba(239,68,68,.30);color:#ffb4b4;font
   table.dka-lv.dkt input[type=number]{-moz-appearance:textfield;appearance:textfield}
   table.dka-lv.dkt input[type=number]::-webkit-inner-spin-button,table.dka-lv.dkt input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 }
+/* Refresh from the facial app: Refresh today, plus a More menu (60 days, all time, chosen dates). */
+.dkr{position:relative;flex:none}
+.dkr-main{display:flex;gap:6px;align-items:center}
+.dkr-more{position:relative}
+.dkr-more>summary{list-style:none;cursor:pointer}
+.dkr-more>summary::-webkit-details-marker{display:none}
+.dkr-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:30;display:flex;flex-direction:column;gap:8px;min-width:230px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,.22)}
+.dkr-range{display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid var(--line)}
+.dkr-range label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--mut)}
+.dkr-range input{min-height:34px}
+@media (max-width:720px){.dkr{width:100%}.dkr-main{width:100%}.dkr-main>.btn{flex:1}.dkr-pop{left:0;right:0}}
+.dkr-main .btn,.dkr-more>summary{min-height:38px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}

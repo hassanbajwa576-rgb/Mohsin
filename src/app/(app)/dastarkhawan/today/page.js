@@ -42,7 +42,7 @@ export default async function DastarkhawanToday({ searchParams }) {
       <Flash sp={sp} />
       <NavOffset />
       <AutoRefresh seconds={60} />
-      <DkPanel leaveToday={leaveToday} rows={rows} team={team} allSites={allSites} siteToday={siteToday} todayKey={today} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} />
+      <DkPanel leaveToday={leaveToday} rows={rows} team={team} allSites={allSites} siteToday={siteToday} todayKey={today} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} canAll={user.role === 'om'} />
     </>
   );
 }

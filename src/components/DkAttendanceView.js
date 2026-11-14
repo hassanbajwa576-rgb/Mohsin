@@ -4,6 +4,7 @@ import Flash from '@/components/Flash';
 import ConfirmButton from '@/components/ConfirmButton';
 import DkPersonPicker from '@/components/DkPersonPicker';
 import OfficeTag from '@/components/OfficeTag';
+import DkRefresh from '@/components/DkRefresh';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DOW1 = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // one letter in the grid header keeps the columns narrow
@@ -21,7 +22,7 @@ function Kpi({ label, value, sub, tone }) {
   );
 }
 
-export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, from, to, custom, dates, siteDays, siteOpts, siteStats, multi }) {
+export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, from, to, custom, dates, siteDays, siteOpts, siteStats, multi, canAll = false }) {
   const qs = (o) => {
     const e = { ...(custom ? { from, to } : { m: month }), ...(view !== 'grid' ? { v: view } : {}), ...(who ? { who: String(who) } : {}), ...o };
     return new URLSearchParams(Object.entries(e).filter(([, x]) => x !== '')).toString();
@@ -44,6 +45,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           <h1>Dastarkhawan Attendance</h1>
           <p className='muted'>Duty hours per day from the facial attendance app (or typed in by hand). <b className='dka-t g'>Green</b> is 8 hours or more, <b className='dka-t r'>red</b> is under 8. Time beyond 8 hours is overtime; every {OT_BLOCK_H} overtime hours convert to 1 PTO day. Click a name to see check in and check out times.</p>
         </div>
+        <DkRefresh back='attendance' canAll={canAll} from={from} to={to} />
       </div>
       <Flash sp={sp} />
 
