@@ -1,10 +1,16 @@
 import { refreshDk, linkDkPerson, unlinkDkPerson } from '@/lib/roster-actions';
+import { siteLabel, comparePeople } from '@/lib/dk-sites';
 
 // Dastarkhawan: who has checked in today (from the facial attendance app), when the data was last updated,
 // and people not yet linked to their facial app record.
-export default function DkPanel({ rows, teamSize, status, unlinked, linked = [], edit }) {
+export default function DkPanel({ rows, team = [], allSites = [], teamSize, status, unlinked, linked = [], edit }) {
   const out = rows.filter((r) => r.check_out).length;
   const inNow = rows.length - out;
+  // One line per team member, in site order (ISB, LHR, OKA, APL): when they came, when they left, and where they are now.
+  const today = new Map(rows.map((r) => [r.id, r]));
+  const list = team
+    .map((p) => ({ ...p, codes: (p.sites || []).map((x) => x.site), t: today.get(p.id) }))
+    .sort(comparePeople);
   return (
     <div className='card dkpanel'>
       <div className='dkp-head'>
@@ -21,17 +27,28 @@ export default function DkPanel({ rows, teamSize, status, unlinked, linked = [],
         ) : null}
       </div>
       {status.error ? <p className='dkp-err'>Could not reach the facial attendance app just now ({status.error}). Showing what was last received.</p> : null}
-      {rows.length ? (
-        <ul className='dkp-list'>
-          {rows.map((r) => (
-            <li key={r.id}>
-              <b>{r.name}</b>
-              <span className='muted'>{r.site ? r.site.replace(/^BOLDDastarkhawan\s*/i, '') : ''}</span>
-              <span className='dkp-t'>In {r.check_in}</span>
-              <span className={'dkp-t' + (r.check_out ? '' : ' dkp-on')}>{r.check_out ? 'Out ' + r.check_out : 'On site'}</span>
-            </li>
-          ))}
-        </ul>
+      {list.length ? (
+        <div className='tablewrap'>
+          <table className='tx'>
+            <thead><tr><th>Team member</th><th>Check in</th><th>Check out</th><th>Status</th></tr></thead>
+            <tbody>
+              {list.map((p) => {
+                const t = p.t;
+                const site = siteLabel(p.codes, allSites);
+                return (
+                  <tr key={p.id}>
+                    <td className='c-title'>{site ? <span className='dkg-site'>{site}</span> : null}<b>{p.name}</b></td>
+                    <td className='c-meta nw'><small className='dklbl'>In </small>{t ? t.check_in : <span className='muted'>-</span>}</td>
+                    <td className='c-meta nw'><small className='dklbl'>Out </small>{t && t.check_out ? t.check_out : <span className='muted'>-</span>}</td>
+                    <td className='c-meta'>
+                      {!t ? <span className='dka-pill'>Not in yet</span> : t.check_out ? <span className='dka-pill'>Left</span> : <span className='dka-pill ok'>On site</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <p className='muted'>Nobody has checked in yet today.</p>
       )}

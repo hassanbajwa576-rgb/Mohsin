@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey } from '@/lib/att';
-import { hkPeople, dkToday, dkUnlinked, dkLinked } from '@/lib/roster';
+import { hkPeople, dkToday, dkUnlinked, dkLinked, siteList } from '@/lib/roster';
 import { syncDk, dkStatus } from '@/lib/dk-sync';
 import DkPanel from '@/components/DkPanel';
 import Flash from '@/components/Flash';
@@ -20,6 +20,7 @@ export default async function DastarkhawanToday({ searchParams }) {
   const status = await dkStatus();
   const rows = await dkToday(today);
   const team = await hkPeople({ team: 'dast' });
+  const allSites = await siteList();
   const unlinked = edit ? await dkUnlinked() : { people: [], staff: [] };
   const linked = edit ? await dkLinked() : [];
 
@@ -32,7 +33,7 @@ export default async function DastarkhawanToday({ searchParams }) {
         </div>
       </div>
       <Flash sp={sp} />
-      <DkPanel rows={rows} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} />
+      <DkPanel rows={rows} team={team} allSites={allSites} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} />
     </>
   );
 }
