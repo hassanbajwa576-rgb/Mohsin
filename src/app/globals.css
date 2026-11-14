@@ -2173,7 +2173,6 @@ html[data-theme=dark] .lvb.bad{background:rgba(239,68,68,.30);color:#ffb4b4;font
 @media (max-width:720px){
   html[data-theme=dark] table.dkt tbody td:first-child{background:#151514}
   table.dkt tfoot td:first-child{background:#f8e7b0}
-  html[data-theme=dark] table.dkt tfoot td:first-child{background:var(--tint)}
 }
 @media (max-width:720px){
   table.dka-lv.dkt th,table.dka-lv.dkt td{padding:5px 4px!important}
@@ -2241,3 +2240,8 @@ table.dkg td.c.lv a{color:#fff}
 .tk-det>summary:hover .tk-plus{border-color:var(--gold)}
 .tk-detail{margin:6px 0 2px 26px}
 .tk-nop{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;padding-left:26px}
+@media (max-width:720px){
+  /* Total row, dark theme: the tint is see-through, so it is painted once per cell over a solid base (not on the row as well, which made the first cell brighter). */
+  html[data-theme=dark] .tablewrap table.dkt tfoot tr{background:transparent}
+  html[data-theme=dark] .tablewrap table.dkt tfoot td{background-color:#151514;background-image:linear-gradient(var(--tint),var(--tint))}
+}
