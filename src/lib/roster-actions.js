@@ -341,11 +341,12 @@ export async function updateHkPerson(fd) {
   // Site rotation of an incharge (only sent for people who work at several sites): on or off, the day 1 date and the pattern.
   if (p.team === 'dast' && s(fd, 'rot_present')) {
     if (s(fd, 'rot_on')) {
-      const start = s(fd, 'rot_start');
+      const monthly = !!s(fd, 'rot_monthly');
+      const start = dateOk(s(fd, 'rot_start')) ? s(fd, 'rot_start') : monthly ? todayKey().slice(0, 7) + '-01' : '';
       if (!dateOk(start)) back(here, 'Choose the date of day 1 of the rotation');
       const parsed = parsePattern(s(fd, 'rot_pattern'), await siteList());
       if (parsed.error) back(here, 'Rotation: ' + parsed.error);
-      await q(`INSERT INTO pc2_hk_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, ['dk_rot_' + id, JSON.stringify({ start, pattern: patternText(parsed.steps) })]);
+      await q(`INSERT INTO pc2_hk_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, ['dk_rot_' + id, JSON.stringify({ start, monthly, pattern: patternText(parsed.steps) })]);
     } else {
       await q(`DELETE FROM pc2_hk_settings WHERE key = $1`, ['dk_rot_' + id]);
     }

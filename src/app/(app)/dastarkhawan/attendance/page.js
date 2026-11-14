@@ -144,7 +144,7 @@ export default async function DastarkhawanAttendance({ searchParams }) {
     const lastPast = addDays(today, -1);
     const sofar = lastPast < from ? { counts: {}, travel: 0, days: 0 } : planCounts(rot, from, lastPast < to ? lastPast : to);
     planView = {
-      id: pid, name: person ? person.name : '', start: rot.start, pattern: rot.pattern, dutyMin, days, sites,
+      id: pid, name: person ? person.name : '', start: rot.start, monthly: !!rot.monthly, pattern: rot.pattern, dutyMin, days, sites,
       planned: planCounts(rot, from, to), sofar,
       actual: Object.fromEntries(sites.map((c) => [c, past.filter((d) => d.plan && d.plan !== 'T' && d.site === c && d.in).length])),
       ok: past.filter((d) => d.res === 'ok').length, diff: past.filter((d) => d.res === 'diff').length, miss: past.filter((d) => d.res === 'miss').length,

@@ -26,11 +26,14 @@ export function parsePattern(text, validSites = null) {
 
 export const patternText = (steps) => (steps || []).map((x) => x.site + ' ' + x.days).join(', ');
 
+/** Day 1 of the rotation for a day: the 1st of that day's month when the rotation restarts every month, else the saved start date. */
+export const rotStart = (rot, day) => (rot && rot.monthly && /^\d{4}-\d{2}-\d{2}$/.test(day || '') ? day.slice(0, 7) + '-01' : rot.start);
+
 /** Where the rotation puts the person on a day: { site: 'LHR' } for a duty day, { site: 'T' } for a travel-only day, or null (before the start or no rotation). */
 export function planFor(rot, day) {
   if (!rot || !rot.steps || !rot.steps.length || !/^\d{4}-\d{2}-\d{2}$/.test(day || '')) return null;
   const total = rot.steps.reduce((a, x) => a + x.days, 0);
-  const n = dayNum(day) - dayNum(rot.start);
+  const n = dayNum(day) - dayNum(rotStart(rot, day));
   if (!(total > 0) || n < 0) return null;
   let i = n % total;
   for (const s of rot.steps) {

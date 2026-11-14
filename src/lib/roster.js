@@ -153,7 +153,8 @@ export async function dkRotations() {
     try {
       const v = JSON.parse(r.value);
       const { steps } = parsePattern(v.pattern);
-      if (Number.isInteger(id) && /^\d{4}-\d{2}-\d{2}$/.test(v.start || '') && steps.length) out.set(id, { start: v.start, pattern: v.pattern, steps });
+      const monthly = !!v.monthly;
+      if (Number.isInteger(id) && (monthly || /^\d{4}-\d{2}-\d{2}$/.test(v.start || '')) && steps.length) out.set(id, { start: v.start || '', monthly, pattern: v.pattern, steps });
     } catch {}
   }
   return out;

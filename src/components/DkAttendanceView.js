@@ -337,7 +337,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
               {v.options.length > 1 ? (
                 <div className='chips'>{v.options.map((o) => <Link key={o.id} className={'chip' + (o.id === v.id ? ' on' : '')} href={'?' + qs({ who: String(o.id) })}>{o.name}</Link>)}</div>
               ) : null}
-              <p className='muted' style={{ margin: '0 0 10px' }}>The rotation (day 1 is {v.start}: {v.pattern}) against what happened, {custom ? 'from ' + from + ' to ' + to : 'in ' + month}. The actual site is the site of the facial check-in, or the site you picked for that day. Only days before today are counted; today is shown but counted once it is over.</p>
+              <p className='muted' style={{ margin: '0 0 10px' }}>The rotation ({v.monthly ? 'day 1 is the 1st of each month' : 'day 1 is ' + v.start}: {v.pattern}) against what happened, {custom ? 'from ' + from + ' to ' + to : 'in ' + month}. The actual site is the site of the facial check-in, or the site you picked for that day. Only days before today are counted; today is shown but counted once it is over.</p>
               <div className='dka-kpis'>
                 <Kpi label='As planned' value={v.ok} sub='checked in at the planned site' tone={v.ok ? 'good' : ''} />
                 <Kpi label='At another site' value={v.diff} sub='checked in, but not where planned' tone={v.diff ? 'bad' : ''} />

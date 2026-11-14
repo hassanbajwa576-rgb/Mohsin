@@ -176,7 +176,7 @@ async function dastarkhawanRotation(user, { name, from, to }, today) {
   const RES = { ok: 'as_planned', diff: 'other_site', unknown: 'site_not_known', miss: 'no_check_in', travel: 'travel_day', travel_in: 'travel_day_checked_in', leave: 'on_leave', pending: 'not_in_yet', future: 'future', extra: 'not_in_plan', '': 'no_plan' };
   const sm = summarize(days, today);
   return {
-    name: p.name, rotation_day_1: rot.start, pattern: rot.pattern, from: f, to: t,
+    name: p.name, rotation_day_1: rot.monthly ? 'the 1st of each month (the pattern restarts every month)' : rot.start, pattern: rot.pattern, from: f, to: t,
     days: days.map((d) => ({ date: d.day, planned: d.plan === 'T' ? 'travel_day' : d.plan || null, actual_site: d.site || null, check_in: d.in || null, check_out: d.out || null, duty_minutes: d.mins, result: RES[d.res] })),
     summary_days_before_today: { as_planned: sm.ok, other_site: sm.diff, no_check_in: sm.miss, site_not_known: sm.unknown, planned_days_per_site: sm.planned, actual_days_per_site: sm.actual },
     note: 'The actual site is the site of the facial check-in or the one picked by hand for that day. Today is not counted in the summary until the day is over.',

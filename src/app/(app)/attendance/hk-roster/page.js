@@ -357,7 +357,8 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                                 <legend>Site rotation</legend>
                                 <input type='hidden' name='rot_present' value='1' />
                                 <label className='rot-on'><input type='checkbox' name='rot_on' value='1' defaultChecked={rots.has(p.id)} /> Follow a rotation</label>
-                                <label>Day 1 is<input type='date' name='rot_start' defaultValue={rots.has(p.id) ? rots.get(p.id).start : today.slice(0, 7) + '-01'} /></label>
+                                <label className='rot-on'><input type='checkbox' name='rot_monthly' value='1' defaultChecked={rots.has(p.id) ? rots.get(p.id).monthly : true} /> Restart on the 1st of every month</label>
+                                <label title='Used when the pattern does not restart every month'>Day 1 is<input type='date' name='rot_start' defaultValue={rots.has(p.id) ? rots.get(p.id).start : today.slice(0, 7) + '-01'} /></label>
                                 <label className='rot-pat'>Pattern: site code and days, T = travel-only day<input name='rot_pattern' defaultValue={rots.has(p.id) ? rots.get(p.id).pattern : DEFAULT_PATTERN} maxLength={200} /></label>
                               </fieldset>
                             ) : null}

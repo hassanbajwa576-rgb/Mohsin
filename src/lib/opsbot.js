@@ -9,7 +9,7 @@ import { FUNDS } from './fmt';
 import { dkRotations, hkPeople, dkToday, dkAllowDetail, offToday, usedByPerson, siteList, TLABEL } from './roster';
 import { dkDayRows, dkOvertime, hm, OT_BLOCK_H } from './dk-hours';
 import { comparePeople, siteLabel, sortSites } from './dk-sites';
-import { planFor } from './dk-rotation';
+import { planFor, rotStart } from './dk-rotation';
 import { dkPlanVsActual, summarize } from './dk-planvs';
 import { taskPeople, taskRows, dueLabel } from './tasks';
 import { firstName } from './names';
@@ -538,11 +538,11 @@ async function dastTopics(user, n, today, found) {
     if (day || !compare) {
       const d = day || today;
       const pf = planFor(rot, d);
-      const out = [!pf ? who.name + ' has no plan for ' + (d === today ? 'today' : nice(d)) + ' (the rotation starts on ' + rot.start + ').' : who.name + (d < today ? ' was' : ' is') + ' planned ' + (pf.site === 'T' ? 'for a travel-only day' : 'at ' + pf.site) + ' ' + (d === today ? 'today' : 'on ' + nice(d)) + '.'];
+      const out = [!pf ? who.name + ' has no plan for ' + (d === today ? 'today' : nice(d)) + ' (the rotation starts on ' + (rot.monthly ? 'the 1st of each month' : rot.start) + ').' : who.name + (d < today ? ' was' : ' is') + ' planned ' + (pf.site === 'T' ? 'for a travel-only day' : 'at ' + pf.site) + ' ' + (d === today ? 'today' : 'on ' + nice(d)) + '.'];
       if (pf) {
         const total = rot.steps.reduce((a, x) => a + x.days, 0);
-        const idx = ((Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(rot.start + 'T00:00:00Z')) / 86400000) % total) + total) % total;
-        out.push('Rotation day ' + (idx + 1) + ' of ' + total + ' (day 1 is ' + rot.start + ').');
+        const idx = ((Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(rotStart(rot, d) + 'T00:00:00Z')) / 86400000) % total) + total) % total;
+        out.push('Rotation day ' + (idx + 1) + ' of ' + total + ' (' + (rot.monthly ? 'the pattern restarts on the 1st of each month' : 'day 1 is ' + rot.start) + ').');
       }
       if (d <= today && pf) {
         const r = (await dkPlanVsActual(who.id, rot, d, d, today))[0];
