@@ -21,6 +21,9 @@ const d1 = (v) => String(Math.round(v * 10) / 10);
 
 // Leave balances and the yearly summary: days off per person and per type, against the yearly allowance set in Setup.
 // forceTeam: the Dastarkhawan section (/dastarkhawan/balances) shows this same page for its own team.
+// Left badge colour: over = red, 5 or fewer left = yellow, more than 5 = green.
+const lvTone = (left) => (left < 0 ? 'bad' : left <= 5 ? 'warn' : 'ok');
+
 export default async function BalancesPage({ searchParams, forceTeam }) {
   const user = await requireUser(ATT_ROLES);
   const dastOk = forceTeam === 'dast' && can(user, 'dast_edit');
@@ -170,7 +173,6 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                     const cap = d ? d.total : null;
                     const sofar = d ? d.sofar : null;
                     const left = sofar == null ? null : sofar - v;
-                    const low = sofar != null && left < 0.2 * sofar;
                     const monthSum = d ? d.monthly.reduce((a, x) => a + (x || 0), 0) : 0;
                     const takenSum = (taken.get(p.id) || []).reduce((a, x) => a + (x || 0), 0);
                     return (
@@ -189,7 +191,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                         <td className='r nw c-meta'>{cap == null ? 'Not set' : d1(cap)}{monthSum ? <small className='muted'> ({d1(monthSum)} by month)</small> : null}</td>
                         <td className='r nw c-meta'>{sofar == null ? '-' : d1(sofar)}</td>
                         <td className='r nw c-meta'>{v ? d1(v) : '0'}{takenSum ? <small className='muted'> ({d1(takenSum)} by month)</small> : null}</td>
-                        <td className='r nw'>{left == null ? <span className='muted'>-</span> : <b style={{ color: low ? '#b3261e' : '#1b6e34', background: low ? '#fbd3d3' : '#d9f1df', padding: '0 6px', borderRadius: 3 }}>{left < 0 ? d1(-left) + ' over' : d1(left) + ' left'}</b>}</td>
+                        <td className='r nw'>{left == null ? <span className='muted'>-</span> : <b className={'lvb ' + lvTone(left)}>{left < 0 ? d1(-left) + ' over' : d1(left) + ' left'}</b>}</td>
                       </tr>
                     );
                   })}
@@ -232,11 +234,10 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                         const cap = ALLOWED.includes(k) ? set[k] : 0;
                         if (!(cap > 0)) return <td key={k} className='r nw c-meta'>{v ? d1(v) : '-'}</td>;
                         const left = cap - v;
-                        const low = left < 0.2 * cap;
                         return (
                           <td key={k} className='r nw c-meta'>
                             {d1(v)} used
-                            <div><b style={{ color: low ? '#b3261e' : '#1b6e34', background: low ? '#fbd3d3' : '#d9f1df', padding: '0 6px', borderRadius: 3 }}>{d1(left)} left</b></div>
+                            <div><b className={'lvb ' + lvTone(left)}>{d1(left)} left</b></div>
                           </td>
                         );
                       })}
