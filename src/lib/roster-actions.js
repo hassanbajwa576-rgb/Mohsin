@@ -13,6 +13,7 @@ import { OPD_LIMIT } from './hk-opd';
 import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from './teams';
 import { syncDk } from './dk-sync';
 import { dkOvertime, OT_BLOCK_H, fmt12 } from './dk-hours';
+import { REGISTER, REGISTER_YEAR } from './dk-register';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const ROOT = '/attendance/hk-roster';
@@ -466,6 +467,71 @@ export async function setDkMonthlyAll(fd) {
   );
   await logEvent(u, 'edit', 'hk_person', null, 'Dastarkhawan: ' + year + ' PTO ' + days + ' days a month for everyone, from month ' + from, null, null);
   back(here, days + ' PTO days a month given to everyone for ' + year + ' (from month ' + from + ')', true);
+}
+
+// Dastarkhawan: leave taken month by month for a year (counts as PTO used). Fields t_<person>_<month>: a number sets the month, empty clears it.
+export async function saveDkTaken(fd) {
+  const u = await need('dast');
+  const year = Number(s(fd, 'year'));
+  const here = DAST + '/balances?y=' + (Number.isInteger(year) ? year : '');
+  if (!(year >= 2000 && year <= 2100)) back(here, 'That year is not valid');
+  const shown = new Set(s(fd, 'ids').split(',').map(Number).filter((x) => Number.isInteger(x) && x > 0));
+  const people = (await q(`SELECT id FROM pc2_hk_people WHERE active AND team = 'dast'`)).map((r) => r.id).filter((id) => shown.has(id));
+  const up = { p: [], m: [], d: [] };
+  const del = { p: [], m: [] };
+  for (const id of people) {
+    for (let mm = 1; mm <= 12; mm++) {
+      const raw = s(fd, 't_' + id + '_' + mm);
+      if (raw === '') { del.p.push(id); del.m.push(mm); continue; }
+      const v = Number(raw);
+      if (!(v >= 0 && v <= 31)) back(here, 'Each month must be between 0 and 31 days');
+      up.p.push(id); up.m.push(mm); up.d.push(v);
+    }
+  }
+  if (up.p.length) {
+    await q(
+      `INSERT INTO pc2_hk_taken_m (person_id, year, month, days) SELECT p, $1, m, d FROM unnest($2::int[], $3::int[], $4::numeric[]) AS t(p, m, d)
+       ON CONFLICT (person_id, year, month) DO UPDATE SET days = EXCLUDED.days`,
+      [year, up.p, up.m, up.d]
+    );
+  }
+  if (del.p.length) await q(`DELETE FROM pc2_hk_taken_m WHERE year = $1 AND (person_id, month) IN (SELECT p, m FROM unnest($2::int[], $3::int[]) AS t(p, m))`, [year, del.p, del.m]);
+  await logEvent(u, 'edit', 'hk_person', null, 'Dastarkhawan: ' + year + ' leave taken by month saved (' + up.p.length + ' month entries)', null, null);
+  back(here, year + ' leave taken by month saved', true);
+}
+
+// Dastarkhawan: loads the paper register of January to October (PTO given and leave taken per month). Only fills months that are empty,
+// so nothing already entered is overwritten, and it says which names it could not find. Sr. Ops Manager only.
+export async function importDkRegister() {
+  const u = await need('dast');
+  const here = DAST + '/balances?y=' + REGISTER_YEAR;
+  if (u.role !== 'om') back(here, 'Only the Sr. Ops Manager can import the register');
+  const people = await q(`SELECT id, name FROM pc2_hk_people WHERE active AND team = 'dast'`);
+  const key = (n) => String(n).toLowerCase().replace(/\s+/g, ' ').trim();
+  const byName = new Map(people.map((p) => [key(p.name), p.id]));
+  const give = { p: [], m: [], d: [] };
+  const take = { p: [], m: [], d: [] };
+  const found = [];
+  const missing = [];
+  for (const r of REGISTER) {
+    const id = byName.get(key(r.name));
+    if (!id) { missing.push(r.name); continue; }
+    found.push(r.name);
+    for (let i = 0; i < 10; i++) {
+      give.p.push(id); give.m.push(i + 1); give.d.push(r.given[i]);
+      take.p.push(id); take.m.push(i + 1); take.d.push(r.taken[i]);
+    }
+  }
+  let added = 0;
+  let addedTaken = 0;
+  if (give.p.length) {
+    const a = await q(`WITH ins AS (INSERT INTO pc2_hk_allow_m (person_id, year, month, days) SELECT p, $1, m, d FROM unnest($2::int[], $3::int[], $4::numeric[]) AS t(p, m, d) ON CONFLICT (person_id, year, month) DO NOTHING RETURNING 1) SELECT COUNT(*)::int AS n FROM ins`, [REGISTER_YEAR, give.p, give.m, give.d]);
+    const b = await q(`WITH ins AS (INSERT INTO pc2_hk_taken_m (person_id, year, month, days) SELECT p, $1, m, d FROM unnest($2::int[], $3::int[], $4::numeric[]) AS t(p, m, d) ON CONFLICT (person_id, year, month) DO NOTHING RETURNING 1) SELECT COUNT(*)::int AS n FROM ins`, [REGISTER_YEAR, take.p, take.m, take.d]);
+    added = a[0].n;
+    addedTaken = b[0].n;
+  }
+  await logEvent(u, 'create', 'hk_person', null, 'Dastarkhawan: paper register Jan-Oct ' + REGISTER_YEAR + ' imported for ' + found.length + ' people (' + added + ' allocation months, ' + addedTaken + ' leave months added)', null, null);
+  back(here, 'Register imported for ' + found.length + ' people: ' + added + ' allocation months and ' + addedTaken + ' leave months added (months already filled were kept).' + (missing.length ? ' Not found in the team: ' + missing.join(', ') + '.' : ''), true);
 }
 
 /* ---------- setup: allowances, hours per day, minimum cover, holidays ---------- */

@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings, siteList, dkAllowDetail } from '@/lib/roster';
-import { setDkAllowance, setDkAllowanceAll, saveDkMonthly, setDkMonthlyAll } from '@/lib/roster-actions';
+import { TYPES, ALLOWED, hkPeople, usedByPerson, getSettings, siteList, dkAllowDetail, dkTakenMonthly } from '@/lib/roster';
+import { setDkAllowance, setDkAllowanceAll, saveDkMonthly, setDkMonthlyAll, saveDkTaken, importDkRegister } from '@/lib/roster-actions';
+import { REGISTER, REGISTER_YEAR, sum as regSum } from '@/lib/dk-register';
 import { applyHkDates } from '@/lib/hk-dates';
 import Flash from '@/components/Flash';
 import OfficeTag from '@/components/OfficeTag';
@@ -39,6 +40,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
   const used = await usedByPerson(year, office, tm, site);
   const set = await getSettings();
   const allow = dast ? await dkAllowDetail(year) : new Map();
+  const taken = dast ? await dkTakenMonthly(year) : new Map();
   const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const editDk = dast && can(user, 'dast_edit');
   const yq = (y) => base + '?' + new URLSearchParams({ y: String(y), ...(site ? { site } : {}), ...(office && both ? { office } : {}) }).toString();
@@ -114,6 +116,63 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
         </details>
       ) : null}
 
+      {dast && editDk ? (
+        <details className='card'>
+          <summary>Leaves taken by month ({year})</summary>
+          <p className='muted' style={{ margin: '8px 0' }}>Leave taken in each month when there are no dates to enter on the roster (for example from the paper register). These days count as PTO used. Leave a month empty for none.</p>
+          <form action={saveDkTaken}>
+            <input type='hidden' name='year' value={year} />
+            <input type='hidden' name='ids' value={team.map((p) => p.id).join(',')} />
+            <div className='mgrid-wrap'>
+              <table className='mgrid'>
+                <thead><tr><th className='n'>Team member</th>{MON3.map((m) => <th key={m}>{m}</th>)}<th>Total</th></tr></thead>
+                <tbody>
+                  {team.map((p) => {
+                    const t = taken.get(p.id) || Array(12).fill(null);
+                    return (
+                      <tr key={p.id}>
+                        <td className='n'><b>{p.name}</b></td>
+                        {MON3.map((m, i) => <td key={m}><input type='number' name={'t_' + p.id + '_' + (i + 1)} min='0' max='31' step='0.5' defaultValue={t[i] == null ? '' : t[i]} aria-label={p.name + ' taken ' + m} /></td>)}
+                        <td><b>{d1(t.reduce((a, v) => a + (v || 0), 0))}</b></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <button className='btn primary' type='submit' style={{ marginTop: 10 }}>Save leaves taken</button>
+          </form>
+        </details>
+      ) : null}
+
+      {dast && user.role === 'om' && year === REGISTER_YEAR ? (
+        <details className='card'>
+          <summary>Import the paper register, January to October {REGISTER_YEAR}</summary>
+          <p className='muted' style={{ margin: '8px 0' }}>The attendance register read from the scan: PTO given and leave taken in each month, January to October. Check the totals below against the register, then import. Months that already have a number are kept, and nothing else is touched. November and later are not included.</p>
+          <div className='tablewrap'>
+            <table className='tx'>
+              <thead><tr><th>Team member</th><th className='r'>Given Jan-Oct</th><th className='r'>Taken Jan-Oct</th><th className='r'>Left at end of Oct</th></tr></thead>
+              <tbody>
+                {REGISTER.map((r) => {
+                  const bal = regSum(r.given) - regSum(r.taken);
+                  return (
+                    <tr key={r.name}>
+                      <td className='c-title'><b>{r.name}</b></td>
+                      <td className='r nw c-meta'>{d1(regSum(r.given))}</td>
+                      <td className='r nw c-meta'>{d1(regSum(r.taken))}</td>
+                      <td className='r nw c-meta'><b style={{ color: bal < 0 ? '#b3261e' : undefined }}>{bal < 0 ? d1(-bal) + ' over' : d1(bal)}</b></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <form action={importDkRegister} style={{ marginTop: 10 }}>
+            <button className='btn primary' type='submit'>Import the register</button>
+          </form>
+        </details>
+      ) : null}
+
       {dast ? (
         <div className='card'>
           {team.length ? (
@@ -131,6 +190,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                     const left = sofar == null ? null : sofar - v;
                     const low = sofar != null && left < 0.2 * sofar;
                     const monthSum = d ? d.monthly.reduce((a, x) => a + (x || 0), 0) : 0;
+                    const takenSum = (taken.get(p.id) || []).reduce((a, x) => a + (x || 0), 0);
                     return (
                       <tr key={p.id}>
                         <td className='c-title'><OfficeTag o={siteTag((p.sites || []).map((x) => x.site), SITES) || p.site || ''} /><b>{p.name}</b></td>
@@ -146,8 +206,8 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                         </td>
                         <td className='r nw c-meta'>{cap == null ? 'Not set' : d1(cap)}{monthSum ? <small className='muted'> ({d1(monthSum)} by month)</small> : null}</td>
                         <td className='r nw c-meta'>{sofar == null ? '-' : d1(sofar)}</td>
-                        <td className='r nw c-meta'>{v ? d1(v) : '0'}</td>
-                        <td className='r nw'>{left == null ? <span className='muted'>-</span> : <b style={{ color: low ? '#b3261e' : '#1b6e34', background: low ? '#fbd3d3' : '#d9f1df', padding: '0 6px', borderRadius: 3 }}>{d1(left)} left</b>}</td>
+                        <td className='r nw c-meta'>{v ? d1(v) : '0'}{takenSum ? <small className='muted'> ({d1(takenSum)} by month)</small> : null}</td>
+                        <td className='r nw'>{left == null ? <span className='muted'>-</span> : <b style={{ color: low ? '#b3261e' : '#1b6e34', background: low ? '#fbd3d3' : '#d9f1df', padding: '0 6px', borderRadius: 3 }}>{left < 0 ? d1(-left) + ' over' : d1(left) + ' left'}</b>}</td>
                       </tr>
                     );
                   })}

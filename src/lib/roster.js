@@ -134,6 +134,17 @@ export async function dkAllowances(year) {
   return new Map([...d.entries()].map(([id, r]) => [id, r.total]));
 }
 
+/** Dastarkhawan leave taken month by month for a year: Map person id -> [12 values, null where nothing is recorded]. */
+export async function dkTakenMonthly(year) {
+  const r = await q('SELECT person_id, month, days::float8 AS days FROM pc2_hk_taken_m WHERE year = $1', [year]);
+  const out = new Map();
+  for (const x of r) {
+    if (!out.has(x.person_id)) out.set(x.person_id, Array(12).fill(null));
+    out.get(x.person_id)[x.month - 1] = x.days;
+  }
+  return out;
+}
+
 /** Dastarkhawan people linked to a facial-app staff record, with that record's name and site. */
 export async function dkLinked() {
   return q(
@@ -321,6 +332,15 @@ export async function usedByPerson(year, office, team = 'support', site = '') {
       u[r.kind] = (u[r.kind] || 0) + (r.hours != null ? r.hours / hpd : 1);
     }
     used.set(r.hk_id, u);
+  }
+  // Dastarkhawan: leave taken month by month (the paper register has no dates) counts as PTO used.
+  if (team === 'dast') {
+    const t = await q('SELECT person_id, SUM(days)::float8 AS d FROM pc2_hk_taken_m WHERE year = $1 GROUP BY person_id', [year]);
+    for (const x of t) {
+      const u = used.get(x.person_id) || {};
+      u.pto = (u.pto || 0) + x.d;
+      used.set(x.person_id, u);
+    }
   }
   return used;
 }
