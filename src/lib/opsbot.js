@@ -6,9 +6,11 @@ import { MONTHS, MON3, pkr, officeCosts, budgetByHead, erYears, headcount } from
 import { fundSummary, soAccount } from './queries';
 import { visitorRows, insideNow, VLABEL } from './visitors';
 import { FUNDS } from './fmt';
-import { hkPeople, dkToday, dkAllowDetail, offToday, usedByPerson, siteList, TLABEL } from './roster';
+import { dkRotations, hkPeople, dkToday, dkAllowDetail, offToday, usedByPerson, siteList, TLABEL } from './roster';
 import { dkDayRows, dkOvertime, hm, OT_BLOCK_H } from './dk-hours';
 import { comparePeople, siteLabel, sortSites } from './dk-sites';
+import { planFor } from './dk-rotation';
+import { dkPlanVsActual, summarize } from './dk-planvs';
 import { taskPeople, taskRows, dueLabel } from './tasks';
 import { firstName } from './names';
 
@@ -21,7 +23,7 @@ const pc = (a, b) => (b ? ((a / b) * 100).toFixed(1) + '%' : '-');
 const MONWORDS = MONTHS.flatMap((m, i) => [[m.toLowerCase(), i + 1], [m.slice(0, 3).toLowerCase(), i + 1]]).concat([['sept', 9]]);
 const monthOf = (w) => (MONWORDS.find(([k]) => k === w) || [])[1] || 0;
 const SUGGEST_OM = ['How much did we spend this year?', 'ISB spend by month', 'Top heads this year', 'Compare with last year', 'Budget vs actual year to date', 'Who holds the cash?', 'Who is on duty today?', 'How many employees in ISB?', 'Open complaints', 'Find 18376', 'Dastarkhawan today', 'My open tasks'];
-const IDEAS_OM = ['SPENDING: How much did we spend this year? | ISB spend by month | Top heads in Q2 | Travel from March to June | Cost per employee | Highest month this year | Biggest vendors', 'COMPARE: Compare with last year | Year by year for office rent', 'BUDGET: Budget vs actual year to date | Budget for Bank Fees', 'CASH: Who holds the cash? | Advances outstanding | Funds received this month | Cash returned this year | Latest batches', 'PETTY: Zubair expenses this month | Rejected expenses | Expenses by category | Biggest expenses this month | Find 18376', 'PEOPLE: Who is on duty today? | How many employees in ISB? | Who is off this week? | Who is Imran?', 'OTHER: Visitors today | Visitors still expected | Open complaints | What needs my attention? | What changed today?', 'DASTARKHAWAN: Dastarkhawan today | Who is at Okara? | Hafiz Zeeshan | Dastarkhawan overtime | Dastarkhawan leaves balance | Days per site', 'TASKS: My open tasks | Overdue tasks | Tasks due today | Zubair tasks | All tasks'];
+const IDEAS_OM = ['SPENDING: How much did we spend this year? | ISB spend by month | Top heads in Q2 | Travel from March to June | Cost per employee | Highest month this year | Biggest vendors', 'COMPARE: Compare with last year | Year by year for office rent', 'BUDGET: Budget vs actual year to date | Budget for Bank Fees', 'CASH: Who holds the cash? | Advances outstanding | Funds received this month | Cash returned this year | Latest batches', 'PETTY: Zubair expenses this month | Rejected expenses | Expenses by category | Biggest expenses this month | Find 18376', 'PEOPLE: Who is on duty today? | How many employees in ISB? | Who is off this week? | Who is Imran?', 'OTHER: Visitors today | Visitors still expected | Open complaints | What needs my attention? | What changed today?', 'DASTARKHAWAN: Dastarkhawan today | Who is at Okara? | Hafiz Zeeshan | Dastarkhawan overtime | Dastarkhawan leaves balance | Days per site | Where should Zeeshan be on 20 Nov? | Zeeshan planned vs actual', 'TASKS: My open tasks | Overdue tasks | Tasks due today | Zubair tasks | All tasks'];
 const SUGGEST_OTHER = ['What is my cash in hand?', 'How many expenses are waiting?', 'Visitors today', 'Advances outstanding', 'Open complaints', 'My open tasks'];
 
 // The period asked for: a year plus a range of months.
@@ -497,6 +499,78 @@ async function dastTopics(user, n, today, found) {
   const inRows = await dkToday(today);
   const inMapToday = new Map(inRows.map((r) => [r.id, r]));
   const inMap = inMapToday;
+
+  // Site rotation of an incharge: where the plan puts them on a day, or how the plan compares with what happened.
+  if (has(n, /rotation|supposed|should .{0,30}\bbe\b|planned|plan vs|plan versus|versus plan|plan and actual|plan or actual|expected at|expected to be|\bschedule\b/)) {
+    const rots = await dkRotations();
+    const rotPeople = sorted.filter((p) => rots.has(p.id));
+    if (!rotPeople.length) return 'No incharge has a site rotation yet. Turn it on for the person on Roster > Edit (Follow a rotation).';
+    const add = (d, k) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + k); return t.toISOString().slice(0, 10); };
+    const nice = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+    const planTxt = (pf) => (!pf ? 'no plan' : pf.site === 'T' ? 'a travel-only day' : pf.site);
+    // The day asked, ahead included: "on 20 Nov", "tomorrow", "next Friday".
+    let day = null;
+    const am = /\b(\d{1,2})(?:st|nd|rd|th)? ([a-z]{3,9})\b/.exec(n);
+    const bm = /\b([a-z]{3,9}) (\d{1,2})(?:st|nd|rd|th)?\b/.exec(n);
+    const dm = am && monthOf(am[2]) ? [Number(am[1]), monthOf(am[2])] : bm && monthOf(bm[1]) ? [Number(bm[2]), monthOf(bm[1])] : null;
+    if (dm && dm[0] >= 1 && dm[0] <= 31) day = year + '-' + String(dm[1]).padStart(2, '0') + '-' + String(dm[0]).padStart(2, '0');
+    else if (has(n, /\btomorrow\b/)) day = add(today, 1);
+    else if (has(n, /\byesterday\b/)) day = add(today, -1);
+    else {
+      const wk = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].findIndex((w) => new RegExp('\\b' + w + '\\b').test(n));
+      if (wk >= 0) {
+        const cur = new Date(today + 'T00:00:00Z').getUTCDay();
+        day = add(today, has(n, /\blast\b|\bwas\b/) ? -(((cur - wk + 7) % 7) || 7) : (wk - cur + 7) % 7);
+      }
+    }
+    if (day && Number.isNaN(Date.parse(day))) day = null;
+    // "Who is supposed to be at Okara (tomorrow)?": everyone whose rotation puts them at that site that day.
+    const siteQ = allSites.find((c) => new RegExp('\\b' + c.toLowerCase() + '\\b').test(n)) || (has(n, /okara/) ? 'OKA' : '');
+    if (siteQ && has(n, /\bwho\b/) && !matched.length) {
+      const d = day || today;
+      const there = rotPeople.filter((p) => (planFor(rots.get(p.id), d) || {}).site === siteQ);
+      return there.length ? lines('Planned at ' + siteQ + ' ' + (d === today ? 'today' : 'on ' + nice(d)) + ':', names(there.map((p) => p.name))) : 'Nobody with a site rotation is planned at ' + siteQ + ' ' + (d === today ? 'today' : 'on ' + nice(d)) + '.';
+    }
+    const who = matched.find((p) => rots.has(p.id)) || (rotPeople.length === 1 ? rotPeople[0] : null);
+    if (!who) return lines('Whose rotation? These people have one:', names(rotPeople.map((p) => p.name)));
+    const rot = rots.get(who.id);
+    const compare = has(n, /\bvs\b|versus|actual|compare|so far|this month|summary|against|how many|how often/);
+    if (day || !compare) {
+      const d = day || today;
+      const pf = planFor(rot, d);
+      const out = [!pf ? who.name + ' has no plan for ' + (d === today ? 'today' : nice(d)) + ' (the rotation starts on ' + rot.start + ').' : who.name + (d < today ? ' was' : ' is') + ' planned ' + (pf.site === 'T' ? 'for a travel-only day' : 'at ' + pf.site) + ' ' + (d === today ? 'today' : 'on ' + nice(d)) + '.'];
+      if (pf) {
+        const total = rot.steps.reduce((a, x) => a + x.days, 0);
+        const idx = ((Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(rot.start + 'T00:00:00Z')) / 86400000) % total) + total) % total;
+        out.push('Rotation day ' + (idx + 1) + ' of ' + total + ' (day 1 is ' + rot.start + ').');
+      }
+      if (d <= today && pf) {
+        const r = (await dkPlanVsActual(who.id, rot, d, d, today))[0];
+        out.push(r.in ? 'Actual: checked in at ' + r.in + (r.out ? ', left at ' + r.out : '') + (r.site ? ', at ' + r.site : ', site not known') + (r.res === 'ok' ? ' (as planned).' : r.res === 'diff' ? ' (not the planned site).' : '.') : r.res === 'leave' ? 'Actual: on leave' + (r.leave ? ' (' + r.leave + ')' : '') + '.' : d === today ? 'Not checked in yet today.' : pf.site === 'T' ? 'No check-in, as expected on a travel-only day.' : 'Actual: no check-in recorded.');
+      }
+      if (d >= today) {
+        const nxt = [];
+        for (let k = 1; k <= 4; k++) nxt.push(nice(add(d, k)) + ': ' + planTxt(planFor(rot, add(d, k))));
+        out.push('Next days:\n' + names(nxt));
+      }
+      return { text: lines(...out), ctx: { topic: 'dastperson', who: who.name, day: d } };
+    }
+    const to = add(today, -1);
+    if (to < monthFrom) return who.name + ' - it is the first day of the month, so there are no finished days to compare yet. Ask about today or a date.';
+    const days = await dkPlanVsActual(who.id, rot, monthFrom, to, today);
+    const sm = summarize(days, today);
+    const sites = [...new Set(rot.steps.map((x) => x.site).filter((x) => x !== 'T'))];
+    return {
+      text: lines(
+        who.name + ' - plan vs actual, ' + monthName + ' (days before today, ' + sm.days + ' day' + (sm.days === 1 ? '' : 's') + '):',
+        '  As planned: ' + sm.ok + ', at another site: ' + sm.diff + ', no check-in on a planned duty day: ' + sm.miss + ', checked in but site not known: ' + sm.unknown + (sm.leave ? ', on leave: ' + sm.leave : '') + '.',
+        'Duty days at each site, actual of planned:',
+        names(sites.map((c) => c + ': ' + (sm.actual[c] || 0) + ' of ' + (sm.planned[c] || 0))),
+        sm.diff || sm.miss ? 'See Dastarkhawan > Attendance > Plan vs actual for the day-by-day list.' : ''
+      ),
+      ctx: { topic: 'dastperson', who: who.name, day: today },
+    };
+  }
 
   // One person
   if (matched.length) {
