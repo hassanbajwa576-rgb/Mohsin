@@ -31,7 +31,7 @@ export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}
       {status.error ? <p className='dkp-err'>Could not reach the facial attendance app just now ({status.error}). Showing what was last received.</p> : null}
       {list.length ? (
         <div className='tablewrap dk-sticky'>
-          <table className='tx'>
+          <table className='tx dkt'>
             <thead><tr><th>Team member</th><th>Check in</th><th>Check out</th><th>Status</th></tr></thead>
             <tbody>
               {list.map((p) => {

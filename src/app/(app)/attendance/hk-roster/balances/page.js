@@ -162,7 +162,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
           <NavOffset />
           {team.length ? (
             <div className='tablewrap dk-sticky'>
-              <table className='tx dka-lv'>
+              <table className='tx dka-lv dkt'>
                 <thead>
                   <tr><th>Team member</th><th className='r'>Yearly / extra</th><th className='r'>Allowed in {year}</th><th className='r'>Given so far</th><th className='r'>Used</th><th className='r'>Left</th></tr>
                 </thead>
