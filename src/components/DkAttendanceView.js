@@ -5,6 +5,7 @@ import ConfirmButton from '@/components/ConfirmButton';
 import DkPersonPicker from '@/components/DkPersonPicker';
 import OfficeTag from '@/components/OfficeTag';
 import DkRefresh from '@/components/DkRefresh';
+import NavOffset from '@/components/NavOffset';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DOW1 = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // one letter in the grid header keeps the columns narrow
@@ -331,6 +332,9 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           const v = planView;
           const dd = (key) => Number(key.slice(8)) + ' ' + MON[Number(key.slice(5, 7)) - 1];
           const pastDuty = v.sofar.days - v.sofar.travel;
+          // Newest day first (today at the top, the 1st of the period last); days still ahead are listed separately, nearest first.
+          const pastDays = v.days.filter((d) => (d.plan || d.in) && d.day <= today).reverse();
+          const aheadDays = v.days.filter((d) => d.plan && d.day > today);
           return (
             <>
               <h2 className='dka-h'>Plan vs actual: {v.name}</h2>
@@ -380,11 +384,12 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                 </table>
               </div>
               <h3 className='dka-h' style={{ marginTop: 16 }}>Day by day</h3>
-              <div className='rostable'>
+              <NavOffset />
+              <div className='tablewrap dk-sticky'>
                 <table className='tx dka-sum'>
                   <thead><tr><th>Date</th><th>Planned</th><th>Actual site</th><th>In</th><th>Out</th><th>Hours</th><th>Result</th></tr></thead>
                   <tbody>
-                    {v.days.filter((d) => d.plan || d.in).map((d) => {
+                    {pastDays.map((d) => {
                       const r = RES[d.res] || ['', ''];
                       return (
                         <tr key={d.day} className={d.day === today ? 'dka-today' : ''}>
@@ -404,7 +409,25 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                   </tbody>
                 </table>
               </div>
-              <p className='muted'>{v.days.filter((d) => d.res === 'future').length} planned day(s) are still ahead. "Planned so far" counts days before today only.</p>
+              {aheadDays.length ? (
+                <details className='dka-ahead'>
+                  <summary>Planned ahead ({aheadDays.length} day{aheadDays.length === 1 ? '' : 's'})</summary>
+                  <div className='rostable'>
+                    <table className='tx dka-sum'>
+                      <thead><tr><th>Date</th><th>Planned</th></tr></thead>
+                      <tbody>
+                        {aheadDays.map((d) => (
+                          <tr key={d.day}>
+                            <td className='c-title'><b>{dd(d.day)}</b> <small className='muted'>{DOW[dow(d.day)]}</small></td>
+                            <td className='c-meta'>{d.plan === 'T' ? <span className='muted'>Travel day</span> : <OfficeTag o={d.plan} />}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              ) : null}
+              <p className='muted'>"Planned so far" counts days before today only.</p>
             </>
           );
         })() : <p className='muted'>No one has a site rotation yet. Switch it on for an incharge on Roster → Edit.</p>

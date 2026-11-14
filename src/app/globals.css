@@ -2322,3 +2322,5 @@ tr.dka-today td.c-title,tr.dka-today td:first-child{box-shadow:inset 3px 0 0 var
   .lvq input{font-size:12px}
   .lvbar{gap:8px}
 }
+.dka-ahead{margin-top:12px}
+.dka-ahead>summary{cursor:pointer;font-size:13px;color:var(--mut)}
