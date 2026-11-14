@@ -2245,3 +2245,13 @@ table.dkg td.c.lv a{color:#fff}
   html[data-theme=dark] .tablewrap table.dkt tfoot tr{background:transparent}
   html[data-theme=dark] .tablewrap table.dkt tfoot td{background-color:#151514;background-image:linear-gradient(var(--tint),var(--tint))}
 }
+/* Attendance grid on wide screens: slimmer day and total columns so the whole month and the totals fit the box without sideways scrolling. */
+@media (min-width:721px){
+  table.dkg{table-layout:fixed;width:100%;min-width:0}
+  table.dkg th,table.dkg td{min-width:0;width:22px;overflow:hidden}
+  table.dkg th.rn,table.dkg td.rn{width:170px;min-width:0;text-overflow:ellipsis}
+  table.dkg th.sum,table.dkg td.sum{width:36px;min-width:0}
+  table.dkg th.sum{font-size:10px;letter-spacing:0;padding:3px 0;white-space:nowrap}
+  table.dkg td.sum{font-size:12px}
+  table.dkg td.rn .otag{font-size:9px;padding:0 4px;margin-right:4px}
+}
