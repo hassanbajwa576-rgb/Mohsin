@@ -64,16 +64,14 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           </>
         )}
         <DkPersonPicker people={team.map((p) => ({ id: p.id, name: p.name, href: '?' + qs({ who: String(p.id) }) }))} selected={who} everyoneHref={'?' + qs({ who: '' })} />
+        <form method='get' className='dka-range' title='Show custom dates'>
+          {view !== 'grid' ? <input type='hidden' name='v' value={view} /> : null}
+          {who ? <input type='hidden' name='who' value={who} /> : null}
+          <label>From<input type='date' name='from' required defaultValue={from} /></label>
+          <label>To<input type='date' name='to' required defaultValue={to} /></label>
+          <button type='submit' className='btn'>Show</button>
+        </form>
       </div>
-
-      <form method='get' className='dka-range'>
-        {view !== 'grid' ? <input type='hidden' name='v' value={view} /> : null}
-        {who ? <input type='hidden' name='who' value={who} /> : null}
-        <span className='muted'>Custom dates</span>
-        <label>From<input type='date' name='from' required defaultValue={from} /></label>
-        <label>To<input type='date' name='to' required defaultValue={to} /></label>
-        <button type='submit' className='btn'>Show</button>
-      </form>
 
       <details id='addtime' className='dka-card' open={!!fix.p}>
         <summary>+ Add or correct a time by hand</summary>

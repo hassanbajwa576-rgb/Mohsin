@@ -2073,13 +2073,15 @@ html[data-theme=dark] .dka-days.on{color:#8db4ff}
 html:not([data-theme=dark]) table.rost td.rk-pto,html:not([data-theme=dark]) .roslegend i.rk-pto,html:not([data-theme=dark]) table.rost td.rk-annual,html:not([data-theme=dark]) .roslegend i.rk-annual{background:#7fb0f0!important;color:#0b2a5b!important;font-weight:700}
 
 /* Dastarkhawan attendance: custom dates */
-.dka-range{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:0 0 12px;font-size:13px}
-.dka-range label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--mut)}
+.dka-range{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin:0;font-size:12px}
+.dka-range label{display:flex;flex-direction:row;align-items:center;gap:4px;font-size:12px;color:var(--mut);white-space:nowrap}
+.dka-range input[type=date]{height:32px;min-height:32px;width:116px;padding:2px 6px;font-size:12px}
+.dka-range .btn{padding:4px 10px;min-height:32px;font-size:12px}
 table.dkg th .mo{display:block;font-size:8px;font-weight:700;line-height:1;text-transform:uppercase;color:#4a4020}
 
 /* Dastarkhawan attendance: staff search */
-.dka-pick{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1 1 280px}
-.dka-pick input[type=search]{flex:1 1 220px;max-width:340px;min-width:180px}
+.dka-pick{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:0 1 auto}
+.dka-pick input[type=search]{flex:0 1 190px;width:190px;max-width:100%;min-width:140px}
 
 /* Roster time-frame bar: small controls so the whole bar fits on one line on wide screens (it wraps on narrower ones). */
 .rosnav{gap:6px}
