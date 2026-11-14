@@ -12,6 +12,7 @@ import AutoFilters from '@/components/AutoFilters';
 import HkTabs from '@/components/HkTabs';
 import { TEAM_SHORT } from '@/lib/teams';
 import { siteTag } from '@/lib/dk-sites';
+import NavOffset from '@/components/NavOffset';
 import { can } from '@/lib/perms';
 
 export const dynamic = 'force-dynamic';
@@ -175,8 +176,9 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
 
       {dast ? (
         <div className='card'>
+          <NavOffset />
           {team.length ? (
-            <div className='tablewrap'>
+            <div className='tablewrap dk-sticky'>
               <table className='tx dka-lv'>
                 <thead>
                   <tr><th>Team member</th><th className='r'>Yearly / extra</th><th className='r'>Allowed in {year}</th><th className='r'>Given so far</th><th className='r'>Used</th><th className='r'>Left</th></tr>
