@@ -43,7 +43,7 @@ export default function TaskForm({ action, task, view = '', show = '', who = '',
           <select name='status' defaultValue={t.status || 'open'}><option value='open'>Open</option><option value='done'>Done</option></select>
         </label>
       ) : null}
-      <label className='wide'>Details<input name='details' defaultValue={t.details || ''} maxLength={1000} placeholder='Optional: who, what, a reference' autoComplete='off' /></label>
+      <label className='wide'>Details<textarea name='details' rows={4} defaultValue={t.details || ''} maxLength={1000} placeholder={'Optional: who, what, a reference.\nPress Enter to start a new line.'} /></label>
       <button className='btn primary' type='submit'>{label}</button>
       {task ? <Link href='/tasks' className='btn ghost'>Cancel</Link> : null}
     </form>
