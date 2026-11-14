@@ -85,8 +85,8 @@ export default async function DastarkhawanAttendance({ searchParams }) {
     }
   }
   const by = new Map();
-  // People off in this range show even when they have no check-in.
-  for (const t of team) if (leaveCount[t.id] && (!who || t.id === who)) by.set(t.id, { id: t.id, name: t.name, site: '', days: [] });
+  // Everyone on the team is listed (as on the Roster), also when they have no check-in in the range, so a missing person is visible.
+  for (const t of team) if (!who || t.id === who) by.set(t.id, { id: t.id, name: t.name, site: '', days: [] });
   for (const r of rows) {
     if (!by.has(r.person_id)) by.set(r.person_id, { id: r.person_id, name: r.name, site: r.site || '', days: [] });
     by.get(r.person_id).days.push(r);
