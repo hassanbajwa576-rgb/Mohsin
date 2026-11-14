@@ -4,7 +4,7 @@ import { q } from './db';
 import { todayKey, dayBoard, sessionsOf, fmt12, fmtDur, fmtTime, LATE_AFTER, EARLY_BEFORE } from './att';
 import { can } from './perms';
 import { hkPeople, offToday, dkAllowDetail, usedByPerson, TLABEL } from './roster';
-import { dkDayRows, dkOvertime, DUTY_MIN } from './dk-hours';
+import { dkDayRows, dkOvertime } from './dk-hours';
 import { taskPeople, taskRows, dueLabel } from './tasks';
 import { firstName } from './names';
 import { opsbotAnswer } from './opsbot';
@@ -144,7 +144,7 @@ async function dastarkhawanPerson(user, { name, from, to }, today) {
       name: p.name, role: p.dept || null, sites: (p.sites || []).map((x) => x.site), joined: p.joined_on || null,
       from: f, to: t,
       days: rows.map((r) => ({ date: r.day, check_in: r.check_in || null, check_out: r.check_out || null, duty_minutes: r.mins, typed_by_hand: !!r.manual })),
-      totals: { days_with_check_in: rows.length, duty_minutes: done.reduce((a, r) => a + r.mins, 0), overtime_minutes: done.reduce((a, r) => a + Math.max(0, r.mins - DUTY_MIN), 0), short_minutes: done.reduce((a, r) => a + Math.max(0, DUTY_MIN - r.mins), 0) },
+      totals: { days_with_check_in: rows.length, duty_minutes: done.reduce((a, r) => a + r.mins, 0), overtime_minutes: done.reduce((a, r) => a + Math.max(0, r.mins - r.duty), 0), short_minutes: done.reduce((a, r) => a + Math.max(0, r.duty - r.mins), 0) },
       leave: { year, allowed_in_year: al ? al.total : null, given_so_far: al ? al.sofar : null, used_days: Math.round(usedDays * 10) / 10, left: al ? Math.round((al.sofar - usedDays) * 10) / 10 : null },
       overtime_available_to_convert_hours: Math.round(b.left * 10) / 10,
     });

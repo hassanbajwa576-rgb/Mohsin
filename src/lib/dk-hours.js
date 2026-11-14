@@ -2,6 +2,18 @@ import 'server-only';
 import { q } from './db';
 
 export const DUTY_MIN = 8 * 60; // a full duty day
+/** Duty minutes a day for people whose day is not the usual 8 hours (set on their Edit form): Map person id -> minutes. */
+export async function dkDutyMap() {
+  const r = await q(`SELECT key, value FROM pc2_hk_settings WHERE key LIKE 'dk\\_duty\\_%'`);
+  const m = new Map();
+  for (const x of r) {
+    const id = Number(String(x.key).slice(8));
+    const h = Number(x.value);
+    if (Number.isInteger(id) && h >= 1 && h <= 24) m.set(id, Math.round(h * 60));
+  }
+  return m;
+}
+
 export const OT_BLOCK_H = 8; // every 8 overtime hours convert to 1 PTO day
 
 /** Check-in / check-out text from the facial app ("06:58 AM" or "18:05") as minutes since midnight; null when unreadable. */
@@ -56,7 +68,8 @@ export async function dkDayRows(from, to, personId = 0) {
       ORDER BY 2, 3`,
     [from, to, personId]
   );
-  return r.map((x) => ({ ...x, mins: dutyMin(x.check_in, x.check_out) }));
+  const duty = await dkDutyMap();
+  return r.map((x) => ({ ...x, mins: dutyMin(x.check_in, x.check_out), duty: duty.get(x.person_id) || DUTY_MIN }));
 }
 
 /** Per person: overtime minutes of all stored days (duty above 8 hours), the hours already converted to PTO, and what is still available. */
@@ -67,7 +80,7 @@ export async function dkOvertime() {
   const m = new Map();
   for (const x of rows) {
     if (x.mins == null) continue;
-    m.set(x.person_id, (m.get(x.person_id) || 0) + Math.max(0, x.mins - DUTY_MIN));
+    m.set(x.person_id, (m.get(x.person_id) || 0) + Math.max(0, x.mins - x.duty));
   }
   const out = new Map();
   for (const id of new Set([...m.keys(), ...done.keys()])) {
