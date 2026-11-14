@@ -3,8 +3,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { q } from './db';
 import { todayKey, dayBoard, sessionsOf, fmt12, fmtDur, fmtTime, LATE_AFTER, EARLY_BEFORE } from './att';
 import { can } from './perms';
-import { hkPeople, offToday, dkAllowDetail, usedByPerson, TLABEL } from './roster';
+import { dkRotations, hkPeople, offToday, dkAllowDetail, usedByPerson, TLABEL } from './roster';
 import { dkDayRows, dkOvertime } from './dk-hours';
+import { planFor } from './dk-rotation';
+import { dkPlanVsActual, summarize } from './dk-planvs';
 import { taskPeople, taskRows, dueLabel } from './tasks';
 import { firstName } from './names';
 import { opsbotAnswer } from './opsbot';
@@ -59,6 +61,11 @@ export const TOOLS = [
     name: 'dastarkhawan_person',
     description: 'One Dastarkhawan team member over a date range: each day with check in, check out and duty minutes, totals, overtime, leave allowance given/used/left and overtime available to convert to PTO. Matches the name by its words (first or full name).',
     input_schema: { type: 'object', properties: { name: { type: 'string' }, from: { type: 'string', description: 'YYYY-MM-DD; default the 1st of this month' }, to: { type: 'string', description: 'YYYY-MM-DD; default today' } }, required: ['name'] },
+  },
+  {
+    name: 'dastarkhawan_rotation',
+    description: 'The site rotation of a Dastarkhawan incharge (a repeating pattern of sites and travel-only days) against what happened. For each day from..to: the planned site (or travel_day), the actual site, check in and check out, duty minutes and a result (as_planned, other_site, site_not_known, no_check_in, travel_day, travel_day_checked_in, on_leave, not_in_yet, future). Future days only have the plan. Use it for "where should X be on 20 Nov", "was X where planned", "planned vs actual". Without a name it lists who has a rotation.',
+    input_schema: { type: 'object', properties: { name: { type: 'string' }, from: { type: 'string', description: 'YYYY-MM-DD; default the 1st of this month' }, to: { type: 'string', description: 'YYYY-MM-DD; default today; may be ahead for the plan' } }, required: [] },
   },
   {
     name: 'dastarkhawan_team',
@@ -152,6 +159,31 @@ async function dastarkhawanPerson(user, { name, from, to }, today) {
   return { people: out, note: 'duty_minutes counts check out minus check in; a day without a check out has no duty time. A standard duty day is 480 minutes.' };
 }
 
+async function dastarkhawanRotation(user, { name, from, to }, today) {
+  if (!dastAllowed(user)) return denied('Dastarkhawan');
+  const [team, rots] = await Promise.all([hkPeople({ team: 'dast' }), dkRotations()]);
+  const withRot = team.filter((p) => rots.has(p.id));
+  if (!withRot.length) return { error: 'No one has a site rotation yet. It is switched on for a person on Roster > Edit.' };
+  const hit = name ? pickPeople(withRot, name).slice(0, 1) : [];
+  if (!hit.length) return { people_with_rotation: withRot.map((p) => p.name), note: name ? 'No rotation for "' + name + '".' : 'Give a name.' };
+  const p = hit[0];
+  const rot = rots.get(p.id);
+  let f = iso(from) ? from : today.slice(0, 8) + '01';
+  let t = iso(to) ? to : today;
+  if (f > t) f = t;
+  if (t > addDays(f, 62)) t = addDays(f, 62);
+  const days = await dkPlanVsActual(p.id, rot, f, t, today);
+  const RES = { ok: 'as_planned', diff: 'other_site', unknown: 'site_not_known', miss: 'no_check_in', travel: 'travel_day', travel_in: 'travel_day_checked_in', leave: 'on_leave', pending: 'not_in_yet', future: 'future', extra: 'not_in_plan', '': 'no_plan' };
+  const sm = summarize(days, today);
+  return {
+    name: p.name, rotation_day_1: rot.start, pattern: rot.pattern, from: f, to: t,
+    days: days.map((d) => ({ date: d.day, planned: d.plan === 'T' ? 'travel_day' : d.plan || null, actual_site: d.site || null, check_in: d.in || null, check_out: d.out || null, duty_minutes: d.mins, result: RES[d.res] })),
+    summary_days_before_today: { as_planned: sm.ok, other_site: sm.diff, no_check_in: sm.miss, site_not_known: sm.unknown, planned_days_per_site: sm.planned, actual_days_per_site: sm.actual },
+    note: 'The actual site is the site of the facial check-in or the one picked by hand for that day. Today is not counted in the summary until the day is over.',
+    planned_today: (planFor(rot, today) || {}).site || null,
+  };
+}
+
 async function dastarkhawanTeam(user) {
   if (!dastAllowed(user)) return denied('Dastarkhawan');
   const team = await hkPeople({ team: 'dast' });
@@ -228,6 +260,7 @@ export async function runTool(user, name, input, today) {
   const a = input && typeof input === 'object' ? input : {};
   if (name === 'dastarkhawan_day') return dastarkhawanDay(user, a, today);
   if (name === 'dastarkhawan_person') return dastarkhawanPerson(user, a, today);
+  if (name === 'dastarkhawan_rotation') return dastarkhawanRotation(user, a, today);
   if (name === 'dastarkhawan_team') return dastarkhawanTeam(user);
   if (name === 'dastarkhawan_leaves') return dastarkhawanLeaves(user, a, today);
   if (name === 'staff_attendance_day') return staffAttendanceDay(user, a, today);
