@@ -204,6 +204,22 @@ async function extraTopics(user, n, nowY, nowM, today, found) {
   const om = user.role === 'om';
   const sup = om || user.role === 'sso';
   const office = officeAsked(n, user);
+  // Temporary (relief) guards on duty
+  if (has(n, /\bguards?\b/) && has(n, /duty|today|on duty|covering|relief|temporary|who is|who s|kaun|now/) && !has(n, /expens|spend|visitor/)) {
+    if (!om && !can(user, 'guard_duty')) return 'Guard duty details are available to the Sr. Ops Manager and people given the Guard Duty permission.';
+    const r = await q(`SELECT g.name, d.shift, to_char(d.duty_from, 'DD Mon') AS f, to_char(d.duty_to, 'DD Mon') AS t, d.handed_over_to, d.taken_over_from FROM pc2_guard_duty d JOIN pc2_relief_guards g ON g.id = d.guard_id WHERE d.duty_from <= $1::date AND d.duty_to >= $1::date ORDER BY d.shift, g.name`, [today]);
+    return r.length
+      ? lines('Temporary guards on duty today (' + r.length + '):', ...r.map((x) => '  ' + x.name + ' - ' + x.shift + ' shift, ' + x.f + (x.f === x.t ? '' : ' to ' + x.t) + (x.taken_over_from ? ', in place of ' + x.taken_over_from : '')))
+      : 'No temporary guard is on duty today. Guard duty is on the Visitors > Guards page.';
+  }
+  // New joiners (last 60 days): Dastarkhawan members and office employees
+  if (has(n, /new (hire|hires|joiner|joiners|employee|employees|staff|member|members|team member)|joined (recently|lately|this|last)|recent (joiner|joiners|hires)|recently joined|naye (log|employee|staff)|new people/)) {
+    const since = new Date(Date.parse(today + 'T00:00:00Z') - 60 * 864e5).toISOString().slice(0, 10);
+    const dast = (await hkPeople({ team: 'dast' })).filter((p) => p.joined_on && p.joined_on >= since).map((p) => p.name + ' (Dastarkhawan, joined ' + p.joined_on + ')');
+    const off = can(user, 'att_view') ? (await q(`SELECT s.name, o.code, to_char(s.active_from, 'YYYY-MM-DD') AS f FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active AND s.active_from >= $1::date ORDER BY s.active_from DESC`, [since])).map((x) => x.name + ' (' + x.code + ' office, joined ' + x.f + ')') : [];
+    const all = [...dast, ...off];
+    return all.length ? lines('Joined in the last 60 days (' + all.length + '):', names(all, 20)) : 'Nobody has joined in the last 60 days (as far as joining dates are recorded).';
+  }
   // Is someone in the office now (one person by name, or everyone on duty)
   if (can(user, 'att_view') && !has(n, /visitor/) && has(n, /in (the )?office|in office|inside|here now|present now|is .* here|is .* in\b|who is in|who s in|anyone in|anybody in/)) {
     const staffRows = await q('SELECT s.id, s.name FROM pc2_staff s WHERE s.active');
@@ -484,7 +500,7 @@ async function dastTopics(user, n, today, found) {
   const money = has(n, /expens|spend|spent|advance|cash|budget|receipt/);
   const otherModule = has(n, /office|visitor|complaint|fuel|expens|spend|task/);
   const matched = money || otherModule ? [] : found.dast;
-  const cue = has(n, /dastarkhawan|dastarkhwan|dasterkhawan|\bdk\b|\bbd\b|\boka\b|okara|\bapl\b|incharge|in charge|days per site|site days|overtime|duty hours|duty time|short hours|rotation|worked less|less than \d+ hours?|under \d+ hours?/);
+  const cue = has(n, /dastarkhawan|dastarkhwan|dasterkhawan|\bdk\b|\bbd\b|\boka\b|okara|\bapl\b|incharge|in charge|days per site|site days|overtime|duty hours|duty time|short hours|rotation|worked less|less than \d+ hours?|under \d+ hours?|missed check ?out|forgot (to )?check ?out|no check ?out|without check ?out|check ?out (missing|nahi|not)/);
   if (!cue && !matched.length) return null;
   const allowed = user.role === 'om' || user.role === 'sso' || can(user, 'dast_edit');
   if (!allowed) return cue ? 'Dastarkhawan details are available to the Sr. Ops Manager, the Sr. Support Officer and people given the Dastarkhawan permission.' : null;
@@ -602,6 +618,17 @@ async function dastTopics(user, n, today, found) {
       ));
     }
     return { text: out.join('\n\n'), ctx: { topic: 'dastperson', who: matched[0].name, day: (dayAsked(n, today) || { day: today }).day } };
+  }
+
+  // Days with a check in but no check out (the last 14 days, before today)
+  if (has(n, /missed check ?out|forgot (to )?check ?out|no check ?out|without check ?out|check ?out (missing|nahi|not)/)) {
+    const from = new Date(Date.parse(today + 'T00:00:00Z') - 14 * 864e5).toISOString().slice(0, 10);
+    const yday = new Date(Date.parse(today + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
+    const hit = [];
+    for (const p of sorted) {
+      for (const r of await dkDayRows(from, yday, p.id)) if (r.check_in && !r.check_out) hit.push(p.name + ': ' + r.day + ' (in ' + r.check_in + ')');
+    }
+    return hit.length ? lines('Dastarkhawan days with a check in but no check out, last 14 days (' + hit.length + '). Add the time on Attendance, or the day shows no duty time:', names(hit, 25)) : 'Every Dastarkhawan check in in the last 14 days has a check out.';
   }
 
   // Short time and the average duty day (this month, from the days with full times)
