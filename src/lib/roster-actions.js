@@ -137,7 +137,7 @@ export async function deleteTimeOff(fd) {
 export async function addHkPerson(fd) {
   const team = teamOf(s(fd, 'team'));
   const u = await need(team);
-  const here = root(team);
+  const here = team === 'dast' ? DAST + '/team' : root(team);
   const name = s(fd, 'name').slice(0, 80);
   if (!name) back(here, 'Enter the name');
   // Dastarkhawan people are mapped to one or more sites from the Sites list (each on chosen weekdays), not to an office. Support people belong to an office.

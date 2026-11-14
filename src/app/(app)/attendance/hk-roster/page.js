@@ -301,7 +301,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
         </details>
       ) : null}
 
-      {edit ? (
+      {edit && !dast ? (
         <details className='card'>
           <summary>Add team member</summary>
           <form action={addHkPerson} className='form'>
