@@ -19,7 +19,9 @@ const MODEL = () => process.env.OPSBOT_MODEL || 'claude-opus-5-5';
 const EFFORT = () => process.env.OPSBOT_EFFORT || 'low';
 const MAX_STEPS = 6;
 
-export const aiEnabled = () => !!process.env.ANTHROPIC_API_KEY && process.env.OPSBOT_AI !== 'off';
+// The Claude layer costs money (API use is billed separately), so it is off unless it is switched on on purpose: OPSBOT_AI=on and a key.
+// Without that, OpsBot answers with its own rules, which are free.
+export const aiEnabled = () => process.env.OPSBOT_AI === 'on' && !!process.env.ANTHROPIC_API_KEY;
 
 // A simple cap on questions per person per hour (kept in memory, so it is per server instance), to keep the spend bounded.
 const usage = new Map();

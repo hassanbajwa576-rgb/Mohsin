@@ -1,6 +1,6 @@
 # OpsBot: what it was taught, and what it still misses
 
-OpsBot has two layers: the rule-based engine (`src/lib/opsbot.js`) and the Claude layer (`src/lib/opsbot-ai.js`, needs `ANTHROPIC_API_KEY`).
+OpsBot has two layers: the rule-based engine (`src/lib/opsbot.js`, free) and the Claude layer (`src/lib/opsbot-ai.js`). The Claude layer is billed separately by Anthropic (the $20 plan does not include API use), so it is **off by default**: it runs only when both `OPSBOT_AI=on` and `ANTHROPIC_API_KEY` are set in Vercel. The app uses the free rule-based OpsBot.
 
 ## Taught so far
 - Roman Urdu bridge (`urduBridge`): aaj, kal (yesterday after a past-tense word, tomorrow otherwise), kaun, kahan, kitna, kharcha, chutti, aaya/gaya, ghante, paisa, baqi, hazri, mehman, shikayat, nahi, sab, din, "is mahine", "pichle mahine", "is saal".
