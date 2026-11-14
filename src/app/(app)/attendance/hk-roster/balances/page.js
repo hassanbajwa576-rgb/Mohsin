@@ -21,6 +21,22 @@ const d1 = (v) => String(Math.round(v * 10) / 10);
 
 // Leave balances and the yearly summary: days off per person and per type, against the yearly allowance set in Setup.
 // forceTeam: the Dastarkhawan section (/dastarkhawan/balances) shows this same page for its own team.
+// How a person's allocation is made up, in small text under the number: yearly, monthly, or both; months given ahead are shown separately.
+const basis = (d, monthSum) => {
+  if (!d) return null;
+  const parts = [];
+  if (d.hasAnnual && d.annual) parts.push('yearly ' + d1(d.annual));
+  const doneM = d.sofar - (d.annual || 0);
+  if (doneM) parts.push('monthly ' + d1(doneM));
+  const later = d.total - d.sofar;
+  return (
+    <>
+      {parts.length ? <small className='muted'> ({parts.join(' + ')})</small> : null}
+      {later > 0 ? <small className='muted'> +{d1(later)} for later months</small> : null}
+    </>
+  );
+};
+
 // Left badge colour: over = red, 5 or fewer left = yellow, more than 5 = green.
 const lvTone = (left) => (left < 0 ? 'bad' : left <= 5 ? 'warn' : 'ok');
 
@@ -164,13 +180,12 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
             <div className='tablewrap dk-sticky'>
               <table className='tx dka-lv dkt dkt-fit'>
                 <thead>
-                  <tr><th>Team member</th><th className='r'>Yearly / extra</th><th className='r'>Allowed in {year}</th><th className='r hide-m'>Given so far</th><th className='r'>Used</th><th className='r'>Left</th></tr>
+                  <tr><th>Team member</th><th className='r'>Yearly / extra</th><th className='r' title='Yearly number plus the months given up to now. This is what the balance is counted from.'>Allocated</th><th className='r'>Used</th><th className='r'>Left</th></tr>
                 </thead>
                 <tbody>
                   {team.map((p) => {
                     const v = (used.get(p.id) || {}).pto || 0;
                     const d = allow.get(p.id);
-                    const cap = d ? d.total : null;
                     const sofar = d ? d.sofar : null;
                     const left = sofar == null ? null : sofar - v;
                     const monthSum = d ? d.monthly.reduce((a, x) => a + (x || 0), 0) : 0;
@@ -188,8 +203,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                             </form>
                           ) : d && d.hasAnnual ? d1(d.annual) : 'None'}
                         </td>
-                        <td className='r nw c-meta'>{cap == null ? 'Not set' : d1(cap)}{monthSum ? <small className='muted'> ({d1(monthSum)} by month)</small> : null}</td>
-                        <td className='r nw c-meta hide-m'>{sofar == null ? '-' : d1(sofar)}</td>
+                        <td className='r nw c-meta'>{sofar == null ? 'Not set' : d1(sofar)}{basis(d, monthSum)}</td>
                         <td className='r nw c-meta'>{v ? d1(v) : '0'}{takenSum ? <small className='muted'> ({d1(takenSum)} by month)</small> : null}</td>
                         <td className='r nw'>{left == null ? <span className='muted'>-</span> : <b className={'lvb ' + lvTone(left)}>{left < 0 ? d1(-left) + ' over' : d1(left) + ' left'}</b>}</td>
                       </tr>
@@ -200,8 +214,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                   <tr>
                     <td><b>Total</b></td>
                     <td></td>
-                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((allow.get(p.id) || {}).total || 0), 0))}</b></td>
-                    <td className='r nw hide-m'><b>{d1(team.reduce((a, p) => a + ((allow.get(p.id) || {}).sofar || 0), 0))}</b></td>
+                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((allow.get(p.id) || {}).sofar || 0), 0))}</b></td>
                     <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((used.get(p.id) || {}).pto || 0), 0))}</b></td>
                     <td className='r nw'><b>{(() => { const t = team.reduce((a, p) => a + (allow.get(p.id) ? allow.get(p.id).sofar - ((used.get(p.id) || {}).pto || 0) : 0), 0); return t < 0 ? d1(-t) + ' over' : d1(t); })()}</b></td>
                   </tr>
