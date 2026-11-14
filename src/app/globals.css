@@ -2286,13 +2286,13 @@ table.dkg td.c.lv a{color:#fff}
 }
 /* Site rotation: planned site on the Roster grid (same site colours as the tags), a hatched cell for a travel-only day. */
 table.rost td.rot{font-size:8.5px;font-weight:700;letter-spacing:0}
-table.rost td.rot-lhr{background:rgba(227,173,33,.30)}
-table.rost td.rot-isb{background:rgba(100,116,139,.30)}
-table.rost td.rot-oka{background:rgba(34,160,98,.28)}
-table.rost td.rot-apl{background:rgba(59,110,230,.28)}
-table.rost td.rot-tc0,table.rost td.rot-tc3{background:rgba(190,60,120,.25)}
-table.rost td.rot-tc1,table.rost td.rot-tc4{background:rgba(240,150,60,.28)}
-table.rost td.rot-tc2,table.rost td.rot-tc5{background:rgba(120,100,230,.26)}
+table.rost td.rot-lhr{background:rgba(227,173,33,.85);color:#2a1d00}
+table.rost td.rot-isb{background:rgba(88,104,128,.85);color:#fff}
+table.rost td.rot-oka{background:rgba(22,140,82,.85);color:#fff}
+table.rost td.rot-apl{background:rgba(48,98,220,.85);color:#fff}
+table.rost td.rot-tc0,table.rost td.rot-tc3{background:rgba(176,40,104,.85);color:#fff}
+table.rost td.rot-tc1,table.rost td.rot-tc4{background:rgba(214,120,30,.85);color:#fff}
+table.rost td.rot-tc2,table.rost td.rot-tc5{background:rgba(100,80,215,.85);color:#fff}
 table.rost td.rot-t{background:repeating-linear-gradient(45deg,rgba(128,128,128,.30) 0 3px,transparent 3px 6px)}
 .rot-set{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:4px 0;flex:1 1 100%}
 .rot-set legend{font-size:12px;font-weight:700;padding:0 6px}
