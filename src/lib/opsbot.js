@@ -621,12 +621,21 @@ export async function opsbotAnswer(user, text, ctx = null) {
   const n0 = norm(text);
   const today = todayKey();
   // A bare "Yesterday" / "Monday" / "11th Nov?" continues the last attendance question (a team, or one person).
-  // "Now for Bilal for the same date" / "I asked Mohsin X": a person question that keeps the last day asked.
-  const personCtx = !!ctx && (ctx.topic === 'person' || ctx.topic === 'dastperson') && !!ctx.day;
+  // A short follow-up about a person ("2nd Nov?", "Habiba for 5th Nov?", "Now for Bilal for the same date"): the day carries over, and so does
+  // the person, but only when the message does not name someone itself.
+  const personCtx = !!ctx && (ctx.topic === 'person' || ctx.topic === 'dastperson');
   const dayText = (d) => Number(d.slice(8)) + ' ' + MON3[Number(d.slice(5, 7)) - 1].toLowerCase();
-  const carry = personCtx && n0.split(' ').length <= 12 && (has(n0, /\b(same|that) (date|day)\b/) || (!dayAsked(n0, today) && has(n0, /^(now|and|also|what about|how about|i asked|give me|show me|for)\b|\bi asked\b/)));
-  const followDay = !carry && !!(ctx && ctx.topic) && n0.split(' ').length <= 8 && !!dayAsked(n0, today) && !has(n0, /attendance|present|absent|dastarkhawan|visitor|expens|spend/);
-  const n = carry ? n0 + ' check in ' + dayText(ctx.day) : followDay ? (ctx.topic === 'dast' ? 'dastarkhawan ' : ctx.topic === 'person' || ctx.topic === 'dastperson' ? norm(ctx.who || '') + ' check in ' : 'attendance ') + n0 : n0;
+  const short = n0.split(' ').length <= 12;
+  const hasDay = !!dayAsked(n0, today);
+  const dayCarry = personCtx && !!ctx.day && short && (has(n0, /\b(same|that) (date|day)\b/) || (!hasDay && has(n0, /^(now|and|also|what about|how about|i asked|give me|show me|for)\b|\bi asked\b/)));
+  const noTopicWords = !has(n0, /attendance|present|absent|dastarkhawan|visitor|expens|spend/);
+  let n = n0;
+  if (personCtx && short && (hasDay || dayCarry) && noTopicWords) {
+    const named = (await resolveNames(n0)).best > 0;
+    n = (named ? n0 : norm(ctx.who || '') + ' ' + n0) + ' check in' + (hasDay ? '' : ' ' + dayText(ctx.day));
+  } else if (!!ctx && !!ctx.topic && !personCtx && short && n0.split(' ').length <= 8 && hasDay && noTopicWords) {
+    n = (ctx.topic === 'dast' ? 'dastarkhawan ' : 'attendance ') + n0;
+  }
   const nowY = Number(today.slice(0, 4));
   const nowM = Number(today.slice(5, 7));
   const om = user.role === 'om';
