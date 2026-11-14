@@ -6,7 +6,7 @@ import { planFor, planCounts } from '@/lib/dk-rotation';
 import { dkRotations, monthOff, TLABEL, validMonth, shiftMonth, hkPeople, addDays, siteList } from '@/lib/roster';
 import { sortSites, siteTag, comparePeople, matchSite } from '@/lib/dk-sites';
 import { syncDk } from '@/lib/dk-sync';
-import { dkDayRows, dkOvertime, to24 } from '@/lib/dk-hours';
+import { dkDayRows, dkOvertime, dkDutyMap, to24 } from '@/lib/dk-hours';
 import { q } from '@/lib/db';
 import { convertOvertime, saveDkTime, clearDkTime } from '@/lib/roster-actions';
 import DkAttendanceView from '@/components/DkAttendanceView';
@@ -43,7 +43,7 @@ export default async function DastarkhawanAttendance({ searchParams }) {
   const rows = await dkDayRows(from, to, who);
   const ot = await dkOvertime();
   const om = user.role === 'om';
-  const view = ['sites', 'ot'].includes(sp.v) ? sp.v : 'grid';
+  const view = ['sites', 'ot', 'plan'].includes(sp.v) ? sp.v : 'grid';
 
   // Incharges (people mapped to several sites) pick the site they spent each day at; days per site are counted from that.
   const sd = await q(`SELECT person_id, to_char(day, 'YYYY-MM-DD') AS day, site FROM pc2_dk_sitedays WHERE day >= $1::date AND day <= $2::date AND ($3::int = 0 OR person_id = $3::int)`, [from, to, who]);
@@ -108,5 +108,50 @@ export default async function DastarkhawanAttendance({ searchParams }) {
   const fix = team.some((p) => String(p.id) === String(sp.p)) && /^\d{4}-\d{2}-\d{2}$/.test(sp.d || '')
     ? { p: String(sp.p), d: sp.d, in: hit ? to24(hit.check_in) : '', out: hit ? to24(hit.check_out) : '', note: hit && hit.manual ? hit.note || '' : '', site: siteDays[sp.p + '|' + sp.d] || '' }
     : {};
-  return <DkAttendanceView plan={plan} leaveDays={leaveDays} leaveCount={leaveCount} canAll={user.role === 'om'} sp={sp} month={month} prev={shiftMonth(month, -1)} next={shiftMonth(month, 1)} who={who} team={team} people={people} om={om} convert={convertOvertime} save={saveDkTime} clear={clearDkTime} fix={fix} today={today} view={view} from={from} to={to} custom={custom} dates={dates} siteDays={siteDays} siteOpts={siteOpts} siteStats={siteStats} multi={multi.map((t) => t.id)} />;
+  // "Plan vs actual": for one incharge with a rotation, each day of the range with what the rotation planned and what happened.
+  let planView = null;
+  const rotTeam = team.filter((t) => rots.has(t.id));
+  if (view === 'plan' && rotTeam.length) {
+    const pid = rotTeam.some((t) => t.id === who) ? who : rotTeam[0].id;
+    const person = team.find((t) => t.id === pid);
+    const rot = rots.get(pid);
+    const prow = await dkDayRows(from, to, pid);
+    const dutyMin = (await dkDutyMap()).get(pid) || 480;
+    const act = {};
+    for (const x of await q(`SELECT to_char(day, 'YYYY-MM-DD') AS day, site FROM pc2_dk_sitedays WHERE person_id = $1 AND day >= $2::date AND day <= $3::date`, [pid, from, to])) act[x.day] = x.site;
+    for (const r of prow) if (!act[r.day]) { const a = matchSite(r.app_site, knownSites); if (a) act[r.day] = a; }
+    const leaveP = {};
+    for (const o of offRows) {
+      if (o.staff_id !== pid) continue;
+      for (let d = o.from_date < from ? from : o.from_date; d <= o.to_date && d <= to; d = addDays(d, 1)) if (!leaveP[d]) leaveP[d] = { label: TLABEL[o.kind] || o.kind, hours: o.hours };
+    }
+    const byDay = new Map(prow.map((r) => [r.day, r]));
+    const days = dates.map((day) => {
+      const pf = planFor(rot, day);
+      const plan = pf ? pf.site : '';
+      const r = byDay.get(day);
+      const lv = leaveP[day];
+      const site = act[day] || '';
+      let res = '';
+      if (lv && lv.hours == null) res = 'leave';
+      else if (plan === 'T') res = r ? 'travel_in' : 'travel';
+      else if (plan) res = r ? (site ? (site === plan ? 'ok' : 'diff') : 'unknown') : day > today ? 'future' : day === today ? 'pending' : 'miss';
+      else res = r ? 'extra' : '';
+      return { day, plan, site, in: r ? r.check_in : '', out: r ? r.check_out : '', mins: r ? r.mins : null, manual: !!(r && r.manual), res, leave: lv ? lv.label : '' };
+    });
+    const past = days.filter((d) => d.day < today); // today is not counted until the day is over
+    const sites = [...new Set(rot.steps.map((x) => x.site).filter((x) => x !== 'T'))];
+    const lastPast = addDays(today, -1);
+    const sofar = lastPast < from ? { counts: {}, travel: 0, days: 0 } : planCounts(rot, from, lastPast < to ? lastPast : to);
+    planView = {
+      id: pid, name: person ? person.name : '', start: rot.start, pattern: rot.pattern, dutyMin, days, sites,
+      planned: planCounts(rot, from, to), sofar,
+      actual: Object.fromEntries(sites.map((c) => [c, past.filter((d) => d.plan && d.plan !== 'T' && d.site === c && d.in).length])),
+      ok: past.filter((d) => d.res === 'ok').length, diff: past.filter((d) => d.res === 'diff').length, miss: past.filter((d) => d.res === 'miss').length,
+      unknown: past.filter((d) => d.res === 'unknown').length, travelIn: past.filter((d) => d.res === 'travel_in').length,
+      hours: past.reduce((a, d) => a + (d.mins || 0), 0), hoursPlanned: sofar.days ? (sofar.days - sofar.travel) * dutyMin : 0,
+      options: rotTeam.map((t) => ({ id: t.id, name: t.name })),
+    };
+  }
+  return <DkAttendanceView planView={planView} hasPlan={rotTeam.length > 0} plan={plan} leaveDays={leaveDays} leaveCount={leaveCount} canAll={user.role === 'om'} sp={sp} month={month} prev={shiftMonth(month, -1)} next={shiftMonth(month, 1)} who={who} team={team} people={people} om={om} convert={convertOvertime} save={saveDkTime} clear={clearDkTime} fix={fix} today={today} view={view} from={from} to={to} custom={custom} dates={dates} siteDays={siteDays} siteOpts={siteOpts} siteStats={siteStats} multi={multi.map((t) => t.id)} />;
 }

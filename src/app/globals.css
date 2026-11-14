@@ -2278,3 +2278,8 @@ table.dkg td.tv{background:repeating-linear-gradient(45deg,rgba(128,128,128,.30)
 table.dkg td.pm{box-shadow:inset 0 0 0 2px #f59e0b}
 .dkg-legend i.tv{background:repeating-linear-gradient(45deg,#8a8f98 0 3px,#cfd2d8 3px 6px)}
 .dkg-legend i.pm{background:transparent;box-shadow:inset 0 0 0 2px #f59e0b}
+/* Plan vs actual (incharge rotation) */
+.dka-pill.diff{background:rgba(245,158,11,.25);color:#b45309}
+html[data-theme=dark] .dka-pill.diff{color:#fbbf24}
+.dka-fix{margin-left:8px;font-size:12px}
+tr.dka-today td.c-title,tr.dka-today td:first-child{box-shadow:inset 3px 0 0 var(--gold)}

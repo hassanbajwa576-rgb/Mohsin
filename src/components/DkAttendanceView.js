@@ -22,7 +22,7 @@ function Kpi({ label, value, sub, tone }) {
   );
 }
 
-export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, from, to, custom, dates, siteDays, siteOpts, siteStats, multi, canAll = false, leaveDays = {}, leaveCount = {}, plan = {} }) {
+export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, from, to, custom, dates, siteDays, siteOpts, siteStats, multi, canAll = false, leaveDays = {}, leaveCount = {}, plan = {}, planView = null, hasPlan = false }) {
   const qs = (o) => {
     const e = { ...(custom ? { from, to } : { m: month }), ...(view !== 'grid' ? { v: view } : {}), ...(who ? { who: String(who) } : {}), ...o };
     return new URLSearchParams(Object.entries(e).filter(([, x]) => x !== '')).toString();
@@ -50,7 +50,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
       <Flash sp={sp} />
 
       <div className='chips dka-tabs'>
-        {[['grid', 'Overview'], ['sites', 'Days per site'], ['ot', 'Overtime and PTO']].map(([k, l]) => <Link key={k} className={'chip' + (view === k ? ' on' : '')} href={'?' + qs({ v: k === 'grid' ? '' : k })}>{l}</Link>)}
+        {[['grid', 'Overview'], ['sites', 'Days per site'], ...(hasPlan ? [['plan', 'Plan vs actual']] : []), ['ot', 'Overtime and PTO']].map(([k, l]) => <Link key={k} className={'chip' + (view === k ? ' on' : '')} href={'?' + qs({ v: k === 'grid' ? '' : k })}>{l}</Link>)}
       </div>
 
       <div className='chips' style={{ marginBottom: 12, alignItems: 'center' }}>
@@ -325,7 +325,91 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           ) : <p className='muted'>Nobody here is mapped to more than one site. Map an incharge to several sites on the roster to track the days they spend at each.</p>}
         </>
       ) : null}
-      {!people.length && view !== 'sites' ? <p className='muted'>No check-ins for {period}. Use the form above to add a time by hand.</p> : null}
+      {view === 'plan' ? (
+        planView ? (() => {
+          const RES = { ok: ['As planned', 'ok'], diff: ['Other site', 'diff'], miss: ['No check-in', 'warn'], unknown: ['Site not known', ''], travel: ['Travel day', ''], travel_in: ['Checked in on a travel day', 'diff'], leave: ['On leave', 'leave'], pending: ['Not in yet', ''], future: ['', ''], extra: ['Not in the plan', ''] };
+          const v = planView;
+          const dd = (key) => Number(key.slice(8)) + ' ' + MON[Number(key.slice(5, 7)) - 1];
+          const pastDuty = v.sofar.days - v.sofar.travel;
+          return (
+            <>
+              <h2 className='dka-h'>Plan vs actual: {v.name}</h2>
+              {v.options.length > 1 ? (
+                <div className='chips'>{v.options.map((o) => <Link key={o.id} className={'chip' + (o.id === v.id ? ' on' : '')} href={'?' + qs({ who: String(o.id) })}>{o.name}</Link>)}</div>
+              ) : null}
+              <p className='muted' style={{ margin: '0 0 10px' }}>The rotation (day 1 is {v.start}: {v.pattern}) against what happened, {custom ? 'from ' + from + ' to ' + to : 'in ' + month}. The actual site is the site of the facial check-in, or the site you picked for that day. Only days before today are counted; today is shown but counted once it is over.</p>
+              <div className='dka-kpis'>
+                <Kpi label='As planned' value={v.ok} sub='checked in at the planned site' tone={v.ok ? 'good' : ''} />
+                <Kpi label='At another site' value={v.diff} sub='checked in, but not where planned' tone={v.diff ? 'bad' : ''} />
+                <Kpi label='No check-in' value={v.miss} sub='planned duty days with no time' tone={v.miss ? 'bad' : ''} />
+                <Kpi label='Duty time so far' value={hm(v.hours)} sub={v.hoursPlanned ? 'of ' + hm(v.hoursPlanned) + ' for the planned duty days' : ''} />
+              </div>
+              <div className='rostable'>
+                <table className='tx dka-sum'>
+                  <thead><tr><th>Site</th><th>Planned (whole period)</th><th>Planned so far</th><th>Actual so far</th><th>Difference</th></tr></thead>
+                  <tbody>
+                    {v.sites.map((c) => {
+                      const pl = v.planned.counts[c] || 0;
+                      const ps = v.sofar.counts[c] || 0;
+                      const ac = v.actual[c] || 0;
+                      return (
+                        <tr key={c}>
+                          <td className='c-title'><OfficeTag o={c} /></td>
+                          <td className='c-meta'><small className='dklbl'>Planned </small>{pl}</td>
+                          <td className='c-meta'><small className='dklbl'>So far </small>{ps}</td>
+                          <td className='c-meta'><small className='dklbl'>Actual </small><b>{ac}</b></td>
+                          <td className='c-meta'><small className='dklbl'>Difference </small>{ac - ps === 0 ? <span className='muted'>0</span> : <span className={'dka-pill ' + (ac - ps > 0 ? 'ok' : 'warn')}>{ac - ps > 0 ? '+' : ''}{ac - ps}</span>}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr>
+                      <td className='c-title'><b>Travel-only days</b></td>
+                      <td className='c-meta'>{v.planned.travel}</td>
+                      <td className='c-meta'>{v.sofar.travel}</td>
+                      <td className='c-meta'><small className='muted'>checked in on one: {v.travelIn}</small></td>
+                      <td className='c-meta'></td>
+                    </tr>
+                    <tr>
+                      <td className='c-title'><b>Days at a site, site not known</b></td>
+                      <td className='c-meta'></td>
+                      <td className='c-meta'></td>
+                      <td className='c-meta'>{v.unknown ? <Link href={'?' + qs({ v: '' })} title='Open the Overview and click those days to pick the site'><span className='dka-pill warn'>{v.unknown}</span></Link> : <span className='muted'>0</span>}</td>
+                      <td className='c-meta'></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <h3 className='dka-h' style={{ marginTop: 16 }}>Day by day</h3>
+              <div className='rostable'>
+                <table className='tx dka-sum'>
+                  <thead><tr><th>Date</th><th>Planned</th><th>Actual site</th><th>In</th><th>Out</th><th>Hours</th><th>Result</th></tr></thead>
+                  <tbody>
+                    {v.days.filter((d) => d.plan || d.in).map((d) => {
+                      const r = RES[d.res] || ['', ''];
+                      return (
+                        <tr key={d.day} className={d.day === today ? 'dka-today' : ''}>
+                          <td className='c-title'><b>{dd(d.day)}</b> <small className='muted'>{DOW[dow(d.day)]}</small></td>
+                          <td className='c-meta'>{d.plan === 'T' ? <span className='muted'>Travel day</span> : d.plan ? <OfficeTag o={d.plan} /> : <span className='muted'>-</span>}</td>
+                          <td className='c-meta'>{d.site ? <OfficeTag o={d.site} /> : <span className='muted'>-</span>}</td>
+                          <td className='c-meta nw'><small className='dklbl'>In </small>{d.in || <span className='muted'>-</span>}</td>
+                          <td className='c-meta nw'><small className='dklbl'>Out </small>{d.out || <span className='muted'>-</span>}</td>
+                          <td className={'c-meta nw' + (d.mins == null ? '' : d.mins >= v.dutyMin ? ' dka-t g' : ' dka-t r')}><small className='dklbl'>Hours </small>{d.mins == null ? '-' : hm(d.mins)}</td>
+                          <td className='c-meta'>
+                            {r[0] ? <span className={'dka-pill ' + r[1]}>{r[0]}{d.res === 'leave' && d.leave ? ' (' + d.leave + ')' : ''}</span> : null}
+                            {d.day <= today && d.plan && d.plan !== 'T' && d.res !== 'leave' ? <Link className='dka-fix' href={'?' + qs({ p: String(v.id), d: d.day, v: '' }) + '#addtime'}>{d.in ? 'edit' : 'add time'}</Link> : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className='muted'>{v.days.filter((d) => d.res === 'future').length} planned day(s) are still ahead. "Planned so far" counts days before today only.</p>
+            </>
+          );
+        })() : <p className='muted'>No one has a site rotation yet. Switch it on for an incharge on Roster → Edit.</p>
+      ) : null}
+      {!people.length && view !== 'sites' && view !== 'plan' ? <p className='muted'>No check-ins for {period}. Use the form above to add a time by hand.</p> : null}
     </>
   );
 }
