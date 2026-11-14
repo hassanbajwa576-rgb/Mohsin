@@ -198,7 +198,7 @@ function dayAsked(n, today) {
   return null;
 }
 
-async function extraTopics(user, n, nowY, nowM, today) {
+async function extraTopics(user, n, nowY, nowM, today, names) {
   const om = user.role === 'om';
   const sup = om || user.role === 'sso';
   const office = officeAsked(n, user);
@@ -240,8 +240,7 @@ async function extraTopics(user, n, nowY, nowM, today) {
       }
       return lateL.length ? lines('Late check-ins today (after ' + LATE_AFTER + ')' + (office ? ' in ' + office : '') + ':', ...names(lateL)) : 'No late check-ins today.';
     }
-    const staffRows = await q('SELECT s.id, s.name, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active');
-    const who = staffRows.find((s) => norm(s.name).split(' ').some((w) => w.length >= 3 && new RegExp('\\b' + w + '\\b').test(n)));
+    const who = names.staff[0];
     // One employee on one day ("Habiba check in on 11 Nov"): when they came, when they left, hours and breaks.
     const dayQ = who ? dayAsked(n, today) : null;
     if (who && dayQ && !has(n, /\bstats?\b|statistics|how many days/)) {
@@ -249,7 +248,7 @@ async function extraTopics(user, n, nowY, nowM, today) {
       const { by } = await dayBoard(dayQ.day, '');
       const ss = sessionsOf(by.get(who.id) || []);
       const head = who.name + ' (' + who.office + '), ' + dayQ.label.replace(/^on /, '') + ':';
-      const ctxOut = { topic: 'person', who: who.name };
+      const ctxOut = { topic: 'person', who: who.name, day: dayQ.day };
       if (!ss.length) return { text: head + '\n  No entry on that day.', ctx: ctxOut };
       const one = (x, i) => lines(
         (ss.length > 1 ? '  Shift ' + (i + 1) + ': ' : '  ') + 'checked in ' + fmt12(x.start) + (fmtTime(x.start) > LATE_AFTER ? ' (late, after ' + LATE_AFTER + ')' : ''),
@@ -462,14 +461,27 @@ const NAME_PREFIX = /^(muhammad|mohammad|mohammed|muhammed|mohd|md)$/;
 const nameWords = (full) => norm(full).split(' ').filter((w) => w.length >= 3 && !NAME_PREFIX.test(w));
 const h1 = (v) => String(Math.round(v * 10) / 10);
 
-async function dastTopics(user, n, today) {
-  const people = await hkPeople({ team: 'dast' });
+// Who the question is about, looking at everyone the app knows: Dastarkhawan members, attendance employees and app users.
+// The people matching the most words of the typed name win ("Mohsin Ghazanfar" beats "Mohsin Ali"; plain "Mohsin" finds both).
+async function resolveNames(n) {
+  const [dast, staff, users] = await Promise.all([
+    hkPeople({ team: 'dast' }),
+    q('SELECT s.id, s.name, o.code AS office FROM pc2_staff s JOIN pc2_offices o ON o.id = s.office_id WHERE s.active'),
+    q("SELECT id, name, role FROM pc2_users WHERE active AND role <> 'guard'"),
+  ]);
+  const score = (name) => nameWords(name).filter((w) => new RegExp('\\b' + w + '\\b').test(n)).length;
+  const all = [...dast.map((p) => ({ kind: 'dast', p, sc: score(p.name) })), ...staff.map((p) => ({ kind: 'staff', p, sc: score(p.name) })), ...users.map((p) => ({ kind: 'user', p, sc: score(p.name) }))];
+  const best = Math.max(0, ...all.map((x) => x.sc));
+  const top = best ? all.filter((x) => x.sc === best) : [];
+  const of = (k) => top.filter((x) => x.kind === k).map((x) => x.p);
+  return { best, dast: of('dast'), staff: of('staff'), users: of('user'), dastAll: dast };
+}
+
+async function dastTopics(user, n, today, names) {
+  const people = names.dastAll;
   const money = has(n, /expens|spend|spent|advance|cash|budget|receipt/);
   const otherModule = has(n, /office|visitor|complaint|fuel|expens|spend|task/);
-  // Whose name was typed: the people matching the most words of it ("Ali Asgher" beats the other Alis; plain "Ali" lists them all).
-  const score = (p) => nameWords(p.name).filter((w) => new RegExp('\\b' + w + '\\b').test(n)).length;
-  const best = money || otherModule ? 0 : Math.max(0, ...people.map(score));
-  const matched = best ? people.filter((p) => score(p) === best) : [];
+  const matched = money || otherModule ? [] : names.dast;
   const cue = has(n, /dastarkhawan|dastarkhwan|dasterkhawan|\bdk\b|\bbd\b|\boka\b|okara|\bapl\b|incharge|in charge|days per site|site days/);
   if (!cue && !matched.length) return null;
   const allowed = user.role === 'om' || user.role === 'sso' || can(user, 'dast_edit');
@@ -515,7 +527,7 @@ async function dastTopics(user, n, today) {
         'Leaves ' + year + ': ' + (a != null ? 'allowance ' + h1(a) + ' days' + (al.sofar !== a ? ' (' + h1(al.sofar) + ' given so far)' : '') + ', used ' + h1(usedDays) + ', left ' + h1(left) + '.' : 'used ' + h1(usedDays) + ' days (no allowance set).')
       ));
     }
-    return { text: out.join('\n\n'), ctx: { topic: 'dastperson', who: matched[0].name } };
+    return { text: out.join('\n\n'), ctx: { topic: 'dastperson', who: matched[0].name, day: (dayAsked(n, today) || { day: today }).day } };
   }
 
   // Overtime
@@ -609,8 +621,12 @@ export async function opsbotAnswer(user, text, ctx = null) {
   const n0 = norm(text);
   const today = todayKey();
   // A bare "Yesterday" / "Monday" / "11th Nov?" continues the last attendance question (a team, or one person).
-  const followDay = !!(ctx && ctx.topic) && n0.split(' ').length <= 8 && !!dayAsked(n0, today) && !has(n0, /attendance|present|absent|dastarkhawan|visitor|expens|spend/);
-  const n = followDay ? (ctx.topic === 'dast' ? 'dastarkhawan ' : ctx.topic === 'person' || ctx.topic === 'dastperson' ? norm(ctx.who || '') + ' check in ' : 'attendance ') + n0 : n0;
+  // "Now for Bilal for the same date" / "I asked Mohsin X": a person question that keeps the last day asked.
+  const personCtx = !!ctx && (ctx.topic === 'person' || ctx.topic === 'dastperson') && !!ctx.day;
+  const dayText = (d) => Number(d.slice(8)) + ' ' + MON3[Number(d.slice(5, 7)) - 1].toLowerCase();
+  const carry = personCtx && n0.split(' ').length <= 12 && (has(n0, /\b(same|that) (date|day)\b/) || (!dayAsked(n0, today) && has(n0, /^(now|and|also|what about|how about|i asked|give me|show me|for)\b|\bi asked\b/)));
+  const followDay = !carry && !!(ctx && ctx.topic) && n0.split(' ').length <= 8 && !!dayAsked(n0, today) && !has(n0, /attendance|present|absent|dastarkhawan|visitor|expens|spend/);
+  const n = carry ? n0 + ' check in ' + dayText(ctx.day) : followDay ? (ctx.topic === 'dast' ? 'dastarkhawan ' : ctx.topic === 'person' || ctx.topic === 'dastperson' ? norm(ctx.who || '') + ' check in ' : 'attendance ') + n0 : n0;
   const nowY = Number(today.slice(0, 4));
   const nowM = Number(today.slice(5, 7));
   const om = user.role === 'om';
@@ -621,11 +637,18 @@ export async function opsbotAnswer(user, text, ctx = null) {
   if (has(n, /^(hi|hello|hey|salam|help)\b|who are you|how do i ask/)) {
     return { reply: om ? 'I am OpsBot. I answer from the data in OpsTrack. Ask about spending by office, head or month, the budget, year against year, cash in hand, advances, the expenses of one person ("Zubair expenses this month"), expenses in a stage ("rejected expenses"), attendance ("who is on duty today"), headcount, complaints, time-off requests, fuel refills, the team, visitors, or find an amount ("find 18376"). Name a month, a year, an office or a head. I only know what is in the app.' : 'I am OpsBot. I answer from the data in OpsTrack that you can open: your cash in hand, advances, expenses and visitors.', suggestions: sugg };
   }
+  const names = await resolveNames(n);
   const taskReply = await tasksTopic(user, n, today);
   if (taskReply) return { reply: taskReply, suggestions: [] };
-  const dastReply = await dastTopics(user, n, today);
+  const dastReply = await dastTopics(user, n, today, names);
   if (dastReply) return { reply: typeof dastReply === 'string' ? dastReply : dastReply.text, suggestions: [], ctx: typeof dastReply === 'string' ? { topic: 'dast' } : dastReply.ctx };
-  const extra = await extraTopics(user, n, nowY, nowM, today);
+  // Named an app user who is not an attendance employee or a Dastarkhawan member: say so rather than answer for someone else.
+  if (names.best && !names.dast.length && !names.staff.length && names.users.length && has(n, /check ?in|check ?out|attendance|present|absent|leave|pto|came|arriv|late|early|working|on duty|today|yesterday|same date|same day/) && !has(n, /expens|spend|spent|advance|cash|budget|task/)) {
+    const ROLE = { om: 'Sr. Ops Manager', sso: 'Sr. Support Officer', so: 'Support Officer' };
+    const u = names.users[0];
+    return { reply: u.name + ' is a user of the app (' + (ROLE[u.role] || u.role) + ') and is not on the attendance or the Dastarkhawan lists, so I have no check-in records for them.' + (can(user, 'tasks') ? ' I can show their tasks: ask "' + firstName(u.name) + ' tasks".' : ''), suggestions: [] };
+  }
+  const extra = await extraTopics(user, n, nowY, nowM, today, names);
   if (extra && typeof extra !== 'string') return { reply: extra.text, suggestions: [], ctx: extra.ctx };
   if (extra) return { reply: extra, suggestions: [], ...(has(n, /attendance|present|absent|on duty|on break|checked in|who is in today|staff in|employees in|who was (in|present|absent)|who came/) && !has(n, /visitor/) ? { ctx: { topic: 'attendance' } } : {}) };
   if (has(n, /visitor|inside now|who is in\b|who is inside/)) return { reply: await visitorsAnswer(user, n, nowY, nowM, today), suggestions: [] };
