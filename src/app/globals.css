@@ -2105,3 +2105,7 @@ table.dkg th .mo{display:block;font-size:8px;font-weight:700;line-height:1;text-
 /* Team table: the heading row stays in view just under the top bar while the page scrolls. */
 .tablewrap.dk-sticky{overflow:visible}
 .dk-sticky table thead th{position:sticky;top:var(--navh,0px);z-index:5;background:var(--card,#fff);box-shadow:inset 0 -2px 0 var(--gold)}
+
+/* Attendance grid, dark theme: numbers on the green / red cells stay white (the dark text-colour rules for .dka-t must not reach them). */
+html[data-theme=dark] table.dkg td.g,html[data-theme=dark] table.dkg td.r{color:#fff}
+html[data-theme=dark] table.dkg td.sum.g,html[data-theme=dark] table.dkg td.sum.r{font-weight:700}
