@@ -14,6 +14,7 @@ import { teamOf, TEAM_NAME, TEAM_SHORT, siteText } from './teams';
 import { syncDk } from './dk-sync';
 import { dkOvertime, OT_BLOCK_H, fmt12 } from './dk-hours';
 import { parseFigures, matchPerson } from './dk-paste';
+import { parsePattern, patternText } from './dk-rotation';
 
 const s = (fd, k) => String(fd.get(k) ?? '').trim();
 const ROOT = '/attendance/hk-roster';
@@ -335,6 +336,18 @@ export async function updateHkPerson(fd) {
       if (!(duty >= 1 && duty <= 24)) back(here, 'Duty hours a day must be between 1 and 24');
       if (duty === 8) await q(`DELETE FROM pc2_hk_settings WHERE key = $1`, ['dk_duty_' + id]);
       else await q(`INSERT INTO pc2_hk_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, ['dk_duty_' + id, String(duty)]);
+    }
+  }
+  // Site rotation of an incharge (only sent for people who work at several sites): on or off, the day 1 date and the pattern.
+  if (p.team === 'dast' && s(fd, 'rot_present')) {
+    if (s(fd, 'rot_on')) {
+      const start = s(fd, 'rot_start');
+      if (!dateOk(start)) back(here, 'Choose the date of day 1 of the rotation');
+      const parsed = parsePattern(s(fd, 'rot_pattern'), await siteList());
+      if (parsed.error) back(here, 'Rotation: ' + parsed.error);
+      await q(`INSERT INTO pc2_hk_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, ['dk_rot_' + id, JSON.stringify({ start, pattern: patternText(parsed.steps) })]);
+    } else {
+      await q(`DELETE FROM pc2_hk_settings WHERE key = $1`, ['dk_rot_' + id]);
     }
   }
   await logEvent(u, 'edit', 'hk_person', id, 'Updated ' + TEAM_SHORT[p.team] + ' team member: ' + name, null, null);

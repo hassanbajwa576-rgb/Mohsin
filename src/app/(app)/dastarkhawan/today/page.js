@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey } from '@/lib/att';
-import { hkPeople, dkToday, dkUnlinked, dkLinked, siteList, offToday, TLABEL } from '@/lib/roster';
+import { planFor } from '@/lib/dk-rotation';
+import { hkPeople, dkRotations, dkToday, dkUnlinked, dkLinked, siteList, offToday, TLABEL } from '@/lib/roster';
 import { syncDk, dkStatus } from '@/lib/dk-sync';
 import { q } from '@/lib/db';
 import DkPanel from '@/components/DkPanel';
@@ -28,6 +29,8 @@ export default async function DastarkhawanToday({ searchParams }) {
   const siteToday = Object.fromEntries(sd.map((x) => [x.person_id, x.site]));
   const off = await offToday(today, '', 'dast');
   const leaveToday = Object.fromEntries(off.map((o) => [o.staff_id, { label: TLABEL[o.kind] || o.kind, hours: o.hours }]));
+  const rots = await dkRotations();
+  const plans = Object.fromEntries(team.map((p) => [p.id, (planFor(rots.get(p.id), today) || {}).site]).filter((x) => x[1]));
   const unlinked = edit ? await dkUnlinked() : { people: [], staff: [] };
   const linked = edit ? await dkLinked() : [];
 
@@ -42,7 +45,7 @@ export default async function DastarkhawanToday({ searchParams }) {
       <Flash sp={sp} />
       <NavOffset />
       <AutoRefresh seconds={60} />
-      <DkPanel leaveToday={leaveToday} rows={rows} team={team} allSites={allSites} siteToday={siteToday} todayKey={today} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} canAll={user.role === 'om'} />
+      <DkPanel leaveToday={leaveToday} rows={rows} team={team} allSites={allSites} siteToday={siteToday} todayKey={today} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} canAll={user.role === 'om'} plans={plans} />
     </>
   );
 }

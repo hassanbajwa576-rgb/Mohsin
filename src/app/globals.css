@@ -2255,3 +2255,25 @@ table.dkg td.c.lv a{color:#fff}
   table.dkg td.sum{font-size:12px}
   table.dkg td.rn .otag{font-size:9px;padding:0 4px;margin-right:4px}
 }
+/* Site rotation: planned site on the Roster grid (same site colours as the tags), a hatched cell for a travel-only day. */
+table.rost td.rot{font-size:8.5px;font-weight:700;letter-spacing:0}
+table.rost td.rot-lhr{background:rgba(227,173,33,.30)}
+table.rost td.rot-isb{background:rgba(100,116,139,.30)}
+table.rost td.rot-oka{background:rgba(34,160,98,.28)}
+table.rost td.rot-apl{background:rgba(59,110,230,.28)}
+table.rost td.rot-tc0,table.rost td.rot-tc3{background:rgba(190,60,120,.25)}
+table.rost td.rot-tc1,table.rost td.rot-tc4{background:rgba(240,150,60,.28)}
+table.rost td.rot-tc2,table.rost td.rot-tc5{background:rgba(120,100,230,.26)}
+table.rost td.rot-t{background:repeating-linear-gradient(45deg,rgba(128,128,128,.30) 0 3px,transparent 3px 6px)}
+.rot-set{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:4px 0;flex:1 1 100%}
+.rot-set legend{font-size:12px;font-weight:700;padding:0 6px}
+.rot-set label{display:flex;flex-direction:column;gap:2px;font-size:12px}
+.rot-set label.rot-on{flex-direction:row;align-items:center;gap:6px}
+.rot-set label.rot-pat{flex:1 1 280px}
+.rot-set input[type=checkbox]{width:auto}
+/* Attendance grid, rotation: planned site code (faint), travel-only day (T), and an amber outline when the check-in was at another site than planned. */
+table.dkg td.c small.st.pl{opacity:.5;font-weight:600;margin-top:0;padding-bottom:0}
+table.dkg td.tv{background:repeating-linear-gradient(45deg,rgba(128,128,128,.30) 0 3px,transparent 3px 6px);color:var(--mut)}
+table.dkg td.pm{box-shadow:inset 0 0 0 2px #f59e0b}
+.dkg-legend i.tv{background:repeating-linear-gradient(45deg,#8a8f98 0 3px,#cfd2d8 3px 6px)}
+.dkg-legend i.pm{background:transparent;box-shadow:inset 0 0 0 2px #f59e0b}

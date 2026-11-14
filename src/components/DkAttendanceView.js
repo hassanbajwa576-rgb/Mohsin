@@ -22,7 +22,7 @@ function Kpi({ label, value, sub, tone }) {
   );
 }
 
-export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, from, to, custom, dates, siteDays, siteOpts, siteStats, multi, canAll = false, leaveDays = {}, leaveCount = {} }) {
+export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, from, to, custom, dates, siteDays, siteOpts, siteStats, multi, canAll = false, leaveDays = {}, leaveCount = {}, plan = {} }) {
   const qs = (o) => {
     const e = { ...(custom ? { from, to } : { m: month }), ...(view !== 'grid' ? { v: view } : {}), ...(who ? { who: String(who) } : {}), ...o };
     return new URLSearchParams(Object.entries(e).filter(([, x]) => x !== '')).toString();
@@ -144,6 +144,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                       {dates.map((key) => {
                         const d = by.get(key);
                         const lv = leaveDays[p.id + '|' + key];
+                        const pl = plan[p.id + '|' + key]; // where the rotation puts this person today (a site code, or T for a travel-only day)
                         const we = dow(key) === 0 || dow(key) === 6;
                         const site = multiSet.has(p.id) ? siteDays[p.id + '|' + key] : '';
                         let cls = '';
@@ -168,11 +169,18 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                           if (site) cls = 'sg';
                           if (key <= today) tip += ': no time. Click to add one.';
                         }
+                        // Rotation: planned site shown in the tip; a check-in at another site than planned gets an amber outline; a planned travel-only day with no time shows T.
+                        let mismatch = false;
+                        if (pl) {
+                          tip += '. Planned: ' + (pl === 'T' ? 'travel-only day' : pl);
+                          if (d && pl !== 'T' && site && site !== pl) { mismatch = true; tip += ' (was at ' + site + ')'; }
+                          if (!d && !lv && pl === 'T') { cls = 'tv'; txt = 'T'; }
+                        }
                         if (lv && d) tip += '. Also on leave' + (lv.hours != null ? ' for ' + lv.hours + ' h' : '') + ' (' + lv.label + ')';
                         if (lv && !d && lv.hours != null) tip += '. Leave for ' + lv.hours + ' h (' + lv.label + ')';
                         return (
-                          <td key={key} className={'c ' + cls + (we ? ' we' : '') + (d && d.manual ? ' man' : '')} title={tip}>
-                            {key <= today ? <Link href={'?' + qs({ p: String(p.id), d: key }) + '#addtime'}>{txt || (site ? '' : '\u00a0')}{site ? <small className='st'>{site}</small> : null}</Link> : null}
+                          <td key={key} className={'c ' + cls + (we ? ' we' : '') + (d && d.manual ? ' man' : '') + (mismatch ? ' pm' : '')} title={tip}>
+                            {key <= today ? <Link href={'?' + qs({ p: String(p.id), d: key }) + '#addtime'}>{txt || (site || (pl && pl !== 'T') ? '' : '\u00a0')}{site ? <small className='st'>{site}</small> : pl && pl !== 'T' && !d && !lv ? <small className='st pl'>{pl}</small> : null}</Link> : pl && pl !== 'T' ? <small className='st pl'>{pl}</small> : pl === 'T' ? <small className='st pl'>T</small> : null}
                           </td>
                         );
                       })}
@@ -191,6 +199,8 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
             <span><i className='g' />8 h or more</span>
             <span><i className='r' />under 8 h</span>
             <span><i className='lv' />L = on leave</span>
+            <span><i className='tv' />T = travel-only day (rotation)</span>
+            <span><i className='pm' />checked in at another site than planned</span>
             <span><i className='am' />no check out yet</span>
             <span><i className='man' />typed by hand</span>
             <span><i className='sg' />site only, no time</span>
@@ -289,7 +299,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
               <p className='muted' style={{ margin: '0 0 10px' }}>For people who work at several sites: the days {custom ? 'from ' + from + ' to ' + to : 'of ' + month} they spent at each site, as picked on the Overview (click a day and choose the site). {siteStats.some((r) => r.unset) ? 'Days they were present but no site was picked show under Not set.' : ''}</p>
               <div className='rostable'>
                 <table className='tx dka-sum'>
-                  <thead><tr><th>Team member</th>{siteOpts.map((c) => <th key={c}>{c}</th>)}<th>Days with a site</th><th>Not set</th></tr></thead>
+                  <thead><tr><th>Team member</th>{siteOpts.map((c) => <th key={c}>{c}</th>)}<th>Days with a site</th><th>Not set</th><th title='Travel-only days in the rotation'>Travel days (plan)</th></tr></thead>
                   <tbody>
                     {siteStats.map((r) => (
                       <tr key={r.id}>
@@ -297,7 +307,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                         {siteOpts.map((c) => (
                           <td key={c} className={'c-meta' + (c in r.counts ? '' : ' hide-m')}>
                             <small className='dklbl'>{c} </small>
-                            {c in r.counts ? <b className={'dka-days' + (r.counts[c] ? ' on' : '')}>{r.counts[c]}</b> : <span className='muted'>-</span>}
+                            {c in r.counts ? <b className={'dka-days' + (r.counts[c] ? ' on' : '')}>{r.counts[c]}</b> : <span className='muted'>-</span>}{r.plan && c in r.counts ? <small className='muted'> of {r.plan.counts[c] || 0} planned</small> : null}
                           </td>
                         ))}
                         <td className='c-meta'><small className='dklbl'>With a site </small><b>{r.set}</b></td>
@@ -305,6 +315,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                           <small className='dklbl'>Not set </small>
                           {r.unset ? <Link href={'?' + qs({ v: '', who: String(r.id) })} title='Open the Overview and click those days to pick the site'><span className='dka-pill warn'>{r.unset} day{r.unset === 1 ? '' : 's'}</span></Link> : <span className='muted'>-</span>}
                         </td>
+                        <td className='c-meta hide-m'>{r.plan ? <b>{r.plan.travel}</b> : <span className='muted'>-</span>}</td>
                       </tr>
                     ))}
                   </tbody>

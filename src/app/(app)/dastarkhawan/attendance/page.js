@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey } from '@/lib/att';
-import { monthOff, TLABEL, validMonth, shiftMonth, hkPeople, addDays, siteList } from '@/lib/roster';
+import { planFor, planCounts } from '@/lib/dk-rotation';
+import { dkRotations, monthOff, TLABEL, validMonth, shiftMonth, hkPeople, addDays, siteList } from '@/lib/roster';
 import { sortSites, siteTag, comparePeople, matchSite } from '@/lib/dk-sites';
 import { syncDk } from '@/lib/dk-sync';
 import { dkDayRows, dkOvertime, to24 } from '@/lib/dk-hours';
@@ -54,6 +55,13 @@ export default async function DastarkhawanAttendance({ searchParams }) {
     const auto = matchSite(r.app_site, knownSites);
     if (!siteDays[k] && auto) siteDays[k] = auto;
   }
+  // Where the rotation puts each incharge on each day of the range (only people who have a rotation).
+  const rots = await dkRotations();
+  const plan = {};
+  for (const t of team) {
+    const r = rots.get(t.id);
+    if (r) for (const d of dates) { const pf = planFor(r, d); if (pf) plan[t.id + '|' + d] = pf.site; }
+  }
   const multi = team.filter((t) => (t.sites || []).length > 1 && (!who || t.id === who));
   const siteOpts = sortSites([...new Set(team.filter((t) => (t.sites || []).length > 1).flatMap((t) => t.sites.map((x) => x.site)))]);
   const siteStats = [...multi].sort((a, b) => comparePeople({ name: a.name, codes: a.sites.map((x) => x.site) }, { name: b.name, codes: b.sites.map((x) => x.site) })).map((t) => {
@@ -61,7 +69,8 @@ export default async function DastarkhawanAttendance({ searchParams }) {
     const counts = Object.fromEntries(codes.map((c) => [c, 0]));
     for (const [k, site] of Object.entries(siteDays)) if (k.startsWith(t.id + '|') && site in counts) counts[site] += 1;
     const present = rows.filter((r) => r.person_id === t.id);
-    return { id: t.id, name: t.name, codes, counts, set: Object.values(counts).reduce((a, n) => a + n, 0), present: present.length, unset: present.filter((r) => !siteDays[t.id + '|' + r.day]).length };
+    const pc = rots.has(t.id) ? planCounts(rots.get(t.id), from, to) : null;
+    return { id: t.id, name: t.name, plan: pc, codes, counts, set: Object.values(counts).reduce((a, n) => a + n, 0), present: present.length, unset: present.filter((r) => !siteDays[t.id + '|' + r.day]).length };
   });
 
   // Approved time-off in the range: each day of it shows as Leave in the grid, so a person off that day is not read as absent.
@@ -99,5 +108,5 @@ export default async function DastarkhawanAttendance({ searchParams }) {
   const fix = team.some((p) => String(p.id) === String(sp.p)) && /^\d{4}-\d{2}-\d{2}$/.test(sp.d || '')
     ? { p: String(sp.p), d: sp.d, in: hit ? to24(hit.check_in) : '', out: hit ? to24(hit.check_out) : '', note: hit && hit.manual ? hit.note || '' : '', site: siteDays[sp.p + '|' + sp.d] || '' }
     : {};
-  return <DkAttendanceView leaveDays={leaveDays} leaveCount={leaveCount} canAll={user.role === 'om'} sp={sp} month={month} prev={shiftMonth(month, -1)} next={shiftMonth(month, 1)} who={who} team={team} people={people} om={om} convert={convertOvertime} save={saveDkTime} clear={clearDkTime} fix={fix} today={today} view={view} from={from} to={to} custom={custom} dates={dates} siteDays={siteDays} siteOpts={siteOpts} siteStats={siteStats} multi={multi.map((t) => t.id)} />;
+  return <DkAttendanceView plan={plan} leaveDays={leaveDays} leaveCount={leaveCount} canAll={user.role === 'om'} sp={sp} month={month} prev={shiftMonth(month, -1)} next={shiftMonth(month, 1)} who={who} team={team} people={people} om={om} convert={convertOvertime} save={saveDkTime} clear={clearDkTime} fix={fix} today={today} view={view} from={from} to={to} custom={custom} dates={dates} siteDays={siteDays} siteOpts={siteOpts} siteStats={siteStats} multi={multi.map((t) => t.id)} />;
 }
