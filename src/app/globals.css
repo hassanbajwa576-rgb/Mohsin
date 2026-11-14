@@ -2071,3 +2071,12 @@ html[data-theme=dark] .dka-days.on{color:#8db4ff}
 
 /* Roster, light theme: a stronger blue for PTO (L / P) so it stands out from the page. The dark theme has its own colours above. */
 html:not([data-theme=dark]) table.rost td.rk-pto,html:not([data-theme=dark]) .roslegend i.rk-pto,html:not([data-theme=dark]) table.rost td.rk-annual,html:not([data-theme=dark]) .roslegend i.rk-annual{background:#7fb0f0!important;color:#0b2a5b!important;font-weight:700}
+
+/* Roster time-frame bar: small controls so the whole bar fits on one line on wide screens (it wraps on narrower ones). */
+.rosnav{gap:6px}
+.rosnav .btn{display:inline-flex;align-items:center;padding:3px 9px;font-size:12px;min-height:28px;line-height:1.2;white-space:nowrap}
+.rosnav b{min-width:0;padding:0 4px;font-size:12.5px;white-space:nowrap}
+.rosrange{gap:6px;align-items:center;flex-wrap:nowrap}
+.rosrange label{flex-direction:row;align-items:center;gap:4px;font-size:12px;white-space:nowrap}
+.rosrange input[type=date]{min-height:28px;height:28px;width:112px;padding:2px 5px;font-size:11.5px}
+@media (max-width:999px){.rosrange{flex-wrap:wrap;margin-left:0}}
