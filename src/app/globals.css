@@ -2068,3 +2068,6 @@ table.dkg td.sg{background:#5a6a85;color:#fff}
 .dka-days{display:inline-block;min-width:26px;text-align:center;padding:2px 6px;border-radius:6px;background:rgba(128,128,128,.18)}
 .dka-days.on{background:rgba(47,111,219,.22);color:#1f4fa8}
 html[data-theme=dark] .dka-days.on{color:#8db4ff}
+
+/* Roster, light theme: a stronger blue for PTO (L / P) so it stands out from the page. The dark theme has its own colours above. */
+html:not([data-theme=dark]) table.rost td.rk-pto,html:not([data-theme=dark]) .roslegend i.rk-pto,html:not([data-theme=dark]) table.rost td.rk-annual,html:not([data-theme=dark]) .roslegend i.rk-annual{background:#7fb0f0!important;color:#0b2a5b!important;font-weight:700}
