@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
+import { dkDutyMap } from '@/lib/dk-hours';
 import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInDays, dkCheckedInDays, hkInactive, hkHistory } from '@/lib/roster';
 import { addTimeOff, deleteTimeOff, addHkPerson, updateHkPerson, decideTimeOff, addDkHoliday, removeDkHoliday } from '@/lib/roster-actions';
 import { DeactivateForm, InactiveCard } from '@/components/HkStatus';
@@ -66,6 +67,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
 
   const entries = await monthOff({ month, from, to, office, who, team: tm, site });
   const team = await hkPeople({ office, team: tm, site });
+  const dutyMap = dast ? await dkDutyMap() : new Map(); // people whose duty day is not the usual 8 hours
   const people = everyone ? await hkPeople({ office, who, team: tm, site }) : [];
   // Live link with attendance: on every day up to today, anyone who checked in (and has no time-off) shows W (worked).
   const checked = from <= today ? await checkedInDays(from, to < today ? to : today) : new Map();
@@ -345,6 +347,7 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                             <label>Phone<input name='phone' defaultValue={p.phone || ''} maxLength={30} /></label>
                             <label>Joining date<input type='date' name='joined' defaultValue={p.joined_on || ''} /></label>
                             <label>Birthday<input type='date' name='birthday' defaultValue={p.birthday || ''} /></label>
+                            {dast ? <label>Duty hours a day<input type='number' name='duty' min='1' max='24' step='0.5' defaultValue={(dutyMap.get(p.id) || 480) / 60} /></label> : null}
                             {dast ? <SiteMap sites={SITES} selected={p.sites} /> : null}
                             <button className='btn primary' type='submit'>Save</button>
                           </form>

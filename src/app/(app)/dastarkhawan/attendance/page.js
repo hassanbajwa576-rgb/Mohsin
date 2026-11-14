@@ -5,7 +5,7 @@ import { ATT_ROLES, todayKey } from '@/lib/att';
 import { monthOff, TLABEL, validMonth, shiftMonth, hkPeople, addDays, siteList } from '@/lib/roster';
 import { sortSites, siteTag, comparePeople, matchSite } from '@/lib/dk-sites';
 import { syncDk } from '@/lib/dk-sync';
-import { dkDayRows, dkOvertime, DUTY_MIN, to24 } from '@/lib/dk-hours';
+import { dkDayRows, dkOvertime, to24 } from '@/lib/dk-hours';
 import { q } from '@/lib/db';
 import { convertOvertime, saveDkTime, clearDkTime } from '@/lib/roster-actions';
 import DkAttendanceView from '@/components/DkAttendanceView';
@@ -89,8 +89,8 @@ export default async function DastarkhawanAttendance({ searchParams }) {
   const people = [...by.values()].map((p) => {
     const done = p.days.filter((d) => d.mins != null);
     const total = done.reduce((a, d) => a + d.mins, 0);
-    const over = done.reduce((a, d) => a + Math.max(0, d.mins - DUTY_MIN), 0);
-    const short = done.reduce((a, d) => a + Math.max(0, DUTY_MIN - d.mins), 0);
+    const over = done.reduce((a, d) => a + Math.max(0, d.mins - d.duty), 0);
+    const short = done.reduce((a, d) => a + Math.max(0, d.duty - d.mins), 0);
     return { ...p, site: siteOf.get(p.id) || p.site, codes: codesOf.get(p.id) || [], present: p.days.length, counted: done.length, total, over, short, bank: ot.get(p.id) || { earned: 0, used: 0, left: 0, days: 0 } };
   });
   people.sort(comparePeople);

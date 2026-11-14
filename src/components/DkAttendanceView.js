@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { hm, DUTY_MIN, OT_BLOCK_H } from '@/lib/dk-hours';
+import { hm, OT_BLOCK_H } from '@/lib/dk-hours';
 import Flash from '@/components/Flash';
 import ConfirmButton from '@/components/ConfirmButton';
 import DkPersonPicker from '@/components/DkPersonPicker';
@@ -43,7 +43,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
       <div className='head'>
         <div>
           <h1>Dastarkhawan Attendance</h1>
-          <p className='muted'>Duty hours per day from the facial attendance app (or typed in by hand). <b className='dka-t g'>Green</b> is 8 hours or more, <b className='dka-t r'>red</b> is under 8. Time beyond 8 hours is overtime; every {OT_BLOCK_H} overtime hours convert to 1 PTO day. Click a name to see check in and check out times.</p>
+          <p className='muted'>Duty hours per day from the facial attendance app (or typed in by hand). <b className='dka-t g'>Green</b> is a full duty day or more (8 hours, or the person's own duty hours), <b className='dka-t r'>red</b> is under it. Time beyond the duty hours is overtime; every {OT_BLOCK_H} overtime hours convert to 1 PTO day. Click a name to see check in and check out times.</p>
         </div>
         <DkRefresh back='attendance' canAll={canAll} from={from} to={to} />
       </div>
@@ -155,9 +155,9 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                             txt = '..';
                             tip += ': in ' + d.check_in + ', no check out yet';
                           } else {
-                            cls = d.mins >= DUTY_MIN ? 'g' : 'r';
+                            cls = d.mins >= d.duty ? 'g' : 'r';
                             txt = (d.mins / 60).toFixed(1);
-                            tip += ': ' + d.check_in + ' to ' + d.check_out + ' = ' + hm(d.mins) + (d.mins > DUTY_MIN ? ' (+' + hm(d.mins - DUTY_MIN) + ' overtime)' : '');
+                            tip += ': ' + d.check_in + ' to ' + d.check_out + ' = ' + hm(d.mins) + (d.mins > d.duty ? ' (+' + hm(d.mins - d.duty) + ' overtime)' : '');
                           }
                           tip += d.manual ? ' (typed by hand' + (d.note ? ': ' + d.note : '') + ')' : ' (facial app)';
                         } else if (lv && lv.hours == null) {
@@ -212,7 +212,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                 <span>Date</span><span>Check in &rarr; out</span><span>Duty time (line = 8 h)</span><span>Overtime</span><span>Source</span><span></span>
               </div>
               {p.days.map((d) => {
-                const tone = d.mins == null ? '' : d.mins >= DUTY_MIN ? 'g' : 'r';
+                const tone = d.mins == null ? '' : d.mins >= d.duty ? 'g' : 'r';
                 return (
                   <div key={d.day} className='dka-row'>
                     <span className='dka-date'><b>{d.day.slice(8)}</b> {DOW[dow(d.day)]}</span>
@@ -227,7 +227,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                         </>
                       )}
                     </span>
-                    <span className='dka-ot'>{d.mins != null && d.mins > DUTY_MIN ? <span className='dka-pill ok'>+{hm(d.mins - DUTY_MIN)}</span> : <span className='muted'>-</span>}</span>
+                    <span className='dka-ot'>{d.mins != null && d.mins > d.duty ? <span className='dka-pill ok'>+{hm(d.mins - d.duty)}</span> : <span className='muted'>-</span>}</span>
                     <span className='dka-src'>
                       <span className={'dka-pill' + (d.manual ? ' man' : '')}>{d.manual ? (d.app_in || d.app_out ? 'App + manual' : 'Manual') : 'Facial app'}</span>
                       {d.manual && d.note ? <small className='muted'>{d.note}</small> : null}

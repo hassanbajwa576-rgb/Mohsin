@@ -7,7 +7,7 @@ import { fundSummary, soAccount } from './queries';
 import { visitorRows, insideNow, VLABEL } from './visitors';
 import { FUNDS } from './fmt';
 import { hkPeople, dkToday, dkAllowDetail, offToday, usedByPerson, siteList, TLABEL } from './roster';
-import { dkDayRows, dkOvertime, hm, DUTY_MIN, OT_BLOCK_H } from './dk-hours';
+import { dkDayRows, dkOvertime, hm, OT_BLOCK_H } from './dk-hours';
 import { comparePeople, siteLabel, sortSites } from './dk-sites';
 import { taskPeople, taskRows, dueLabel } from './tasks';
 import { firstName } from './names';
@@ -508,8 +508,8 @@ async function dastTopics(user, n, today, found) {
     for (const p of matched.slice(0, 3)) {
       const rows = (await dkDayRows(monthFrom, today, p.id)).filter((r) => r.mins != null);
       const total = rows.reduce((a, r) => a + r.mins, 0);
-      const over = rows.reduce((a, r) => a + Math.max(0, r.mins - DUTY_MIN), 0);
-      const short = rows.reduce((a, r) => a + Math.max(0, DUTY_MIN - r.mins), 0);
+      const over = rows.reduce((a, r) => a + Math.max(0, r.mins - r.duty), 0);
+      const short = rows.reduce((a, r) => a + Math.max(0, r.duty - r.mins), 0);
       const t = inMap.get(p.id);
       const o = off.find((x) => x.staff_id === p.id);
       const dq = dayAsked(n, today);
@@ -537,7 +537,7 @@ async function dastTopics(user, n, today, found) {
     let tot = 0;
     for (const p of sorted) {
       const rows = (await dkDayRows(monthFrom, today, p.id)).filter((r) => r.mins != null);
-      const over = rows.reduce((a, r) => a + Math.max(0, r.mins - DUTY_MIN), 0);
+      const over = rows.reduce((a, r) => a + Math.max(0, r.mins - r.duty), 0);
       tot += over;
       const b = bank.get(p.id) || { left: 0, days: 0 };
       if (over || b.left) list.push({ txt: p.name + ': ' + hm(over) + ' in ' + monthName + ', ' + h1(b.left) + ' h available' + (b.days ? ' (= ' + b.days + ' PTO day' + (b.days === 1 ? '' : 's') + ')' : ''), over });

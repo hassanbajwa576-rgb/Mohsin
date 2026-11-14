@@ -329,6 +329,13 @@ export async function updateHkPerson(fd) {
     if (!mapped.length) back(here, 'Choose at least one site');
     await saveSites(id, mapped);
     await q('UPDATE pc2_hk_people SET site = $1 WHERE id = $2', [mapped[0].site, id]);
+    // Duty hours a day (8 is the usual day and is stored as nothing): overtime and short time are counted against this.
+    if (s(fd, 'duty') !== '') {
+      const duty = Number(s(fd, 'duty'));
+      if (!(duty >= 1 && duty <= 24)) back(here, 'Duty hours a day must be between 1 and 24');
+      if (duty === 8) await q(`DELETE FROM pc2_hk_settings WHERE key = $1`, ['dk_duty_' + id]);
+      else await q(`INSERT INTO pc2_hk_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, ['dk_duty_' + id, String(duty)]);
+    }
   }
   await logEvent(u, 'edit', 'hk_person', id, 'Updated ' + TEAM_SHORT[p.team] + ' team member: ' + name, null, null);
   back(here, name + ' updated', true);
