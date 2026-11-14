@@ -2,12 +2,13 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey } from '@/lib/att';
-import { hkPeople, dkToday, dkUnlinked, dkLinked, siteList } from '@/lib/roster';
+import { hkPeople, dkToday, dkUnlinked, dkLinked, siteList, offToday, TLABEL } from '@/lib/roster';
 import { syncDk, dkStatus } from '@/lib/dk-sync';
 import { q } from '@/lib/db';
 import DkPanel from '@/components/DkPanel';
 import Flash from '@/components/Flash';
 import NavOffset from '@/components/NavOffset';
+import AutoRefresh from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,13 +19,15 @@ export default async function DastarkhawanToday({ searchParams }) {
   const sp = await searchParams;
   const edit = can(user, 'dast_edit');
   const today = todayKey();
-  await syncDk();
+  await syncDk({ maxAgeMs: 60 * 1000 });
   const status = await dkStatus();
   const rows = await dkToday(today);
   const team = await hkPeople({ team: 'dast' });
   const allSites = await siteList();
   const sd = await q('SELECT person_id, site FROM pc2_dk_sitedays WHERE day = $1::date', [today]);
   const siteToday = Object.fromEntries(sd.map((x) => [x.person_id, x.site]));
+  const off = await offToday(today, '', 'dast');
+  const leaveToday = Object.fromEntries(off.map((o) => [o.staff_id, { label: TLABEL[o.kind] || o.kind, hours: o.hours }]));
   const unlinked = edit ? await dkUnlinked() : { people: [], staff: [] };
   const linked = edit ? await dkLinked() : [];
 
@@ -33,12 +36,13 @@ export default async function DastarkhawanToday({ searchParams }) {
       <div className='head'>
         <div>
           <h1>Today's board</h1>
-          <p className='muted'>Who of the Dastarkhawan team has checked in today, with the time they came and whether they are still on site.</p>
+          <p className='muted'>Who of the Dastarkhawan team has checked in today, with the time they came and whether they are still on site. People on approved leave show as On leave, and the board refreshes itself every minute.</p>
         </div>
       </div>
       <Flash sp={sp} />
       <NavOffset />
-      <DkPanel rows={rows} team={team} allSites={allSites} siteToday={siteToday} todayKey={today} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} />
+      <AutoRefresh seconds={60} />
+      <DkPanel leaveToday={leaveToday} rows={rows} team={team} allSites={allSites} siteToday={siteToday} todayKey={today} teamSize={team.length} status={status} unlinked={unlinked} linked={linked} edit={edit} />
     </>
   );
 }

@@ -19,10 +19,10 @@ const clean = (v) => String(v == null ? '' : v).trim();
 const dayKey = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(clean(d)) ? clean(d) : '');
 
 /** Pull the latest staff and attendance from the facial app. Skipped when done in the last 5 minutes (unless forced). Never throws. */
-export async function syncDk({ force = false } = {}) {
+export async function syncDk({ force = false, maxAgeMs = FRESH_MS } = {}) {
   try {
     const last = (await q('SELECT synced_at FROM pc2_dk_sync WHERE id = 1'))[0];
-    if (!force && last && last.synced_at && Date.now() - new Date(last.synced_at).getTime() < FRESH_MS) return { skipped: true };
+    if (!force && last && last.synced_at && Date.now() - new Date(last.synced_at).getTime() < maxAgeMs) return { skipped: true };
 
     const [staffRes, attRes] = await Promise.all([get('/api/state/attendance_contractors?lite=1'), get('/api/state/attendance_attendance?lite=1')]);
     const staff = staffRes.value || [];
