@@ -5,7 +5,7 @@ import DkRefresh from '@/components/DkRefresh';
 
 // Dastarkhawan: who has checked in today (from the facial attendance app), when the data was last updated,
 // and people not yet linked to their facial app record.
-export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}, leaveToday = {}, todayKey = '', teamSize, status, unlinked, linked = [], edit, canAll = false }) {
+export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}, leaveToday = {}, todayKey = '', teamSize, status, unlinked, linked = [], edit, canAll = false, plans = {} }) {
   const out = rows.filter((r) => r.check_out).length;
   const inNow = rows.length - out;
   // One line per team member, in site order (ISB, LHR, OKA, APL): when they came, when they left, and where they are now.
@@ -66,6 +66,13 @@ export default function DkPanel({ rows, team = [], allSites = [], siteToday = {}
                             </details>
                           ) : null}
                         </>
+                      ) : null}
+                      {plans[p.id] ? (
+                        t ? (
+                          plans[p.id] === 'T' ? <span className='dka-pill' title='The rotation has a travel-only day today'>plan: travel day</span>
+                            : at ? (at === plans[p.id] ? <span className='dka-pill ok' title='Checked in at the planned site'>as planned</span> : <span className='dka-pill warn' title={'The rotation plans ' + plans[p.id] + ' today'}>plan: {plans[p.id]}</span>)
+                              : <span className='dka-pill' title='The site of this check-in is not known'>plan: {plans[p.id]}</span>
+                        ) : <span className='dka-pill' title='From the site rotation'>{plans[p.id] === 'T' ? 'travel day' : 'expected ' + plans[p.id]}</span>
                       ) : null}
                     </td>
                     <td className='c-meta nw'><small className='dklbl'>In </small>{t ? t.check_in : <span className='muted'>-</span>}</td>

@@ -3,7 +3,10 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, allOffices, todayKey } from '@/lib/att';
-import { TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInDays, dkCheckedInDays, hkInactive, hkHistory } from '@/lib/roster';
+import { dkDutyMap } from '@/lib/dk-hours';
+import { planFor, DEFAULT_PATTERN } from '@/lib/dk-rotation';
+import { siteKey } from '@/components/OfficeTag';
+import { dkRotations, TYPES, TINFO, addDays, daysIn, validMonth, shiftMonth, monthOff, offToday, comingUp, pendingRequests, hkPeople, upcomingBirthdays, getSettings, holidaysBetween, siteList, WORKING, checkedInDays, dkCheckedInDays, hkInactive, hkHistory } from '@/lib/roster';
 import { addTimeOff, deleteTimeOff, addHkPerson, updateHkPerson, decideTimeOff, addDkHoliday, removeDkHoliday } from '@/lib/roster-actions';
 import { DeactivateForm, InactiveCard } from '@/components/HkStatus';
 import { applyHkDates } from '@/lib/hk-dates';
@@ -66,6 +69,8 @@ export default async function RosterPage({ searchParams, forceTeam }) {
 
   const entries = await monthOff({ month, from, to, office, who, team: tm, site });
   const team = await hkPeople({ office, team: tm, site });
+  const rots = dast ? await dkRotations() : new Map(); // incharges who rotate between sites
+  const dutyMap = dast ? await dkDutyMap() : new Map(); // people whose duty day is not the usual 8 hours
   const people = everyone ? await hkPeople({ office, who, team: tm, site }) : [];
   // Live link with attendance: on every day up to today, anyone who checked in (and has no time-off) shows W (worked).
   const checked = from <= today ? await checkedInDays(from, to < today ? to : today) : new Map();
@@ -206,12 +211,13 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                     const inApp = !!checked.get(key) && checked.get(key).has(lname);
                     const inDk = !!dkDays.get(key) && dkDays.get(key).has(lname);
                     const w = !t && key <= today && (inApp || inDk);
+                    const plan = !t ? planFor(rots.get(p.id), key) : null; // where the rotation puts this person that day
                     const src = inApp && inDk ? 'facial app and OpsTrack attendance' : inDk ? 'facial app' : 'OpsTrack attendance';
                     if (w) worked += 1;
                     if (t && e.hours == null) offDays += 1;
                     return (
-                      <td key={key} className={(wd(key) === 0 || wd(key) === 6 ? 'we ' : '') + (h && !t && !w ? 'hol ' : '') + (t ? 'rk-' + e.kind : w ? 'rk-w' : '')} style={t ? { background: t.color } : w ? { background: WORKING.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : w ? p.name + ': ' + WORKING.label + ', ' + shortDay(key) + (dast ? ' (from the ' + src + ')' : '') : h ? hol.get(key) : undefined}>
-                        {t ? (dast && e.kind === 'pto' ? 'L' : t.letter) : w ? WORKING.letter : dast && h ? 'H' : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
+                      <td key={key} className={(wd(key) === 0 || wd(key) === 6 ? 'we ' : '') + (h && !t && !w ? 'hol ' : '') + (t ? 'rk-' + e.kind : plan ? 'rot ' + (plan.site === 'T' ? 'rot-t' : 'rot-' + siteKey(plan.site)) : w ? 'rk-w' : '')} style={t ? { background: t.color } : plan ? undefined : w ? { background: WORKING.color } : undefined} title={e ? p.name + ': ' + t.label + ' ' + e.from_date + (e.to_date !== e.from_date ? ' to ' + e.to_date : '') + (e.note ? ' - ' + e.note : '') : plan ? p.name + ', ' + shortDay(key) + ': planned ' + (plan.site === 'T' ? 'travel-only day' : plan.site) + (w ? ' (checked in)' : '') : w ? p.name + ': ' + WORKING.label + ', ' + shortDay(key) + (dast ? ' (from the ' + src + ')' : '') : h ? hol.get(key) : undefined}>
+                        {t ? (dast && e.kind === 'pto' ? 'L' : t.letter) : plan ? plan.site : w ? WORKING.letter : dast && h ? 'H' : ''}{t && e.hours != null ? <small>{num(e.hours)}h</small> : null}
                       </td>
                     );
                   });
@@ -345,6 +351,16 @@ export default async function RosterPage({ searchParams, forceTeam }) {
                             <label>Phone<input name='phone' defaultValue={p.phone || ''} maxLength={30} /></label>
                             <label>Joining date<input type='date' name='joined' defaultValue={p.joined_on || ''} /></label>
                             <label>Birthday<input type='date' name='birthday' defaultValue={p.birthday || ''} /></label>
+                            {dast ? <label>Duty hours a day<input type='number' name='duty' min='1' max='24' step='0.5' defaultValue={(dutyMap.get(p.id) || 480) / 60} /></label> : null}
+                            {dast && (p.sites || []).length > 1 ? (
+                              <fieldset className='rot-set'>
+                                <legend>Site rotation</legend>
+                                <input type='hidden' name='rot_present' value='1' />
+                                <label className='rot-on'><input type='checkbox' name='rot_on' value='1' defaultChecked={rots.has(p.id)} /> Follow a rotation</label>
+                                <label>Day 1 is<input type='date' name='rot_start' defaultValue={rots.has(p.id) ? rots.get(p.id).start : today.slice(0, 7) + '-01'} /></label>
+                                <label className='rot-pat'>Pattern: site code and days, T = travel-only day<input name='rot_pattern' defaultValue={rots.has(p.id) ? rots.get(p.id).pattern : DEFAULT_PATTERN} maxLength={200} /></label>
+                              </fieldset>
+                            ) : null}
                             {dast ? <SiteMap sites={SITES} selected={p.sites} /> : null}
                             <button className='btn primary' type='submit'>Save</button>
                           </form>

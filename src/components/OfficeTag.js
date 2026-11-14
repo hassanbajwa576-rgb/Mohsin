@@ -5,6 +5,12 @@
 const KNOWN = ['lhr', 'isb', 'remote', 'apl', 'oka'];
 const hash = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7);
 
+/** The colour class of a site code (lhr, isb, apl, oka, or one of six spare colours): the same one OfficeTag uses. */
+export const siteKey = (o) => {
+  const key = String(o || '').trim().toLowerCase();
+  return KNOWN.includes(key) ? key : 'tc' + (hash(key) % 6);
+};
+
 // Small uppercase tag: an office (LHR gold, ISB slate) or a Dastarkhawan site (APL blue, OKA green, "N sites" teal...).
 export default function OfficeTag({ o }) {
   if (!o) return null;

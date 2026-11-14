@@ -1,5 +1,6 @@
 ﻿import 'server-only';
 import { q } from './db';
+import { parsePattern } from './dk-rotation';
 
 // Kinds of time-off a person can be given: [key, label, letter in the grid, colour].
 export const TYPES = [
@@ -139,6 +140,21 @@ export async function dkAllowDetail(year) {
     r.autoSum = r.auto.reduce((t, v) => t + (v || 0), 0);
     r.total = r.annual + r.monthly.reduce((t, v) => t + (v || 0), 0) + r.autoSum;
     r.sofar = r.annual + r.monthly.slice(0, upTo).reduce((t, v) => t + (v || 0), 0) + r.autoSum;
+  }
+  return out;
+}
+
+/** Site rotations of incharges: Map person id -> { start: 'YYYY-MM-DD', pattern: 'ISB 3, LHR 1, ...', steps }. Saved on the person's Edit form. */
+export async function dkRotations() {
+  const rows = await q(`SELECT key, value FROM pc2_hk_settings WHERE key LIKE 'dk\\_rot\\_%'`);
+  const out = new Map();
+  for (const r of rows) {
+    const id = Number(String(r.key).slice(7));
+    try {
+      const v = JSON.parse(r.value);
+      const { steps } = parsePattern(v.pattern);
+      if (Number.isInteger(id) && /^\d{4}-\d{2}-\d{2}$/.test(v.start || '') && steps.length) out.set(id, { start: v.start, pattern: v.pattern, steps });
+    } catch {}
   }
   return out;
 }
