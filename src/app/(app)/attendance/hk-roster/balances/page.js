@@ -162,9 +162,9 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
           <NavOffset />
           {team.length ? (
             <div className='tablewrap dk-sticky'>
-              <table className='tx dka-lv dkt'>
+              <table className='tx dka-lv dkt dkt-fit'>
                 <thead>
-                  <tr><th>Team member</th><th className='r'>Yearly / extra</th><th className='r'>Allowed in {year}</th><th className='r'>Given so far</th><th className='r'>Used</th><th className='r'>Left</th></tr>
+                  <tr><th>Team member</th><th className='r'>Yearly / extra</th><th className='r'>Allowed in {year}</th><th className='r hide-m'>Given so far</th><th className='r'>Used</th><th className='r'>Left</th></tr>
                 </thead>
                 <tbody>
                   {team.map((p) => {
@@ -189,7 +189,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                           ) : d && d.hasAnnual ? d1(d.annual) : 'None'}
                         </td>
                         <td className='r nw c-meta'>{cap == null ? 'Not set' : d1(cap)}{monthSum ? <small className='muted'> ({d1(monthSum)} by month)</small> : null}</td>
-                        <td className='r nw c-meta'>{sofar == null ? '-' : d1(sofar)}</td>
+                        <td className='r nw c-meta hide-m'>{sofar == null ? '-' : d1(sofar)}</td>
                         <td className='r nw c-meta'>{v ? d1(v) : '0'}{takenSum ? <small className='muted'> ({d1(takenSum)} by month)</small> : null}</td>
                         <td className='r nw'>{left == null ? <span className='muted'>-</span> : <b className={'lvb ' + lvTone(left)}>{left < 0 ? d1(-left) + ' over' : d1(left) + ' left'}</b>}</td>
                       </tr>
@@ -201,7 +201,7 @@ export default async function BalancesPage({ searchParams, forceTeam }) {
                     <td><b>Total</b></td>
                     <td></td>
                     <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((allow.get(p.id) || {}).total || 0), 0))}</b></td>
-                    <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((allow.get(p.id) || {}).sofar || 0), 0))}</b></td>
+                    <td className='r nw hide-m'><b>{d1(team.reduce((a, p) => a + ((allow.get(p.id) || {}).sofar || 0), 0))}</b></td>
                     <td className='r nw'><b>{d1(team.reduce((a, p) => a + ((used.get(p.id) || {}).pto || 0), 0))}</b></td>
                     <td className='r nw'><b>{(() => { const t = team.reduce((a, p) => a + (allow.get(p.id) ? allow.get(p.id).sofar - ((used.get(p.id) || {}).pto || 0) : 0), 0); return t < 0 ? d1(-t) + ' over' : d1(t); })()}</b></td>
                   </tr>

@@ -2160,7 +2160,6 @@ html[data-theme=dark] .lvb.bad{background:rgba(239,68,68,.30);color:#ffb4b4;font
   table.dkt td::before{display:none}
   table.dkt td.c-meta ~ td.c-meta::before{display:none}
   table.dkt .dklbl{display:none}
-  table.dkt td.hide-m,table.dkt th.hide-m{display:table-cell}
   table.dkt td:empty{display:table-cell}
   table.dkt th{background:var(--gold)!important;color:#000!important;font-size:9.5px!important;letter-spacing:0!important;white-space:normal;line-height:1.15}
   table.dkt td:first-child,table.dkt th:first-child{position:sticky;left:0;z-index:1;min-width:118px;max-width:132px;white-space:normal;background:var(--card,#fff);line-height:1.2}
@@ -2171,10 +2170,49 @@ html[data-theme=dark] .lvb.bad{background:rgba(239,68,68,.30);color:#ffb4b4;font
   table.dkt td:first-child{font-size:11px!important}
   table.dka-lv.dkt th:not(:first-child){max-width:58px}
 }
-html[data-theme=dark] table.dkt td:first-child{background:#151514}
+@media (max-width:720px){
+  html[data-theme=dark] table.dkt tbody td:first-child{background:#151514}
+  table.dkt tfoot td:first-child{background:#f8e7b0}
+  html[data-theme=dark] table.dkt tfoot td:first-child{background:var(--tint)}
+}
 @media (max-width:720px){
   table.dka-lv.dkt th,table.dka-lv.dkt td{padding:5px 4px!important}
   table.dka-lv.dkt td:first-child,table.dka-lv.dkt th:first-child{min-width:92px;max-width:98px}
   table.dka-lv.dkt td small.muted{display:none}
   table.dka-lv.dkt th:not(:first-child){max-width:62px}
+}
+@media (max-width:720px){
+  /* These tables fit the screen, so the page (not the table box) scrolls and the heading row can stay under the top bar. */
+  .tablewrap:has(table.dkt-fit){overflow-x:clip;overflow-y:visible}
+  table.dkt th:first-child{top:var(--navh,0px)}
+  table.dka-lv.dkt input[type=number]{width:52px!important;min-width:0;height:30px;min-height:30px;padding:2px 4px;font-size:12px}
+  table.dka-lv.dkt .btn{padding:3px 8px;min-height:30px;font-size:11px}
+  table.dka-lv.dkt form.inline{gap:4px!important}
+}
+@media (max-width:720px){
+  .card:has(table.dkt-fit){padding:10px 6px}
+  table.dka-lv.dkt td:first-child,table.dka-lv.dkt th:first-child{min-width:80px;max-width:86px}
+  table.dka-lv.dkt input[type=number]{width:44px!important}
+  table.dka-lv.dkt .btn{padding:3px 6px}
+  table.dka-lv.dkt th:not(:first-child){max-width:54px}
+  table.dka-lv.dkt th,table.dka-lv.dkt td{padding:5px 3px!important}
+}
+@media (max-width:720px){
+  table.dkt-fit td.c-meta .dka-pill{font-size:9.5px;padding:1px 5px}
+  table.dkt:not(.dka-lv) th,table.dkt:not(.dka-lv) td{padding:5px 3px!important}
+  table.dkt:not(.dka-lv) td:first-child,table.dkt:not(.dka-lv) th:first-child{min-width:104px;max-width:110px}
+  table.dka-lv.dkt input[type=number]{width:43px!important}
+}
+@media (max-width:720px){
+  .tablewrap table.dkt tfoot{display:table-footer-group;width:auto}
+  .tablewrap table.dkt tfoot tr{display:table-row;width:auto;padding:0;margin:0;border:0;border-radius:0}
+  .tablewrap table.dkt tfoot td{display:table-cell;border-top:2px solid var(--gold);border-bottom:0}
+}
+@media (max-width:720px){
+  .tablewrap table.dkt tfoot td.hide-m{display:none}
+  table.dka-lv.dkt input[type=number]{font-size:11px!important;padding:2px 3px}
+}
+@media (max-width:720px){
+  table.dka-lv.dkt input[type=number]{-moz-appearance:textfield;appearance:textfield}
+  table.dka-lv.dkt input[type=number]::-webkit-inner-spin-button,table.dka-lv.dkt input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 }
