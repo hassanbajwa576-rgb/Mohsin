@@ -2228,3 +2228,7 @@ html[data-theme=dark] .lvb.bad{background:rgba(239,68,68,.30);color:#ffb4b4;font
 .dkr-range input{min-height:34px}
 @media (max-width:720px){.dkr{width:100%}.dkr-main{width:100%}.dkr-main>.btn{flex:1}.dkr-pop{left:0;right:0}}
 .dkr-main .btn,.dkr-more>summary{min-height:38px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
+/* Attendance grid: a day on approved leave shows L (blue). */
+table.dkg td.c.lv,table.dkg td.c.lv.we{background:#3f6fb5!important;color:#fff}
+table.dkg td.c.lv a{color:#fff}
+.dkg-legend i.lv{background:#3f6fb5}

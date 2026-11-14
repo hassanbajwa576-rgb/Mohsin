@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/perms';
 import { ATT_ROLES, todayKey } from '@/lib/att';
-import { validMonth, shiftMonth, hkPeople, addDays, siteList } from '@/lib/roster';
+import { monthOff, TLABEL, validMonth, shiftMonth, hkPeople, addDays, siteList } from '@/lib/roster';
 import { sortSites, siteTag, comparePeople, matchSite } from '@/lib/dk-sites';
 import { syncDk } from '@/lib/dk-sync';
 import { dkDayRows, dkOvertime, DUTY_MIN, to24 } from '@/lib/dk-hours';
@@ -64,7 +64,20 @@ export default async function DastarkhawanAttendance({ searchParams }) {
     return { id: t.id, name: t.name, codes, counts, set: Object.values(counts).reduce((a, n) => a + n, 0), present: present.length, unset: present.filter((r) => !siteDays[t.id + '|' + r.day]).length };
   });
 
+  // Approved time-off in the range: each day of it shows as Leave in the grid, so a person off that day is not read as absent.
+  const offRows = await monthOff({ from, to, team: 'dast', who: '' });
+  const leaveDays = {};
+  const leaveCount = {};
+  for (const o of offRows) {
+    if (who && o.staff_id !== who) continue;
+    for (let d = o.from_date < from ? from : o.from_date; d <= o.to_date && d <= to; d = addDays(d, 1)) {
+      const k = o.staff_id + '|' + d;
+      if (!leaveDays[k]) { leaveDays[k] = { label: TLABEL[o.kind] || o.kind, hours: o.hours }; if (o.hours == null) leaveCount[o.staff_id] = (leaveCount[o.staff_id] || 0) + 1; }
+    }
+  }
   const by = new Map();
+  // People off in this range show even when they have no check-in.
+  for (const t of team) if (leaveCount[t.id] && (!who || t.id === who)) by.set(t.id, { id: t.id, name: t.name, site: '', days: [] });
   for (const r of rows) {
     if (!by.has(r.person_id)) by.set(r.person_id, { id: r.person_id, name: r.name, site: r.site || '', days: [] });
     by.get(r.person_id).days.push(r);
@@ -86,5 +99,5 @@ export default async function DastarkhawanAttendance({ searchParams }) {
   const fix = team.some((p) => String(p.id) === String(sp.p)) && /^\d{4}-\d{2}-\d{2}$/.test(sp.d || '')
     ? { p: String(sp.p), d: sp.d, in: hit ? to24(hit.check_in) : '', out: hit ? to24(hit.check_out) : '', note: hit && hit.manual ? hit.note || '' : '', site: siteDays[sp.p + '|' + sp.d] || '' }
     : {};
-  return <DkAttendanceView canAll={user.role === 'om'} sp={sp} month={month} prev={shiftMonth(month, -1)} next={shiftMonth(month, 1)} who={who} team={team} people={people} om={om} convert={convertOvertime} save={saveDkTime} clear={clearDkTime} fix={fix} today={today} view={view} from={from} to={to} custom={custom} dates={dates} siteDays={siteDays} siteOpts={siteOpts} siteStats={siteStats} multi={multi.map((t) => t.id)} />;
+  return <DkAttendanceView leaveDays={leaveDays} leaveCount={leaveCount} canAll={user.role === 'om'} sp={sp} month={month} prev={shiftMonth(month, -1)} next={shiftMonth(month, 1)} who={who} team={team} people={people} om={om} convert={convertOvertime} save={saveDkTime} clear={clearDkTime} fix={fix} today={today} view={view} from={from} to={to} custom={custom} dates={dates} siteDays={siteDays} siteOpts={siteOpts} siteStats={siteStats} multi={multi.map((t) => t.id)} />;
 }

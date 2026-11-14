@@ -22,7 +22,7 @@ function Kpi({ label, value, sub, tone }) {
   );
 }
 
-export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, from, to, custom, dates, siteDays, siteOpts, siteStats, multi, canAll = false }) {
+export default function DkAttendanceView({ sp, month, prev, next, who, team, people, om, convert, save, clear, fix, today, view, from, to, custom, dates, siteDays, siteOpts, siteStats, multi, canAll = false, leaveDays = {}, leaveCount = {} }) {
   const qs = (o) => {
     const e = { ...(custom ? { from, to } : { m: month }), ...(view !== 'grid' ? { v: view } : {}), ...(who ? { who: String(who) } : {}), ...o };
     return new URLSearchParams(Object.entries(e).filter(([, x]) => x !== '')).toString();
@@ -126,6 +126,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                   <th className='rn'>Team member</th>
                   {dates.map((key) => <th key={key} title={DOW[dow(key)] + ' ' + key.slice(8)} className={(dow(key) === 0 || dow(key) === 6 ? 'we ' : '') + (key === today ? 'tod' : '')}>{custom && (key === dates[0] || key.slice(8) === '01') ? <span className='mo'>{MON[Number(key.slice(5, 7)) - 1]}</span> : null}{Number(key.slice(8))}<small>{DOW1[dow(key)]}</small></th>)}
                   <th className='sum' title='Days with a check in'>Days</th>
+                  <th className='sum' title='Full days of approved leave'>Leave</th>
                   <th className='sum' title='Total duty time'>Total</th>
                   <th className='sum' title='Overtime (time beyond 8 hours a day)'>OT</th>
                   <th className='sum' title='Short (time under 8 hours a day)'>Short</th>
@@ -142,6 +143,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                       </td>
                       {dates.map((key) => {
                         const d = by.get(key);
+                        const lv = leaveDays[p.id + '|' + key];
                         const we = dow(key) === 0 || dow(key) === 6;
                         const site = multiSet.has(p.id) ? siteDays[p.id + '|' + key] : '';
                         let cls = '';
@@ -158,10 +160,16 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                             tip += ': ' + d.check_in + ' to ' + d.check_out + ' = ' + hm(d.mins) + (d.mins > DUTY_MIN ? ' (+' + hm(d.mins - DUTY_MIN) + ' overtime)' : '');
                           }
                           tip += d.manual ? ' (typed by hand' + (d.note ? ': ' + d.note : '') + ')' : ' (facial app)';
+                        } else if (lv && lv.hours == null) {
+                          cls = 'lv';
+                          txt = 'L';
+                          tip += ': on leave (' + lv.label + ')';
                         } else {
                           if (site) cls = 'sg';
                           if (key <= today) tip += ': no time. Click to add one.';
                         }
+                        if (lv && d) tip += '. Also on leave' + (lv.hours != null ? ' for ' + lv.hours + ' h' : '') + ' (' + lv.label + ')';
+                        if (lv && !d && lv.hours != null) tip += '. Leave for ' + lv.hours + ' h (' + lv.label + ')';
                         return (
                           <td key={key} className={'c ' + cls + (we ? ' we' : '') + (d && d.manual ? ' man' : '')} title={tip}>
                             {key <= today ? <Link href={'?' + qs({ p: String(p.id), d: key }) + '#addtime'}>{txt || (site ? '' : '\u00a0')}{site ? <small className='st'>{site}</small> : null}</Link> : null}
@@ -169,6 +177,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
                         );
                       })}
                       <td className='sum'>{p.present || '-'}</td>
+                      <td className='sum'>{leaveCount[p.id] || '-'}</td>
                       <td className='sum'>{p.total ? h1(p.total / 60) : '-'}</td>
                       <td className={'sum' + (p.over ? ' dka-t g' : '')}>{p.over ? h1(p.over / 60) : '-'}</td>
                       <td className={'sum' + (p.short ? ' dka-t r' : '')}>{p.short ? h1(p.short / 60) : '-'}</td>
@@ -181,6 +190,7 @@ export default function DkAttendanceView({ sp, month, prev, next, who, team, peo
           <div className='dkg-legend'>
             <span><i className='g' />8 h or more</span>
             <span><i className='r' />under 8 h</span>
+            <span><i className='lv' />L = on leave</span>
             <span><i className='am' />no check out yet</span>
             <span><i className='man' />typed by hand</span>
             <span><i className='sg' />site only, no time</span>
